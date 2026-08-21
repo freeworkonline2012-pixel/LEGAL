@@ -6,6 +6,7 @@ import { ArticleVersion } from '../database/entities/article-version.entity';
 import { Law } from '../database/entities/law.entity';
 import { VoyageEmbeddingsService, toPgVectorLiteral } from '../llm/voyage-embeddings.service';
 import { cleanText } from './normalize';
+import { DOMAIN_KEYS } from '../database/entities/domain-key';
 
 export interface IngestionArticleInput {
   article_no: number;
@@ -37,14 +38,15 @@ export interface IngestionSummary {
   articles_skipped: number;
 }
 
-const VALID_CATEGORIES = new Set([
-  'labor',
-  'rent',
-  'personal_status',
-  'traffic',
-  'consumer_protection',
-  'other',
-]);
+// T-VOCAB-1: مصدر واحد للمفردات (DOMAIN_KEYS) بدل قائمة مكررة — كانت هذه
+// المجموعة (Set) نسخة يدوية منفصلة عن DomainKey لم تتضمن 'insurance' رغم
+// إضافتها لقيد قاعدة البيانات فى 2026-08-21 (EP-05). كان لهذا أثر وظيفي
+// خطير وصامت: coerceCategory() أدناه تُسقط أي فئة غير موجودة فى هذه
+// المجموعة إلى 'other' بلا أي تحذير أو خطأ — فلو استُخدم خط
+// IngestionService.importLaws() لاستيراد قانون تأميني عبر JSON (بدل SQL
+// خام كما حدث فعلياً لقانون 155/2024)، لكان صُنِّف خطأً كـ 'other' دون أن
+// يلاحظ أحد ذلك. إعادة استخدام DOMAIN_KEYS هنا يمنع تكرار هذا الخطأ.
+const VALID_CATEGORIES = new Set<string>(DOMAIN_KEYS);
 
 const VALID_STATUSES = new Set(['in_force', 'amended', 'repealed']);
 

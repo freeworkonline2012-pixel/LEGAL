@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DOMAIN_KEYS } from '../../database/entities/domain-key';
 
 export class LawResponseDto {
   @ApiProperty({ example: '3b9b9a5e-8c1c-4f0d-9f2a-123456789abc' })
@@ -18,7 +19,8 @@ export class LawResponseDto {
 
   @ApiProperty({
     example: 'labor',
-    enum: ['labor', 'rent', 'personal_status', 'traffic', 'consumer_protection', 'other'],
+    // T-VOCAB-1: مصدر واحد للمفردات (DOMAIN_KEYS) — راجع التعليق فى create-law.dto.ts
+    enum: DOMAIN_KEYS,
   })
   category: string;
 

@@ -10,15 +10,14 @@ import {
   Min,
 } from 'class-validator';
 import type { LawCategory } from '../../database/entities/law.entity';
+import { DOMAIN_KEYS } from '../../database/entities/domain-key';
 
-const LAW_CATEGORIES = [
-  'labor',
-  'rent',
-  'personal_status',
-  'traffic',
-  'consumer_protection',
-  'other',
-] as const;
+// T-VOCAB-1: مصدر واحد للمفردات (DOMAIN_KEYS) بدل قائمة مكررة هنا — كانت
+// هذه القائمة نسخة يدوية منفصلة نسيت إضافة 'insurance' إليها رغم إضافتها
+// لـ DomainKey وقيد قاعدة البيانات فى 2026-08-21 (EP-05)، وهي بالضبط فجوة
+// النوع (type safety gap) التى اكتُشفت فى مراجعة ما بعد الإطلاق — إعادة
+// استخدام DOMAIN_KEYS هنا يمنع تكرار هذا الخطأ مستقبلاً.
+const LAW_CATEGORIES = DOMAIN_KEYS;
 
 const LAW_STATUSES = ['in_force', 'amended', 'repealed'] as const;
 

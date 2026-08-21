@@ -9,15 +9,10 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { DOMAIN_KEYS } from '../../database/entities/domain-key';
 
-const LAW_CATEGORIES = [
-  'labor',
-  'rent',
-  'personal_status',
-  'traffic',
-  'consumer_protection',
-  'other',
-] as const;
+// T-VOCAB-1: مصدر واحد للمفردات (DOMAIN_KEYS) — راجع التعليق فى create-law.dto.ts
+const LAW_CATEGORIES = DOMAIN_KEYS;
 
 const LAW_STATUSES = ['in_force', 'amended', 'repealed'] as const;
 
