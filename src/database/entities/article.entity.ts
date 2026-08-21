@@ -39,9 +39,12 @@ export class Article {
   plainSummary: string | null;
 
   /**
-   * عمود embeddings موجود في قاعدة البيانات (vector(1536) — انظر 001_init.sql)
-   * لكنه غير مرفوع في كيان TypeORM لتجنّب الاعتماد على نوع vector غير معروف
-   * خارجياً؛ يُدار من طبقة الفهرسة (backend/indexing) عند توفر مزوّد embeddings.
+   * عمود embeddings موجود في قاعدة البيانات (كان vector(1536) في 001_init.sql؛
+   * غُيِّر إلى vector(1024) في migrations/002_embeddings_dimension.sql ليطابق
+   * أبعاد مخرجات Voyage AI — انظر llm/voyage-embeddings.service.ts). يبقى غير
+   * مرفوع عمداً في كيان TypeORM لتجنّب الاعتماد على نوع vector غير معروف
+   * خارجياً؛ يُدار عبر استعلامات SQL مباشرة (raw) في IngestionService
+   * (الكتابة) وQuestionsService (البحث الدلالي) بدل هذا الكيان.
    */
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

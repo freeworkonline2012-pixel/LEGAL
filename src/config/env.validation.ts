@@ -66,6 +66,26 @@ export class EnvironmentVariables {
   @IsNumber()
   @Min(1)
   THROTTLE_LIMIT: number = 100;
+
+  // ===== EP-04 — تفعيل الذكاء الاصطناعي (2026-08-21) =====
+  // كلاهما اختياري عمداً: بلا قيمة، تتدهور الخدمتان بأمان (Graceful
+  // Degradation — راجع llm/voyage-embeddings.service.ts وllm/anthropic-generation.service.ts)
+  // ويستمر النظام بسلوك MVP القديم (FTS + قالب) دون أي كسر أو رفض إقلاع.
+  @IsOptional()
+  @IsString()
+  ANTHROPIC_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  ANTHROPIC_MODEL?: string;
+
+  @IsOptional()
+  @IsString()
+  VOYAGE_API_KEY?: string;
+
+  @IsOptional()
+  @IsString()
+  VOYAGE_EMBEDDING_MODEL?: string;
 }
 
 export function validate(config: Record<string, unknown>): EnvironmentVariables {

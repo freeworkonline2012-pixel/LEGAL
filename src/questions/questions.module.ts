@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
+import { LlmModule } from '../llm/llm.module';
 import { Answer } from '../database/entities/answer.entity';
 import { Citation } from '../database/entities/citation.entity';
 import { Feedback } from '../database/entities/feedback.entity';
@@ -13,6 +14,7 @@ import { QuestionsService } from './questions.service';
     // forFeature تُسجّل metadata الكيانات حتى يعمل dataSource.getRepository(...)
     TypeOrmModule.forFeature([Question, Answer, Citation, Feedback]),
     AuditModule,
+    LlmModule,
   ],
   controllers: [QuestionsController],
   providers: [QuestionsService],

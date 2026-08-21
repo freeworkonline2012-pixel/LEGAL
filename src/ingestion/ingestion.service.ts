@@ -4,6 +4,7 @@ import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Article } from '../database/entities/article.entity';
 import { ArticleVersion } from '../database/entities/article-version.entity';
 import { Law } from '../database/entities/law.entity';
+import { VoyageEmbeddingsService, toPgVectorLiteral } from '../llm/voyage-embeddings.service';
 import { cleanText } from './normalize';
 
 export interface IngestionArticleInput {
@@ -56,7 +57,41 @@ const VALID_STATUSES = new Set(['in_force', 'amended', 'repealed']);
 export class IngestionService {
   private readonly logger = new Logger(IngestionService.name);
 
-  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
+  constructor(
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly embeddingsService: VoyageEmbeddingsService,
+  ) {}
+
+  /**
+   * EP-04: يحسب ويخزّن embedding نص المادة (Voyage) عند توفر VOYAGE_API_KEY.
+   * بلا مفتاح، isConfigured=false ولا يُنفَّذ أي استدعاء شبكة — الاستيراد يستمر
+   * بلا embeddings تماماً كما كان قبل هذا التغيير (تدهور آمن). يُستدعى خارج
+   * معاملة SQL الرئيسية عمداً (استدعاء شبكي بطيء نسبياً لا يجب أن يطيل قفل
+   * المعاملة)، وبتحديث مباشر (raw SQL) بدل كيان TypeORM لأن عمود embedding غير
+   * مرفوع في Article entity عمداً (راجع تعليق article.entity.ts).
+   */
+  private async indexArticleEmbedding(articleId: string, text: string): Promise<void> {
+    if (!this.embeddingsService.isConfigured) {
+      return;
+    }
+    try {
+      const embedding = await this.embeddingsService.embedDocuments([text]);
+      const vector = embedding?.[0];
+      if (!vector) {
+        return;
+      }
+      await this.dataSource.query('UPDATE articles SET embedding = $1::vector WHERE id = $2', [
+        toPgVectorLiteral(vector),
+        articleId,
+      ]);
+    } catch (err) {
+      // فشل الفهرسة الدلالية لا يجب أن يُسقط الاستيراد نفسه — المادة تبقى
+      // مخزَّنة وقابلة للاسترجاع عبر FTS كالمعتاد، فقط بلا استرجاع دلالي لها.
+      this.logger.warn(
+        `embedding indexing failed for article ${articleId}: ${(err as Error).message}`,
+      );
+    }
+  }
 
   async importLaws(payloads: IngestionLawInput[]): Promise<IngestionSummary> {
     const summary: IngestionSummary = {
@@ -66,11 +101,22 @@ export class IngestionService {
       articles_updated: 0,
       articles_skipped: 0,
     };
+    // EP-04: مواد جديدة/مُحدَّثة تحتاج (إعادة) فهرسة دلالية — تُجمَّع أثناء
+    // المعاملة وتُفهرَس بعد اعتمادها (commit) عمداً؛ استدعاء شبكي (Voyage) داخل
+    // معاملة قاعدة بيانات مفتوحة يطيل قفلها بلا داعٍ.
+    const pendingEmbeddings: Array<{ articleId: string; body: string }> = [];
 
     for (const payload of payloads) {
       await this.dataSource.transaction(async (manager) => {
-        await this.importLaw(manager, payload, summary);
+        await this.importLaw(manager, payload, summary, pendingEmbeddings);
       });
+    }
+
+    if (pendingEmbeddings.length > 0 && this.embeddingsService.isConfigured) {
+      this.logger.log(`indexing embeddings for ${pendingEmbeddings.length} article(s)...`);
+      for (const item of pendingEmbeddings) {
+        await this.indexArticleEmbedding(item.articleId, item.body);
+      }
     }
 
     this.logger.log(`ingestion finished: ${JSON.stringify(summary)}`);
@@ -81,6 +127,7 @@ export class IngestionService {
     manager: EntityManager,
     payload: IngestionLawInput,
     summary: IngestionSummary,
+    pendingEmbeddings: Array<{ articleId: string; body: string }>,
   ): Promise<void> {
     const lawRepo = manager.getRepository(Law);
     const articleRepo = manager.getRepository(Article);
@@ -110,7 +157,7 @@ export class IngestionService {
     }
 
     for (const articleInput of payload.articles) {
-      await this.importArticle(law, articleInput, articleRepo, versionRepo, summary);
+      await this.importArticle(law, articleInput, articleRepo, versionRepo, summary, pendingEmbeddings);
     }
   }
 
@@ -120,6 +167,7 @@ export class IngestionService {
     articleRepo: Repository<Article>,
     versionRepo: Repository<ArticleVersion>,
     summary: IngestionSummary,
+    pendingEmbeddings: Array<{ articleId: string; body: string }>,
   ): Promise<void> {
     const body = cleanText(input.body);
     const existing = await articleRepo.findOne({
@@ -149,6 +197,7 @@ export class IngestionService {
         amendedByLawYear: null,
         changeNote: null,
       });
+      pendingEmbeddings.push({ articleId: savedArticle.id, body });
       summary.articles_created += 1;
       return;
     }
@@ -197,6 +246,7 @@ export class IngestionService {
 
     existing.body = body;
     await articleRepo.save(existing);
+    pendingEmbeddings.push({ articleId: existing.id, body });
     summary.articles_updated += 1;
   }
 

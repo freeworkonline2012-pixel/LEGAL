@@ -2,6 +2,8 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
+import { AnthropicGenerationService } from '../llm/anthropic-generation.service';
+import { VoyageEmbeddingsService, toPgVectorLiteral } from '../llm/voyage-embeddings.service';
 import { Answer } from '../database/entities/answer.entity';
 import { Article } from '../database/entities/article.entity';
 import { ArticleVersion } from '../database/entities/article-version.entity';
@@ -30,6 +32,15 @@ import type { ArticleReference } from './retrieval';
 export const REFUSED_ANSWER_TEXT = 'لا تتوفر معلومة موثقة كافية للإجابة بدقة.';
 
 const MODEL_VERSION = 'backend-mvp-retrieval-v1';
+// EP-04: يُسجَّل بدل MODEL_VERSION في audit_logs/answers.model_version عندما
+// تُصاغ الإجابة فعلياً عبر Claude (وليس القالب الجاهز) — يتيح تمييز الإجابات
+// "المولَّدة" عن "القالب" لاحقاً في مراجعة Golden Test Set.
+const MODEL_VERSION_LLM = 'backend-grounded-llm-v1';
+// عتبة ثقة الاسترجاع الدلالي (Voyage) — منفصلة عن REFUSAL_THRESHOLD الخاصة
+// بـ FTS لأن مقياس تشابه جيب التمام (cosine similarity) له توزيع مختلف عن
+// ts_rank. قيمة مبدئية متحفظة؛ يجب معايرتها فعلياً على Golden Test Set قبل
+// اعتمادها كنهائية — لا تُعامَل كرقماً محسوماً.
+const SEMANTIC_CONFIDENCE_THRESHOLD = 0.75;
 
 export interface AskContext {
   userId: string | null;
@@ -70,6 +81,8 @@ export class QuestionsService {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
+    private readonly generationService: AnthropicGenerationService,
+    private readonly embeddingsService: VoyageEmbeddingsService,
   ) {
     this.questionRepository = this.dataSource.getRepository(Question);
     this.answerRepository = this.dataSource.getRepository(Answer);
@@ -89,21 +102,48 @@ export class QuestionsService {
 
     const retrieval = await this.retrieve(dto.question);
 
+    // EP-04: صياغة الإجابة عبر Claude إن كان مفعَّلاً — يُستدعى فقط بعد أن يحدد
+    // الاسترجاع الحتمي (FTS/دلالي، أعلاه) المادة الصحيحة والمتحقَّق منها في
+    // قاعدة البيانات؛ اختيار المادة نفسه لا يمر عبر النموذج إطلاقاً (طبقة
+    // التحقق تبقى كما هي). فشل الاستدعاء أو عدم التفعيل → رجوع فوري للقالب
+    // الجاهز القديم دون أي تغيير في العقد أو انقطاع.
+    let usedLlm = false;
+    let answerText: string;
+    if (retrieval.citation) {
+      const llmAnswer = await this.generationService.composeGroundedAnswer({
+        question: dto.question,
+        lawTitle: retrieval.citation.law,
+        lawNo: retrieval.citation.lawNo,
+        lawYear: retrieval.citation.lawYear,
+        articleNo: retrieval.citation.articleNo,
+        articleText: retrieval.citation.snippet,
+      });
+      if (llmAnswer) {
+        answerText = llmAnswer;
+        usedLlm = true;
+      } else {
+        answerText = this.buildGroundedAnswer(retrieval.citation);
+      }
+    } else {
+      answerText = REFUSED_ANSWER_TEXT;
+    }
+
     const answer: AnswerResponseDto = retrieval.citation
       ? {
-          answer: this.buildGroundedAnswer(retrieval.citation),
+          answer: answerText,
           confidence: retrieval.confidence,
           citations: [this.toCitationDto(retrieval.citation)],
           refused: false,
         }
       : {
-          answer: REFUSED_ANSWER_TEXT,
+          answer: answerText,
           confidence: retrieval.confidence,
           citations: [],
           refused: true,
         };
 
     const latencyMs = Date.now() - startedAt;
+    const modelVersion = usedLlm ? MODEL_VERSION_LLM : MODEL_VERSION;
 
     await this.dataSource.transaction(async (manager) => {
       const question = manager.getRepository(Question).create({
@@ -120,7 +160,7 @@ export class QuestionsService {
         answer: answer.answer,
         confidence: answer.confidence.toFixed(3),
         refused: answer.refused,
-        modelVersion: MODEL_VERSION,
+        modelVersion,
         latencyMs,
       });
       // save: نحتاج answerEntity.id لربط الاستشهاد.
@@ -181,7 +221,7 @@ export class QuestionsService {
       resourceType: 'answer',
       ipAddress: context.ipAddress ?? null,
       userAgent: context.userAgent ?? null,
-      metadata: { modelVersion: MODEL_VERSION, latencyMs },
+      metadata: { modelVersion, latencyMs },
     });
 
     return answer;
@@ -314,7 +354,95 @@ export class QuestionsService {
       return { citation: null, confidence: 0.1 };
     }
 
-    return this.ftsRetrieval(questionText, ref?.articleNo);
+    const ftsResult = await this.ftsRetrieval(questionText, ref?.articleNo);
+    if (isConfident(ftsResult.confidence)) {
+      return ftsResult;
+    }
+
+    // EP-04: استرجاع دلالي تكميلي (Voyage) — يُحاوَل فقط عندما لا يكفي FTS
+    // بمفرده، ويُعتمَد فقط لو كانت ثقته أعلى فعلياً من FTS. بلا
+    // VOYAGE_API_KEY يُرجع embedQuery قيمة null فوراً فيُتخطى هذا المسار
+    // بالكامل، والسلوك يبقى FTS-only كما كان تماماً (بلا أي تغيير).
+    const semanticResult = await this.semanticRetrieval(questionText);
+    if (semanticResult && semanticResult.confidence > ftsResult.confidence) {
+      return semanticResult;
+    }
+
+    return ftsResult;
+  }
+
+  /**
+   * استرجاع دلالي عبر pgvector (عمود articles.embedding — انظر
+   * migrations/002_embeddings_dimension.sql). يعيد null (لا RetrievalResult)
+   * فقط عندما تكون الخدمة غير مُفعَّلة أصلاً أو فشل الحصول على متجه السؤال؛
+   * أي نتيجة أخرى (حتى بلا مادة مطابقة) تعود كـ RetrievalResult عادي.
+   */
+  private async semanticRetrieval(questionText: string): Promise<RetrievalResult | null> {
+    if (!this.embeddingsService.isConfigured) {
+      return null;
+    }
+
+    const questionEmbedding = await this.embeddingsService.embedQuery(questionText);
+    if (!questionEmbedding) {
+      return null;
+    }
+
+    const vectorLiteral = toPgVectorLiteral(questionEmbedding);
+
+    const rows: Array<{
+      article_id: string;
+      article_no: number;
+      short_title: string | null;
+      title: string;
+      law_no: number;
+      law_year: number;
+      status: 'in_force' | 'amended' | 'repealed';
+      last_amended_at: string | null;
+      official_url: string | null;
+      version_id: string;
+      body: string;
+      similarity: number;
+    }> = await this.dataSource.query(
+      `SELECT
+         a.id AS article_id, a.article_no,
+         l.short_title, l.title, l.law_no, l.law_year, l.status, l.last_amended_at, l.official_url,
+         av.id AS version_id, av.body,
+         1 - (a.embedding <=> $1::vector) AS similarity
+       FROM articles a
+       JOIN laws l ON l.id = a.law_id
+       JOIN article_versions av ON av.article_id = a.id AND av.effective_to IS NULL
+       WHERE a.embedding IS NOT NULL
+       ORDER BY a.embedding <=> $1::vector
+       LIMIT 5`,
+      [vectorLiteral],
+    );
+
+    if (rows.length === 0) {
+      return { citation: null, confidence: 0 };
+    }
+
+    const best = rows[0];
+    const confidence = Math.min(1, Math.max(0, Number(best.similarity)));
+
+    if (confidence < SEMANTIC_CONFIDENCE_THRESHOLD) {
+      return { citation: null, confidence };
+    }
+
+    return {
+      citation: {
+        law: best.short_title ?? best.title,
+        lawNo: best.law_no,
+        lawYear: best.law_year,
+        articleNo: best.article_no,
+        status: toCitationStatus(best.status),
+        lastAmended: best.last_amended_at,
+        officialUrl: best.official_url,
+        snippet: best.body,
+        articleId: best.article_id,
+        articleVersionId: best.version_id,
+      },
+      confidence,
+    };
   }
 
   private async directLookup(ref: ArticleReference): Promise<RetrievedCitation | null> {
