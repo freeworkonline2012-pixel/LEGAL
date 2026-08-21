@@ -516,17 +516,22 @@ export class QuestionsService {
       return { citation: null, confidence: 0 };
     }
 
+    // EP-06 (2026-08-21): to_tsquery بدل plainto_tsquery — buildFtsQuery
+    // أصبح يُنتج نص tsquery صريح بمُشغّل OR ('|'، مثل: 'اجازه' | 'سنويه')،
+    // وplainto_tsquery كان سيتجاهل هذا المُشغّل تماماً (يعامل النص كله كلغة
+    // طبيعية ويربط كل كلمة بـ AND ضمنى بنفسه) — وهو جذر عطل "صفر تطابق" لكل
+    // الأسئلة تقريباً المُوثَّق فى تعليق buildFtsQuery وتقرير Golden Test Set
+    // (EP-06). to_tsquery يفسّر '|' فعلياً كما هو مقصود.
     const qb = this.versionRepository
       .createQueryBuilder('version')
       .innerJoinAndSelect('version.article', 'article')
       .innerJoinAndSelect('article.law', 'law')
-      .where(
-        `to_tsvector('simple', arabic_normalize(version.body)) @@ plainto_tsquery('simple', :query)`,
-        { query },
-      )
+      .where(`to_tsvector('simple', arabic_normalize(version.body)) @@ to_tsquery('simple', :query)`, {
+        query,
+      })
       .andWhere('version.effective_to IS NULL')
       .addSelect(
-        `ts_rank(to_tsvector('simple', arabic_normalize(version.body)), plainto_tsquery('simple', :query))`,
+        `ts_rank(to_tsvector('simple', arabic_normalize(version.body)), to_tsquery('simple', :query))`,
         'rank',
       )
       .orderBy('rank', 'DESC')
