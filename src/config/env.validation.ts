@@ -69,15 +69,17 @@ export class EnvironmentVariables {
 
   // ===== EP-04 — تفعيل الذكاء الاصطناعي (2026-08-21) =====
   // كلاهما اختياري عمداً: بلا قيمة، تتدهور الخدمتان بأمان (Graceful
-  // Degradation — راجع llm/voyage-embeddings.service.ts وllm/anthropic-generation.service.ts)
+  // Degradation — راجع llm/voyage-embeddings.service.ts وllm/deepseek-generation.service.ts)
   // ويستمر النظام بسلوك MVP القديم (FTS + قالب) دون أي كسر أو رفض إقلاع.
+  // (مزوّد التوليد استُبدل من Anthropic Claude إلى DeepSeek بناءً على طلب
+  // صريح من رجل الأعمال في نفس اليوم — راجع llm/deepseek-generation.service.ts)
   @IsOptional()
   @IsString()
-  ANTHROPIC_API_KEY?: string;
+  DEEPSEEK_API_KEY?: string;
 
   @IsOptional()
   @IsString()
-  ANTHROPIC_MODEL?: string;
+  DEEPSEEK_MODEL?: string;
 
   @IsOptional()
   @IsString()

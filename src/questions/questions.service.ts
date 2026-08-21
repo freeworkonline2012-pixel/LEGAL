@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
-import { AnthropicGenerationService } from '../llm/anthropic-generation.service';
+import { DeepseekGenerationService } from '../llm/deepseek-generation.service';
 import { VoyageEmbeddingsService, toPgVectorLiteral } from '../llm/voyage-embeddings.service';
 import { Answer } from '../database/entities/answer.entity';
 import { Article } from '../database/entities/article.entity';
@@ -33,7 +33,7 @@ export const REFUSED_ANSWER_TEXT = 'لا تتوفر معلومة موثقة كا
 
 const MODEL_VERSION = 'backend-mvp-retrieval-v1';
 // EP-04: يُسجَّل بدل MODEL_VERSION في audit_logs/answers.model_version عندما
-// تُصاغ الإجابة فعلياً عبر Claude (وليس القالب الجاهز) — يتيح تمييز الإجابات
+// تُصاغ الإجابة فعلياً عبر DeepSeek (وليس القالب الجاهز) — يتيح تمييز الإجابات
 // "المولَّدة" عن "القالب" لاحقاً في مراجعة Golden Test Set.
 const MODEL_VERSION_LLM = 'backend-grounded-llm-v1';
 // عتبة ثقة الاسترجاع الدلالي (Voyage) — منفصلة عن REFUSAL_THRESHOLD الخاصة
@@ -81,7 +81,7 @@ export class QuestionsService {
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly auditService: AuditService,
-    private readonly generationService: AnthropicGenerationService,
+    private readonly generationService: DeepseekGenerationService,
     private readonly embeddingsService: VoyageEmbeddingsService,
   ) {
     this.questionRepository = this.dataSource.getRepository(Question);
