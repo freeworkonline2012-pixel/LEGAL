@@ -30,6 +30,7 @@ COPY --from=builder --chown=app:app /app/dist ./dist
 COPY --from=builder --chown=app:app /app/node_modules ./node_modules
 COPY --from=builder --chown=app:app /app/package.json ./package.json
 COPY --from=builder --chown=app:app /app/migrations ./migrations
+COPY --from=builder --chown=app:app /app/scripts ./scripts
 
 USER app
 EXPOSE 3001
