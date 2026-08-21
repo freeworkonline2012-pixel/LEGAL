@@ -1,0 +1,115 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Answer } from '../database/entities/answer.entity';
+import { Review } from '../database/entities/review.entity';
+import {
+  ReviewDetailContextDto,
+  ReviewListResponseDto,
+  ReviewResponseDto,
+} from './dto/review-response.dto';
+import { UpdateReviewDto } from './dto/update-review.dto';
+
+/** علاقات سياق المراجعة (EP-06): إجابة ← سؤال + استشهادات في استعلام واحد (بلا N+1) */
+const REVIEW_RELATIONS = {
+  answer: {
+    question: true,
+    citations: true,
+  },
+} as const;
+
+@Injectable()
+export class ReviewsService {
+  constructor(
+    @InjectRepository(Review)
+    private readonly reviewRepository: Repository<Review>,
+  ) {}
+
+  async list(
+    status: string | undefined,
+    query: { limit: number; offset: number },
+  ): Promise<ReviewListResponseDto> {
+    const qb = this.reviewRepository
+      .createQueryBuilder('review')
+      .leftJoinAndSelect('review.answer', 'answer')
+      .leftJoinAndSelect('answer.question', 'question')
+      .leftJoinAndSelect('answer.citations', 'citations');
+
+    if (status) {
+      qb.andWhere('review.status = :status', { status });
+    }
+
+    const [reviews, total] = await qb
+      .orderBy('review.created_at', 'ASC')
+      .skip(query.offset)
+      .take(query.limit)
+      .getManyAndCount();
+
+    return {
+      items: reviews.map((review) => this.toResponse(review)),
+      total,
+    };
+  }
+
+  async update(id: string, reviewerId: string, dto: UpdateReviewDto): Promise<ReviewResponseDto> {
+    const review = await this.reviewRepository.findOne({ where: { id } });
+    if (!review) {
+      throw new NotFoundException('review not found');
+    }
+    if (review.status !== 'pending') {
+      throw new BadRequestException('review already resolved');
+    }
+
+    review.status = dto.status;
+    review.reviewerId = reviewerId;
+    review.reviewNote = dto.review_note ?? null;
+    review.reviewedAt = new Date();
+    await this.reviewRepository.save(review);
+
+    // إعادة الجلب بالعلاقات حتى يعيد الرد نفس شكل القائمة (context متضمّن دائماً)
+    const updated = await this.reviewRepository.findOne({
+      where: { id },
+      relations: REVIEW_RELATIONS,
+    });
+    if (!updated) {
+      throw new NotFoundException('review not found');
+    }
+    return this.toResponse(updated);
+  }
+
+  private toResponse(review: Review): ReviewResponseDto {
+    return {
+      id: review.id,
+      answer_id: review.answerId,
+      reviewer_id: review.reviewerId,
+      status: review.status,
+      review_note: review.reviewNote,
+      reviewed_at: review.reviewedAt ? review.reviewedAt.toISOString() : null,
+      created_at: review.createdAt.toISOString(),
+      // FK إلزامي (reviews.answer_id NOT NULL + CASCADE) — الإجابة موجودة دائماً.
+      context: review.answer ? this.toContext(review.answer) : undefined,
+    };
+  }
+
+  private toContext(answer: Answer): ReviewDetailContextDto {
+    return {
+      question: answer.question?.question ?? '',
+      answer: answer.answer,
+      // decimal في PG يُرجع string عبر TypeORM — نحوله لرقم لعقد API (مثل questions.service)
+      confidence: Number(answer.confidence),
+      category: answer.question?.category ?? null,
+      citations: (answer.citations ?? [])
+        .sort((a, b) => a.position - b.position)
+        .map((citation) => ({
+          law: citation.law,
+          law_no: citation.lawNo,
+          law_year: citation.lawYear,
+          article_no: citation.articleNo,
+          status: citation.status,
+          last_amended: citation.lastAmended,
+          official_url: citation.officialUrl,
+          snippet: citation.snippet,
+        })),
+    };
+  }
+}
