@@ -18,6 +18,11 @@
 // WHERE embedding IS NULL، فإعادة التشغيل بعد نجاح جزئي أو فشل تكمل من
 // حيث توقفت دون أي عمل مكرر أو تكلفة API إضافية على المواد المفهرسة أصلاً.
 //
+// --force: إعادة حساب لكل المواد بلا استثناء (حتى المفهرسة). استخدام واحد
+// مقصود فقط: بعد أي تغيير فى buildEmbedText نفسها (نص embedding مختلف)،
+// إذ يجب أن يبقى فضاء المتجهات متسقاً لكل المواد معاً. لا يُستخدم فى
+// التشغيل الروتيني العادي.
+//
 // ⚠️ متطلب: migrations/002_embeddings_dimension.sql (عمود vector(1024))
 // لازم يكون مُطبَّقاً قبل تشغيل هذا السكربت — وإلا سيفشل كل UPDATE بخطأ
 // "different vector dimensions". run-migration.js يطبّقه تلقائياً ضمن
@@ -42,6 +47,24 @@ const BATCH_SIZE = 8;
 const MAX_RETRIES_PER_BATCH = 3;
 const MIN_DELAY_BETWEEN_BATCHES_MS = 21000; // >20s → يبقينا تحت 3 طلبات/دقيقة بهامش أمان
 const DEFAULT_RATE_LIMIT_BACKOFF_MS = 25000; // انتظار افتراضي عند 429 بلا رأس Retry-After
+
+// ⚠️ إصلاح (EP-06، 2026-08-22): كان نص الـembedding = body فقط، بلا اسم
+// القانون أو الموقع الهرمي (الباب/الفصل) — نفس السبب الجذري الموثّق فى
+// ingestion.service.ts (buildEmbedText) لاستشهادات خاطئة حقيقية اكتُشِفت فى
+// Golden Test Set الحي (مثال: خلط مادة عن جزاءات تأديبية على العامل بمادة
+// عن عقوبة جنائية على صاحب العمل، لأن "عقوبات" وحدها غير كافية دلالياً بلا
+// سياق الباب). لازم يبقى هذا المسار متوافقاً دائماً مع buildEmbedText فى
+// ingestion.service.ts.
+function buildEmbedText(lawShortTitle, hierarchicalLocation, body) {
+  const contextLine = [lawShortTitle, hierarchicalLocation].filter(Boolean).join(' — ');
+  return contextLine ? `${contextLine}\n${body}` : body;
+}
+
+// --force: يعيد حساب embedding لكل المواد (حتى المُفهرَسة أصلاً) — مطلوب
+// مرة واحدة بعد تغيير buildEmbedText نفسها (نص مختلف = يجب إعادة الحساب
+// لكل شيء لضمان اتساق فضاء المتجهات). الافتراضي (بلا العلم) يبقى كما كان:
+// المواد التي embedding IS NULL فقط — آمن لإعادة التشغيل العادية.
+const FORCE_REEMBED = process.argv.includes('--force');
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -104,11 +127,19 @@ async function main() {
   const failedIds = [];
 
   try {
+    const whereClause = FORCE_REEMBED ? '' : 'WHERE a.embedding IS NULL';
     const { rows: pending } = await client.query(
-      `SELECT id, body FROM articles WHERE embedding IS NULL ORDER BY created_at ASC`,
+      `SELECT a.id, a.body, a.hierarchical_location, l.short_title, l.title
+       FROM articles a
+       JOIN laws l ON l.id = a.law_id
+       ${whereClause}
+       ORDER BY a.created_at ASC`,
     );
 
-    console.log(`[backfill] عدد المواد بلا embedding: ${pending.length}`);
+    if (FORCE_REEMBED) {
+      console.log(`[backfill] --force: إعادة حساب لكل المواد (${pending.length}) بنص السياق الجديد.`);
+    }
+    console.log(`[backfill] عدد المواد المستهدفة: ${pending.length}`);
     if (pending.length === 0) {
       console.log('[backfill] لا شيء للفعل — كل المواد مفهرسة دلالياً بالفعل.');
       return;
@@ -116,7 +147,7 @@ async function main() {
 
     for (let i = 0; i < pending.length; i += BATCH_SIZE) {
       const batch = pending.slice(i, i + BATCH_SIZE);
-      const texts = batch.map((r) => r.body);
+      const texts = batch.map((r) => buildEmbedText(r.short_title ?? r.title, r.hierarchical_location, r.body));
 
       let embeddings = null;
       let lastErr = null;
