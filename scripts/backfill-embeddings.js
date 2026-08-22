@@ -28,8 +28,24 @@ const { Client } = require('pg');
 const VOYAGE_API_URL = 'https://api.voyageai.com/v1/embeddings';
 const MODEL = process.env.VOYAGE_EMBEDDING_MODEL ?? 'voyage-3.5';
 const OUTPUT_DIMENSION = 1024;
-const BATCH_SIZE = 32; // محافظ — Voyage يدعم دفعات أكبر لكن لا داعٍ للمخاطرة بحدود المعدّل (rate limits) فى سكربت لمرة واحدة
-const MAX_RETRIES_PER_BATCH = 2;
+// ⚠️ إصلاح (2026-08-21): حساب Voyage AI الحالي على الخطة المجانية بدون
+// طريقة دفع مضافة — محدود بـ 3 طلبات/دقيقة (RPM) و10,000 توكن/دقيقة (TPM)
+// (رسالة الخطأ الفعلية: "You have not yet added your payment method...
+// reduced rate limits of 3 RPM and 10K TPM"). تحقّقنا تجريبياً: BATCH_SIZE=32
+// بلا أي تهدئة بين الدفعات كان يضرب حد الـ429 من ثاني دفعة فوراً، فتفشل كل
+// الدفعات التالية بعد استنفاد المحاولات — نتيجة: 458 من 522 مادة بلا
+// embedding رغم أن السكربت "نجح" فى الظاهر (exit code فقط). الإصلاح: تصغير
+// حجم الدفعة (يبقيها بأمان تحت حد الـ10K TPM) + تهدئة إجبارية بين كل دفعة
+// والتالية تحترم حد الـ3 RPM + احترام رأس Retry-After عند حدوث 429 فعلياً
+// بدل إعادة المحاولة فوراً.
+const BATCH_SIZE = 8;
+const MAX_RETRIES_PER_BATCH = 3;
+const MIN_DELAY_BETWEEN_BATCHES_MS = 21000; // >20s → يبقينا تحت 3 طلبات/دقيقة بهامش أمان
+const DEFAULT_RATE_LIMIT_BACKOFF_MS = 25000; // انتظار افتراضي عند 429 بلا رأس Retry-After
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function toPgVectorLiteral(vector) {
   return `[${vector.join(',')}]`;
@@ -52,7 +68,10 @@ async function embedBatch(texts, apiKey) {
 
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
-    throw new Error(`Voyage API error ${res.status}: ${errText}`);
+    const err = new Error(`Voyage API error ${res.status}: ${errText}`);
+    err.status = res.status;
+    err.retryAfterSeconds = Number.parseInt(res.headers.get('retry-after') ?? '', 10) || null;
+    throw err;
   }
 
   const data = await res.json();
@@ -111,6 +130,13 @@ async function main() {
           console.warn(
             `[backfill] دفعة ${i}-${i + batch.length}: محاولة ${attempt}/${MAX_RETRIES_PER_BATCH} فشلت: ${err.message}`,
           );
+          if (err.status === 429 && attempt < MAX_RETRIES_PER_BATCH) {
+            const backoffMs = err.retryAfterSeconds
+              ? err.retryAfterSeconds * 1000 + 1000
+              : DEFAULT_RATE_LIMIT_BACKOFF_MS;
+            console.warn(`[backfill] حد المعدّل (429) — انتظار ${Math.round(backoffMs / 1000)} ثانية قبل إعادة المحاولة...`);
+            await sleep(backoffMs);
+          }
         }
       }
 
@@ -147,6 +173,11 @@ async function main() {
       console.log(
         `[backfill] تقدّم: ${succeeded + failed}/${pending.length} (نجاح: ${succeeded}, فشل: ${failed})`,
       );
+
+      const hasMoreBatches = i + BATCH_SIZE < pending.length;
+      if (hasMoreBatches) {
+        await sleep(MIN_DELAY_BETWEEN_BATCHES_MS);
+      }
     }
   } finally {
     await client.end();
