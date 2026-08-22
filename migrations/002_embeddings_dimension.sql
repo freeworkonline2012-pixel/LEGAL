@@ -6,22 +6,39 @@
 -- اخترنا 1024 (voyage-3.5 بـ output_dimension=1024 — راجع
 -- llm/voyage-embeddings.service.ts للمبرر الكامل).
 --
--- آمن للتشغيل على قاعدة فارغة من embeddings (لا بيانات حقيقية أُدخلت بعد وقت
--- كتابة هذا الملف)؛ لو وُجدت متجهات 1536 قديمة فعلياً فستُفرَّغ بواسطة
--- USING NULL أدناه (تغيير النوع لا يحوّل الأبعاد تلقائياً) — يُعاد حسابها لاحقاً
--- عبر إعادة تشغيل الاستيراد (idempotent أصلاً في ingestion.service.ts).
---
--- قابل لإعادة التشغيل (idempotent) كبقية الملفات في هذا المجلد — run-migration.js
--- يلتقط أخطاء "غير موجود من الأساس" لعمليات DROP ويتابع.
+-- 🚨 إصلاح حرج (EP-06، 2026-08-22): هذا الملف يُطبَّق على كل عملية deploy
+-- (run-migration.js لا يتتبّع "طُبِّق من قبل" — كل الملفات فى هذا المجلد تُعاد
+-- محاولتها فى كل نشر). النسخة الأصلية كانت تفترض تشغيلاً لمرة واحدة فقط على
+-- قاعدة لا تحوي بيانات حقيقية بعد ("آمن للتشغيل على قاعدة فارغة من embeddings")
+-- — لكن ALTER COLUMN ... USING NULL كان بلا أي حارس (guard)، فكان يُفرِّغ عمود
+-- articles.embedding بالكامل (522/522 → NULL) فى *كل* نشر لاحق، حتى بعد نجاح
+-- تعبئة الـembeddings فعلياً (scripts/backfill-embeddings.js). هذا دمّر عمل
+-- التعبئة صامتاً مرتين على الأقل (اكتُشف عبر: نتائج Golden Test Set الحية بعد
+-- نشر عادي أظهرت انهيار الاسترجاع الدلالي بالكامل — كل الثقات عادت لمدى FTS
+-- الخام 0.01–0.064 بدل مدى Voyage الفعلي 0.35–0.74، رغم عدم وجود أي خطأ فى
+-- سجلات النشر — القيمة صفر لصفوف a.embedding IS NOT NULL هى الدليل الحاسم).
+-- الإصلاح: تنفيذ ALTER فقط إذا كان نوع العمود الفعلي ما زال يخالف vector(1024)
+-- — أي مرة واحدة فعلية فى عمر القاعدة، وليس فى كل نشر.
 
-BEGIN;
+DO $$
+DECLARE
+  col_type text;
+BEGIN
+  SELECT format_type(a.atttypid, a.atttypmod) INTO col_type
+  FROM pg_attribute a
+  WHERE a.attrelid = 'articles'::regclass
+    AND a.attname = 'embedding'
+    AND a.attnum > 0
+    AND NOT a.attisdropped;
 
-DROP INDEX IF EXISTS idx_articles_embedding;
-
-ALTER TABLE articles
-  ALTER COLUMN embedding TYPE vector(1024) USING NULL;
+  IF col_type IS DISTINCT FROM 'vector(1024)' THEN
+    RAISE NOTICE '[002_embeddings_dimension] تحويل articles.embedding من % إلى vector(1024) (سيُفرَّغ العمود — متوقَّع فقط فى أول تشغيل)...', col_type;
+    EXECUTE 'DROP INDEX IF EXISTS idx_articles_embedding';
+    EXECUTE 'ALTER TABLE articles ALTER COLUMN embedding TYPE vector(1024) USING NULL';
+  ELSE
+    RAISE NOTICE '[002_embeddings_dimension] العمود بالفعل vector(1024) — تخطّي (لا تفريغ، الـembeddings محفوظة).';
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_articles_embedding
   ON articles USING hnsw (embedding vector_cosine_ops);
-
-COMMIT;
