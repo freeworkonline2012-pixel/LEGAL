@@ -359,6 +359,16 @@ export class QuestionsService {
 
   // ===== استرجاع =====
 
+  // EP-08 (2026-08-23): جُرِّب هنا fallback لإعادة صياغة السؤال عبر DeepSeek
+  // (rewriteForSearch) عند فشل المحاولة الأولى، بهدف تحسين نتائج فئة "صياغة
+  // عامية قصيرة". اختبار حي على 43 سؤالاً (28 عامية/قصيرة + كل الـ15 سلبي)
+  // أثبت: (أ) صفر تحسّن فعلي على الهدف (9/28 صحيح قبل وبعد بالضبط)، (ب) ثغرة
+  // أمان جديدة — سؤال سلبي واحد (g089) أصبح يُجاب بدل أن يُرفض (استشهاد خاطئ
+  // بالمادة 290 من القانون 14، بسبب تضخّم كلمة عامة كـ"عقوبة" فى النص المُعاد
+  // صياغته وتسببها فى تشابه دلالي كاذب عبر قوانين غير مرتبطة — نفس آلية عطل
+  // buildEmbedText فى EP-06). بما إن الفائدة صفر والمخاطرة حقيقية، تم التراجع
+  // الكامل عن هذا الـfallback (وحذف rewriteForSearch من DeepseekGenerationService)
+  // بقرار رجل الأعمال 2026-08-23. التفاصيل الكاملة موثّقة فى تقرير المعايرة.
   private async retrieve(questionText: string): Promise<RetrievalResult> {
     const ref = detectArticleReference(questionText);
 
@@ -370,38 +380,7 @@ export class QuestionsService {
       return { citation: null, confidence: 0.1 };
     }
 
-    const primary = await this.retrieveOnce(questionText, ref?.articleNo);
-    if (primary.citation) {
-      return primary;
-    }
-
-    // EP-08 (2026-08-23): محاولة أخيرة — إعادة صياغة السؤال بالفصحى القانونية
-    // الرسمية (DeepseekGenerationService.rewriteForSearch) ثم إعادة تكرار
-    // FTS + الاسترجاع الدلالي على النص المُعاد صياغته. تُستدعى فقط هنا (بعد
-    // فشل المحاولة الأولى بالكامل) لتفادي أي زمن استجابة أو تكلفة API إضافية
-    // على الأسئلة الواثقة أصلاً من أول محاولة. جذر المشكلة موثَّق بالتفصيل
-    // فى تعليق rewriteForSearch نفسها وفى تقرير المعايرة (Golden Test Set):
-    // ضعف ثابت فى فئة "صياغة عامية قصيرة" تحديداً عبر كل التشغيلات الحية.
-    const rewritten = await this.generationService.rewriteForSearch(questionText);
-    if (!rewritten || rewritten.trim() === questionText.trim()) {
-      return primary;
-    }
-
-    const rewrittenResult = await this.retrieveOnce(rewritten, ref?.articleNo);
-    if (rewrittenResult.citation) {
-      return rewrittenResult;
-    }
-
-    return primary;
-  }
-
-  /** محاولة استرجاع واحدة (FTS ثم الدلالي كتكميل) — يُستدعى مرتين من retrieve()
-   * عند الحاجة: مرة بالنص الأصلي، ومرة بالنص المُعاد صياغته (EP-08). */
-  private async retrieveOnce(
-    questionText: string,
-    preferArticleNo?: number,
-  ): Promise<RetrievalResult> {
-    const ftsResult = await this.ftsRetrieval(questionText, preferArticleNo);
+    const ftsResult = await this.ftsRetrieval(questionText, ref?.articleNo);
     if (isConfident(ftsResult.confidence)) {
       return ftsResult;
     }

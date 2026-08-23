@@ -100,77 +100,10 @@ export class DeepseekGenerationService {
     }
   }
 
-  /**
-   * EP-08 (2026-08-23): إعادة صياغة نص السؤال فقط (بلا إجابة) من العامية
-   * المصرية/صياغة مختصرة إلى الفصحى القانونية الرسمية — لغرض تحسين الاسترجاع
-   * (FTS + الدلالي) حصراً. سبب الإضافة: Golden Test Set الحي أظهر ضعفاً
-   * ثابتاً عبر كل التشغيلات فى فئة "صياغة عامية قصيرة" تحديداً (~28-32%
-   * نجاح مقابل ~85-89% للصياغة الرسمية الكاملة على نفس الأسئلة بالضبط) —
-   * فجوة مفردات بين اللهجة العامية والنص القانوني الرسمي تؤثر على الاثنين
-   * معاً: كلمات استفهام عامية ("ايه"، "كام") لا مقابل لها حرفياً فى النص
-   * فتُفقِد FTS توكينز مفيدة، وقصر السؤال وقلة سياقه يُنزل ثقة الاسترجاع
-   * الدلالي تحت عتبة SEMANTIC_CONFIDENCE_THRESHOLD حتى للمادة الصحيحة فعلياً.
-   *
-   * تصميم متعمَّد لتقليل التكلفة/الزمن الإضافيَين: هذه الدالة تُستدعى فقط من
-   * retrieve() فى questions.service.ts كمحاولة أخيرة، وفقط عندما تفشل
-   * المحاولة الأولى (FTS + الدلالي على النص الأصلي) بالكامل فى إيجاد استشهاد
-   * واثق — أي أنها لا تُضيف زمن استجابة ولا تكلفة API على الأسئلة الواثقة
-   * أصلاً (الأغلبية). بلا DEEPSEEK_API_KEY أو عند فشل الاستدعاء، تُرجع null
-   * فوراً ويستمر النظام بنتيجة المحاولة الأولى دون أي انقطاع (نفس مبدأ
-   * التدهور اللطيف فى composeGroundedAnswer أعلاه).
-   *
-   * حدود التصميم: هذه الدالة أداة تحويل نصي بحت — ممنوعة صراحة (عبر system
-   * prompt) من الإجابة على السؤال أو إضافة أي معلومة قانونية؛ الاسترجاع
-   * الحتمي (FTS/الدلالي) يبقى المصدر الوحيد لاختيار المادة، تماماً كما فى
-   * composeGroundedAnswer — لا تغيير على حدود التصميم الأساسية للمشروع.
-   */
-  async rewriteForSearch(question: string): Promise<string | null> {
-    if (!this.isConfigured) {
-      return null;
-    }
-
-    const system =
-      'أنت أداة تحويل نصي بحتة فقط — لا تجيب على أي سؤال ولا تضيف أي معلومة أو ' +
-      'تفسير قانوني إطلاقاً. مهمتك الوحيدة: تحويل صياغة سؤال قانوني من العامية ' +
-      'المصرية أو صياغة مختصرة إلى اللغة العربية الفصحى الرسمية المستخدمة فى ' +
-      'النصوص القانونية، مع الحفاظ الكامل والدقيق على المعنى والمقصود الأصلي ' +
-      'دون أي تغيير أو إضافة أو حذف لأي تفصيلة فى السؤال. أعد السؤال المُعاد ' +
-      'صياغته فقط، بلا أي مقدمة أو شرح أو علامات اقتباس أو ترقيم.';
-
-    const userMsg = `أعد صياغة هذا السؤال القانوني بالفصحى الرسمية فقط:\n${question}`;
-
-    try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: this.model,
-          max_tokens: 150,
-          temperature: 0.1,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: userMsg },
-          ],
-        }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        this.logger.warn(`DeepSeek rewriteForSearch API error ${res.status}: ${errText}`);
-        return null;
-      }
-
-      const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      const text = data.choices?.[0]?.message?.content?.trim();
-      return text && text.length > 0 ? text : null;
-    } catch (err) {
-      this.logger.warn(`DeepSeek rewriteForSearch call failed: ${(err as Error).message}`);
-      return null;
-    }
-  }
+  // EP-08 (2026-08-23): جُرِّبت هنا دالة rewriteForSearch() لإعادة صياغة
+  // الأسئلة العامية/القصيرة بالفصحى القانونية قبل الاسترجاع. اختبار حي على
+  // 43 سؤالاً أثبت صفر تحسّن فعلي (9/28 قبل وبعد بالضبط) مع ثغرة أمان جديدة
+  // (سؤال سلبي g089 أصبح يُجاب بدل أن يُرفض بسبب تشابه دلالي كاذب — نفس آلية
+  // عطل buildEmbedText فى EP-06). تم التراجع الكامل بقرار رجل الأعمال
+  // 2026-08-23. التفاصيل كاملة فى تقرير المعايرة (project doc).
 }
