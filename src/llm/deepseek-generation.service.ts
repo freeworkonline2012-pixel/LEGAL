@@ -106,4 +106,123 @@ export class DeepseekGenerationService {
   // (سؤال سلبي g089 أصبح يُجاب بدل أن يُرفض بسبب تشابه دلالي كاذب — نفس آلية
   // عطل buildEmbedText فى EP-06). تم التراجع الكامل بقرار رجل الأعمال
   // 2026-08-23. التفاصيل كاملة فى تقرير المعايرة (project doc).
+
+  /**
+   * EP-10 (2026-08-23): تحقق نصي نهائي من مرشح استشهاد واحد — الطبقة الثانية
+   * فى تصميم ADR-001 الهجين (بعد Voyage rerank فى VoyageEmbeddingsService).
+   * تسأل صراحة: هل هذه المادة تجيب فعلاً على السؤال، وهل هى من نفس المجال
+   * القانوني الذي يقصده السؤال؟ الهدف: صيد الحالات التى تجاوز فيها مرشح
+   * عتبة الثقة (FTS أو الدلالي) بسبب تشابه لفظي سطحي مع كلمة عامة (مثل
+   * "عقوبة") بينما هو فعلياً من مجال/موضوع مختلف — نفس الآلية الجذرية التى
+   * سببت الاستشهادات الخاطئة (g039/g051) والتسريب الكاذب (نمط g089).
+   *
+   * حرارة=0 لأقصى ثبات ممكن (بلا ضمان حتمية كاملة من LLM، لكن أقرب ما يمكن).
+   * إخراج JSON صارم عبر التعليمات فقط (بلا response_format، اتساقاً مع نمط
+   * composeGroundedAnswer المُختبَر فعلياً فى الإنتاج) + تحليل دفاعي يتحمّل
+   * نصاً زائداً حول الـJSON لو حدث.
+   *
+   * fail-open صريح: بلا DEEPSEEK_API_KEY، أو عند فشل الاستدعاء، أو تعذّر
+   * تحليل الرد كـJSON صالح، تُرجع null — المستدعي (questions.service) يتعامل
+   * مع null كـ"لا حكم متاح" ويقبل المرشح كما لو التحقق غير موجود أصلاً (لا
+   * وضع أسوأ من الإنتاج قبل EP-10 لهذا المرشح تحديداً).
+   */
+  async verifyCitation(input: {
+    question: string;
+    lawTitle: string;
+    lawNo: number;
+    articleNo: number;
+    articleText: string;
+  }): Promise<{ relevant: boolean; reason: string } | null> {
+    if (!this.isConfigured) {
+      return null;
+    }
+
+    const system =
+      'أنت مدقق قانوني صارم ومتشكك. مهمتك الوحيدة: الحكم هل المادة المرفقة تجيب ' +
+      'فعلاً وبشكل مباشر ومحدد على سؤال المستخدم، وهل هي من نفس المجال القانوني ' +
+      'الذي يسأل عنه السؤال تحديداً. كن حذراً جداً من التشابه اللفظي السطحي: لو ' +
+      'كانت المادة تشترك مع السؤال فى كلمات عامة (مثل "عقوبة"، "حق"، "التزام"، ' +
+      '"إجازة") لكنها تتناول موضوعاً مختلفاً كلياً أو مجالاً قانونياً مختلفاً عن ' +
+      'مقصود السؤال، فالإجابة الصحيحة false. أجب حصراً بصيغة JSON صارمة بلا أي ' +
+      'نص إضافي قبلها أو بعدها، بالضبط بهذا الشكل: ' +
+      '{"relevant": true, "reason": "جملة واحدة قصيرة بالعربية"}';
+
+    const userMsg =
+      `السؤال: ${input.question}\n\n` +
+      `المادة المُرشَّحة — رقم ${input.articleNo} من ${input.lawTitle} (قانون رقم ${input.lawNo}):\n` +
+      `"""${input.articleText}"""\n\n` +
+      'هل هذه المادة تجيب فعلاً على السؤال، وهل هى من نفس المجال القانوني؟ رد بـJSON فقط.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 100,
+          temperature: 0,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek verifyCitation API error ${res.status}: ${errText}`);
+        return null;
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        return null;
+      }
+
+      const parsed = parseVerifyJson(text);
+      if (!parsed) {
+        this.logger.warn(`DeepSeek verifyCitation: could not parse JSON from response: ${text}`);
+        return null;
+      }
+      return parsed;
+    } catch (err) {
+      this.logger.warn(`DeepSeek verifyCitation call failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+}
+
+/**
+ * تحليل دفاعي لرد verifyCitation: يحاول JSON.parse مباشرة، ولو فشل (مثلاً
+ * بسبب نص زائد قبل/بعد الـJSON رغم التعليمات) يستخرج أول substring على شكل
+ * {...} ويحاول تحليله. يُرجع null لو تعذّر الاثنان أو كان الحقل relevant
+ * غائباً/ليس boolean — يدفع المستدعي لسلوك fail-open الآمن.
+ */
+function parseVerifyJson(text: string): { relevant: boolean; reason: string } | null {
+  const candidates = [text];
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    candidates.push(match[0]);
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as { relevant?: unknown; reason?: unknown };
+      if (typeof parsed.relevant === 'boolean') {
+        return {
+          relevant: parsed.relevant,
+          reason: typeof parsed.reason === 'string' ? parsed.reason : '',
+        };
+      }
+    } catch {
+      // جرّب المرشح التالي
+    }
+  }
+  return null;
 }

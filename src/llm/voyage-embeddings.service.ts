@@ -26,6 +26,10 @@ export class VoyageEmbeddingsService {
   // بعد اختبار فعلي على Golden Test Set لكلا الخيارين — لا تفترض الأفضل.
   private readonly model = process.env.VOYAGE_EMBEDDING_MODEL ?? 'voyage-3.5';
   private readonly outputDimension = 1024;
+  // EP-10 (2026-08-23): نموذج reranking — راجع ADR-001 (تقارير المشروع) للتصميم
+  // الكامل. rerank-2.5 مدفوع بسعر ضئيل جداً ($0.05/مليون توكن) مع 200 مليون
+  // توكن مجاناً شهرياً — عملياً بلا تكلفة على حجم الاستخدام الحالي.
+  private readonly rerankModel = process.env.VOYAGE_RERANK_MODEL ?? 'rerank-2.5';
 
   get isConfigured(): boolean {
     return Boolean(this.apiKey);
@@ -44,6 +48,60 @@ export class VoyageEmbeddingsService {
   async embedQuery(text: string): Promise<number[] | null> {
     const result = await this.embed([text], 'query');
     return result?.[0] ?? null;
+  }
+
+  /**
+   * EP-10 (2026-08-23): إعادة ترتيب مرشحين مُسترجَعين مسبقاً (من FTS أو
+   * الاسترجاع الدلالي) عبر Voyage rerank — الطبقة الأولى فى تصميم ADR-001
+   * الهجين. بخلاف bi-encoder (embedQuery، الذي يُحوِّل السؤال وكل مادة كلاً
+   * على حدة لمتجه منفصل)، الـreranker يقارن السؤال وكل مرشح **معاً** فى نفس
+   * الاستدعاء (cross-encoder) — أدق فى تمييز التشابه اللفظي السطحي (كلمات
+   * عامة مشتركة مثل "عقوبة") عن التطابق الموضوعي الحقيقي، وهو بالضبط الضعف
+   * البنيوي الذي أثبتته تجربتا EP-06 وEP-08 فى مطابقة المتجه الواحد.
+   *
+   * يُرجع null (بدل قائمة) عند عدم التفعيل أو فشل الاستدعاء — نفس مبدأ
+   * التدهور اللطيف فى بقية هذا الملف؛ المستدعي (questions.service) يتراجع
+   * عندها لترتيب المرشحين الأصلي (حسب ثقة FTS/الدلالي الخام) دون أي انقطاع.
+   */
+  async rerank(
+    query: string,
+    documents: string[],
+  ): Promise<Array<{ index: number; relevanceScore: number }> | null> {
+    if (!this.isConfigured || documents.length === 0) {
+      return null;
+    }
+
+    try {
+      const res = await fetch('https://api.voyageai.com/v1/rerank', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          query,
+          documents,
+          model: this.rerankModel,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.error(`Voyage rerank API error ${res.status}: ${errText}`);
+        return null;
+      }
+
+      const data = (await res.json()) as {
+        results?: Array<{ index: number; relevance_score: number }>;
+      };
+      if (!data.results) {
+        return null;
+      }
+      return data.results.map((r) => ({ index: r.index, relevanceScore: r.relevance_score }));
+    } catch (err) {
+      this.logger.error(`Voyage rerank call failed: ${(err as Error).message}`);
+      return null;
+    }
   }
 
   private async embed(

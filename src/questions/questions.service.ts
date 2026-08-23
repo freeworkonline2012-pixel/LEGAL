@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
@@ -85,8 +85,18 @@ interface RetrievalResult {
   confidence: number;
 }
 
+/** EP-10: مرشح استشهاد خام (قبل rerank/تحقق) — يحمل مصدره وثقته الأصلية
+ * (FTS ts_rank أو تشابه جيب التمام الدلالي) لأغراض التسجيل التدقيقي والترتيب
+ * البديل عند تعذّر rerank. */
+interface RetrievalCandidate {
+  citation: RetrievedCitation;
+  confidence: number;
+  source: 'fts' | 'semantic';
+}
+
 @Injectable()
 export class QuestionsService {
+  private readonly logger = new Logger(QuestionsService.name);
   private readonly questionRepository: Repository<Question>;
   private readonly answerRepository: Repository<Answer>;
   private readonly citationRepository: Repository<Citation>;
@@ -380,7 +390,38 @@ export class QuestionsService {
       return { citation: null, confidence: 0.1 };
     }
 
-    const ftsResult = await this.ftsRetrieval(questionText, ref?.articleNo);
+    // EP-10 (2026-08-23، ADR-001): طبقة rerank+تحقق هجينة، خلف feature flag
+    // (ENABLE_RERANK_VERIFICATION=true عبر متغير بيئة Railway — تفعيل/تعطيل
+    // فوري بلا أي commit/push/إعادة نشر كود). يُقرَأ من env عند كل نداء (لا
+    // يُخزَّن كثابت وقت الإقلاع) لضمان أن أي تغيير فى Railway ينعكس فوراً.
+    // fail-open كامل: أي فشل غير متوقَّع فى المسار الجديد (لا مرشحين، عطل
+    // شبكة، إلخ) يتراجع صراحة لـretrieveLegacy — المسار المؤكَّد سلامته
+    // (مطابق حرفياً لـcommit 2b9c245).
+    if (process.env.ENABLE_RERANK_VERIFICATION === 'true') {
+      try {
+        const enhanced = await this.retrieveWithRerankVerification(questionText, ref?.articleNo);
+        if (enhanced) {
+          return enhanced;
+        }
+      } catch (err) {
+        this.logger.warn(
+          `EP-10 rerank+verification pipeline threw — fail-open to retrieveLegacy: ${(err as Error).message}`,
+        );
+      }
+    }
+
+    return this.retrieveLegacy(questionText, ref?.articleNo);
+  }
+
+  /** المسار الأساسي قبل EP-10 — FTS ثم استكمال دلالي بعتبتين ثابتتين، بلا
+   * إعادة ترتيب أو تحقق إضافي. يبقى fallback نهائي عند تعطيل EP-10 أو فشل
+   * أي جزء من مساره الجديد (مطابق حرفياً لسلوك commit 2b9c245 المؤكَّد
+   * سلامته بتشغيل حي — لا تُعدَّل هذه الدالة إلا بتجربة مستقلة موثَّقة). */
+  private async retrieveLegacy(
+    questionText: string,
+    preferArticleNo?: number,
+  ): Promise<RetrievalResult> {
+    const ftsResult = await this.ftsRetrieval(questionText, preferArticleNo);
     if (isConfident(ftsResult.confidence)) {
       return ftsResult;
     }
@@ -395,6 +436,253 @@ export class QuestionsService {
     }
 
     return ftsResult;
+  }
+
+  /**
+   * EP-10 (2026-08-23، ADR-001 — الحل الهجين المُعتمَد): يجمع مرشحين خام من
+   * FTS والاسترجاع الدلالي معاً (بلا بوابة عتبة فردية هذه المرة — العتبات
+   * القديمة كانت تُسقط أحياناً مرشحين صحيحين لكن غير واثقين بما يكفي)، يعيد
+   * ترتيبهم عبر Voyage rerank (cross-encoder — طبقة أولى)، ثم يتحقق نصياً من
+   * أفضل مرشحين عبر DeepSeek.verifyCitation (طبقة ثانية) قبل القبول النهائي.
+   *
+   * تدرّج fail-open بثلاث مستويات، كل مستوى لا يسوء عن سابقه:
+   *   1) لا مرشحين إطلاقاً → رفض مباشر (نفس نتيجة retrieveLegacy لنفس الحالة).
+   *   2) rerank غير متاح/فشل → يُستخدَم ترتيب المرشحين حسب ثقتهم الخام
+   *      (FTS/دلالي) كبديل معقول، والتحقق يكمل عليه كالمعتاد.
+   *   3) verifyCitation غير متاح/فشل لمرشح بعينه → يُقبَل هذا المرشح كأنه لم
+   *      يُفحَص (fail-open لكل مرشح على حدة) — لا رفض غير مبرَّر بعطل بنية
+   *      تحتية؛ الرفض الوحيد المقبول هنا هو رفض صريح ("relevant": false)
+   *      فعلاً من التحقق.
+   *
+   * يُرجع null فقط لو رمت هذه الدالة استثناءً غير متوقَّع تماماً (يلتقطه
+   * retrieve() ويتراجع لـretrieveLegacy) — الحالات المُتوقَّعة كلها (لا
+   * مرشحين، فشل rerank، فشل تحقق) تُعالَج داخلياً وتُرجع RetrievalResult دائماً.
+   */
+  private async retrieveWithRerankVerification(
+    questionText: string,
+    preferArticleNo?: number,
+  ): Promise<RetrievalResult | null> {
+    const [ftsCandidates, semanticCandidates] = await Promise.all([
+      this.ftsCandidates(questionText, 5),
+      this.semanticCandidates(questionText, 5),
+    ]);
+
+    const merged = this.mergeCandidates(ftsCandidates, semanticCandidates, preferArticleNo);
+    if (merged.length === 0) {
+      return { citation: null, confidence: 0 };
+    }
+
+    const rerankResults = await this.embeddingsService.rerank(
+      questionText,
+      merged.map((c) => c.citation.snippet),
+    );
+
+    const ordered: Array<RetrievalCandidate & { rerankScore: number | null }> = rerankResults
+      ? [...rerankResults]
+          .sort((a, b) => b.relevanceScore - a.relevanceScore)
+          .filter((r) => merged[r.index] !== undefined)
+          .map((r) => ({ ...merged[r.index], rerankScore: r.relevanceScore }))
+      : merged.map((c) => ({ ...c, rerankScore: null }));
+
+    // نجرّب أفضل مرشحين بحد أقصى — تحكّم فى الكُلفة/الزمن، وكفاية عملية (لو
+    // فشل أفضل مرشحين معاً فى التحقق، الاحتمال الأرجح أن السؤال فعلاً خارج
+    // النطاق أو لا توجد مادة مطابقة أصلاً).
+    const candidatesToVerify = ordered.slice(0, 2);
+
+    for (const candidate of candidatesToVerify) {
+      const verification = await this.generationService.verifyCitation({
+        question: questionText,
+        lawTitle: candidate.citation.law,
+        lawNo: candidate.citation.lawNo,
+        articleNo: candidate.citation.articleNo,
+        articleText: candidate.citation.snippet,
+      });
+
+      await this.auditService
+        .record({
+          action: 'retrieval.rerank_verify',
+          resourceType: 'citation',
+          metadata: {
+            articleNo: candidate.citation.articleNo,
+            lawNo: candidate.citation.lawNo,
+            source: candidate.source,
+            originalConfidence: candidate.confidence,
+            rerankScore: candidate.rerankScore,
+            verification, // null = فشل استدعاء التحقق نفسه (fail-open)
+          },
+        })
+        .catch((err) => {
+          this.logger.warn(`EP-10 audit log for rerank_verify failed (non-fatal): ${(err as Error).message}`);
+        });
+
+      if (!verification || verification.relevant) {
+        return { citation: candidate.citation, confidence: candidate.confidence };
+      }
+    }
+
+    // كل المرشحين المُجرَّبين رُفضوا صراحة من التحقق (لا عطل) — رفض آمن.
+    return { citation: null, confidence: ordered[0]?.confidence ?? 0 };
+  }
+
+  /** EP-10: نفس استعلام ftsRetrieval لكن يُرجع أفضل limit مرشحين خام (بلا
+   * بوابة عتبة) بدل مرشح واحد فقط — مُستخدَم فى retrieveWithRerankVerification. */
+  private async ftsCandidates(questionText: string, limit: number): Promise<RetrievalCandidate[]> {
+    const query = buildFtsQuery(questionText);
+    if (!query) {
+      return [];
+    }
+
+    const qb = this.versionRepository
+      .createQueryBuilder('version')
+      .innerJoinAndSelect('version.article', 'article')
+      .innerJoinAndSelect('article.law', 'law')
+      .where(`to_tsvector('simple', arabic_normalize(version.body)) @@ to_tsquery('simple', :query)`, {
+        query,
+      })
+      .andWhere('version.effective_to IS NULL')
+      .addSelect(
+        `ts_rank(to_tsvector('simple', arabic_normalize(version.body)), to_tsquery('simple', :query))`,
+        'rank',
+      )
+      .orderBy('rank', 'DESC')
+      .take(limit);
+
+    const { entities, raw } = await qb.getRawAndEntities();
+
+    return entities.map((version, i) => ({
+      citation: this.citationFromVersion(version),
+      confidence: confidenceFromRank(Number(raw[i]?.rank ?? 0)),
+      source: 'fts' as const,
+    }));
+  }
+
+  /** EP-10: نفس استعلام semanticRetrieval لكن يُرجع أفضل limit مرشحين خام
+   * (بلا بوابة SEMANTIC_CONFIDENCE_THRESHOLD) بدل مرشح واحد فقط — مرشحون
+   * قريبون من العتبة لكن دونها قد يُنقذهم rerank+التحقق بدل رفضهم تلقائياً. */
+  private async semanticCandidates(questionText: string, limit: number): Promise<RetrievalCandidate[]> {
+    if (!this.embeddingsService.isConfigured) {
+      return [];
+    }
+
+    const questionEmbedding = await this.embeddingsService.embedQuery(questionText);
+    if (!questionEmbedding) {
+      return [];
+    }
+
+    const vectorLiteral = toPgVectorLiteral(questionEmbedding);
+
+    const rows: Array<{
+      article_id: string;
+      article_no: number;
+      short_title: string | null;
+      title: string;
+      law_no: number;
+      law_year: number;
+      status: 'in_force' | 'amended' | 'repealed';
+      last_amended_at: string | null;
+      official_url: string | null;
+      version_id: string;
+      body: string;
+      similarity: number;
+    }> = await this.dataSource.query(
+      `SELECT
+         a.id AS article_id, a.article_no,
+         l.short_title, l.title, l.law_no, l.law_year, l.status, l.last_amended_at, l.official_url,
+         av.id AS version_id, av.body,
+         1 - (a.embedding <=> $1::vector) AS similarity
+       FROM articles a
+       JOIN laws l ON l.id = a.law_id
+       JOIN article_versions av ON av.article_id = a.id AND av.effective_to IS NULL
+       WHERE a.embedding IS NOT NULL
+       ORDER BY a.embedding <=> $1::vector
+       LIMIT $2`,
+      [vectorLiteral, limit],
+    );
+
+    return rows.map((row) => ({
+      citation: this.citationFromSemanticRow(row),
+      confidence: Math.min(1, Math.max(0, Number(row.similarity))),
+      source: 'semantic' as const,
+    }));
+  }
+
+  /** EP-10: يدمج مرشحي FTS والدلالي معاً، مُفرَّدين حسب articleId (يُبقي
+   * أعلى ثقة عند التكرار)، مُرتَّبين تنازلياً حسب الثقة الأصلية كترتيب بديل
+   * معقول لو تعذّر rerank، مع تقديم preferArticleNo (رقم مادة صريح ورد فى
+   * السؤال) لأول القائمة إن وُجد — يبقى مجرد تلميح أولي، القرار الفعلي
+   * النهائي يعتمد على rerank+التحقق لا على هذا الترتيب المبدئي. */
+  private mergeCandidates(
+    ftsCandidates: RetrievalCandidate[],
+    semanticCandidates: RetrievalCandidate[],
+    preferArticleNo?: number,
+  ): RetrievalCandidate[] {
+    const byKey = new Map<string, RetrievalCandidate>();
+    for (const candidate of [...ftsCandidates, ...semanticCandidates]) {
+      const key = candidate.citation.articleId ?? `${candidate.citation.lawNo}-${candidate.citation.articleNo}`;
+      const existing = byKey.get(key);
+      if (!existing || candidate.confidence > existing.confidence) {
+        byKey.set(key, candidate);
+      }
+    }
+
+    const merged = Array.from(byKey.values()).sort((a, b) => b.confidence - a.confidence);
+
+    if (preferArticleNo) {
+      const idx = merged.findIndex((c) => c.citation.articleNo === preferArticleNo);
+      if (idx > 0) {
+        const [preferred] = merged.splice(idx, 1);
+        merged.unshift(preferred);
+      }
+    }
+
+    return merged;
+  }
+
+  /** EP-10: استخراج RetrievedCitation من صف FTS (version + article + law
+   * مُحمَّلين عبر innerJoinAndSelect) — مُستخرَجة من ftsRetrieval لإعادة
+   * الاستخدام فى ftsCandidates بلا تكرار منطق. */
+  private citationFromVersion(version: ArticleVersion & { article: Article & { law: Law } }): RetrievedCitation {
+    return {
+      law: version.article.law.shortTitle ?? version.article.law.title,
+      lawNo: version.article.law.lawNo,
+      lawYear: version.article.law.lawYear,
+      articleNo: version.article.articleNo,
+      status: toCitationStatus(version.article.law.status),
+      lastAmended: version.article.law.lastAmendedAt,
+      officialUrl: version.article.law.officialUrl,
+      snippet: version.body,
+      articleId: version.article.id,
+      articleVersionId: version.id,
+    };
+  }
+
+  /** EP-10: استخراج RetrievedCitation من صف الاستعلام الدلالي الخام —
+   * مُستخرَجة من semanticRetrieval لإعادة الاستخدام فى semanticCandidates. */
+  private citationFromSemanticRow(row: {
+    article_id: string;
+    article_no: number;
+    short_title: string | null;
+    title: string;
+    law_no: number;
+    law_year: number;
+    status: 'in_force' | 'amended' | 'repealed';
+    last_amended_at: string | null;
+    official_url: string | null;
+    version_id: string;
+    body: string;
+  }): RetrievedCitation {
+    return {
+      law: row.short_title ?? row.title,
+      lawNo: row.law_no,
+      lawYear: row.law_year,
+      articleNo: row.article_no,
+      status: toCitationStatus(row.status),
+      lastAmended: row.last_amended_at,
+      officialUrl: row.official_url,
+      snippet: row.body,
+      articleId: row.article_id,
+      articleVersionId: row.version_id,
+    };
   }
 
   /**
