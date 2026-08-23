@@ -370,7 +370,38 @@ export class QuestionsService {
       return { citation: null, confidence: 0.1 };
     }
 
-    const ftsResult = await this.ftsRetrieval(questionText, ref?.articleNo);
+    const primary = await this.retrieveOnce(questionText, ref?.articleNo);
+    if (primary.citation) {
+      return primary;
+    }
+
+    // EP-08 (2026-08-23): محاولة أخيرة — إعادة صياغة السؤال بالفصحى القانونية
+    // الرسمية (DeepseekGenerationService.rewriteForSearch) ثم إعادة تكرار
+    // FTS + الاسترجاع الدلالي على النص المُعاد صياغته. تُستدعى فقط هنا (بعد
+    // فشل المحاولة الأولى بالكامل) لتفادي أي زمن استجابة أو تكلفة API إضافية
+    // على الأسئلة الواثقة أصلاً من أول محاولة. جذر المشكلة موثَّق بالتفصيل
+    // فى تعليق rewriteForSearch نفسها وفى تقرير المعايرة (Golden Test Set):
+    // ضعف ثابت فى فئة "صياغة عامية قصيرة" تحديداً عبر كل التشغيلات الحية.
+    const rewritten = await this.generationService.rewriteForSearch(questionText);
+    if (!rewritten || rewritten.trim() === questionText.trim()) {
+      return primary;
+    }
+
+    const rewrittenResult = await this.retrieveOnce(rewritten, ref?.articleNo);
+    if (rewrittenResult.citation) {
+      return rewrittenResult;
+    }
+
+    return primary;
+  }
+
+  /** محاولة استرجاع واحدة (FTS ثم الدلالي كتكميل) — يُستدعى مرتين من retrieve()
+   * عند الحاجة: مرة بالنص الأصلي، ومرة بالنص المُعاد صياغته (EP-08). */
+  private async retrieveOnce(
+    questionText: string,
+    preferArticleNo?: number,
+  ): Promise<RetrievalResult> {
+    const ftsResult = await this.ftsRetrieval(questionText, preferArticleNo);
     if (isConfident(ftsResult.confidence)) {
       return ftsResult;
     }
