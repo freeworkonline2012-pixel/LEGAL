@@ -199,10 +199,7 @@ export class IngestionService {
         amendedByLawYear: null,
         changeNote: null,
       });
-      pendingEmbeddings.push({
-        articleId: savedArticle.id,
-        body: buildEmbedText(law.shortTitle ?? law.title, input.hierarchical_location, body),
-      });
+      pendingEmbeddings.push({ articleId: savedArticle.id, body });
       summary.articles_created += 1;
       return;
     }
@@ -251,14 +248,7 @@ export class IngestionService {
 
     existing.body = body;
     await articleRepo.save(existing);
-    pendingEmbeddings.push({
-      articleId: existing.id,
-      body: buildEmbedText(
-        law.shortTitle ?? law.title,
-        existing.hierarchicalLocation ?? input.hierarchical_location,
-        body,
-      ),
-    });
+    pendingEmbeddings.push({ articleId: existing.id, body });
     summary.articles_updated += 1;
   }
 
@@ -275,26 +265,13 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/**
- * ⚠️ إصلاح (EP-06، 2026-08-22): قبل هذا التغيير كان نص الـembedding = body
- * فقط، بلا أي سياق (لا اسم القانون، لا الموقع الهرمي/الباب-الفصل). هذا كان
- * السبب الجذري لاستشهادات خاطئة حقيقية مُكتشَفة فى Golden Test Set الحي —
- * مثال: سؤال عن "الجزاءات التأديبية على الموظف" (مادة 139، فى باب علاقات
- * العمل الفردية) أعاد مادة 297 (باب العقوبات الجنائية على صاحب العمل) لأن
- * الكلمة "عقوبات/جزاءات" وحدها لا تكفي لتمييز السياقين دلالياً بلا معلومة
- * الموقع الهرمي. إضافة اسم القانون + الموقع الهرمي كسطر أول قبل نص المادة
- * يمنح Voyage إشارة تمييز إضافية قوية (السياقان يقعان فعلياً فى أبواب/كتب
- * مختلفة تماماً فى النص الرسمي). يُستخدم فى كل من هذا الملف وscripts/backfill
- * -embeddings.js — لازم يبقى المساران متوافقين دائماً.
- */
-export function buildEmbedText(
-  lawShortTitle: string | null | undefined,
-  hierarchicalLocation: string | null | undefined,
-  body: string,
-): string {
-  const contextLine = [lawShortTitle, hierarchicalLocation].filter(Boolean).join(' — ');
-  return contextLine ? `${contextLine}\n${body}` : body;
-}
+// ⚠️ محاولة (EP-06، 2026-08-22) وتراجع (نفس اليوم): جُرِّب هنا buildEmbedText
+// (إضافة اسم القانون + الموقع الهرمي كسطر سياق قبل متن المادة قبل حساب
+// الـembedding) لمحاولة حل استشهادات خاطئة حقيقية. اختبار حي كامل (99 سؤال)
+// أثبت أن هذا لم يحسّن النتيجة (45→42 إجابة صحيحة، 4→5 استشهاد خاطئ) — بل
+// أضرّ فى بعض الحالات. التفاصيل الكاملة موثّقة فى تقرير المعايرة (مشروع
+// "يوسف الخبير التقنى"، قسم "متابعة EP-06"). تراجعنا لنص embedding = متن
+// المادة فقط، كما كان أصلاً. الحل الصحيح المؤجَّل: طبقة reranking منفصلة.
 
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);

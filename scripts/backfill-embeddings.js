@@ -48,21 +48,21 @@ const MAX_RETRIES_PER_BATCH = 3;
 const MIN_DELAY_BETWEEN_BATCHES_MS = 21000; // >20s → يبقينا تحت 3 طلبات/دقيقة بهامش أمان
 const DEFAULT_RATE_LIMIT_BACKOFF_MS = 25000; // انتظار افتراضي عند 429 بلا رأس Retry-After
 
-// ⚠️ إصلاح (EP-06، 2026-08-22): كان نص الـembedding = body فقط، بلا اسم
-// القانون أو الموقع الهرمي (الباب/الفصل) — نفس السبب الجذري الموثّق فى
-// ingestion.service.ts (buildEmbedText) لاستشهادات خاطئة حقيقية اكتُشِفت فى
-// Golden Test Set الحي (مثال: خلط مادة عن جزاءات تأديبية على العامل بمادة
-// عن عقوبة جنائية على صاحب العمل، لأن "عقوبات" وحدها غير كافية دلالياً بلا
-// سياق الباب). لازم يبقى هذا المسار متوافقاً دائماً مع buildEmbedText فى
-// ingestion.service.ts.
-function buildEmbedText(lawShortTitle, hierarchicalLocation, body) {
-  const contextLine = [lawShortTitle, hierarchicalLocation].filter(Boolean).join(' — ');
-  return contextLine ? `${contextLine}\n${body}` : body;
-}
+// ⚠️ محاولة (EP-06، 2026-08-22) وتراجع (نفس اليوم): جُرِّب إضافة اسم القانون
+// + الموقع الهرمي (الباب/الفصل) كسطر سياق قبل متن المادة (buildEmbedText)
+// لتحسين تمييز استشهادات خاطئة اكتُشِفت فى Golden Test Set الحي. اختبار حي
+// كامل (تشغيل خامس، 99 سؤال) أثبت أن هذا لم يحسّن النتيجة (45→42 إجابة
+// صحيحة، 4→5 استشهاد خاطئ) — بل أضرّ فى بعض الحالات (عنوان الباب يحتوي
+// كلمة من السؤال بالصدفة فيرفع تطابقاً كاذباً؛ أو مادتان متنافستان فى نفس
+// الباب فيصبح السياق المُضاف عديم الفائدة). التفاصيل الكاملة موثّقة فى
+// تقرير المعايرة النهائي (مشروع "يوسف الخبير التقنى"، قسم "متابعة EP-06").
+// تراجعنا لنص embedding = متن المادة فقط، كما كان أصلاً قبل EP-06. الحل
+// الصحيح المؤجَّل لهذه الفئة من الأخطاء: طبقة reranking منفصلة (عمل مستقبلي
+// غير مبدوء بعد)، وليس تعديل نص الإدخال.
 
-// --force: يعيد حساب embedding لكل المواد (حتى المُفهرَسة أصلاً) — مطلوب
-// مرة واحدة بعد تغيير buildEmbedText نفسها (نص مختلف = يجب إعادة الحساب
-// لكل شيء لضمان اتساق فضاء المتجهات). الافتراضي (بلا العلم) يبقى كما كان:
+// --force: يعيد حساب embedding لكل المواد (حتى المُفهرَسة أصلاً) — يُستخدم
+// هنا لمرة واحدة إضافية للتراجع عن تجربة buildEmbedText والعودة لنص
+// متسق (متن فقط) لكل فضاء المتجهات. الافتراضي (بلا العلم) يبقى كما كان:
 // المواد التي embedding IS NULL فقط — آمن لإعادة التشغيل العادية.
 const FORCE_REEMBED = process.argv.includes('--force');
 
@@ -127,17 +127,13 @@ async function main() {
   const failedIds = [];
 
   try {
-    const whereClause = FORCE_REEMBED ? '' : 'WHERE a.embedding IS NULL';
+    const whereClause = FORCE_REEMBED ? '' : 'WHERE embedding IS NULL';
     const { rows: pending } = await client.query(
-      `SELECT a.id, a.body, a.hierarchical_location, l.short_title, l.title
-       FROM articles a
-       JOIN laws l ON l.id = a.law_id
-       ${whereClause}
-       ORDER BY a.created_at ASC`,
+      `SELECT id, body FROM articles ${whereClause} ORDER BY created_at ASC`,
     );
 
     if (FORCE_REEMBED) {
-      console.log(`[backfill] --force: إعادة حساب لكل المواد (${pending.length}) بنص السياق الجديد.`);
+      console.log(`[backfill] --force: إعادة حساب لكل المواد (${pending.length}) — تراجع لنص متن-فقط.`);
     }
     console.log(`[backfill] عدد المواد المستهدفة: ${pending.length}`);
     if (pending.length === 0) {
@@ -147,7 +143,7 @@ async function main() {
 
     for (let i = 0; i < pending.length; i += BATCH_SIZE) {
       const batch = pending.slice(i, i + BATCH_SIZE);
-      const texts = batch.map((r) => buildEmbedText(r.short_title ?? r.title, r.hierarchical_location, r.body));
+      const texts = batch.map((r) => r.body);
 
       let embeddings = null;
       let lastErr = null;
