@@ -469,6 +469,10 @@ export class QuestionsService {
 
     const merged = this.mergeCandidates(ftsCandidates, semanticCandidates, preferArticleNo);
     if (merged.length === 0) {
+      // تسجيل تشخيصي مؤقت — يميّز "لا مرشحين أصلاً فى الاسترجاع" (فجوة فى
+      // FTS/الدلالي، لا علاقة لها بطبقة التحقق) عن "مرشح وُجد لكن رُفض
+      // بالتحقق" (اللوق فى الحلقة أدناه).
+      this.logger.log(`EP-10 verify: q="${questionText.slice(0, 60)}" → لا مرشحين إطلاقاً من FTS/الدلالي`);
       return { citation: null, confidence: 0 };
     }
 
@@ -514,6 +518,16 @@ export class QuestionsService {
         .catch((err) => {
           this.logger.warn(`EP-10 audit log for rerank_verify failed (non-fatal): ${(err as Error).message}`);
         });
+
+      // تسجيل تشخيصي مؤقت (2026-08-24) — لفهم أسباب الرفض الفعلية أثناء
+      // معايرة العيّنة المُركَّزة، بلا الحاجة لقراءة قاعدة البيانات مباشرة.
+      // يُبقى فى السجلات (log عادي، ليس warn) لأنه مفيد للتدقيق المستقبلي
+      // أيضاً؛ يمكن حذفه لاحقاً بعد استقرار المعايرة إن أصبح ضجيجاً زائداً.
+      this.logger.log(
+        `EP-10 verify: q="${questionText.slice(0, 60)}" candidate=${candidate.citation.lawNo}/${candidate.citation.articleNo} ` +
+          `source=${candidate.source} origConf=${candidate.confidence.toFixed(3)} rerankScore=${candidate.rerankScore ?? 'n/a'} ` +
+          `→ ${JSON.stringify(verification)}`,
+      );
 
       // سياسة ما بعد حادثة 2026-08-24 (راجع تعليق verifyCitation فى
       // deepseek-generation.service.ts للتفاصيل الكاملة):
