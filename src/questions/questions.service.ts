@@ -508,19 +508,32 @@ export class QuestionsService {
             source: candidate.source,
             originalConfidence: candidate.confidence,
             rerankScore: candidate.rerankScore,
-            verification, // null = فشل استدعاء التحقق نفسه (fail-open)
+            verification,
           },
         })
         .catch((err) => {
           this.logger.warn(`EP-10 audit log for rerank_verify failed (non-fatal): ${(err as Error).message}`);
         });
 
-      if (!verification || verification.relevant) {
+      // سياسة ما بعد حادثة 2026-08-24 (راجع تعليق verifyCitation فى
+      // deepseek-generation.service.ts للتفاصيل الكاملة):
+      //   - 'not_configured' (بلا DEEPSEEK_API_KEY): fail-open — الميزة غير
+      //     مفعَّلة أصلاً، حالة تهيئة معروفة، قبول المرشح كأن التحقق غير موجود.
+      //   - 'ok' مع relevant=true: قبول صريح.
+      //   - 'ok' مع relevant=false، أو 'error' (عطل استدعاء/تحليل فعلي أثناء
+      //     التشغيل): fail-**closed** — هذا المرشح مرفوض، جرّب التالي. عطل
+      //     التحقق نفسه لم يعد يُعامَل كقبول ضمني (كان هذا سبب فشل التشغيل
+      //     الحي الأول بالكامل — راجع ADR-001).
+      if (verification.status === 'not_configured') {
+        return { citation: candidate.citation, confidence: candidate.confidence };
+      }
+      if (verification.status === 'ok' && verification.relevant) {
         return { citation: candidate.citation, confidence: candidate.confidence };
       }
     }
 
-    // كل المرشحين المُجرَّبين رُفضوا صراحة من التحقق (لا عطل) — رفض آمن.
+    // كل المرشحين المُجرَّبين رُفضوا (صراحة من التحقق، أو fail-closed بعد عطل
+    // تشغيلي فعلي) — رفض آمن.
     return { citation: null, confidence: ordered[0]?.confidence ?? 0 };
   }
 

@@ -108,23 +108,33 @@ export class DeepseekGenerationService {
   // 2026-08-23. التفاصيل كاملة فى تقرير المعايرة (project doc).
 
   /**
-   * EP-10 (2026-08-23): تحقق نصي نهائي من مرشح استشهاد واحد — الطبقة الثانية
-   * فى تصميم ADR-001 الهجين (بعد Voyage rerank فى VoyageEmbeddingsService).
-   * تسأل صراحة: هل هذه المادة تجيب فعلاً على السؤال، وهل هى من نفس المجال
+   * EP-10 (2026-08-23، مُصحَّحة 2026-08-24 بعد حادثة الإنتاج الموثَّقة فى
+   * ADR-001): تحقق نصي نهائي من مرشح استشهاد واحد — الطبقة الثانية فى تصميم
+   * ADR-001 الهجين (بعد Voyage rerank فى VoyageEmbeddingsService). تسأل
+   * صراحة: هل هذه المادة تجيب فعلاً على السؤال، وهل هى من نفس المجال
    * القانوني الذي يقصده السؤال؟ الهدف: صيد الحالات التى تجاوز فيها مرشح
    * عتبة الثقة (FTS أو الدلالي) بسبب تشابه لفظي سطحي مع كلمة عامة (مثل
-   * "عقوبة") بينما هو فعلياً من مجال/موضوع مختلف — نفس الآلية الجذرية التى
-   * سببت الاستشهادات الخاطئة (g039/g051) والتسريب الكاذب (نمط g089).
+   * "عقوبة") بينما هو فعلياً من مجال/موضوع مختلف.
    *
-   * حرارة=0 لأقصى ثبات ممكن (بلا ضمان حتمية كاملة من LLM، لكن أقرب ما يمكن).
-   * إخراج JSON صارم عبر التعليمات فقط (بلا response_format، اتساقاً مع نمط
-   * composeGroundedAnswer المُختبَر فعلياً فى الإنتاج) + تحليل دفاعي يتحمّل
-   * نصاً زائداً حول الـJSON لو حدث.
+   * ⚠️ درس مستفاد من فشل التشغيل الحي الأول (2026-08-24): max_tokens=100
+   * القديمة كانت تقطع رد DeepSeek قبل إغلاق الـJSON فى كل استدعاء تقريباً
+   * (النص العربي يستهلك توكنز أكثر من الإنجليزي)، فيفشل التحليل دائماً ويقع
+   * النظام فى fail-open على 100% من الاستدعاءات — أبطل طبقة التحقق بالكامل
+   * بصمت (رأينا فى السجلات: كل رسائل التحذير كانت JSON صالح الشكل لكن مقطوع
+   * منتصف الجملة، بلا قوس إغلاق). التصحيح: max_tokens=250 (هامش أمان واسع)
+   * + تقصير طلب "السبب" لتقليل توكنز الإخراج أصلاً.
    *
-   * fail-open صريح: بلا DEEPSEEK_API_KEY، أو عند فشل الاستدعاء، أو تعذّر
-   * تحليل الرد كـJSON صالح، تُرجع null — المستدعي (questions.service) يتعامل
-   * مع null كـ"لا حكم متاح" ويقبل المرشح كما لو التحقق غير موجود أصلاً (لا
-   * وضع أسوأ من الإنتاج قبل EP-10 لهذا المرشح تحديداً).
+   * ⚠️ تصحيح سياسة fail-open (نفس الحادثة): "بلا DEEPSEEK_API_KEY" و"فشل
+   * استدعاء/تحليل فعلي أثناء التشغيل" لم يعودا يُعامَلان بنفس الطريقة. الأول
+   * حالة تهيئة معروفة (الميزة غير مفعَّلة أصلاً) — fail-open معقول ومتّسق مع
+   * بقية الملف. الثاني عطل غير متوقَّع أثناء التشغيل — ثبت عملياً أن fail-open
+   * هنا خطر: يُخفي الأعطال بصمت ويُسقط طبقة الأمان بالكامل دون أي إشارة
+   * ظاهرة. لذلك الآن: fail-**closed** لكل عطل تشغيلي فعلي (استدعاء فشل، رد
+   * فارغ، تعذّر تحليل حتى مع القراءة الاحتياطية) — يُعامَل كمرشح مرفوض
+   * (المستدعي يجرّب المرشح التالي، ثم يرفض لو نفدت المحاولات)، اتساقاً مع
+   * مبدأ المشروع "رفض آمن أفضل من إجابة واثقة خاطئة". الأثر الجانبي المقبول:
+   * لو DeepSeek تعطَّل بالكامل أثناء تفعيل هذه الميزة، الرفض يرتفع (ظاهر
+   * وقابل للرصد) بدل قبول كل شيء بصمت (خفي وخطر) — نفس فلسفة عتبة 0.55.
    */
   async verifyCitation(input: {
     question: string;
@@ -132,9 +142,13 @@ export class DeepseekGenerationService {
     lawNo: number;
     articleNo: number;
     articleText: string;
-  }): Promise<{ relevant: boolean; reason: string } | null> {
+  }): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | { status: 'ok'; relevant: boolean; reason: string }
+  > {
     if (!this.isConfigured) {
-      return null;
+      return { status: 'not_configured' };
     }
 
     const system =
@@ -144,14 +158,14 @@ export class DeepseekGenerationService {
       'كانت المادة تشترك مع السؤال فى كلمات عامة (مثل "عقوبة"، "حق"، "التزام"، ' +
       '"إجازة") لكنها تتناول موضوعاً مختلفاً كلياً أو مجالاً قانونياً مختلفاً عن ' +
       'مقصود السؤال، فالإجابة الصحيحة false. أجب حصراً بصيغة JSON صارمة بلا أي ' +
-      'نص إضافي قبلها أو بعدها، بالضبط بهذا الشكل: ' +
-      '{"relevant": true, "reason": "جملة واحدة قصيرة بالعربية"}';
+      'نص إضافي قبلها أو بعدها، بالضبط بهذا الشكل، والسبب 5 كلمات كحد أقصى: ' +
+      '{"relevant": true, "reason": "سبب قصير جداً"}';
 
     const userMsg =
       `السؤال: ${input.question}\n\n` +
       `المادة المُرشَّحة — رقم ${input.articleNo} من ${input.lawTitle} (قانون رقم ${input.lawNo}):\n` +
       `"""${input.articleText}"""\n\n` +
-      'هل هذه المادة تجيب فعلاً على السؤال، وهل هى من نفس المجال القانوني؟ رد بـJSON فقط.';
+      'هل هذه المادة تجيب فعلاً على السؤال، وهل هى من نفس المجال القانوني؟ رد بـJSON فقط، السبب 5 كلمات كحد أقصى.';
 
     try {
       const res = await fetch('https://api.deepseek.com/chat/completions', {
@@ -162,7 +176,7 @@ export class DeepseekGenerationService {
         },
         body: JSON.stringify({
           model: this.model,
-          max_tokens: 100,
+          max_tokens: 250,
           temperature: 0,
           messages: [
             { role: 'system', content: system },
@@ -174,7 +188,7 @@ export class DeepseekGenerationService {
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
         this.logger.warn(`DeepSeek verifyCitation API error ${res.status}: ${errText}`);
-        return null;
+        return { status: 'error', detail: `http_${res.status}` };
       }
 
       const data = (await res.json()) as {
@@ -182,27 +196,31 @@ export class DeepseekGenerationService {
       };
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) {
-        return null;
+        return { status: 'error', detail: 'empty_response' };
       }
 
       const parsed = parseVerifyJson(text);
       if (!parsed) {
         this.logger.warn(`DeepSeek verifyCitation: could not parse JSON from response: ${text}`);
-        return null;
+        return { status: 'error', detail: 'unparseable_json' };
       }
-      return parsed;
+      return { status: 'ok', relevant: parsed.relevant, reason: parsed.reason };
     } catch (err) {
       this.logger.warn(`DeepSeek verifyCitation call failed: ${(err as Error).message}`);
-      return null;
+      return { status: 'error', detail: (err as Error).message };
     }
   }
 }
 
 /**
- * تحليل دفاعي لرد verifyCitation: يحاول JSON.parse مباشرة، ولو فشل (مثلاً
- * بسبب نص زائد قبل/بعد الـJSON رغم التعليمات) يستخرج أول substring على شكل
- * {...} ويحاول تحليله. يُرجع null لو تعذّر الاثنان أو كان الحقل relevant
- * غائباً/ليس boolean — يدفع المستدعي لسلوك fail-open الآمن.
+ * تحليل دفاعي لرد verifyCitation، بثلاث محاولات متدرجة:
+ *   1) JSON.parse مباشر للنص كاملاً.
+ *   2) استخراج أول substring على شكل {...} (نص زائد قبل/بعد الـJSON) وتحليله.
+ *   3) (مُضافة بعد حادثة 2026-08-24) استخراج "relevant": true|false بـregex
+ *      مباشرة بمعزل عن صحة الـJSON الكامل — يُنقذ القرار الحرج (relevant)
+ *      حتى لو انقطع حقل "reason" منتصفه بسبب حد max_tokens فى المستقبل.
+ * يُرجع null فقط لو فشلت الثلاث محاولات (لا "relevant" يُستشَف بأي شكل) —
+ * يدفع المستدعي لسياسة fail-closed (انظر تعليق verifyCitation أعلاه).
  */
 function parseVerifyJson(text: string): { relevant: boolean; reason: string } | null {
   const candidates = [text];
@@ -221,8 +239,18 @@ function parseVerifyJson(text: string): { relevant: boolean; reason: string } | 
         };
       }
     } catch {
-      // جرّب المرشح التالي
+      // جرّب المحاولة التالية
     }
   }
+
+  const relevantMatch = text.match(/"relevant"\s*:\s*(true|false)/);
+  if (relevantMatch) {
+    const reasonMatch = text.match(/"reason"\s*:\s*"([^"]*)/);
+    return {
+      relevant: relevantMatch[1] === 'true',
+      reason: reasonMatch ? reasonMatch[1] : '',
+    };
+  }
+
   return null;
 }
