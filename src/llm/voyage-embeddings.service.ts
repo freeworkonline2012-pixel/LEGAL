@@ -85,19 +85,54 @@ export class VoyageEmbeddingsService {
         }),
       });
 
+      // نقرأ الجسم كنص خام أولاً (بدل res.json() مباشرة) لسببين: (1) نتجنّب
+      // استثناء JSON.parse غامضاً لو الجسم غير صالح، ونسجّله بوضوح بدل ابتلاعه
+      // فى catch العام؛ (2) نحتفظ بنص خام نقدر نطبعه فى السجلّ عند أي شكل
+      // استجابة غير متوقَّع — بعد حادثة 2026-08-24 حيث كان rerank() يُرجع
+      // null صامتاً بلا أي سطر سجلّ (لا !res.ok ولا catch)، لأن الشرط
+      // `if (!data.results)` كان يُرجع فوراً دون تسجيل. هذا كان يُخفي عطلاً
+      // حقيقياً (تعارض محتمل فى اسم الحقل بين توثيق Voyage الرسمي "results"
+      // ومصادر ثالثة غير موثوقة تذكر "data") دون أي أثر فى السجلّات — عطل لا
+      // يمكن تشخيصه هو أخطر من عطل يُسجَّل بوضوح.
+      const rawText = await res.text();
+
       if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        this.logger.error(`Voyage rerank API error ${res.status}: ${errText}`);
+        this.logger.error(`Voyage rerank API error ${res.status}: ${rawText.slice(0, 500)}`);
         return null;
       }
 
-      const data = (await res.json()) as {
-        results?: Array<{ index: number; relevance_score: number }>;
-      };
-      if (!data.results) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(rawText);
+      } catch (parseErr) {
+        this.logger.error(
+          `Voyage rerank: فشل تحليل JSON للاستجابة (status ${res.status}): ` +
+            `${(parseErr as Error).message} — الجسم الخام: ${rawText.slice(0, 500)}`,
+        );
         return null;
       }
-      return data.results.map((r) => ({ index: r.index, relevanceScore: r.relevance_score }));
+
+      const data = parsed as {
+        results?: Array<{ index: number; relevance_score: number }>;
+        data?: Array<{ index: number; relevance_score: number }>;
+      };
+      // "results" هو الاسم الموثَّق رسمياً (docs.voyageai.com وحزمة voyageai
+      // الرسمية للعميل)، لكن نقبل "data" كبديل احتياطي مسجَّل بوضوح — لو
+      // تغيّر شكل الاستجابة مستقبلاً، نعرف فوراً من السجلّ بدل تدهور صامت.
+      const results = data.results ?? data.data;
+      if (!results) {
+        this.logger.error(
+          `Voyage rerank: استجابة 200 لكن بلا حقل results/data معروف. المفاتيح الفعلية: ` +
+            `[${Object.keys(data).join(', ')}] — الجسم الخام: ${rawText.slice(0, 500)}`,
+        );
+        return null;
+      }
+      if (data.data && !data.results) {
+        this.logger.warn(
+          'Voyage rerank: الاستجابة استخدمت حقل "data" بدل "results" الموثَّق — راجع تغييرات API لدى Voyage.',
+        );
+      }
+      return results.map((r) => ({ index: r.index, relevanceScore: r.relevance_score }));
     } catch (err) {
       this.logger.error(`Voyage rerank call failed: ${(err as Error).message}`);
       return null;

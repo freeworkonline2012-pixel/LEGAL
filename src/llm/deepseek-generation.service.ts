@@ -76,6 +76,11 @@ export class DeepseekGenerationService {
         body: JSON.stringify({
           model: this.model,
           max_tokens: 600,
+          // انظر تعليق verifyCitation أدناه لسبب تعطيل thinking صراحة —
+          // نفس المنطق ينطبق هنا: صياغة نص من مادة مُعطاة سلفاً لا تحتاج
+          // تفكيراً متسلسلاً، وتفعيله افتراضياً فى deepseek-v4-flash قد
+          // يستهلك max_tokens فى reasoning_content ويترك content فارغاً.
+          thinking: { type: 'disabled' },
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: userMsg },
@@ -90,9 +95,16 @@ export class DeepseekGenerationService {
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
+        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
       };
       const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek Chat Completions: content فارغ (reasoning_content length=${reasoningLen}) — ` +
+            `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+      }
       return text && text.length > 0 ? text : null;
     } catch (err) {
       this.logger.error(`DeepSeek Chat Completions API call failed: ${(err as Error).message}`);
@@ -178,6 +190,20 @@ export class DeepseekGenerationService {
           model: this.model,
           max_tokens: 250,
           temperature: 0,
+          // ⚠️ جذر عطل "empty_response" (2026-08-24، g051): deepseek-v4-flash
+          // — خلافاً لسلف deepseek-chat — يُفعِّل thinking mode افتراضياً
+          // (راجع docs.deepseek.com/guides/thinking_mode، تحقَّق منه فعلياً
+          // فى نفس اليوم). فى وضع thinking، الاستدلال يُكتب فى حقل
+          // reasoning_content منفصل عن content، ويُستهلَك max_tokens على
+          // الاستدلال أولاً — فى أسئلة تتطلب تمييزاً دقيقاً بين مواد متشابهة
+          // (كحالة g051: 155/1 مقابل 155/51 و155/13)، الاستدلال قد يستهلك
+          // الـ250 توكن بالكامل قبل كتابة أي حرف فى content، فيعود فارغاً
+          // تماماً — ليس تقطيعاً (كعطل max_tokens=100 الأصلي)، بل غياب كامل.
+          // هذه مهمة تصنيف ثنائي بسيط (هل المادة ذات صلة؟) لا تحتاج استدلالاً
+          // متسلسلاً مرئياً على الإطلاق؛ تعطيل thinking صراحة يضمن أن كل
+          // الـmax_tokens تذهب مباشرة لـcontent، ويُلغي فئة العطل هذه جذرياً
+          // بدل مجرد تقليل احتمالها برفع الرقم مرة أخرى.
+          thinking: { type: 'disabled' },
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: userMsg },
@@ -192,10 +218,15 @@ export class DeepseekGenerationService {
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
+        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
       };
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek verifyCitation: content فارغ رغم thinking:disabled — reasoning_content ` +
+            `length=${reasoningLen}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
         return { status: 'error', detail: 'empty_response' };
       }
 
