@@ -468,6 +468,18 @@ export class QuestionsService {
     ]);
 
     const merged = this.mergeCandidates(ftsCandidates, semanticCandidates, preferArticleNo);
+
+    // تسجيل تشخيصي مؤقت (2026-08-25) — لفهم هل استشهاد خاطئ سببه رفض طبقة
+    // rerank+التحقق لمرشح صحيح موجود، أم أن المرشح الصحيح لم يصل أصلاً لمجمع
+    // المرشحين (فجوة استرجاع FTS/دلالي أعمق من نطاق EP-10). يطبع كل مرشح
+    // (وليس أفضل 2 فقط) بمصدره وثقته الخام. يُحذف لاحقاً بعد استقرار المعايرة.
+    this.logger.log(
+      `EP-10 pool: q="${questionText.slice(0, 60)}" مرشحون=${merged.length} → ` +
+        merged
+          .map((c) => `${c.citation.lawNo}/${c.citation.articleNo}(${c.source},${c.confidence.toFixed(3)})`)
+          .join(', '),
+    );
+
     if (merged.length === 0) {
       // تسجيل تشخيصي مؤقت — يميّز "لا مرشحين أصلاً فى الاسترجاع" (فجوة فى
       // FTS/الدلالي، لا علاقة لها بطبقة التحقق) عن "مرشح وُجد لكن رُفض
