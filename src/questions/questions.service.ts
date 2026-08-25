@@ -500,6 +500,20 @@ export class QuestionsService {
           .map((r) => ({ ...merged[r.index], rerankScore: r.relevanceScore }))
       : merged.map((c) => ({ ...c, rerankScore: null }));
 
+    // تسجيل تشخيصي مؤقت (2026-08-25) — الترتيب الكامل بعد rerank (وليس أفضل
+    // 2 المُرسَلين للتحقق فقط). يحسم هل مرشح صحيح معروف (مثل 155/1 فى g051)
+    // وصل فعلاً لمجمع المرشحين لكن rerank وضعه فى مرتبة متأخرة (فلا تجربه
+    // حلقة التحقق أصلاً لأنها تكتفي بأفضل 2)، أم أنه تصدّر ورُفض من DeepSeek.
+    this.logger.log(
+      `EP-10 order: q="${questionText.slice(0, 60)}" بعد rerank → ` +
+        ordered
+          .map(
+            (c) =>
+              `${c.citation.lawNo}/${c.citation.articleNo}(rerank=${c.rerankScore?.toFixed(4) ?? 'n/a'})`,
+          )
+          .join(', '),
+    );
+
     // نجرّب أفضل مرشحين بحد أقصى — تحكّم فى الكُلفة/الزمن، وكفاية عملية (لو
     // فشل أفضل مرشحين معاً فى التحقق، الاحتمال الأرجح أن السؤال فعلاً خارج
     // النطاق أو لا توجد مادة مطابقة أصلاً).
