@@ -76,7 +76,7 @@ export class DeepseekGenerationService {
         body: JSON.stringify({
           model: this.model,
           max_tokens: 600,
-          // انظر تعليق verifyCitation أدناه لسبب تعطيل thinking صراحة —
+          // انظر تعليق selectBestCandidate أدناه لسبب تعطيل thinking صراحة —
           // نفس المنطق ينطبق هنا: صياغة نص من مادة مُعطاة سلفاً لا تحتاج
           // تفكيراً متسلسلاً، وتفعيله افتراضياً فى deepseek-v4-flash قد
           // يستهلك max_tokens فى reasoning_content ويترك content فارغاً.
@@ -120,64 +120,82 @@ export class DeepseekGenerationService {
   // 2026-08-23. التفاصيل كاملة فى تقرير المعايرة (project doc).
 
   /**
-   * EP-10 (2026-08-23، مُصحَّحة 2026-08-24 بعد حادثة الإنتاج الموثَّقة فى
-   * ADR-001): تحقق نصي نهائي من مرشح استشهاد واحد — الطبقة الثانية فى تصميم
-   * ADR-001 الهجين (بعد Voyage rerank فى VoyageEmbeddingsService). تسأل
-   * صراحة: هل هذه المادة تجيب فعلاً على السؤال، وهل هى من نفس المجال
-   * القانوني الذي يقصده السؤال؟ الهدف: صيد الحالات التى تجاوز فيها مرشح
-   * عتبة الثقة (FTS أو الدلالي) بسبب تشابه لفظي سطحي مع كلمة عامة (مثل
-   * "عقوبة") بينما هو فعلياً من مجال/موضوع مختلف.
+   * EP-10 (2026-08-23، مُصحَّحة 2026-08-24 بعد حادثة الإنتاج، ثم أُعيد
+   * تصميمها جذرياً 2026-08-25 بعد حادثة g051 — راجع ADR-001 وتقرير المعايرة
+   * للتفاصيل الكاملة). الطبقة الثانية فى ADR-001 الهجين (بعد Voyage rerank).
    *
-   * ⚠️ درس مستفاد من فشل التشغيل الحي الأول (2026-08-24): max_tokens=100
-   * القديمة كانت تقطع رد DeepSeek قبل إغلاق الـJSON فى كل استدعاء تقريباً
-   * (النص العربي يستهلك توكنز أكثر من الإنجليزي)، فيفشل التحليل دائماً ويقع
-   * النظام فى fail-open على 100% من الاستدعاءات — أبطل طبقة التحقق بالكامل
-   * بصمت (رأينا فى السجلات: كل رسائل التحذير كانت JSON صالح الشكل لكن مقطوع
-   * منتصف الجملة، بلا قوس إغلاق). التصحيح: max_tokens=250 (هامش أمان واسع)
-   * + تقصير طلب "السبب" لتقليل توكنز الإخراج أصلاً.
+   * ⚠️ التصميم القديم (verifyCitation، حُذف الآن) كان يفحص كل مرشح **منفرداً**
+   * بسؤال نعم/لا مستقل، فى حلقة تقبل أول "نعم" وتتوقف فوراً. حادثة g051
+   * (2026-08-25) أثبتت أن هذا خطأ بنيوي: 155/1 (الإجابة الصحيحة) وصلت فعلاً
+   * للمرتبة #2 بعد rerank (score=0.7539)، لكن 155/13 (خطأ، المرتبة #1،
+   * score=0.8438) نجح فى فحصه المنفرد ("تحدد التزام الدفع للمستفيد" — سبب
+   * معقول ظاهرياً لمادة فى نفس القانون)، فتوقفت الحلقة ولم تُجرَّب 155/1
+   * إطلاقاً رغم توفّرها. فحص مستقل لكل مرشح لا يقدر يميّز الأدق بين مادتين
+   * متشابهتين ظاهرياً؛ فقط **مقارنة مباشرة** بينهما تقدر.
    *
-   * ⚠️ تصحيح سياسة fail-open (نفس الحادثة): "بلا DEEPSEEK_API_KEY" و"فشل
-   * استدعاء/تحليل فعلي أثناء التشغيل" لم يعودا يُعامَلان بنفس الطريقة. الأول
-   * حالة تهيئة معروفة (الميزة غير مفعَّلة أصلاً) — fail-open معقول ومتّسق مع
-   * بقية الملف. الثاني عطل غير متوقَّع أثناء التشغيل — ثبت عملياً أن fail-open
-   * هنا خطر: يُخفي الأعطال بصمت ويُسقط طبقة الأمان بالكامل دون أي إشارة
-   * ظاهرة. لذلك الآن: fail-**closed** لكل عطل تشغيلي فعلي (استدعاء فشل، رد
-   * فارغ، تعذّر تحليل حتى مع القراءة الاحتياطية) — يُعامَل كمرشح مرفوض
-   * (المستدعي يجرّب المرشح التالي، ثم يرفض لو نفدت المحاولات)، اتساقاً مع
-   * مبدأ المشروع "رفض آمن أفضل من إجابة واثقة خاطئة". الأثر الجانبي المقبول:
-   * لو DeepSeek تعطَّل بالكامل أثناء تفعيل هذه الميزة، الرفض يرتفع (ظاهر
-   * وقابل للرصد) بدل قبول كل شيء بصمت (خفي وخطر) — نفس فلسفة عتبة 0.55.
+   * التصميم الجديد (selectBestCandidate): يعرض على DeepSeek كل المرشحين
+   * المُرسَلين معاً فى نداء واحد، ويطلب اختيار مرشح **واحد فقط** — الأدق
+   * والأكثر مباشرة — أو 0 لو لا أحد يجيب بدقة. مقارنة صريحة بدل بوابات
+   * مستقلة متتالية.
+   *
+   * ⚠️ درسان مستفادان من حوادث سابقة، ما زالا ساريين هنا:
+   *  (1) max_tokens=250 (وليس 100) — الإخراج المطلوب صغير جداً (رقم + سبب 5
+   *      كلمات) لكن هامش الأمان ضروري بعد درس التقطيع الأول.
+   *  (2) thinking:disabled صراحة — deepseek-v4-flash يُفعِّل thinking
+   *      افتراضياً (وثّقناه فعلياً 2026-08-24)، وفى وضعه يُكتب الاستدلال فى
+   *      reasoning_content منفصل ويُستهلَك max_tokens عليه أولاً، فيعود
+   *      content فارغاً تماماً فى الأسئلة الدقيقة تحديداً — هذه مهمة اختيار
+   *      بسيطة لا تحتاج استدلالاً مرئياً على الإطلاق.
+   *
+   * سياسة fail-open/fail-closed (بلا تغيير عن الحادثة السابقة): "بلا
+   * DEEPSEEK_API_KEY" حالة تهيئة معروفة → fail-open (يُقبَل أفضل مرشح حسب
+   * rerank كأنه لم يُفحَص). أي عطل تشغيلي فعلي (استدعاء فشل، رد فارغ، تعذّر
+   * تحليل) → fail-**closed** (يُعامَل كأن لا مرشح صالح، فيرفض السؤال) —
+   * اتساقاً مع "رفض آمن أفضل من إجابة واثقة خاطئة".
    */
-  async verifyCitation(input: {
+  async selectBestCandidate(input: {
     question: string;
-    lawTitle: string;
-    lawNo: number;
-    articleNo: number;
-    articleText: string;
+    candidates: Array<{
+      lawTitle: string;
+      lawNo: number;
+      articleNo: number;
+      articleText: string;
+    }>;
   }): Promise<
     | { status: 'not_configured' }
     | { status: 'error'; detail: string }
-    | { status: 'ok'; relevant: boolean; reason: string }
+    | { status: 'ok'; selectedIndex: number | null; reason: string }
   > {
     if (!this.isConfigured) {
       return { status: 'not_configured' };
     }
+    if (input.candidates.length === 0) {
+      return { status: 'ok', selectedIndex: null, reason: 'لا مرشحين' };
+    }
 
     const system =
-      'أنت مدقق قانوني صارم ومتشكك. مهمتك الوحيدة: الحكم هل المادة المرفقة تجيب ' +
-      'فعلاً وبشكل مباشر ومحدد على سؤال المستخدم، وهل هي من نفس المجال القانوني ' +
-      'الذي يسأل عنه السؤال تحديداً. كن حذراً جداً من التشابه اللفظي السطحي: لو ' +
-      'كانت المادة تشترك مع السؤال فى كلمات عامة (مثل "عقوبة"، "حق"، "التزام"، ' +
-      '"إجازة") لكنها تتناول موضوعاً مختلفاً كلياً أو مجالاً قانونياً مختلفاً عن ' +
-      'مقصود السؤال، فالإجابة الصحيحة false. أجب حصراً بصيغة JSON صارمة بلا أي ' +
-      'نص إضافي قبلها أو بعدها، بالضبط بهذا الشكل، والسبب 5 كلمات كحد أقصى: ' +
-      '{"relevant": true, "reason": "سبب قصير جداً"}';
+      'أنت مدقق قانوني صارم ومتشكك. أمامك سؤال مستخدم وعدة مواد قانونية مرشحة ' +
+      '(ترتيبها لا يعني بالضرورة الأدق). مهمتك: قارن بينها جميعاً واختر مادة ' +
+      'واحدة فقط — الأدق والأكثر مباشرة فى الإجابة على السؤال تحديداً، ومن نفس ' +
+      'المجال القانوني الذي يقصده السؤال. كن حذراً جداً من مادتين متشابهتين ' +
+      'ظاهرياً (نفس القانون، أو كلمات مشتركة عامة مثل "التزام"، "حق"، "عقوبة") ' +
+      'لكن إحداهما فقط تجيب بدقة على مقصود السؤال — اختر الأدق فقط ولو كانت ' +
+      'مرتبتها الأصلية أقل. لو لا توجد أي مادة تجيب فعلاً وبدقة، اختر 0. أجب ' +
+      'حصراً بصيغة JSON صارمة بلا أي نص إضافي قبلها أو بعدها، بالضبط بهذا ' +
+      'الشكل، والسبب 5 كلمات كحد أقصى: {"selected": 2, "reason": "سبب قصير"}';
+
+    const candidatesText = input.candidates
+      .map(
+        (c, i) =>
+          `${i + 1}) المادة ${c.articleNo} من ${c.lawTitle} (قانون رقم ${c.lawNo}):\n"""${c.articleText}"""`,
+      )
+      .join('\n\n');
 
     const userMsg =
       `السؤال: ${input.question}\n\n` +
-      `المادة المُرشَّحة — رقم ${input.articleNo} من ${input.lawTitle} (قانون رقم ${input.lawNo}):\n` +
-      `"""${input.articleText}"""\n\n` +
-      'هل هذه المادة تجيب فعلاً على السؤال، وهل هى من نفس المجال القانوني؟ رد بـJSON فقط، السبب 5 كلمات كحد أقصى.';
+      `المرشحون:\n${candidatesText}\n\n` +
+      `اختر رقم المرشح الأدق من 1 إلى ${input.candidates.length}، أو 0 لو لا يوجد ` +
+      'أي مرشح يجيب بدقة. رد بـJSON فقط، السبب 5 كلمات كحد أقصى.';
 
     try {
       const res = await fetch('https://api.deepseek.com/chat/completions', {
@@ -190,19 +208,6 @@ export class DeepseekGenerationService {
           model: this.model,
           max_tokens: 250,
           temperature: 0,
-          // ⚠️ جذر عطل "empty_response" (2026-08-24، g051): deepseek-v4-flash
-          // — خلافاً لسلف deepseek-chat — يُفعِّل thinking mode افتراضياً
-          // (راجع docs.deepseek.com/guides/thinking_mode، تحقَّق منه فعلياً
-          // فى نفس اليوم). فى وضع thinking، الاستدلال يُكتب فى حقل
-          // reasoning_content منفصل عن content، ويُستهلَك max_tokens على
-          // الاستدلال أولاً — فى أسئلة تتطلب تمييزاً دقيقاً بين مواد متشابهة
-          // (كحالة g051: 155/1 مقابل 155/51 و155/13)، الاستدلال قد يستهلك
-          // الـ250 توكن بالكامل قبل كتابة أي حرف فى content، فيعود فارغاً
-          // تماماً — ليس تقطيعاً (كعطل max_tokens=100 الأصلي)، بل غياب كامل.
-          // هذه مهمة تصنيف ثنائي بسيط (هل المادة ذات صلة؟) لا تحتاج استدلالاً
-          // متسلسلاً مرئياً على الإطلاق؛ تعطيل thinking صراحة يضمن أن كل
-          // الـmax_tokens تذهب مباشرة لـcontent، ويُلغي فئة العطل هذه جذرياً
-          // بدل مجرد تقليل احتمالها برفع الرقم مرة أخرى.
           thinking: { type: 'disabled' },
           messages: [
             { role: 'system', content: system },
@@ -213,7 +218,7 @@ export class DeepseekGenerationService {
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
-        this.logger.warn(`DeepSeek verifyCitation API error ${res.status}: ${errText}`);
+        this.logger.warn(`DeepSeek selectBestCandidate API error ${res.status}: ${errText}`);
         return { status: 'error', detail: `http_${res.status}` };
       }
 
@@ -224,48 +229,57 @@ export class DeepseekGenerationService {
       if (!text) {
         const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
         this.logger.warn(
-          `DeepSeek verifyCitation: content فارغ رغم thinking:disabled — reasoning_content ` +
+          `DeepSeek selectBestCandidate: content فارغ رغم thinking:disabled — reasoning_content ` +
             `length=${reasoningLen}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
         return { status: 'error', detail: 'empty_response' };
       }
 
-      const parsed = parseVerifyJson(text);
+      const parsed = parseSelectionJson(text, input.candidates.length);
       if (!parsed) {
-        this.logger.warn(`DeepSeek verifyCitation: could not parse JSON from response: ${text}`);
+        this.logger.warn(`DeepSeek selectBestCandidate: could not parse JSON from response: ${text}`);
         return { status: 'error', detail: 'unparseable_json' };
       }
-      return { status: 'ok', relevant: parsed.relevant, reason: parsed.reason };
+      // "selected" مبني على 1..N من DeepSeek؛ 0 يعني لا أحد. نحوّله هنا
+      // لفهرس 0-based (أو null) ليطابق مصفوفة input.candidates مباشرة.
+      const selectedIndex = parsed.selected === 0 ? null : parsed.selected - 1;
+      return { status: 'ok', selectedIndex, reason: parsed.reason };
     } catch (err) {
-      this.logger.warn(`DeepSeek verifyCitation call failed: ${(err as Error).message}`);
+      this.logger.warn(`DeepSeek selectBestCandidate call failed: ${(err as Error).message}`);
       return { status: 'error', detail: (err as Error).message };
     }
   }
 }
 
 /**
- * تحليل دفاعي لرد verifyCitation، بثلاث محاولات متدرجة:
+ * تحليل دفاعي لرد selectBestCandidate، بثلاث محاولات متدرجة (نفس نمط
+ * parseVerifyJson السابقة):
  *   1) JSON.parse مباشر للنص كاملاً.
- *   2) استخراج أول substring على شكل {...} (نص زائد قبل/بعد الـJSON) وتحليله.
- *   3) (مُضافة بعد حادثة 2026-08-24) استخراج "relevant": true|false بـregex
- *      مباشرة بمعزل عن صحة الـJSON الكامل — يُنقذ القرار الحرج (relevant)
- *      حتى لو انقطع حقل "reason" منتصفه بسبب حد max_tokens فى المستقبل.
- * يُرجع null فقط لو فشلت الثلاث محاولات (لا "relevant" يُستشَف بأي شكل) —
- * يدفع المستدعي لسياسة fail-closed (انظر تعليق verifyCitation أعلاه).
+ *   2) استخراج أول substring على شكل {...} وتحليله.
+ *   3) استخراج "selected": <رقم> بـregex مباشرة بمعزل عن صحة الـJSON الكامل.
+ * يتحقق أيضاً أن الرقم المُستخرَج ضمن المدى الصالح [0, maxIndex] — رقم خارج
+ * المدى (هلوسة) يُعامَل كفشل تحليل → fail-closed فى selectBestCandidate.
+ * يُرجع null لو فشلت كل المحاولات أو كان الرقم خارج المدى.
  */
-function parseVerifyJson(text: string): { relevant: boolean; reason: string } | null {
+function parseSelectionJson(
+  text: string,
+  maxIndex: number,
+): { selected: number; reason: string } | null {
   const candidates = [text];
   const match = text.match(/\{[\s\S]*\}/);
   if (match) {
     candidates.push(match[0]);
   }
 
+  const isValid = (n: unknown): n is number =>
+    typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= maxIndex;
+
   for (const candidate of candidates) {
     try {
-      const parsed = JSON.parse(candidate) as { relevant?: unknown; reason?: unknown };
-      if (typeof parsed.relevant === 'boolean') {
+      const parsed = JSON.parse(candidate) as { selected?: unknown; reason?: unknown };
+      if (isValid(parsed.selected)) {
         return {
-          relevant: parsed.relevant,
+          selected: parsed.selected,
           reason: typeof parsed.reason === 'string' ? parsed.reason : '',
         };
       }
@@ -274,13 +288,13 @@ function parseVerifyJson(text: string): { relevant: boolean; reason: string } | 
     }
   }
 
-  const relevantMatch = text.match(/"relevant"\s*:\s*(true|false)/);
-  if (relevantMatch) {
-    const reasonMatch = text.match(/"reason"\s*:\s*"([^"]*)/);
-    return {
-      relevant: relevantMatch[1] === 'true',
-      reason: reasonMatch ? reasonMatch[1] : '',
-    };
+  const selectedMatch = text.match(/"selected"\s*:\s*(-?\d+)/);
+  if (selectedMatch) {
+    const n = Number(selectedMatch[1]);
+    if (isValid(n)) {
+      const reasonMatch = text.match(/"reason"\s*:\s*"([^"]*)/);
+      return { selected: n, reason: reasonMatch ? reasonMatch[1] : '' };
+    }
   }
 
   return null;

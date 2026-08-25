@@ -439,20 +439,22 @@ export class QuestionsService {
   }
 
   /**
-   * EP-10 (2026-08-23، ADR-001 — الحل الهجين المُعتمَد): يجمع مرشحين خام من
-   * FTS والاسترجاع الدلالي معاً (بلا بوابة عتبة فردية هذه المرة — العتبات
+   * EP-10 (2026-08-23، ADR-001 — الحل الهجين المُعتمَد؛ مُعاد تصميم طبقة
+   * التحقق جذرياً 2026-08-25 بعد حادثة g051): يجمع مرشحين خام من FTS
+   * والاسترجاع الدلالي معاً (بلا بوابة عتبة فردية هذه المرة — العتبات
    * القديمة كانت تُسقط أحياناً مرشحين صحيحين لكن غير واثقين بما يكفي)، يعيد
-   * ترتيبهم عبر Voyage rerank (cross-encoder — طبقة أولى)، ثم يتحقق نصياً من
-   * أفضل مرشحين عبر DeepSeek.verifyCitation (طبقة ثانية) قبل القبول النهائي.
+   * ترتيبهم عبر Voyage rerank (cross-encoder — طبقة أولى)، ثم يعرض أفضل 3
+   * منهم معاً على DeepSeek.selectBestCandidate (طبقة ثانية — مقارنة مباشرة،
+   * وليس فحصاً منفرداً متتالياً؛ راجع تعليق الدالة فى deepseek-generation
+   * .service.ts لسبب هذا التصميم) قبل القبول النهائي.
    *
    * تدرّج fail-open بثلاث مستويات، كل مستوى لا يسوء عن سابقه:
    *   1) لا مرشحين إطلاقاً → رفض مباشر (نفس نتيجة retrieveLegacy لنفس الحالة).
    *   2) rerank غير متاح/فشل → يُستخدَم ترتيب المرشحين حسب ثقتهم الخام
-   *      (FTS/دلالي) كبديل معقول، والتحقق يكمل عليه كالمعتاد.
-   *   3) verifyCitation غير متاح/فشل لمرشح بعينه → يُقبَل هذا المرشح كأنه لم
-   *      يُفحَص (fail-open لكل مرشح على حدة) — لا رفض غير مبرَّر بعطل بنية
-   *      تحتية؛ الرفض الوحيد المقبول هنا هو رفض صريح ("relevant": false)
-   *      فعلاً من التحقق.
+   *      (FTS/دلالي) كبديل معقول، والمقارنة تكمل عليه كالمعتاد.
+   *   3) selectBestCandidate غير متاح (DEEPSEEK_API_KEY غائب) → fail-open،
+   *      يُقبَل أفضل مرشح حسب rerank كأنه لم يُفحَص. أي عطل تشغيلي فعلي
+   *      (استدعاء فشل، رد فارغ، تعذّر تحليل) → fail-closed (رفض آمن).
    *
    * يُرجع null فقط لو رمت هذه الدالة استثناءً غير متوقَّع تماماً (يلتقطه
    * retrieve() ويتراجع لـretrieveLegacy) — الحالات المُتوقَّعة كلها (لا
@@ -514,66 +516,77 @@ export class QuestionsService {
           .join(', '),
     );
 
-    // نجرّب أفضل مرشحين بحد أقصى — تحكّم فى الكُلفة/الزمن، وكفاية عملية (لو
-    // فشل أفضل مرشحين معاً فى التحقق، الاحتمال الأرجح أن السؤال فعلاً خارج
-    // النطاق أو لا توجد مادة مطابقة أصلاً).
-    const candidatesToVerify = ordered.slice(0, 2);
+    // نعرض أفضل 3 مرشحين معاً على DeepSeek فى نداء مقارن واحد (بدل حلقة
+    // فحوصات منفردة متتالية — راجع تعليق selectBestCandidate فى
+    // deepseek-generation.service.ts لسبب هذا التغيير الجذري بعد حادثة g051
+    // 2026-08-25). 3 بدل 2 السابقة: نفس عدد نداءات DeepSeek تقريباً (نداء
+    // واحد مقارن بدل حتى 2 منفردين)، فزيادة نطاق المقارنة بلا كُلفة إضافية
+    // معتبرة أفضل من الاكتفاء بأفضل 2 حسب rerank فقط.
+    const topCandidates = ordered.slice(0, 3);
 
-    for (const candidate of candidatesToVerify) {
-      const verification = await this.generationService.verifyCitation({
-        question: questionText,
-        lawTitle: candidate.citation.law,
-        lawNo: candidate.citation.lawNo,
-        articleNo: candidate.citation.articleNo,
-        articleText: candidate.citation.snippet,
+    const selection = await this.generationService.selectBestCandidate({
+      question: questionText,
+      candidates: topCandidates.map((c) => ({
+        lawTitle: c.citation.law,
+        lawNo: c.citation.lawNo,
+        articleNo: c.citation.articleNo,
+        articleText: c.citation.snippet,
+      })),
+    });
+
+    await this.auditService
+      .record({
+        action: 'retrieval.rerank_verify',
+        resourceType: 'citation',
+        metadata: {
+          candidates: topCandidates.map((c) => ({
+            articleNo: c.citation.articleNo,
+            lawNo: c.citation.lawNo,
+            source: c.source,
+            originalConfidence: c.confidence,
+            rerankScore: c.rerankScore,
+          })),
+          selection,
+        },
+      })
+      .catch((err) => {
+        this.logger.warn(`EP-10 audit log for rerank_verify failed (non-fatal): ${(err as Error).message}`);
       });
 
-      await this.auditService
-        .record({
-          action: 'retrieval.rerank_verify',
-          resourceType: 'citation',
-          metadata: {
-            articleNo: candidate.citation.articleNo,
-            lawNo: candidate.citation.lawNo,
-            source: candidate.source,
-            originalConfidence: candidate.confidence,
-            rerankScore: candidate.rerankScore,
-            verification,
-          },
-        })
-        .catch((err) => {
-          this.logger.warn(`EP-10 audit log for rerank_verify failed (non-fatal): ${(err as Error).message}`);
-        });
+    // تسجيل تشخيصي (يحل محل سطر "EP-10 verify" القديم لكل مرشح على حدة) —
+    // يُبقى فى السجلات لأنه مفيد للتدقيق المستقبلي؛ ليس ضجيجاً لأنه نداء
+    // واحد فقط لكل سؤال الآن (بدل حتى 2).
+    this.logger.log(
+      `EP-10 select: q="${questionText.slice(0, 60)}" مرشحون=` +
+        topCandidates
+          .map((c) => `${c.citation.lawNo}/${c.citation.articleNo}(rerank=${c.rerankScore?.toFixed(4) ?? 'n/a'})`)
+          .join(', ') +
+        ` → ${JSON.stringify(selection)}`,
+    );
 
-      // تسجيل تشخيصي مؤقت (2026-08-24) — لفهم أسباب الرفض الفعلية أثناء
-      // معايرة العيّنة المُركَّزة، بلا الحاجة لقراءة قاعدة البيانات مباشرة.
-      // يُبقى فى السجلات (log عادي، ليس warn) لأنه مفيد للتدقيق المستقبلي
-      // أيضاً؛ يمكن حذفه لاحقاً بعد استقرار المعايرة إن أصبح ضجيجاً زائداً.
-      this.logger.log(
-        `EP-10 verify: q="${questionText.slice(0, 60)}" candidate=${candidate.citation.lawNo}/${candidate.citation.articleNo} ` +
-          `source=${candidate.source} origConf=${candidate.confidence.toFixed(3)} rerankScore=${candidate.rerankScore ?? 'n/a'} ` +
-          `→ ${JSON.stringify(verification)}`,
-      );
-
-      // سياسة ما بعد حادثة 2026-08-24 (راجع تعليق verifyCitation فى
-      // deepseek-generation.service.ts للتفاصيل الكاملة):
-      //   - 'not_configured' (بلا DEEPSEEK_API_KEY): fail-open — الميزة غير
-      //     مفعَّلة أصلاً، حالة تهيئة معروفة، قبول المرشح كأن التحقق غير موجود.
-      //   - 'ok' مع relevant=true: قبول صريح.
-      //   - 'ok' مع relevant=false، أو 'error' (عطل استدعاء/تحليل فعلي أثناء
-      //     التشغيل): fail-**closed** — هذا المرشح مرفوض، جرّب التالي. عطل
-      //     التحقق نفسه لم يعد يُعامَل كقبول ضمني (كان هذا سبب فشل التشغيل
-      //     الحي الأول بالكامل — راجع ADR-001).
-      if (verification.status === 'not_configured') {
-        return { citation: candidate.citation, confidence: candidate.confidence };
-      }
-      if (verification.status === 'ok' && verification.relevant) {
-        return { citation: candidate.citation, confidence: candidate.confidence };
+    // سياسة fail-open/fail-closed (راجع تعليق selectBestCandidate فى
+    // deepseek-generation.service.ts للتفاصيل الكاملة):
+    //   - 'not_configured' (بلا DEEPSEEK_API_KEY): fail-open — الميزة غير
+    //     مفعَّلة أصلاً، حالة تهيئة معروفة، قبول أفضل مرشح حسب rerank كأن
+    //     التحقق غير موجود.
+    //   - 'ok' مع selectedIndex رقم صالح: قبول المرشح المُختار صراحة (قد لا
+    //     يكون الأول فى ترتيب rerank — هذا بالضبط الهدف من التصميم الجديد).
+    //   - 'ok' مع selectedIndex=null (لا أحد يجيب بدقة)، أو 'error' (عطل
+    //     استدعاء/تحليل فعلي أثناء التشغيل): fail-**closed** — رفض آمن. عطل
+    //     التحقق نفسه لم يعد يُعامَل كقبول ضمني (كان هذا سبب فشل التشغيل
+    //     الحي الأول بالكامل — راجع ADR-001).
+    if (selection.status === 'not_configured') {
+      const top = topCandidates[0];
+      return top ? { citation: top.citation, confidence: top.confidence } : { citation: null, confidence: 0 };
+    }
+    if (selection.status === 'ok' && selection.selectedIndex !== null) {
+      const chosen = topCandidates[selection.selectedIndex];
+      if (chosen) {
+        return { citation: chosen.citation, confidence: chosen.confidence };
       }
     }
 
-    // كل المرشحين المُجرَّبين رُفضوا (صراحة من التحقق، أو fail-closed بعد عطل
-    // تشغيلي فعلي) — رفض آمن.
+    // لا مرشح مختار (صراحة، أو fail-closed بعد عطل تشغيلي فعلي) — رفض آمن.
     return { citation: null, confidence: ordered[0]?.confidence ?? 0 };
   }
 
