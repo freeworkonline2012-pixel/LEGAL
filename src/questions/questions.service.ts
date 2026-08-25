@@ -464,9 +464,16 @@ export class QuestionsService {
     questionText: string,
     preferArticleNo?: number,
   ): Promise<RetrievalResult | null> {
+    // EP-10 (2026-08-25) — رُفع الحد من 5 إلى 8 لكل مصدر بعد حادثة g039:
+    // المادة الصحيحة (139) لم تكن موجودة إطلاقاً فى مجمع الـ5 مرشحين الدلاليين
+    // (أعلى 5 تشابه تراوحت 0.553–0.585، وهامش ضيق جداً)، فلم تصل أصلاً لطبقة
+    // rerank/الاختيار — فجوة فى الاسترجاع نفسه، لا علاقة لها بجودة القرار
+    // اللاحق. توسيع الحد يعطي rerank (الذي يقارن السؤال بكل مرشح بدقة أعلى من
+    // الفرز الأولي الخام) فرصة أكبر لإنقاذ مرشحين صحيحين على هامش الترتيب
+    // الأولي. تكلفة إضافية ضئيلة (وثائق أكثر بقليل لنداء rerank واحد لكل سؤال).
     const [ftsCandidates, semanticCandidates] = await Promise.all([
-      this.ftsCandidates(questionText, 5),
-      this.semanticCandidates(questionText, 5),
+      this.ftsCandidates(questionText, 8),
+      this.semanticCandidates(questionText, 8),
     ]);
 
     const merged = this.mergeCandidates(ftsCandidates, semanticCandidates, preferArticleNo);
