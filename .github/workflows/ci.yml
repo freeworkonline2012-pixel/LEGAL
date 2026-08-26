@@ -43,3 +43,4 @@ jobs:
 
       - name: Build (nest build) — تأكيد أن الإنتاج نفسه يبني بنجاح
         run: npm run build
+# اختبار push تلقائي بعد نجاح workflow_dispatch يدوياً (d37bf2e) — 2026-08-26
