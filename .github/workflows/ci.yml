@@ -1,0 +1,41 @@
+name: CI
+
+# فحص فقط (2026-08-26) — بلا أي تأثير على نشر Railway الحالي. Railway مربوط
+# مباشرة بـpush على main عبر تكامل GitHub الخاص به (مستقل تماماً عن هذا الملف)
+# وسيستمر فى النشر فوراً بغض النظر عن نتيجة هذا الـworkflow. الهدف هنا رؤية
+# واضحة (✅/❌) على GitHub لكل push/PR — خطوة أولى آمنة قبل التفكير لاحقاً فى
+# ربط النشر الفعلي بنجاح الفحص (قرار منفصل يحتاج تغيير طريقة تشغيل Railway
+# الحالية، لم يُتخذ بعد).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          # مطابق تماماً لإصدار Node فى Dockerfile الإنتاج (node:20.19.0-alpine)
+          # — تجنّباً لأي فرق سلوك دقيق بين بيئة الفحص والنشر الفعلي.
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build (nest build) — تأكيد أن الإنتاج نفسه يبني بنجاح
+        run: npm run build
