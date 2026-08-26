@@ -12,6 +12,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # زر تشغيل يدوي (Run workflow) — أُضيف 2026-08-26 كخطوة تشخيصية لمعرفة هل
+  # الـworkflow لا يعمل إطلاقاً (حتى يدوياً) بسبب قيد على الحساب، أم أن المشكلة
+  # فى تسجيل حدث الـpush تحديداً. بلا أي أثر على push/pull_request الحاليين.
+  workflow_dispatch: {}
 
 jobs:
   build-and-test:
