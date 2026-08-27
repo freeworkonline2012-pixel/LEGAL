@@ -23,6 +23,17 @@ export const DOMAIN_KEYS = [
   // مستقبلي يعتمد على DomainKey/isDomainKey() لتصنيف الأسئلة تلقائياً كان
   // سيرفض أو يصنّف خطأً أي سؤال متعلق بالتأمين رغم وجود محتوى حقيقي له.
   'insurance',
+  // 'aml_cft' أُضيفت 2026-08-27 مع دفعة قرارات مكافحة غسل الأموال وتمويل
+  // الإرهاب (migrations/007_seed_fra_aml_cft_decisions.sql) — أُضيفت وقتها
+  // لقيد CHECK فى قاعدة البيانات (laws.category) فقط، وكانت غائبة عن هذا
+  // الاتحاد، وهي بالضبط نفس فجوة النوع (type safety gap) التى وقعت مع
+  // 'insurance' فى 2026-08-21 (راجع التعليق أعلاه) — اكتُشفت هذه المرة فى
+  // مراجعة تقنية قبل أن تصل لأثر وظيفي فعلي: كانت ستمنع GET /api/laws?
+  // category=aml_cft (رفض 400 عبر @IsIn(LAW_CATEGORIES)) وتُسقط أي تصنيف
+  // تلقائى مستقبلى للأسئلة فى هذا المجال إلى 'other' بصمت عبر
+  // IngestionService.coerceCategory(). إعادة استخدام DOMAIN_KEYS يمنع
+  // تكرار هذا الخطأ للمرة الثالثة.
+  'aml_cft',
   'other',
 ] as const;
 
