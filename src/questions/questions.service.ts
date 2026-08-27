@@ -1,4 +1,5 @@
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { createHash } from 'crypto';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
@@ -460,6 +461,20 @@ export class QuestionsService {
    * retrieve() ويتراجع لـretrieveLegacy) — الحالات المُتوقَّعة كلها (لا
    * مرشحين، فشل rerank، فشل تحقق) تُعالَج داخلياً وتُرجع RetrievalResult دائماً.
    */
+
+  /**
+   * H-4 (تقرير الفحص الأمني 2026-08-26): معرّف ارتباط قصير غير قابل للعكس
+   * لسجلات EP-10 التشخيصية، بدلاً من طباعة نص السؤال بصيغته الصريحة فى
+   * سجلات التطبيق (Application Logs). يسمح بربط سطور EP-10 pool/verify
+   * /order/select الخاصة بنفس السؤال أثناء التصحيح دون الاحتفاظ بمحتوى
+   * قانوني قد يكون حساساً (بيانات عميل، تفاصيل قضية) فى نص واضح غير مشفّر.
+   * أول 8 أحرف hex من SHA-256 كافية للتمييز العملي بين الأسئلة المتزامنة
+   * فى نافذة تصحيح واحدة، دون أن تكون معرّفاً دائماً قابلاً لإعادة الربط.
+   */
+  private hashQuestion(questionText: string): string {
+    return createHash('sha256').update(questionText).digest('hex').slice(0, 8);
+  }
+
   private async retrieveWithRerankVerification(
     questionText: string,
     preferArticleNo?: number,
@@ -482,8 +497,9 @@ export class QuestionsService {
     // rerank+التحقق لمرشح صحيح موجود، أم أن المرشح الصحيح لم يصل أصلاً لمجمع
     // المرشحين (فجوة استرجاع FTS/دلالي أعمق من نطاق EP-10). يطبع كل مرشح
     // (وليس أفضل 2 فقط) بمصدره وثقته الخام. يُحذف لاحقاً بعد استقرار المعايرة.
+    // H-4: لا يُطبع نص السؤال الصريح — انظر hashQuestion() أعلاه.
     this.logger.log(
-      `EP-10 pool: q="${questionText.slice(0, 60)}" مرشحون=${merged.length} → ` +
+      `EP-10 pool: qHash=${this.hashQuestion(questionText)} مرشحون=${merged.length} → ` +
         merged
           .map((c) => `${c.citation.lawNo}/${c.citation.articleNo}(${c.source},${c.confidence.toFixed(3)})`)
           .join(', '),
@@ -493,7 +509,9 @@ export class QuestionsService {
       // تسجيل تشخيصي مؤقت — يميّز "لا مرشحين أصلاً فى الاسترجاع" (فجوة فى
       // FTS/الدلالي، لا علاقة لها بطبقة التحقق) عن "مرشح وُجد لكن رُفض
       // بالتحقق" (اللوق فى الحلقة أدناه).
-      this.logger.log(`EP-10 verify: q="${questionText.slice(0, 60)}" → لا مرشحين إطلاقاً من FTS/الدلالي`);
+      this.logger.log(
+        `EP-10 verify: qHash=${this.hashQuestion(questionText)} → لا مرشحين إطلاقاً من FTS/الدلالي`,
+      );
       return { citation: null, confidence: 0 };
     }
 
@@ -514,7 +532,7 @@ export class QuestionsService {
     // وصل فعلاً لمجمع المرشحين لكن rerank وضعه فى مرتبة متأخرة (فلا تجربه
     // حلقة التحقق أصلاً لأنها تكتفي بأفضل 2)، أم أنه تصدّر ورُفض من DeepSeek.
     this.logger.log(
-      `EP-10 order: q="${questionText.slice(0, 60)}" بعد rerank → ` +
+      `EP-10 order: qHash=${this.hashQuestion(questionText)} بعد rerank → ` +
         ordered
           .map(
             (c) =>
@@ -564,7 +582,7 @@ export class QuestionsService {
     // يُبقى فى السجلات لأنه مفيد للتدقيق المستقبلي؛ ليس ضجيجاً لأنه نداء
     // واحد فقط لكل سؤال الآن (بدل حتى 2).
     this.logger.log(
-      `EP-10 select: q="${questionText.slice(0, 60)}" مرشحون=` +
+      `EP-10 select: qHash=${this.hashQuestion(questionText)} مرشحون=` +
         topCandidates
           .map((c) => `${c.citation.lawNo}/${c.citation.articleNo}(rerank=${c.rerankScore?.toFixed(4) ?? 'n/a'})`)
           .join(', ') +
