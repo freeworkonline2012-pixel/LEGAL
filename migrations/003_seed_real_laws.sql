@@ -19,6 +19,19 @@
 -- الفئات الخمس الأصلية) لأن قانون 155/2024 تأمينى بحت ولا يقع تحت أي
 -- من labor/rent/personal_status/traffic/consumer_protection.
 --
+-- تصحيح لاحق حرج (2026-08-27، migrations/008): قائمة الفئات فى القيد أدناه
+-- عُدِّلت لتضيف 'aml_cft' أيضاً (أُضيفت أصلاً فى migrations/007 بتاريخ لاحق
+-- لهذا الملف). السبب: هذا الملف يُعاد تطبيقه بالكامل فى كل نشر (نفس نمط كل
+-- migrations/*.sql — لا نسخة "طُبِّق سلفاً" جزئية)، وكان يعيد DROP+ADD لقيد
+-- laws_category_check بقائمة الفئات الخمس + insurance فقط فى كل مرة — فور
+-- وجود صفوف حقيقية بفئة 'aml_cft' (بعد نجاح 007 لأول مرة)، أي نشر تالٍ كان
+-- سيفشل فوراً بخطأ 23514 (check_violation) لأن القيد الأقدم لا يسمح بالقيم
+-- التى تحملها صفوف موجودة فعلاً — يوقف تطبيق كل ملفات migrations اللاحقة
+-- (004 وحتى 008) ويمنع بدء تشغيل التطبيق بالكامل. هذا ليس تغييراً فى البيانات
+-- التى يبذرها هذا الملف (قانون العمل 14/2025 وقانون التأمين الموحد 155/2024
+-- كما هما تماماً) — فقط تصحيح لقائمة قيد أصبحت غير مطابقة للواقع بعد إضافة
+-- فئة لاحقة فى ملف أحدث.
+--
 -- ملاحظة نطاق معروفة: عمود articles.embedding يبقى NULL لهذه المواد بعد
 -- هذا الملف مباشرة (الفهرسة الدلالية عبر Voyage AI تتم فقط ضمن مسار
 -- IngestionService.importLaws() فى TypeScript، غير متاح لملف SQL خام) —
@@ -31,10 +44,11 @@
 
 BEGIN;
 
--- توسيع قيد الفئة ليشمل 'insurance'
+-- توسيع قيد الفئة ليشمل 'insurance' و'aml_cft' (الأخيرة أُضيفت لاحقاً فى
+-- migrations/007 — راجع تعليق "تصحيح لاحق حرج" أعلاه لسبب إضافتها هنا أيضاً)
 ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
 ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','other'));
+  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','other'));
 
 -- تصحيح حرج: قانون العمل 12/2003 ملغٍ فعلياً منذ 2025-09-01 بقانون 14/2025
 UPDATE laws SET status = 'repealed', updated_at = now()

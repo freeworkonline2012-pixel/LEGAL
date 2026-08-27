@@ -1,39 +1,41 @@
 -- 008_law_kind_and_guidance_documents.sql
--- إصلاحان بنيويان دائمان اكتُشفا أثناء مراجعة استبعادات 007:
--- (1) عمود laws.kind + قيد فريد جديد UNIQUE(law_no, law_year, kind) يحل تعارضات
---     ترقيم متكررة بين أنواع أدوات تشريعية مختلفة (قانون/قرار/تعميم/لائحة...).
+-- إصلاحان دائمان اكتُشفا أثناء مراجعة استبعادات 007:
+-- (1) عمود laws.kind (تصنيف/فلترة فقط — راجع تعليق طويل أعلى generate_fra_sql_008.py
+--     لسبب عدم تغيير قيد UNIQUE(law_no, law_year) نفسه: يكسر ON CONFLICT فى كل
+--     عبارات migrations/003-007 التى تُعاد بالكامل فى كل نشر). DEFAULT
+--     'board_decision' متعمَّد ومتوافق تماماً مع كل تلك العبارات القديمة التى لا
+--     تذكر kind إطلاقاً — لا يلزم تعديلها.
 -- (2) جدول guidance_documents منفصل تماماً عن laws/articles لمحتوى إرشادى
 --     غير مرقّم رسمياً (لا يصلح إجباره فى عمود law_no الذى هو NOT NULL بالكامل).
--- قابل لإعادة التشغيل بأمان (idempotent) — نفس نمط بقية migrations/.
+-- قابل لإعادة التشغيل بأمان (idempotent) — اختُبر بتشغيل السلسلة الكاملة
+-- 001-008 مرتين متتاليتين محلياً (محاكاة النشر التالي) بلا أي خطأ.
 
 BEGIN;
 
--- ===== الجزء 1: laws.kind (يحل تعارضات الترقيم بين أنواع الأدوات التشريعية) =====
-ALTER TABLE laws ADD COLUMN IF NOT EXISTS kind text;
+-- ===== الجزء 1: laws.kind (تصنيف نوع الأداة التشريعية — عمود فلترة/عرض فقط) =====
+ALTER TABLE laws ADD COLUMN IF NOT EXISTS kind text NOT NULL DEFAULT 'board_decision';
 
--- تصنيف الصفوف الحالية: تحقّق مباشر من نمط بداية العنوان (127/127 صفاً تحقّقت
--- بالفحص المباشر وقت كتابة هذه الدفعة — لا تخمين):
+-- تصحيح تصنيف الصفوف التى ليست 'board_decision' (الافتراضى أعلاه صحيح للأغلبية
+-- الساحقة — 119 من 127 صفاً حالياً): تحقّق مباشر من نمط بداية العنوان (127/127
+-- صفاً تحقّقت بالفحص المباشر وقت كتابة هذه الدفعة — لا تخمين). بلا شرط WHERE على
+-- kind نفسه (لا حاجة لـ IS NULL) — نفس النتيجة عند إعادة التشغيل دوماً:
 UPDATE laws SET kind = 'law'
-  WHERE kind IS NULL AND (title LIKE 'قانون رقم%' OR title LIKE 'قانون العمل%' OR title LIKE 'قانون التأمين%');
+  WHERE title LIKE 'قانون رقم%' OR title LIKE 'قانون العمل%' OR title LIKE 'قانون التأمين%';
 UPDATE laws SET kind = 'pm_decision'
-  WHERE kind IS NULL AND title LIKE 'قرار رئيس مجلس الوزراء%';
-UPDATE laws SET kind = 'board_decision'
-  WHERE kind IS NULL AND title LIKE 'قرار مجلس إدارة الهيئة رقم%';
--- الباقى (الأغلبية الساحقة من دفعتى قرارات التأمين 004-006؛ مخزّنة بعنوان مختصر
--- يبدأ مباشرة بـ'بشأن...' بلا بادئة 'قرار مجلس إدارة الهيئة رقم' الكاملة، لكنها
--- موثّقة بالكامل فى تقارير المشروع كقرارات مجلس إدارة الهيئة): board_decision أيضاً.
-UPDATE laws SET kind = 'board_decision' WHERE kind IS NULL;
+  WHERE title LIKE 'قرار رئيس مجلس الوزراء%';
+-- 'قرار مجلس إدارة الهيئة رقم%' وكل الباقى (عناوين مختصرة تبدأ مباشرة بـ'بشأن...' من
+-- دفعتى قرارات التأمين 004-006، موثّقة بالكامل فى تقارير المشروع كقرارات مجلس إدارة
+-- الهيئة) يبقى على القيمة الافتراضية 'board_decision' — لا حاجة لعبارة UPDATE.
 
-ALTER TABLE laws ALTER COLUMN kind SET NOT NULL;
 ALTER TABLE laws DROP CONSTRAINT IF EXISTS chk_laws_kind;
 ALTER TABLE laws ADD CONSTRAINT chk_laws_kind CHECK (kind IN (
   'law', 'pm_decision', 'ministerial_decision', 'board_decision',
   'circular', 'regulation', 'other'
 ));
 
-ALTER TABLE laws DROP CONSTRAINT IF EXISTS uq_laws_no_year;
-ALTER TABLE laws DROP CONSTRAINT IF EXISTS uq_laws_no_year_kind;
-ALTER TABLE laws ADD CONSTRAINT uq_laws_no_year_kind UNIQUE (law_no, law_year, kind);
+-- ملاحظة متعمَّدة: قيد UNIQUE(law_no, law_year) (uq_laws_no_year) يبقى بلا تغيير —
+-- راجع الشرح فى رأس generate_fra_sql_008.py. kind هنا للتصنيف والفلترة فقط، ولا
+-- يحل تعارضات الترقيم بين أنواع الأدوات التشريعية المختلفة.
 
 -- ===== الجزء 2: guidance_documents (محتوى إرشادى غير مرقّم رسمياً) =====
 CREATE TABLE IF NOT EXISTS guidance_documents (
@@ -883,7 +885,7 @@ SELECT $gt1$إجراءات العناية الواجبة لعملاء المؤس
 FROM laws l WHERE l.law_no = 161 AND l.law_year = 2024
 ON CONFLICT (official_url) DO NOTHING;
 
--- ===== وثيقة تبقى مُستبعَدة من هذه الدفعة أيضاً (سبب مختلف عن 007 — راجع الأعلى) =====
--- تعميم-3-2026: التعارض البنيوى مع (law_no=3, law_year=2026) انحل بفضل عمود kind (كان سيُدرَج بـ kind='circular' فلا يتعارض بعد الآن مع القرار الموجود بـ kind='board_decision')، لكنه يبقى مُستبعَداً لسبب مستقل: جودة الاستخراج (OCR على صورة ضوئية لنموذج بيانات شبه فارغ) رديئة لدرجة تمنع التحقق الموثوق حتى من رقم التعميم نفسه من متن الوثيقة، ومحتواه إدارى بحت (طلب موافاة بيانات مالية للجهاز المركزى للتعبئة العامة والإحصاء) لا جوهر تنظيمى فيه.
+-- ===== وثيقة تبقى مُستبعَدة من هذه الدفعة أيضاً =====
+-- تعميم-3-2026: يبقى مُستبعَداً لسببين معاً: (أ) تعارض الترقيم مع القرار الموجود بنفس (law_no=3, law_year=2026) لم يُحَل بنيوياً — kind هنا عمود تصنيف فقط، لا يغيّر قيد UNIQUE(law_no, law_year) (راجع الشرح الكامل أعلى generate_fra_sql_008.py)؛ (ب) جودة الاستخراج (OCR على صورة ضوئية لنموذج بيانات شبه فارغ) رديئة لدرجة تمنع التحقق الموثوق حتى من رقم التعميم نفسه من متن الوثيقة، ومحتواه إدارى بحت (طلب موافاة بيانات مالية للجهاز المركزى للتعبئة العامة والإحصاء) لا جوهر تنظيمى فيه.
 
 COMMIT;
