@@ -11,6 +11,7 @@ import { AuthModule } from './auth/auth.module';
 import { validate } from './config/env.validation';
 import { buildTypeOrmOptions, createResilientDataSource } from './config/typeorm.config';
 import { FeedbackModule } from './feedback/feedback.module';
+import { GuidanceModule } from './guidance/guidance.module';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { LawsModule } from './laws/laws.module';
@@ -49,6 +50,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     HealthModule,
     LawsModule,
     ArticlesModule,
+    GuidanceModule,
     QuestionsModule,
     FeedbackModule,
     ReviewsModule,
