@@ -14,7 +14,7 @@ ALTER TABLE laws ADD CONSTRAINT laws_category_check
 -- ===== alamiria_2024_161 : قرار 161/2024 (مُهيكَل، 20 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (161, 2024, $t1$قرار مجلس إدارة الهيئة رقم (161) لسنة 2024 بشأن الضوابط الرقابية فى مجال مكافحة غسل الأموال وتمويل الإرهاب للجهات العاملة فى مجال الأنشطة المالية غير المصرفية (نسخة محدثة)$t1$, $t1$قرار مجلس إدارة الهيئة رقم (161) لسنة 2024 بشأن الضوابط الرقابية فى مجال مكافحة غسل الأموال وتمويل الإرهاب للجهات العاملة فى مجال الأنشطة المالية غير المصرفية (نسخة محدثة)$t1$, 'aml_cft', 'in_force', $u1$https://fra.gov.eg/wp-content/uploads/2024/10/alamiria_2024_161.pdf$u1$, '2024-10-13')
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2024_161_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -1662,7 +1662,7 @@ SELECT id, 1, $b21$لرئيس الهيئة حال ثبوت إخلال مسئول
 -- ===== 53-2018-ضوابط-منح-الترخيص-واستمراره-وقواعد-تملك-الاسهم-1 : قرار 53/2018 (مُهيكَل، 13 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (53, 2018, $t22$قرار مجلس إدارة الهيئة رقم (53) لسنة 2018 بشأن ضوابط منح الترخيص واستمراره وقواعد تملك أسهم الشركات العاملة فى الأنشطة المالية غير المصرفية (وفقاً لآخر تعديل بتاريخ 2024/6/26)$t22$, $t22$قرار مجلس إدارة الهيئة رقم (53) لسنة 2018 بشأن ضوابط منح الترخيص واستمراره وقواعد تملك أسهم الشركات العاملة فى الأنشطة المالية غير المصرفية (وفقاً لآخر تعديل بتاريخ 2024/6/26)$t22$, 'aml_cft', 'in_force', $u22$https://fra.gov.eg/wp-content/uploads/2022/11/53-2018-ضوابط-منح-الترخيص-واستمراره-وقواعد-تملك-الاسهم-1.pdf$u22$, '2018-04-26')
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_53_2018__________________________________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -2296,7 +2296,7 @@ SELECT id, 1, $b35$ينشر هذا القرار في الوقائع المصري
 -- السبب: مسح قديم للجريدة الرسمية (2002)، جودة OCR منخفضة رغم إعادة المحاولة بدقة 400 نقطة/بوصة مع معالجة مسبقة للصورة — ترقيم المواد غير موثوق به بثقة كافية للاستشهاد الدقيق.
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (80, 2002, $t36$قانون رقم 80 لسنة 2002 بإصدار قانون مكافحة غسل الأموال (وفقاً لآخر تعديل)$t36$, $t36$قانون رقم 80 لسنة 2002 بإصدار قانون مكافحة غسل الأموال (وفقاً لآخر تعديل)$t36$, 'aml_cft', 'in_force', $u36$https://fra.gov.eg/wp-content/uploads/2025/02/alamiria_2002_80.pdf$u36$, '2002-05-22')
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2002_80_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -3154,7 +3154,7 @@ SELECT id, 1, $b37$١١." ‏مايو سنة‎ 7١ ‏(مكرر) فى‎ ٠١ �
 -- السبب: مسح قديم للجريدة الرسمية (2003)، جودة OCR منخفضة — لم يُلتقَط من ترقيم موادها (تتجاوز 45 مادة) سوى مادتين بثقة، فجوة واسعة تمنع الاستشهاد الدقيق.
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (951, 2003, $t38$قرار رئيس مجلس الوزراء رقم (951) لسنة 2003 بإصدار اللائحة التنفيذية لقانون مكافحة غسل الأموال الصادر بالقانون رقم 80 لسنة 2002 (وفقاً لآخر تعديل فى 2023)$t38$, $t38$قرار رئيس مجلس الوزراء رقم (951) لسنة 2003 بإصدار اللائحة التنفيذية لقانون مكافحة غسل الأموال الصادر بالقانون رقم 80 لسنة 2002 (وفقاً لآخر تعديل فى 2023)$t38$, 'aml_cft', 'in_force', $u38$https://fra.gov.eg/wp-content/uploads/2025/02/alamiria_2003_951.pdf$u38$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2003_951_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -4832,7 +4832,7 @@ SELECT id, 1, $b39$ون لاش
 -- السبب: مسح قديم للجريدة الرسمية، جودة OCR منخفضة — أرقام مواد مستخرجة غير متسلسلة بثقة (تشوّه فى الأرقام).
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (11, 2017, $t40$قانون رقم 11 لسنة 2017 بشأن تعديل بعض أحكام قوانين الإجراءات الجنائية، وحالات وإجراءات الطعن أمام محكمة النقض، وتنظيم قوائم الكيانات الإرهابية والإرهابيين، ومكافحة الإرهاب$t40$, $t40$قانون رقم 11 لسنة 2017 بشأن تعديل بعض أحكام قوانين الإجراءات الجنائية، وحالات وإجراءات الطعن أمام محكمة النقض، وتنظيم قوائم الكيانات الإرهابية والإرهابيين، ومكافحة الإرهاب$t40$, 'aml_cft', 'in_force', $u40$https://fra.gov.eg/wp-content/uploads/2017/04/alamiria_2017_11.pdf$u40$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2017_11_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -5196,7 +5196,7 @@ SELECT id, 1, $b41$لت لاقل
 -- السبب: مسح قديم للجريدة الرسمية، جودة OCR منخفضة — أرقام مواد مستخرجة غير متسلسلة بثقة (تشوّه فى الأرقام) رغم إعادة المحاولة بدقة أعلى.
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (94, 2015, $t42$قانون رقم 94 لسنة 2015 بإصدار قانون مكافحة الإرهاب$t42$, $t42$قانون رقم 94 لسنة 2015 بإصدار قانون مكافحة الإرهاب$t42$, 'aml_cft', 'in_force', $u42$https://fra.gov.eg/wp-content/uploads/2020/12/UG49861UG49862.pdf$u42$, '2015-08-15')
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_UG49861UG49862_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -6656,7 +6656,7 @@ SELECT id, 1, $b43$الجريدة الرسمية - العدد ا (مكرر) فى
 -- السبب: بعد إصلاح رأسى مادتين (تبديل حرفى واحد OCR)، بقيت فجوة حقيقية واحدة: رأس (المادة السادسة) غير مُستخرَج إطلاقاً من الصفحة الممسوحة، فيتعذر تحديد حدود المادتين 5 و6 بثقة دون تخمين.
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (22, 2018, $t44$قانون رقم 22 لسنة 2018 فى شأن تنظيم إجراءات التحفظ والحصر والإدارة والتصرف فى أموال الجماعات الإرهابية والإرهابيين$t44$, $t44$قانون رقم 22 لسنة 2018 فى شأن تنظيم إجراءات التحفظ والحصر والإدارة والتصرف فى أموال الجماعات الإرهابية والإرهابيين$t44$, 'aml_cft', 'in_force', $u44$https://fra.gov.eg/wp-content/uploads/2025/05/قانون-رقم-22-لسنة-2018-بتنظيم-إجراءات-التحفظ-والحصر-والإدارة-والتصرف-في-أموال-الجماعات-الإرهابية-والإرهابيين-.pdf$u44$, '2018-04-21')
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art___________22______2018___________________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -7068,7 +7068,7 @@ SELECT id, 1, $b45$:51 الجريدةالرسمية - العدد ‎١١5‏ (م
 -- السبب: الوثيقة تحوى نظامى ترقيم متداخلين: مادتا الإصدار (الأولى/الثانية) للقرار نفسه + ترقيم مستقل لـ«الآلية» المرفقة به (تبدأ مادة (1)، مع إحالات لاحقة لمواد 4/9/21 بعضها استشهاد بقانون 80/2002 لا بالآلية ذاتها) — لا يمكن فصل حدود مواد الآلية بثقة كافية من نص واحد مبهم البنية دون مخاطرة باستشهاد خاطئ.
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (1, 2024, $t46$قرار مجلس إدارة الهيئة رقم (1) لسنة 2024 (صادر عن وحدة مكافحة غسل الأموال وتمويل الإرهاب) باعتماد آلية تطبيق العقوبات المالية المستهدفة بموجب قرارات مجلس الأمن ذات الصلة بالإرهاب وتمويله وانتشار أسلحة الدمار الشامل وتمويله ونشرها بالوقائع المصرية$t46$, $t46$قرار مجلس إدارة الهيئة رقم (1) لسنة 2024 (صادر عن وحدة مكافحة غسل الأموال وتمويل الإرهاب) باعتماد آلية تطبيق العقوبات المالية المستهدفة بموجب قرارات مجلس الأمن ذات الصلة بالإرهاب وتمويله وانتشار أسلحة الدمار الشامل وتمويله ونشرها بالوقائع المصرية$t46$, 'aml_cft', 'in_force', $u46$https://fra.gov.eg/wp-content/uploads/2025/05/قرار-رقم-1-لسنة-2024.pdf$u46$, '2024-01-31')
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art__________1______2024_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)

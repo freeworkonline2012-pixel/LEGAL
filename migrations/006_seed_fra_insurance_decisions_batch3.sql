@@ -18,7 +18,7 @@ BEGIN;
 -- ===== 100-2020-وفقا-لاخر-تعديل : قرار 100/2020 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (100, 2020, $t1$بشأن قواعد حوكمة الشركات العاملة فى مجال الأنشطة المالية غير المصرفية$t1$, $t1$بشأن قواعد حوكمة الشركات العاملة فى مجال الأنشطة المالية غير المصرفية$t1$, 'insurance', 'in_force', $u1$https://fra.gov.eg/wp-content/uploads/2024/08/100-2020-%D9%88%D9%81%D9%82%D8%A7-%D9%84%D8%A7%D8%AE%D8%B1-%D8%AA%D8%B9%D8%AF%D9%8A%D9%84.pdf$u1$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_100_2020_________________2 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -849,7 +849,7 @@ SELECT id, 1, $b4$ينارررررا ورررررذا اسقررررراار ف�
 -- ===== 114 : 114/2021 (احتياطى — نص كامل غير مُقسَّم؛ السبب: ترقيم غير موثوق رغم عدة محاولات إصلاح: ['فجوة فى ترقيم المواد — أرقام مفقودة: [3, 7]']) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (114, 2021, $t5$بشأن ضوابط تنظيم عمل شركات الوساطة فى التأمين والوساطة فى إعادة التأمين$t5$, $t5$بشأن ضوابط تنظيم عمل شركات الوساطة فى التأمين والوساطة فى إعادة التأمين$t5$, 'insurance', 'in_force', $u5$https://fra.gov.eg/wp-content/uploads/2021/07/114.pdf$u5$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_114_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -1200,7 +1200,7 @@ SELECT id, 1, $b6$الهيئة العامة للرقابة المالية
 -- ===== 166-2020-المقصود-بمصطلح-الأمؤسسات-المالية : قرار 166/2020 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (166, 2020, $t7$بشأن تحديد المقصود بمصطلح "المؤسسات المالية"$t7$, $t7$بشأن تحديد المقصود بمصطلح "المؤسسات المالية"$t7$, 'insurance', 'in_force', $u7$https://fra.gov.eg/wp-content/uploads/2024/01/166-2020-%D8%A7%D9%84%D9%85%D9%82%D8%B5%D9%88%D8%AF-%D8%A8%D9%85%D8%B5%D8%B7%D9%84%D8%AD-%D8%A7%D9%84%D8%A3%D9%85%D8%A4%D8%B3%D8%B3%D8%A7%D8%AA-%D8%A7%D9%84%D9%85%D8%A7%D9%84%D9%8A%D8%A9.pdf$u7$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_166_2020_________________________________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -1319,7 +1319,7 @@ SELECT id, 1, $b10$ينشر هذا القرار في الوقائع المصري
 -- ===== 196-2024 : قرار 196/2024 (مُهيكَل، 4 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (196, 2024, $t11$بشأن تحديد الحد الأدنى لرؤوس أموال الشركات العاملة فى قطاع التأمين$t11$, $t11$بشأن تحديد الحد الأدنى لرؤوس أموال الشركات العاملة فى قطاع التأمين$t11$, 'insurance', 'in_force', $u11$https://fra.gov.eg/wp-content/uploads/2025/01/196-2024.pdf$u11$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_196_2024_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -1449,7 +1449,7 @@ SELECT id, 1, $b15$ينشر هذا القرار فى الوقائع المص�
 -- ===== 2-2025-وفقا-لاخر-تعديل-1 : 2/2025 (احتياطى — نص كامل غير مُقسَّم؛ السبب: ترقيم غير موثوق رغم عدة محاولات إصلاح: ['فجوة فى ترقيم المواد — أرقام مفقودة: [2, 3, 4, 6, 8, 9, 10]']) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (2, 2025, $t16$بشأن قواعد وضوابط ونسب استثمار أموال شركات التأمين وإعادة التأمين$t16$, $t16$بشأن قواعد وضوابط ونسب استثمار أموال شركات التأمين وإعادة التأمين$t16$, 'insurance', 'in_force', $u16$https://fra.gov.eg/wp-content/uploads/2025/06/2-2025-%D9%88%D9%81%D9%82%D8%A7-%D9%84%D8%A7%D8%AE%D8%B1-%D8%AA%D8%B9%D8%AF%D9%8A%D9%84-1.pdf$u16$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_2_2025_________________1_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -1620,7 +1620,7 @@ SELECT id, 1, $b17$قرار جملس إدارة اهليئة رقم ( )2لسنة
 -- ===== 2-2026 : قرار 2/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (2, 2026, $t18$بشأن زيادة الحد الأقصى للتغطية التأمينية لنشاط التأمين متناهى الصغر$t18$, $t18$بشأن زيادة الحد الأقصى للتغطية التأمينية لنشاط التأمين متناهى الصغر$t18$, 'insurance', 'in_force', $u18$https://fra.gov.eg/wp-content/uploads/2026/02/2-2026.pdf$u18$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_2_2026_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -1654,7 +1654,7 @@ SELECT id, 1, $b20$ينشر هذا القرار فى الوقائع المص�
 -- ===== 2023-08-10-10-04-08-735-1 : 3/2023 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (3, 2023, $t21$بشأن إجراءات تعزيز الأمن السيبراني بشركات التأمين$t21$, $t21$بشأن إجراءات تعزيز الأمن السيبراني بشركات التأمين$t21$, 'insurance', 'in_force', $u21$https://fra.gov.eg/wp-content/uploads/2023/08/2023-08-10-10-04-08-735-1.pdf$u21$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_2023_08_10_10_04_08_735_1_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -1747,7 +1747,7 @@ SELECT id, 1, $b22$كرجا مسبو شت
 -- ===== 205 : 205/2021 (احتياطى — نص كامل غير مُقسَّم؛ السبب: ترقيم غير موثوق رغم عدة محاولات إصلاح: ['فجوة فى ترقيم المواد — أرقام مفقودة: [4, 5, 6]']) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (205, 2021, $t23$بشأن قواعد وضوابط تطبيق مبادئ التناسب والملاءمة (Fit & Proper) فى ترشيح الوظائف التنفيذية الرئيسية$t23$, $t23$بشأن قواعد وضوابط تطبيق مبادئ التناسب والملاءمة (Fit & Proper) فى ترشيح الوظائف التنفيذية الرئيسية$t23$, 'insurance', 'in_force', $u23$https://fra.gov.eg/wp-content/uploads/2021/12/205.pdf$u23$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_205_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -2422,7 +2422,7 @@ SELECT id, 1, $b24$1 مه تلرقاية المالية -
 -- ===== 269-2024 : قرار 269/2024 (مُهيكَل، 6 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (269, 2024, $t25$بشأن قواعد وضوابط ونسب استثمار أموال صناديق التأمين الخاصة$t25$, $t25$بشأن قواعد وضوابط ونسب استثمار أموال صناديق التأمين الخاصة$t25$, 'insurance', 'in_force', $u25$https://fra.gov.eg/wp-content/uploads/2025/01/269-2024.pdf$u25$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_269_2024_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -2736,7 +2736,7 @@ SELECT id, 1, $b31$ينشر هذا القرار فى الوقائع المص�
 -- ===== 276-2024 : قرار 276/2024 (مُهيكَل، 5 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (276, 2024, $t32$بشأن إعداد القوائم المالية الدورية لصناديق التأمين الخاصة$t32$, $t32$بشأن إعداد القوائم المالية الدورية لصناديق التأمين الخاصة$t32$, 'insurance', 'in_force', $u32$https://fra.gov.eg/wp-content/uploads/2025/01/276-2024.pdf$u32$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_276_2024_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -2831,7 +2831,7 @@ SELECT id, 1, $b37$ينشر هذا القرار فى الوقائع المص�
 -- ===== 3 : قرار 3/2025 (مُهيكَل، 5 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (3, 2025, $t38$بشأن مواعيد إعداد وعرض القوائم المالية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t38$, $t38$بشأن مواعيد إعداد وعرض القوائم المالية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t38$, 'insurance', 'in_force', $u38$https://fra.gov.eg/wp-content/uploads/2025/02/3.pdf$u38$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_3_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -3176,7 +3176,7 @@ SELECT id, 1, $b43$متطلبات التقارير والإفصاحات الوا
 -- ===== 37 : قرار 37/2023 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (37, 2023, $t44$بشأن تشكيل اللجنة الاستشارية فى مجال التأمين$t44$, $t44$بشأن تشكيل اللجنة الاستشارية فى مجال التأمين$t44$, 'insurance', 'in_force', $u44$https://fra.gov.eg/wp-content/uploads/2023/03/37.pdf$u44$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_37_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -3244,7 +3244,7 @@ SELECT id, 1, $b46$نم دغ يرأ حذاماْ اخ دأ مذاطا
 -- ===== 49 : قرار 49/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (49, 2025, $t47$بشأن تعديل النظام الأساسى للاتحاد المصرى للتأمين$t47$, $t47$بشأن تعديل النظام الأساسى للاتحاد المصرى للتأمين$t47$, 'insurance', 'in_force', $u47$https://fra.gov.eg/wp-content/uploads/2025/03/49.pdf$u47$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_49_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -3296,7 +3296,7 @@ SELECT id, 1, $b49$ينشر هذا القرار في الوقائع المصري
 -- ===== 5 : قرار 5/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (5, 2025, $t50$بشأن تعديل قرار مجلس إدارة الهيئة رقم (178) لسنة 2024 بشأن ضوابط موافقة الهيئة على التملك أو السيطرة أو الاندماج للشركات العاملة فى مجال الأنشطة المالية غير المصرفية$t50$, $t50$بشأن تعديل قرار مجلس إدارة الهيئة رقم (178) لسنة 2024 بشأن ضوابط موافقة الهيئة على التملك أو السيطرة أو الاندماج للشركات العاملة فى مجال الأنشطة المالية غير المصرفية$t50$, 'insurance', 'in_force', $u50$https://fra.gov.eg/wp-content/uploads/2025/02/5.pdf$u50$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_5_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -3374,7 +3374,7 @@ SELECT id, 1, $b52$ينشر هذا القرار في الوقائع المصري
 -- ===== 53-2020 : 53/2020 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (53, 2020, $t53$بشأن تصنيف التأمين التكافلي كنشاط متمايز عن التأمين التجاري التقليدي$t53$, $t53$بشأن تصنيف التأمين التكافلي كنشاط متمايز عن التأمين التجاري التقليدي$t53$, 'insurance', 'in_force', $u53$https://fra.gov.eg/wp-content/uploads/2024/03/53-2020.pdf$u53$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_53_2020_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -3431,7 +3431,7 @@ SELECT id, 1, $b54$0
 -- ===== 59 : قرار 59/2021 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (59, 2021, $t55$بشأن ضوابط الإفصاح عن قيمة العمولات المستحقة لوسطاء التأمين$t55$, $t55$بشأن ضوابط الإفصاح عن قيمة العمولات المستحقة لوسطاء التأمين$t55$, 'insurance', 'in_force', $u55$https://fra.gov.eg/wp-content/uploads/2021/06/59.pdf$u55$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_59_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -3484,7 +3484,7 @@ SELECT id, 1, $b58$يُنشر هذا القرار في الوقائع المصر
 -- ===== 897_ : قرار 897/2026 (مُهيكَل، 4 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (897, 2026, $t59$بشأن تعديل القرار رقم (1052) لسنة 2019 بشأن ضوابط تحديد نسب الاستهلاك لتأمينات السيارات$t59$, $t59$بشأن تعديل القرار رقم (1052) لسنة 2019 بشأن ضوابط تحديد نسب الاستهلاك لتأمينات السيارات$t59$, 'insurance', 'in_force', $u59$https://fra.gov.eg/wp-content/uploads/2026/04/897_.pdf$u59$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_897__1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -3594,7 +3594,7 @@ SELECT id, 1, $b63$يُنشر هذا القرار في الوقسائع المص
 -- ===== 99-2023 : 99/2023 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (99, 2023, $t64$بشأن إصدار دليل إجراءات وضوابط تطبيق معيار المحاسبة المصري رقم 50 (عقود التأمين)$t64$, $t64$بشأن إصدار دليل إجراءات وضوابط تطبيق معيار المحاسبة المصري رقم 50 (عقود التأمين)$t64$, 'insurance', 'in_force', $u64$https://fra.gov.eg/wp-content/uploads/2024/03/99-2023.pdf$u64$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_99_2023_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -4197,7 +4197,7 @@ SELECT id, 1, $b65$الهيئة العامة للرقابة المكالية
 -- ===== UG50745UG50746 : قرار 82/2020 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (82, 2020, $t66$بشأن وقف منح تراخيص جديدة لشركات الوساطة فى التأمين وإعادة التأمين$t66$, $t66$بشأن وقف منح تراخيص جديدة لشركات الوساطة فى التأمين وإعادة التأمين$t66$, 'insurance', 'in_force', $u66$https://fra.gov.eg/wp-content/uploads/fra_live_data/pdfs/UG50745UG50746.pdf$u66$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_UG50745UG50746_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -4241,7 +4241,7 @@ SELECT id, 1, $b68$يُنشر هذا القرار في الوقائع المصر
 -- ===== UG51302UG51303 : قرار 133/2020 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (133, 2020, $t69$بشأن ضوابط المساهمة فى رأس مال شركات التأمين$t69$, $t69$بشأن ضوابط المساهمة فى رأس مال شركات التأمين$t69$, 'insurance', 'in_force', $u69$https://fra.gov.eg/wp-content/uploads/fra_live_data/pdfs/UG51302UG51303.pdf$u69$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_UG51302UG51303_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -4324,7 +4324,7 @@ SELECT id, 1, $b72$يُنشر هذا القرار في الوقائع المصر
 -- ===== UG51839UG51840 : قرار 162/2020 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (162, 2020, $t73$بشأن تكوين مخصص لمخاطر تطبيق معيار المحاسبة المصري رقم 47$t73$, $t73$بشأن تكوين مخصص لمخاطر تطبيق معيار المحاسبة المصري رقم 47$t73$, 'insurance', 'in_force', $u73$https://fra.gov.eg/wp-content/uploads/fra_live_data/pdfs/UG51839UG51840.pdf$u73$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_UG51839UG51840_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -4392,7 +4392,7 @@ SELECT id, 1, $b75$يُنشر هذا القرار في الوقائع المصر
 -- ===== UG52513UG52514 : قرار 187/2020 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (187, 2020, $t76$بشأن إنشاء قاعدة بيانات لخدمة العملاء لشركات الأنشطة المالية غير المصرفية$t76$, $t76$بشأن إنشاء قاعدة بيانات لخدمة العملاء لشركات الأنشطة المالية غير المصرفية$t76$, 'insurance', 'in_force', $u76$https://fra.gov.eg/wp-content/uploads/fra_live_data/pdfs/UG52513UG52514.pdf$u76$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_UG52513UG52514_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -4476,7 +4476,7 @@ SELECT id, 1, $b78$تلتزم الشركات والجهات العاملة في 
 -- ===== alamiria_2022_48 : قرار 48/2022 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (48, 2022, $t79$بشأن تمثيل المرأة فى مجالس إدارة اتحادات الشركات والجهات العاملة فى مجال التأمين$t79$, $t79$بشأن تمثيل المرأة فى مجالس إدارة اتحادات الشركات والجهات العاملة فى مجال التأمين$t79$, 'insurance', 'in_force', $u79$https://fra.gov.eg/wp-content/uploads/2022/03/alamiria_2022_48.pdf$u79$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2022_48_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -4525,7 +4525,7 @@ SELECT id, 1, $b82$ينشر هذا القرار فى الوقائع المص�
 -- ===== alamiria_2023_280 : قرار 280/2023 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (280, 2023, $t83$بشأن منح مهلة لشركات الوساطة فى التأمين لتوفيق أوضاعها$t83$, $t83$بشأن منح مهلة لشركات الوساطة فى التأمين لتوفيق أوضاعها$t83$, 'insurance', 'in_force', $u83$https://fra.gov.eg/wp-content/uploads/2024/01/alamiria_2023_280.pdf$u83$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2023_280_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -4579,7 +4579,7 @@ SELECT id, 1, $b85$ُينش���ر هذا القرار بالوقائع ال
 -- ===== alamiria_2024_183 : قرار 183/2024 (مُهيكَل، 4 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (183, 2024, $t86$بشأن تحديد موعد بداية ونهاية السنة المالية لشركات التأمين وإعادة التأمين$t86$, $t86$بشأن تحديد موعد بداية ونهاية السنة المالية لشركات التأمين وإعادة التأمين$t86$, 'insurance', 'in_force', $u86$https://fra.gov.eg/wp-content/uploads/2024/09/alamiria_2024_183.pdf$u86$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2024_183_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -4659,7 +4659,7 @@ SELECT id, 1, $b90$ينشر هذا القرار فى الوقائع المص�
 -- ===== alamiria_2024_223 : قرار 223/2024 (مُهيكَل، 5 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (223, 2024, $t91$بشأن ضوابط توفيق أوضاع الشركات العاملة فى قطاع التأمين وفقاً لقانون التأمين الموحد$t91$, $t91$بشأن ضوابط توفيق أوضاع الشركات العاملة فى قطاع التأمين وفقاً لقانون التأمين الموحد$t91$, 'insurance', 'in_force', $u91$https://fra.gov.eg/wp-content/uploads/2024/10/alamiria_2024_223.pdf$u91$, '1705-10-18')
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2024_223_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -4780,7 +4780,7 @@ SELECT id, 1, $b96$بُنشر هذا القرار بالوقائع المصري�
 -- ===== alamiria_2024_236 : قرار 236/2024 (مُهيكَل، 59 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (236, 2024, $t97$بشأن نموذج النظام الأساسي لصناديق التأمين الخاصة$t97$, $t97$بشأن نموذج النظام الأساسي لصناديق التأمين الخاصة$t97$, 'insurance', 'in_force', $u97$https://fra.gov.eg/wp-content/uploads/2024/11/alamiria_2024_236.pdf$u97$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2024_236_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -6719,7 +6719,7 @@ SELECT id, 1, $b156$يشترط لبدء سريان نظام المزايا با�
 -- ===== alamiria_2024_237 : قرار 237/2024 (مُهيكَل، 6 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (237, 2024, $t157$بشأن ضوابط تسجيل وتصفية وشطب صناديق التأمين الخاصة والشروط الواجب توافرها فى النظام الأساسي لتلك الصناديق وضوابط تعديلها$t157$, $t157$بشأن ضوابط تسجيل وتصفية وشطب صناديق التأمين الخاصة والشروط الواجب توافرها فى النظام الأساسي لتلك الصناديق وضوابط تعديلها$t157$, 'insurance', 'in_force', $u157$https://fra.gov.eg/wp-content/uploads/2024/11/alamiria_2024_237.pdf$u157$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2024_237_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -7085,7 +7085,7 @@ SELECT id, 1, $b163$ينشر هذا القرار فى الوقائع المصر�
 -- ===== alamiria_2024_256 : قرار 256/2024 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (256, 2024, $t164$بشأن تحديد موعد بداية ونهاية السنة المالية لصناديق التأمين الخاصة$t164$, $t164$بشأن تحديد موعد بداية ونهاية السنة المالية لصناديق التأمين الخاصة$t164$, 'insurance', 'in_force', $u164$https://fra.gov.eg/wp-content/uploads/2025/01/alamiria_2024_256.pdf$u164$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2024_256_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -7150,7 +7150,7 @@ SELECT id, 1, $b167$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2024_268 : قرار 268/2024 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (268, 2024, $t168$بشأن زيادة الحد الأقصى للتغطية التأمينية لنشاط التأمين متناهي الصغر$t168$, $t168$بشأن زيادة الحد الأقصى للتغطية التأمينية لنشاط التأمين متناهي الصغر$t168$, 'insurance', 'in_force', $u168$https://fra.gov.eg/wp-content/uploads/2025/01/alamiria_2024_268.pdf$u168$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2024_268_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -7186,7 +7186,7 @@ SELECT id, 1, $b170$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2024_273 : قرار 273/2024 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (273, 2024, $t171$بشأن تعديل قرار مجلس إدارة الهيئة رقم 183 لسنة 2024 بشأن تحديد موعد بداية ونهاية السنة المالية لشركات التأمين وإعادة التأمين$t171$, $t171$بشأن تعديل قرار مجلس إدارة الهيئة رقم 183 لسنة 2024 بشأن تحديد موعد بداية ونهاية السنة المالية لشركات التأمين وإعادة التأمين$t171$, 'insurance', 'in_force', $u171$https://fra.gov.eg/wp-content/uploads/2025/01/alamiria_2024_273.pdf$u171$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2024_273_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -7254,7 +7254,7 @@ SELECT id, 1, $b173$ينشر هذا القرار في الوقائع المصر�
 -- ===== alamiria_2024_278-1 : قرار 278/2024 (مُهيكَل، 4 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (278, 2024, $t174$بشأن ضوابط اختيار الأعضاء ذوي الخبرة فى مجالس إدارة صناديق التأمين الخاصة$t174$, $t174$بشأن ضوابط اختيار الأعضاء ذوي الخبرة فى مجالس إدارة صناديق التأمين الخاصة$t174$, 'insurance', 'in_force', $u174$https://fra.gov.eg/wp-content/uploads/2024/12/alamiria_2024_278-1.pdf$u174$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2024_278_1_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -7438,7 +7438,7 @@ SELECT id, 1, $b178$ينشر هذا القرار فى الوقائع المص
 -- ===== alamiria_2024_298 : قرار 298/2024 (مُهيكَل، 8 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (298, 2024, $t179$بشأن ضوابط قيد المتدربين على أعمال الوساطة التأمينية لدى الهيئة وقواعد ممارستهم لأعمال التدريب بشركات التأمين وإعادة التأمين وشركات الوساطة التأمينية$t179$, $t179$بشأن ضوابط قيد المتدربين على أعمال الوساطة التأمينية لدى الهيئة وقواعد ممارستهم لأعمال التدريب بشركات التأمين وإعادة التأمين وشركات الوساطة التأمينية$t179$, 'insurance', 'in_force', $u179$https://fra.gov.eg/wp-content/uploads/2025/01/alamiria_2024_298.pdf$u179$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2024_298_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -7704,7 +7704,7 @@ SELECT id, 1, $b187$ينشر هذا القرار فى الوقائع المص
 -- ===== alamiria_2025_159 : قرار 159/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (159, 2025, $t188$بشأن مد فترة تقديم القوائم المالية الدورية للشركات التى تزاول نشاط التأمين$t188$, $t188$بشأن مد فترة تقديم القوائم المالية الدورية للشركات التى تزاول نشاط التأمين$t188$, 'insurance', 'in_force', $u188$https://fra.gov.eg/wp-content/uploads/2025/08/alamiria_2025_159.pdf$u188$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2025_159_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -7774,7 +7774,7 @@ SELECT id, 1, $b190$ينشر هذا القرار فى الوقائع المص
 -- ===== alamiria_2025_223 : قرار 223/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (223, 2025, $t191$بشأن مد فترة تقديم القوائم المالية الدورية للشركات التى تزاول نشاط التأمين$t191$, $t191$بشأن مد فترة تقديم القوائم المالية الدورية للشركات التى تزاول نشاط التأمين$t191$, 'insurance', 'in_force', $u191$https://fra.gov.eg/wp-content/uploads/2026/02/alamiria_2025_223.pdf$u191$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2025_223_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -7816,7 +7816,7 @@ SELECT id, 1, $b193$ينشر هذا القرار فى الوقائع المص
 -- ===== alamiria_2025_265-2 : قرار 265/2025 (مُهيكَل، 18 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (265, 2025, $t194$بشأن الأحكام المنظمة لأوجه الرقابة على صناديق التأمين الحكومية$t194$, $t194$بشأن الأحكام المنظمة لأوجه الرقابة على صناديق التأمين الحكومية$t194$, 'insurance', 'in_force', $u194$https://fra.gov.eg/wp-content/uploads/2026/02/alamiria_2025_265-2.pdf$u194$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2025_265_2_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -8402,7 +8402,7 @@ SELECT id, 1, $b212$ينش���ر هذا القرار فى الوقائع ا
 -- ===== alamiria_2025_269 : قرار 269/2025 (مُهيكَل، 12 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (269, 2025, $t213$بشأن الضوابط والقواعد والإجراءات الخاصة بتحويل (معهد التأمين المصري) ليكون (معهد تدريب وتأهيل العاملين بشركات التأمين)$t213$, $t213$بشأن الضوابط والقواعد والإجراءات الخاصة بتحويل (معهد التأمين المصري) ليكون (معهد تدريب وتأهيل العاملين بشركات التأمين)$t213$, 'insurance', 'in_force', $u213$https://fra.gov.eg/wp-content/uploads/2025/12/alamiria_2025_269.pdf$u213$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2025_269_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -8734,7 +8734,7 @@ SELECT id, 1, $b225$ُينش���ر ه���ذا القرار بالوق�
 -- ===== alamiria_2025_302 : قرار 302/2025 (مُهيكَل، 7 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (302, 2025, $t226$بشأن كيفية وشروط أداء مبلغ التأمين من المجمعة المصرية للتأمين الإجباري عن المسئولية الناشئة عن حوادث مركبات النقل السريع$t226$, $t226$بشأن كيفية وشروط أداء مبلغ التأمين من المجمعة المصرية للتأمين الإجباري عن المسئولية الناشئة عن حوادث مركبات النقل السريع$t226$, 'insurance', 'in_force', $u226$https://fra.gov.eg/wp-content/uploads/2026/01/alamiria_2025_302.pdf$u226$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2025_302_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -8887,7 +8887,7 @@ SELECT id, 1, $b233$ُينش���ر هذا القرار فى الوقائع 
 -- ===== alamiria_2025_304 : قرار 304/2025 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (304, 2025, $t234$بشأن ضوابط مزاولة شركات التأمين بنفسها أو مع غيرها نشاط صناديق الاستثمار$t234$, $t234$بشأن ضوابط مزاولة شركات التأمين بنفسها أو مع غيرها نشاط صناديق الاستثمار$t234$, 'insurance', 'in_force', $u234$https://fra.gov.eg/wp-content/uploads/2026/01/alamiria_2025_304.pdf$u234$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2025_304_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -8956,7 +8956,7 @@ SELECT id, 1, $b237$ُينش���ر هذا القرار فى الوقائع 
 -- ===== alamiria_2025_306-1 : قرار 306/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (306, 2025, $t238$بشأن تعديل النظام الأساسي للمجمعة المصرية لتأمين الأخطار النووية$t238$, $t238$بشأن تعديل النظام الأساسي للمجمعة المصرية لتأمين الأخطار النووية$t238$, 'insurance', 'in_force', $u238$https://fra.gov.eg/wp-content/uploads/2026/01/alamiria_2025_306-1.pdf$u238$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2025_306_1_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -9020,7 +9020,7 @@ SELECT id, 1, $b240$ينشر هذا القرار فى الوقائع المص
 -- ===== alamiria_2026_116-2 : قرار 116/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (116, 2026, $t241$بشأن مد المهلة الممنوحة لصناديق التأمين الحكومية لتوفيق أوضاعها وفقاً لقرار مجلس إدارة الهيئة رقم 266 لسنة 2025 بشأن قواعد وضوابط استثمار أموال صناديق التأمين الحكومية$t241$, $t241$بشأن مد المهلة الممنوحة لصناديق التأمين الحكومية لتوفيق أوضاعها وفقاً لقرار مجلس إدارة الهيئة رقم 266 لسنة 2025 بشأن قواعد وضوابط استثمار أموال صناديق التأمين الحكومية$t241$, 'insurance', 'in_force', $u241$https://fra.gov.eg/wp-content/uploads/2026/06/alamiria_2026_116-2.pdf$u241$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_116_2_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -9052,7 +9052,7 @@ SELECT id, 1, $b243$ينشر هذا القرار فى الوقائع المصر�
 -- ===== alamiria_2026_130 : قرار 130/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (130, 2026, $t244$بشأن مد مدة تقديم القوائم المالية الدورية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t244$, $t244$بشأن مد مدة تقديم القوائم المالية الدورية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t244$, 'insurance', 'in_force', $u244$https://fra.gov.eg/wp-content/uploads/2026/07/alamiria_2026_130.pdf$u244$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_130_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -9124,7 +9124,7 @@ SELECT id, 1, $b246$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2026_132 : قرار 132/2026 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (132, 2026, $t247$بشأن مد مهلة توفيق أوضاع الشركات الراغبة فى مزاولة نشاط إدارة برامج الرعاية الصحية$t247$, $t247$بشأن مد مهلة توفيق أوضاع الشركات الراغبة فى مزاولة نشاط إدارة برامج الرعاية الصحية$t247$, 'insurance', 'in_force', $u247$https://fra.gov.eg/wp-content/uploads/2026/07/alamiria_2026_132.pdf$u247$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_132_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -9197,7 +9197,7 @@ SELECT id, 1, $b250$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2026_134 : قرار 134/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (134, 2026, $t251$بشأن مد المهلة الممنوحة لمنشآت التأمين وإعادة التأمين ووسطاء إعادة التأمين الأجانب غير المقيمين لتوفيق أوضاعهم وفقاً لقرار مجلس إدارة الهيئة رقم 158 لسنة 2025$t251$, $t251$بشأن مد المهلة الممنوحة لمنشآت التأمين وإعادة التأمين ووسطاء إعادة التأمين الأجانب غير المقيمين لتوفيق أوضاعهم وفقاً لقرار مجلس إدارة الهيئة رقم 158 لسنة 2025$t251$, 'insurance', 'in_force', $u251$https://fra.gov.eg/wp-content/uploads/2026/07/alamiria_2026_134.pdf$u251$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_134_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -9241,7 +9241,7 @@ SELECT id, 1, $b253$عند ا
 -- ===== alamiria_2026_135 : قرار 135/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (135, 2026, $t254$بشأن مد المهلة الممنوحة لزيادة رؤوس أموال بعض الشركات التى تزاول المهن والأنشطة المرتبطة بالتأمين$t254$, $t254$بشأن مد المهلة الممنوحة لزيادة رؤوس أموال بعض الشركات التى تزاول المهن والأنشطة المرتبطة بالتأمين$t254$, 'insurance', 'in_force', $u254$https://fra.gov.eg/wp-content/uploads/2026/07/alamiria_2026_135.pdf$u254$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_135_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -9309,7 +9309,7 @@ SELECT id, 1, $b256$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2026_145 : قرار 145/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (145, 2026, $t257$بشأن مد مهلة توفيق الأوضاع طبقاً لأحكام قانون التأمين الموحد$t257$, $t257$بشأن مد مهلة توفيق الأوضاع طبقاً لأحكام قانون التأمين الموحد$t257$, 'insurance', 'in_force', $u257$https://fra.gov.eg/wp-content/uploads/2026/08/alamiria_2026_145.pdf$u257$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_145_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -9375,7 +9375,7 @@ SELECT id, 1, $b259$ة ال يع
 -- ===== alamiria_2026_2036-R : قرار 2036/2026 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (2036, 2026, $t260$بشأن معايير إدارة المخاطر فى الاكتتاب لعمليات تأمينات الأشخاص الفردي$t260$, $t260$بشأن معايير إدارة المخاطر فى الاكتتاب لعمليات تأمينات الأشخاص الفردي$t260$, 'insurance', 'in_force', $u260$https://fra.gov.eg/wp-content/uploads/2026/07/alamiria_2026_2036-R.pdf$u260$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_2036_R_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -9494,7 +9494,7 @@ SELECT id, 1, $b263$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2026_2044-R-1 : قرار 2044/2026 (مُهيكَل، 5 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (2044, 2026, $t264$بشأن ضوابط إخطار الهيئة ببيانات عقود التأمين الصادرة عن شركات تأمينات الأشخاص وعمليات تكوين الأموال$t264$, $t264$بشأن ضوابط إخطار الهيئة ببيانات عقود التأمين الصادرة عن شركات تأمينات الأشخاص وعمليات تكوين الأموال$t264$, 'insurance', 'in_force', $u264$https://fra.gov.eg/wp-content/uploads/2026/07/alamiria_2026_2044-R-1.pdf$u264$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_2044_R_1_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -9627,7 +9627,7 @@ SELECT id, 1, $b269$تد بها
 -- ===== alamiria_2026_25 : قرار 25/2026 (مُهيكَل، 27 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (25, 2026, $t270$بشأن شروط وقواعد وإجراءات قيد ومباشرة أعمال خبراء التأمين الاستشاريين$t270$, $t270$بشأن شروط وقواعد وإجراءات قيد ومباشرة أعمال خبراء التأمين الاستشاريين$t270$, 'insurance', 'in_force', $u270$https://fra.gov.eg/wp-content/uploads/2026/03/alamiria_2026_25.pdf$u270$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_25_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -11210,7 +11210,7 @@ SELECT id, 1, $b297$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2026_27 : قرار 27/2026 (مُهيكَل، 4 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (27, 2026, $t298$بشأن إصدار نموذج عقد التأمين النمطي الجماعي فى شأن التغطية التأمينية للعملاء الحاصلين على تمويل للمشروعات متناهية الصغر$t298$, $t298$بشأن إصدار نموذج عقد التأمين النمطي الجماعي فى شأن التغطية التأمينية للعملاء الحاصلين على تمويل للمشروعات متناهية الصغر$t298$, 'insurance', 'in_force', $u298$https://fra.gov.eg/wp-content/uploads/2026/02/alamiria_2026_27.pdf$u298$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_27_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -11600,7 +11600,7 @@ SELECT id, 1, $b302$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2026_28 : قرار 28/2026 (مُهيكَل، 4 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (28, 2026, $t303$بشأن التزام الشركات المرخص لها بمزاولة نشاط التمويل الاستهلاكي بتوفير تغطية تأمينية لعملائها ضد مخاطر الوفاة والعجز الكلي المستديم، ونموذج عقد التأمين المعمول به فى شأن تلك التغطية$t303$, $t303$بشأن التزام الشركات المرخص لها بمزاولة نشاط التمويل الاستهلاكي بتوفير تغطية تأمينية لعملائها ضد مخاطر الوفاة والعجز الكلي المستديم، ونموذج عقد التأمين المعمول به فى شأن تلك التغطية$t303$, 'insurance', 'in_force', $u303$https://fra.gov.eg/wp-content/uploads/2026/02/alamiria_2026_28.pdf$u303$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_28_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -11992,7 +11992,7 @@ SELECT id, 1, $b307$ينشر هذا القرار في الوقائع المصر�
 -- ===== alamiria_2026_29 : قرار 29/2026 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (29, 2026, $t308$بشأن التزام الخبراء الاكتواريين بموافاة الهيئة بالتقارير الصادرة عنهم$t308$, $t308$بشأن التزام الخبراء الاكتواريين بموافاة الهيئة بالتقارير الصادرة عنهم$t308$, 'insurance', 'in_force', $u308$https://fra.gov.eg/wp-content/uploads/2026/02/alamiria_2026_29.pdf$u308$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_29_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -12085,7 +12085,7 @@ SELECT id, 1, $b311$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2026_3 : قرار 3/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (3, 2026, $t312$بتعديل قرار مجلس إدارة الهيئة رقم (2) لسنة 2025 بشأن قواعد وضوابط ونسب استثمار أموال شركات التأمين وإعادة التأمين$t312$, $t312$بتعديل قرار مجلس إدارة الهيئة رقم (2) لسنة 2025 بشأن قواعد وضوابط ونسب استثمار أموال شركات التأمين وإعادة التأمين$t312$, 'insurance', 'in_force', $u312$https://fra.gov.eg/wp-content/uploads/2026/02/alamiria_2026_3.pdf$u312$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_3_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -12137,7 +12137,7 @@ SELECT id, 1, $b314$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2026_35 : قرار 35/2026 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (35, 2026, $t315$بشأن إلزام الشركات المرخص لها بمزاولة الأنشطة المالية غير المصرفية بإبرام وثيقة تأمين لتغطية مخاطر مسئولية مجالس إدارتها والمديرين التنفيذيين بها$t315$, $t315$بشأن إلزام الشركات المرخص لها بمزاولة الأنشطة المالية غير المصرفية بإبرام وثيقة تأمين لتغطية مخاطر مسئولية مجالس إدارتها والمديرين التنفيذيين بها$t315$, 'insurance', 'in_force', $u315$https://fra.gov.eg/wp-content/uploads/2026/02/alamiria_2026_35.pdf$u315$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_35_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -12198,7 +12198,7 @@ SELECT id, 1, $b318$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2026_38 : قرار 38/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (38, 2026, $t319$بشأن مد مدة عرض القوائم المالية السنوية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t319$, $t319$بشأن مد مدة عرض القوائم المالية السنوية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t319$, 'insurance', 'in_force', $u319$https://fra.gov.eg/wp-content/uploads/2026/02/alamiria_2026_38.pdf$u319$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_38_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -12236,7 +12236,7 @@ SELECT id, 1, $b321$ينشر هذا القرار في الوقائع المص
 -- ===== alamiria_2026_4 : قرار 4/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (4, 2026, $t322$بشأن مد المهلة الممنوحة لزيادة رؤوس أموال بعض الشركات التى تزاول المهن والأنشطة المرتبطة بالتأمين$t322$, $t322$بشأن مد المهلة الممنوحة لزيادة رؤوس أموال بعض الشركات التى تزاول المهن والأنشطة المرتبطة بالتأمين$t322$, 'insurance', 'in_force', $u322$https://fra.gov.eg/wp-content/uploads/2026/02/alamiria_2026_4.pdf$u322$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_4_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -12282,7 +12282,7 @@ SELECT id, 1, $b324$ينشر هذا القرار فى الوقائع المص
 -- ===== alamiria_2026_42 : قرار 42/2026 (مُهيكَل، 9 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (42, 2026, $t325$بشأن تشكيل لجنة لنظر التظلمات من القرارات الإدارية الصادرة تطبيقاً لأحكام قانون التأمين الموحد الصادر بالقانون رقم 155 لسنة 2024$t325$, $t325$بشأن تشكيل لجنة لنظر التظلمات من القرارات الإدارية الصادرة تطبيقاً لأحكام قانون التأمين الموحد الصادر بالقانون رقم 155 لسنة 2024$t325$, 'insurance', 'in_force', $u325$https://fra.gov.eg/wp-content/uploads/2026/03/alamiria_2026_42.pdf$u325$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_42_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -12479,7 +12479,7 @@ SELECT id, 1, $b334$ينشر هذا القرار في الوقائع المصر�
 -- ===== alamiria_2026_54 : قرار 54/2026 (مُهيكَل، 28 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (54, 2026, $t335$بشأن شروط وقواعد وإجراءات قيد ومباشرة أعمال خبراء تقييم الأخطار ومعاينة تقدير الأضرار فى مجال التأمين$t335$, $t335$بشأن شروط وقواعد وإجراءات قيد ومباشرة أعمال خبراء تقييم الأخطار ومعاينة تقدير الأضرار فى مجال التأمين$t335$, 'insurance', 'in_force', $u335$https://fra.gov.eg/wp-content/uploads/2026/04/alamiria_2026_54.pdf$u335$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_54_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -14161,7 +14161,7 @@ SELECT id, 1, $b363$ُينش���ر هذا القرار فى الوقائع 
 -- ===== alamiria_2026_55 : قرار 55/2026 (مُهيكَل، 11 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (55, 2026, $t364$بشأن شروط ومعايير قيد وكلاء الإدارة العموميين فى مجال التأمين لدى الهيئة$t364$, $t364$بشأن شروط ومعايير قيد وكلاء الإدارة العموميين فى مجال التأمين لدى الهيئة$t364$, 'insurance', 'in_force', $u364$https://fra.gov.eg/wp-content/uploads/2026/04/alamiria_2026_55.pdf$u364$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_55_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -14630,7 +14630,7 @@ SELECT id, 1, $b375$ينش���ر هذا القرار فى الوقائع ا
 -- ===== alamiria_2026_56 : قرار 56/2026 (مُهيكَل، 26 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (56, 2026, $t376$بشأن شروط وقواعد وإجراءات قيد ومباشرة أعمال الخبراء الاكتواريين$t376$, $t376$بشأن شروط وقواعد وإجراءات قيد ومباشرة أعمال الخبراء الاكتواريين$t376$, 'insurance', 'in_force', $u376$https://fra.gov.eg/wp-content/uploads/2026/04/alamiria_2026_56.pdf$u376$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_56_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -16210,7 +16210,7 @@ SELECT id, 1, $b402$ُينش���ر هذا القرار فى الوقائع 
 -- ===== alamiria_2026_57 : قرار 57/2026 (مُهيكَل، 8 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (57, 2026, $t403$بشأن تشكيل اللجنة الثانية لنظر التظلمات من القرارات الإدارية الصادرة تطبيقاً لأحكام قانون التأمين الموحد الصادر بالقانون رقم 155 لسنة 2024$t403$, $t403$بشأن تشكيل اللجنة الثانية لنظر التظلمات من القرارات الإدارية الصادرة تطبيقاً لأحكام قانون التأمين الموحد الصادر بالقانون رقم 155 لسنة 2024$t403$, 'insurance', 'in_force', $u403$https://fra.gov.eg/wp-content/uploads/2026/03/alamiria_2026_57.pdf$u403$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_57_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -16410,7 +16410,7 @@ SELECT id, 1, $b411$ينشر هذا القرار في الوقائع المصر�
 -- ===== alamiria_2026_64 : قرار 64/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (64, 2026, $t412$بشأن مد المهلة الممنوحة لمنشآت التأمين وإعادة التأمين ووسطاء إعادة التأمين الأجانب غير المقيمين لتوفيق أوضاعهم وفقاً لقرار مجلس إدارة الهيئة رقم 158 لسنة 2025$t412$, $t412$بشأن مد المهلة الممنوحة لمنشآت التأمين وإعادة التأمين ووسطاء إعادة التأمين الأجانب غير المقيمين لتوفيق أوضاعهم وفقاً لقرار مجلس إدارة الهيئة رقم 158 لسنة 2025$t412$, 'insurance', 'in_force', $u412$https://fra.gov.eg/wp-content/uploads/2026/03/alamiria_2026_64.pdf$u412$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_64_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -16454,7 +16454,7 @@ SELECT id, 1, $b414$عند ا
 -- ===== alamiria_2026_70 : قرار 70/2026 (مُهيكَل، 20 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (70, 2026, $t415$بشأن قواعد ومعايير وضوابط تنظيم عمل الشركات المرخص لها بمزاولة التأمين التكافلي فى مصر$t415$, $t415$بشأن قواعد ومعايير وضوابط تنظيم عمل الشركات المرخص لها بمزاولة التأمين التكافلي فى مصر$t415$, 'insurance', 'in_force', $u415$https://fra.gov.eg/wp-content/uploads/2026/05/alamiria_2026_70.pdf$u415$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_70_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -17550,7 +17550,7 @@ SELECT id, 1, $b435$يسري فيما لما يرد بشأنه نص خاص في 
 -- ===== alamiria_2026_97 : قرار 97/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (97, 2026, $t436$بشأن مد مدة عرض القوائم المالية السنوية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t436$, $t436$بشأن مد مدة عرض القوائم المالية السنوية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t436$, 'insurance', 'in_force', $u436$https://fra.gov.eg/wp-content/uploads/2026/06/alamiria_2026_97.pdf$u436$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_97_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -17600,7 +17600,7 @@ SELECT id, 1, $b438$ينشر هذا القرار بالوقائع المصرية
 -- ===== alamiria_2026_98 : قرار 98/2026 (مُهيكَل، 7 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (98, 2026, $t439$بشأن التزام شركات التأمين ببعض المعايير التنظيمية الخاصة بإعادة التأمين$t439$, $t439$بشأن التزام شركات التأمين ببعض المعايير التنظيمية الخاصة بإعادة التأمين$t439$, 'insurance', 'in_force', $u439$https://fra.gov.eg/wp-content/uploads/2026/06/alamiria_2026_98.pdf$u439$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_alamiria_2026_98_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -17851,7 +17851,7 @@ SELECT id, 1, $b446$ينشر هذا القرار في الوقائع المص
 -- ===== الكتاب-الدوري-رقم-21 : 21/2021 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (21, 2021, $t447$بشأن ضوابط استثمارات صناديق التأمين الخاصة$t447$, $t447$بشأن ضوابط استثمارات صناديق التأمين الخاصة$t447$, 'insurance', 'in_force', $u447$https://fra.gov.eg/wp-content/uploads/2021/09/%D8%A7%D9%84%D9%83%D8%AA%D8%A7%D8%A8-%D8%A7%D9%84%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%82%D9%85-21.pdf$u447$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art___________________21_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -17928,7 +17928,7 @@ SELECT id, 1, $b448$الالار جا س1
 -- ===== قرار-رئيس-الوزراء-3973-لسنة-2025 : قرار 3973/2025 (مُهيكَل، 25 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (3973, 2025, $t449$قرار رئيس مجلس الوزراء بإصدار النظام الأساسي للصندوق الحكومي للتأمين ضد الأخطار الناجمة عن الأخطاء الطبية$t449$, $t449$قرار رئيس مجلس الوزراء بإصدار النظام الأساسي للصندوق الحكومي للتأمين ضد الأخطار الناجمة عن الأخطاء الطبية$t449$, 'insurance', 'in_force', $u449$https://fra.gov.eg/wp-content/uploads/2025/10/%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D8%A6%D9%8A%D8%B3-%D8%A7%D9%84%D9%88%D8%B2%D8%B1%D8%A7%D8%A1-3973-%D9%84%D8%B3%D9%86%D8%A9-2025.pdf$u449$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art___________________3973______2025_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -18635,7 +18635,7 @@ SELECT id, 1, $b474$يلتزم الصندوق بإمساك السجلات وال
 -- ===== قرار-رقم-82-_unlocked : قرار 82/2026 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (82, 2026, $t475$بشأن مد مدة عرض القوائم المالية السنوية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t475$, $t475$بشأن مد مدة عرض القوائم المالية السنوية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t475$, 'insurance', 'in_force', $u475$https://fra.gov.eg/wp-content/uploads/2026/04/%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-82-_unlocked.pdf$u475$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art__________82__unlocked_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -18673,7 +18673,7 @@ SELECT id, 1, $b477$ينشر هذا القرار في الوقائع المصض�
 -- ===== كتاب-دوري-4 : 4/2023 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (4, 2023, $t478$بشأن حماية سرية بيانات المتعاملين فى الأنشطة المالية غير المصرفية$t478$, $t478$بشأن حماية سرية بيانات المتعاملين فى الأنشطة المالية غير المصرفية$t478$, 'insurance', 'in_force', $u478$https://fra.gov.eg/wp-content/uploads/2023/10/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-4.pdf$u478$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art___________4_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -18768,7 +18768,7 @@ SELECT id, 1, $b479$الورك الت الها ائلاليه
 -- ===== كتاب-دوري-تمثيل-المرأة- : 17/2021 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (17, 2021, $t480$بشأن تمثيل المرأة فى مجالس إدارات الشركات العاملة فى الأنشطة المالية غير المصرفية$t480$, $t480$بشأن تمثيل المرأة فى مجالس إدارات الشركات العاملة فى الأنشطة المالية غير المصرفية$t480$, 'insurance', 'in_force', $u480$https://fra.gov.eg/wp-content/uploads/2021/07/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%AA%D9%85%D8%AB%D9%8A%D9%84-%D8%A7%D9%84%D9%85%D8%B1%D8%A3%D8%A9-.pdf$u480$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_________________________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -18849,7 +18849,7 @@ SELECT id, 1, $b481$الهيئة العامة ثلرقاية المالية
 -- ===== كتاب-دوري-رقم-1-لسنة-2023-1 : 1/2023 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (1, 2023, $t482$بشأن حظر التوكيل أو التفويض فى مزاولة المهن المتخصصة (التأمينية)$t482$, $t482$بشأن حظر التوكيل أو التفويض فى مزاولة المهن المتخصصة (التأمينية)$t482$, 'insurance', 'in_force', $u482$https://fra.gov.eg/wp-content/uploads/2023/02/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%82%D9%85-1-%D9%84%D8%B3%D9%86%D8%A9-2023-1.pdf$u482$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_______________1______2023_1_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -18944,7 +18944,7 @@ SELECT id, 1, $b483$42 جا وس متت
 -- ===== كتاب-دوري-رقم-5-لسنة-2022 : 5/2022 (احتياطى — نص كامل غير مُقسَّم؛ السبب: مادة وحيدة مكتشَفة استشهاد زائف بقانون آخر — أُجبِر على المسار الاحتياطى بعد تحقق يدوى) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (5, 2022, $t484$بشأن اختبارات الوظائف الرئيسية فى الشركات العاملة فى الأنشطة المالية غير المصرفية$t484$, $t484$بشأن اختبارات الوظائف الرئيسية فى الشركات العاملة فى الأنشطة المالية غير المصرفية$t484$, 'insurance', 'in_force', $u484$https://fra.gov.eg/wp-content/uploads/2022/12/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%82%D9%85-5-%D9%84%D8%B3%D9%86%D8%A9-2022.pdf$u484$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_______________5______2022_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -20013,7 +20013,7 @@ SELECT id, 1, $b485$جدول بالتشريعات المطلوب معرفتها 
 -- ===== كتاب-دوري-رقم-5-لسنة-2023 : 5/2023 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (5, 2023, $t486$بشأن تحصيل رسوم أو أقساط وثائق التأمين من خلال وسطاء التأمين$t486$, $t486$بشأن تحصيل رسوم أو أقساط وثائق التأمين من خلال وسطاء التأمين$t486$, 'insurance', 'in_force', $u486$https://fra.gov.eg/wp-content/uploads/2023/11/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%82%D9%85-5-%D9%84%D8%B3%D9%86%D8%A9-2023.pdf$u486$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art_______________5______2023_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -20106,7 +20106,7 @@ SELECT id, 1, $b487$الهيئة العامة للرقابة المالية
 -- ===== نشر-قرار-193-لسنة-2022 : قرار 193/2022 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (193, 2022, $t488$بشأن ضوابط الاكتتاب فى وثائق تأمين الائتمان والضمان بفرع الحوادث المتنوعة$t488$, $t488$بشأن ضوابط الاكتتاب فى وثائق تأمين الائتمان والضمان بفرع الحوادث المتنوعة$t488$, 'insurance', 'in_force', $u488$https://fra.gov.eg/wp-content/uploads/2024/03/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-193-%D9%84%D8%B3%D9%86%D8%A9-2022.pdf$u488$, '1377-01-11')
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art__________193______2022_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -20211,7 +20211,7 @@ SELECT id, 1, $b491$ينشر هذا القرار فى الوقائع المصر�
 -- ===== نشر-قرار-رئيس-الهيئة-رقم-2872-لسنة-2024-بالوقائع : قرار 2872/2024 (مُهيكَل، 5 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (2872, 2024, $t492$بشأن إصدار نموذج وثيقة التأمين الإلزامي عن المسئولية المدنية الناشئة عن حوادث مركبات النقل السريع داخل جمهورية مصر العربية$t492$, $t492$بشأن إصدار نموذج وثيقة التأمين الإلزامي عن المسئولية المدنية الناشئة عن حوادث مركبات النقل السريع داخل جمهورية مصر العربية$t492$, 'insurance', 'in_force', $u492$https://fra.gov.eg/wp-content/uploads/2025/09/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D8%A6%D9%8A%D8%B3-%D8%A7%D9%84%D9%87%D9%8A%D8%A6%D8%A9-%D8%B1%D9%82%D9%85-2872-%D9%84%D8%B3%D9%86%D8%A9-2024-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u492$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art__________________________2872______2024__1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -20732,7 +20732,7 @@ SELECT id, 1, $b497$ينشر هذا القرار في الوقائع المص
 -- ===== نشر-قرار-رقم-1-لسنة-2025-بالوقائع : قرار 1/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (1, 2025, $t498$بشأن إنشاء أكثر من صندوق تأمين خاص فى ذات الجهة التابع لها أعضاء الصندوق$t498$, $t498$بشأن إنشاء أكثر من صندوق تأمين خاص فى ذات الجهة التابع لها أعضاء الصندوق$t498$, 'insurance', 'in_force', $u498$https://fra.gov.eg/wp-content/uploads/2025/02/نشر-قرار-رقم-1-لسنة-2025-بالوقائع.pdf$u498$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________1______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -20792,7 +20792,7 @@ SELECT id, 1, $b500$ُينش���ر هذا القرار فى الوقائع 
 -- ===== نشر-قرار-رقم-102-لسنة-2025-بالوقائع : قرار 102/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (102, 2025, $t501$بشأن مد مهلة توفيق الأوضاع طبقاً لأحكام قانون التأمين الموحد$t501$, $t501$بشأن مد مهلة توفيق الأوضاع طبقاً لأحكام قانون التأمين الموحد$t501$, 'insurance', 'in_force', $u501$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-102-لسنة-2025-بالوقائع.pdf$u501$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________102______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -20832,7 +20832,7 @@ SELECT id, 1, $b503$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-123-لسنة-2025-بالوقائع : قرار 123/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (123, 2025, $t504$بتعديل قرار مجلس إدارة الهيئة رقم (2) لسنة 2025 بشأن قواعد وضوابط ونسب استثمار أموال شركات التأمين وإعادة التأمين$t504$, $t504$بتعديل قرار مجلس إدارة الهيئة رقم (2) لسنة 2025 بشأن قواعد وضوابط ونسب استثمار أموال شركات التأمين وإعادة التأمين$t504$, 'insurance', 'in_force', $u504$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-123-لسنة-2025-بالوقائع.pdf$u504$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________123______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -20882,7 +20882,7 @@ SELECT id, 1, $b506$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-126-لسنة-2025-بالوقائع : قرار 126/2025 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (126, 2025, $t507$بشأن مد فترة تقديم القوائم المالية الدورية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t507$, $t507$بشأن مد فترة تقديم القوائم المالية الدورية للشركات التى تزاول نشاط التأمين ومجمعات التأمين$t507$, 'insurance', 'in_force', $u507$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-126-لسنة-2025-بالوقائع.pdf$u507$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________126______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -20937,7 +20937,7 @@ SELECT id, 1, $b510$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-127-لسنة-2025-بالوقائع : قرار 127/2025 (مُهيكَل، 48 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (127, 2025, $t511$بشأن اعتماد النظام الأساسى لاتحاد شركات التأمين المصرية$t511$, $t511$بشأن اعتماد النظام الأساسى لاتحاد شركات التأمين المصرية$t511$, 'insurance', 'in_force', $u511$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-127-لسنة-2025-بالوقائع.pdf$u511$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________127______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -22473,7 +22473,7 @@ SELECT id, 1, $b559$تحسب مدد العضوية بالمجالس التنفي
 -- ===== نشر-قرار-رقم-144-لسنة-2025-بالوقائع-1 : قرار 144/2025 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (144, 2025, $t560$بشأن تعديل قرار مجلس إدارة الهيئة رقم 196 لسنة 2024 بشأن تحديد الحد الأدنى لرؤوس أموال الشركات العاملة فى قطاع التأمين$t560$, $t560$بشأن تعديل قرار مجلس إدارة الهيئة رقم 196 لسنة 2024 بشأن تحديد الحد الأدنى لرؤوس أموال الشركات العاملة فى قطاع التأمين$t560$, 'insurance', 'in_force', $u560$https://fra.gov.eg/wp-content/uploads/2025/08/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-144-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9-1.pdf$u560$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________144______2025__________1_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -22548,7 +22548,7 @@ SELECT id, 1, $b563$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-147-لسنة-2024-بالوقائع : قرار 147/2024 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (147, 2024, $t564$بشأن استمرار العمل باللوائح والقرارات المنظمة لأنشطة التأمين القائمة$t564$, $t564$بشأن استمرار العمل باللوائح والقرارات المنظمة لأنشطة التأمين القائمة$t564$, 'insurance', 'in_force', $u564$https://fra.gov.eg/wp-content/uploads/2025/01/نشر-قرار-رقم-147-لسنة-2024-بالوقائع.pdf$u564$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________147______2024__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -22596,7 +22596,7 @@ SELECT id, 1, $b566$ينشر هذا القرار فى الوقائع المصر�
 -- ===== نشر-قرار-رقم-148-لسنة-2025-بالوقائع : قرار 148/2025 (مُهيكَل، 7 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (148, 2025, $t567$بشأن معايير الملاءة المالية لشركات التأمين$t567$, $t567$بشأن معايير الملاءة المالية لشركات التأمين$t567$, 'insurance', 'in_force', $u567$https://fra.gov.eg/wp-content/uploads/2025/08/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-148-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u567$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________148______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -22977,7 +22977,7 @@ SELECT id, 1, $b574$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-15-لسنة-2025-بالوقائع : قرار 15/2025 (مُهيكَل، 9 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (15, 2025, $t575$بشأن قواعد التأسيس والترخيص للشركات العاملة فى نشاط التأمين وإعادة التأمين$t575$, $t575$بشأن قواعد التأسيس والترخيص للشركات العاملة فى نشاط التأمين وإعادة التأمين$t575$, 'insurance', 'in_force', $u575$https://fra.gov.eg/wp-content/uploads/2025/02/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-15-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u575$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________15______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -23470,7 +23470,7 @@ SELECT id, 1, $b584$ينش���ر هذا القرار فى الوقائع ا
 -- ===== نشر-قرار-رقم-152-لسنة-2023-بالوقائع : قرار 152/2023 (مُهيكَل، 4 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (152, 2023, $t585$بشأن التزام شركات التأمين ببعض المتطلبات الخاصة بتسعير وثائق التأمين$t585$, $t585$بشأن التزام شركات التأمين ببعض المتطلبات الخاصة بتسعير وثائق التأمين$t585$, 'insurance', 'in_force', $u585$https://fra.gov.eg/wp-content/uploads/2023/09/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-152-%D9%84%D8%B3%D9%86%D8%A9-2023-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u585$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________152______2023__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -23558,7 +23558,7 @@ SELECT id, 1, $b589$ينشر هذا القرار في الوقائع المص
 -- ===== نشر-قرار-رقم-158-لسنة-2025-بالوقائع : قرار 158/2025 (مُهيكَل، 9 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (158, 2025, $t590$بشأن شروط ومعايير قيد وسطاء إعادة التأمين الأجانب غير المقيمين$t590$, $t590$بشأن شروط ومعايير قيد وسطاء إعادة التأمين الأجانب غير المقيمين$t590$, 'insurance', 'in_force', $u590$https://fra.gov.eg/wp-content/uploads/2025/08/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-158-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u590$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________158______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -23871,7 +23871,7 @@ SELECT id, 1, $b599$ُينش���ر ه���ذا الق���رار ف
 -- ===== نشر-قرار-رقم-16-لسنة-2025-بالوقائع-1 : قرار 16/2025 (مُهيكَل، 7 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (16, 2025, $t600$بشأن قواعد احتساب وتكوين المخصصات الفنية لفرع تأمينات الأشخاص وعمليات تكوين الأموال$t600$, $t600$بشأن قواعد احتساب وتكوين المخصصات الفنية لفرع تأمينات الأشخاص وعمليات تكوين الأموال$t600$, 'insurance', 'in_force', $u600$https://fra.gov.eg/wp-content/uploads/2025/02/نشر-قرار-رقم-16-لسنة-2025-بالوقائع-1.pdf$u600$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________16______2025__________1_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -24072,7 +24072,7 @@ SELECT id, 1, $b607$ينشر هذا القرار في الوقائع المصر�
 -- ===== نشر-قرار-رقم-18-لسنة-2025-بالوقائع : قرار 18/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (18, 2025, $t608$بشأن زيادة الحد الأقصى للتغطية التأمينية لنشاط التأمين متناهي الصغر$t608$, $t608$بشأن زيادة الحد الأقصى للتغطية التأمينية لنشاط التأمين متناهي الصغر$t608$, 'insurance', 'in_force', $u608$https://fra.gov.eg/wp-content/uploads/2025/02/نشر-قرار-رقم-18-لسنة-2025-بالوقائع.pdf$u608$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________18______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -24116,7 +24116,7 @@ SELECT id, 1, $b610$ينش���ر هذا القرار فى الوقائع ا
 -- ===== نشر-قرار-رقم-198-لسنة-2025-بالوقائع : قرار 198/2025 (مُهيكَل، 8 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (198, 2025, $t611$بشأن ضوابط مباشرة الشركات المرخص لها بمزاولة نشاط الوساطة فى التأمين لأعمالها رقمياً$t611$, $t611$بشأن ضوابط مباشرة الشركات المرخص لها بمزاولة نشاط الوساطة فى التأمين لأعمالها رقمياً$t611$, 'insurance', 'in_force', $u611$https://fra.gov.eg/wp-content/uploads/2025/09/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-198-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u611$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________198______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -24442,7 +24442,7 @@ SELECT id, 1, $b619$ينشر هذا القرار في الوقائع المص
 -- ===== نشر-قرار-رقم-199-لسنة-2025-بالوقائع : قرار 199/2025 (مُهيكَل، 8 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (199, 2025, $t620$بشأن تنظيم إصدار وتوزيع شركات التأمين لوثائق التأمين رقمياً من خلال شبكات نظم المعلومات$t620$, $t620$بشأن تنظيم إصدار وتوزيع شركات التأمين لوثائق التأمين رقمياً من خلال شبكات نظم المعلومات$t620$, 'insurance', 'in_force', $u620$https://fra.gov.eg/wp-content/uploads/2025/09/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-199-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u620$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________199______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -24802,7 +24802,7 @@ SELECT id, 1, $b628$صورة إ
 -- ===== نشر-قرار-رقم-200-لسنة-2025-بالوقائع : قرار 200/2025 (مُهيكَل، 46 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (200, 2025, $t629$بشأن قواعد حوكمة شركات التأمين وإعادة التأمين$t629$, $t629$بشأن قواعد حوكمة شركات التأمين وإعادة التأمين$t629$, 'insurance', 'in_force', $u629$https://fra.gov.eg/wp-content/uploads/2025/10/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-200-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u629$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________200______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -28088,7 +28088,7 @@ SELECT id, 1, $b675$ة ال يع
 -- ===== نشر-قرار-رقم-228-لسنة-2025-بالوقائع : قرار 228/2025 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (228, 2025, $t676$بشأن ضوابط استثمار شركات تأمينات الأشخاص وعمليات تكوين الأموال فى المعادن كأحد القيم المالية المنقولة$t676$, $t676$بشأن ضوابط استثمار شركات تأمينات الأشخاص وعمليات تكوين الأموال فى المعادن كأحد القيم المالية المنقولة$t676$, 'insurance', 'in_force', $u676$https://fra.gov.eg/wp-content/uploads/2025/11/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-228-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u676$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________228______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -28203,7 +28203,7 @@ SELECT id, 1, $b679$ينشر هذا القرار في الوقائع المصر�
 -- ===== نشر-قرار-رقم-229-لسنة-2025-بالوقائع : قرار 229/2025 (مُهيكَل، 24 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (229, 2025, $t680$بشأن القواعد والمعايير المنظمة لمزاولة نشاط إدارة برامج الرعاية الصحية$t680$, $t680$بشأن القواعد والمعايير المنظمة لمزاولة نشاط إدارة برامج الرعاية الصحية$t680$, 'insurance', 'in_force', $u680$https://fra.gov.eg/wp-content/uploads/2025/11/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-229-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u680$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________229______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -29839,7 +29839,7 @@ SELECT id, 1, $b704$ة ال يع
 -- ===== نشر-قرار-رقم-230-لسنة-2025-بالوقائع : قرار 230/2025 (مُهيكَل، 9 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (230, 2025, $t705$بشأن ضوابط قيد شركات وفروع شركات إعادة التأمين لدى الهيئة ومعايير تعامل شركات التأمين العاملة فى مصر معها$t705$, $t705$بشأن ضوابط قيد شركات وفروع شركات إعادة التأمين لدى الهيئة ومعايير تعامل شركات التأمين العاملة فى مصر معها$t705$, 'insurance', 'in_force', $u705$https://fra.gov.eg/wp-content/uploads/2025/11/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-230-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u705$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________230______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -30192,7 +30192,7 @@ SELECT id, 1, $b714$ينشر هذا القرار في الوقائع المص
 -- ===== نشر-قرار-رقم-247-لسنة-2025-بالوقائع-002 : قرار 247/2025 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (247, 2025, $t715$بشأن السجلات التى يتعين على شركات التأمين إمساكها$t715$, $t715$بشأن السجلات التى يتعين على شركات التأمين إمساكها$t715$, 'insurance', 'in_force', $u715$https://fra.gov.eg/wp-content/uploads/2025/12/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-247-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9-002.pdf$u715$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________247______2025__________002_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -30785,7 +30785,7 @@ SELECT id, 1, $b718$ُينشر هذا القرار فى الوقائع املص�
 -- ===== نشر-قرار-رقم-254-لسنة-2025-بالوقائع : قرار 254/2025 (مُهيكَل، 11 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (254, 2025, $t719$بشأن تنظيم عمل لجنة حماية المتعاملين وتسوية المنازعات فى مجال التأمين$t719$, $t719$بشأن تنظيم عمل لجنة حماية المتعاملين وتسوية المنازعات فى مجال التأمين$t719$, 'insurance', 'in_force', $u719$https://fra.gov.eg/wp-content/uploads/2026/01/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-254-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u719$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________254______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -31074,7 +31074,7 @@ SELECT id, 1, $b730$ينشر هذا القرار في الوقائع المصر�
 -- ===== نشر-قرار-رقم-255-لسنة-2024-بالوقائع : قرار 255/2024 (مُهيكَل، 4 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (255, 2024, $t731$بشأن أسعار التأمين الإلزامي عن المسئولية المدنية الناشئة عن حوادث مركبات النقل السريع داخل جمهورية مصر العربية$t731$, $t731$بشأن أسعار التأمين الإلزامي عن المسئولية المدنية الناشئة عن حوادث مركبات النقل السريع داخل جمهورية مصر العربية$t731$, 'insurance', 'in_force', $u731$https://fra.gov.eg/wp-content/uploads/2025/09/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-255-%D9%84%D8%B3%D9%86%D8%A9-2024-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u731$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________255______2024__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -31910,7 +31910,7 @@ SELECT id, 1, $b735$ينشر هذا القرار في الوقائع المص
 -- ===== نشر-قرار-رقم-266-لسنة-2025-بالوقائع : قرار 266/2025 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (266, 2025, $t736$بشأن قواعد وضوابط استثمار أموال صناديق التأمين الحكومية$t736$, $t736$بشأن قواعد وضوابط استثمار أموال صناديق التأمين الحكومية$t736$, 'insurance', 'in_force', $u736$https://fra.gov.eg/wp-content/uploads/2025/12/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-266-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u736$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________266______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -31979,7 +31979,7 @@ SELECT id, 1, $b739$عند ا
 -- ===== نشر-قرار-رقم-267-لسنة-2025-بالوقائع : قرار 267/2025 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (267, 2025, $t740$بشأن الضوابط الخاصة بالمقابل المادي المستحق لجهات تسويق المنتجات التأمينية لشركات التأمين$t740$, $t740$بشأن الضوابط الخاصة بالمقابل المادي المستحق لجهات تسويق المنتجات التأمينية لشركات التأمين$t740$, 'insurance', 'in_force', $u740$https://fra.gov.eg/wp-content/uploads/2025/11/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-267-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u740$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________267______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -32124,7 +32124,7 @@ SELECT id, 1, $b743$لك
 -- ===== نشر-قرار-رقم-271-لسنة-2024-بالوقائع : قرار 271/2024 (مُهيكَل، 4 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (271, 2024, $t744$بشأن ضوابط ورسوم نشر قرارات شركات التأمين وصناديق التأمين الخاصة والاتحادات والأجهزة المعاونة على الموقع الإلكترونى للهيئة$t744$, $t744$بشأن ضوابط ورسوم نشر قرارات شركات التأمين وصناديق التأمين الخاصة والاتحادات والأجهزة المعاونة على الموقع الإلكترونى للهيئة$t744$, 'insurance', 'in_force', $u744$https://fra.gov.eg/wp-content/uploads/2024/12/نشر-قرار-رقم-271-لسنة-2024-بالوقائع.pdf$u744$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________271______2024__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -32216,7 +32216,7 @@ SELECT id, 1, $b748$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-271-لسنة-2025-بالوقائع : قرار 271/2025 (مُهيكَل، 6 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (271, 2025, $t749$بشأن تحديد المستندات اللازمة لصرف التعويض من الصندوق الحكومي لتغطية الأضرار الناتجة عن حوادث مركبات النقل السريع$t749$, $t749$بشأن تحديد المستندات اللازمة لصرف التعويض من الصندوق الحكومي لتغطية الأضرار الناتجة عن حوادث مركبات النقل السريع$t749$, 'insurance', 'in_force', $u749$https://fra.gov.eg/wp-content/uploads/2025/12/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-271-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u749$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________271______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -32396,7 +32396,7 @@ SELECT id, 1, $b755$لك
 -- ===== نشر-قرار-رقم-303-لسنة-2025-بالوقائع : قرار 303/2025 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (303, 2025, $t756$بشأن شروط وضوابط وفئات وأسعار عمليات التأمين التى يغطيها الصندوق الحكومى للتأمين ضد الأخطار الناجمة عن الأخطاء الطبية$t756$, $t756$بشأن شروط وضوابط وفئات وأسعار عمليات التأمين التى يغطيها الصندوق الحكومى للتأمين ضد الأخطار الناجمة عن الأخطاء الطبية$t756$, 'insurance', 'in_force', $u756$https://fra.gov.eg/wp-content/uploads/2026/01/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-303-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u756$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________303______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -32455,7 +32455,7 @@ SELECT id, 1, $b759$ينش���ر ه���ذا الق���رار ف�
 -- ===== نشر-قرار-رقم-319-لسنة-2025-بالوقائع : قرار 319/2025 (مُهيكَل، 12 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (319, 2025, $t760$بشأن الشروط والقواعد الحاكمة لنشاط التأمين متناهى الصغر$t760$, $t760$بشأن الشروط والقواعد الحاكمة لنشاط التأمين متناهى الصغر$t760$, 'insurance', 'in_force', $u760$https://fra.gov.eg/wp-content/uploads/2026/02/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-319-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u760$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________319______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -32877,7 +32877,7 @@ SELECT id, 1, $b772$ينش���ر هذا القرار فى الوقائع ا
 -- ===== نشر-قرار-رقم-320-لسنة-2025-بالوقائع : قرار 320/2025 (مُهيكَل، 6 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (320, 2025, $t773$بشأن ضوابط وإجراءات تعديل ترخيص الشركات التى تزاول نشاط تأمين الأشخاص وتكوين الأموال أو نشاط تأمينات الممتلكات والمسئوليات لمزاولة نشاط التأمين متناهى الصغر$t773$, $t773$بشأن ضوابط وإجراءات تعديل ترخيص الشركات التى تزاول نشاط تأمين الأشخاص وتكوين الأموال أو نشاط تأمينات الممتلكات والمسئوليات لمزاولة نشاط التأمين متناهى الصغر$t773$, 'insurance', 'in_force', $u773$https://fra.gov.eg/wp-content/uploads/2026/02/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-320-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u773$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________320______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -33133,7 +33133,7 @@ SELECT id, 1, $b779$ُينش���ر هذا القرار فى الوقائع 
 -- ===== نشر-قرار-رقم-321-لسنة-2025-بالوقائع : قرار 321/2025 (مُهيكَل، 11 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (321, 2025, $t780$بشأن شروط وضوابط الترخيص بإنشاء مكاتب تمثيل فى مصر للشركات الأجنبية التى تعمل فى مجال التأمين أو إعادة التأمين أو الأنشطة والخدمات المرتبطة بها$t780$, $t780$بشأن شروط وضوابط الترخيص بإنشاء مكاتب تمثيل فى مصر للشركات الأجنبية التى تعمل فى مجال التأمين أو إعادة التأمين أو الأنشطة والخدمات المرتبطة بها$t780$, 'insurance', 'in_force', $u780$https://fra.gov.eg/wp-content/uploads/2026/02/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-321-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u780$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________321______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -33432,7 +33432,7 @@ SELECT id, 1, $b791$ُينش���ر هذا القرار فى الوقائع 
 -- ===== نشر-قرار-رقم-326-لسنة-2025-بالوقائع : قرار 326/2025 (مُهيكَل، 5 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (326, 2025, $t792$بشأن شروط وأسعار عمليات التأمين التى يغطيها صندوق التأمين الحكومي على طلاب التعليم الأزهرى$t792$, $t792$بشأن شروط وأسعار عمليات التأمين التى يغطيها صندوق التأمين الحكومي على طلاب التعليم الأزهرى$t792$, 'insurance', 'in_force', $u792$https://fra.gov.eg/wp-content/uploads/2026/02/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-326-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u792$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________326______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -33543,7 +33543,7 @@ SELECT id, 1, $b797$ينش���ر هذا القرار فى الوقائع ا
 -- ===== نشر-قرار-رقم-331-لسنة-2025-بالوقائع : قرار 331/2025 (مُهيكَل، 5 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (331, 2025, $t798$بشأن شروط وأسعار عمليات التأمين التى يغطيها صندوق التأمين الحكومي لرعاية طلاب مدارس مصر$t798$, $t798$بشأن شروط وأسعار عمليات التأمين التى يغطيها صندوق التأمين الحكومي لرعاية طلاب مدارس مصر$t798$, 'insurance', 'in_force', $u798$https://fra.gov.eg/wp-content/uploads/2026/02/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-331-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u798$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________331______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -33766,7 +33766,7 @@ SELECT id, 1, $b803$ينش���ر ه���ذا الق���رار ف�
 -- ===== نشر-قرار-رقم-4-لسنة-2025-بالوقائع-1 : قرار 4/2025 (مُهيكَل، 8 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (4, 2025, $t804$بشأن قواعد احتساب وتكوين المخصصات الفنية لفرع تأمينات الممتلكات والمسئوليات$t804$, $t804$بشأن قواعد احتساب وتكوين المخصصات الفنية لفرع تأمينات الممتلكات والمسئوليات$t804$, 'insurance', 'in_force', $u804$https://fra.gov.eg/wp-content/uploads/2025/02/نشر-قرار-رقم-4-لسنة-2025-بالوقائع-1.pdf$u804$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________4______2025__________1_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -34026,7 +34026,7 @@ SELECT id, 1, $b812$ينشر هذا القرار في الوقائع المصر�
 -- ===== نشر-قرار-رقم-58-لسنة-2025-بالوقائع : قرار 58/2025 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (58, 2025, $t813$بشأن الإجراءات التنفيذية لتسجيل البيانات على منصة الربط الإلكترونى بين الهيئة وشركات التأمين$t813$, $t813$بشأن الإجراءات التنفيذية لتسجيل البيانات على منصة الربط الإلكترونى بين الهيئة وشركات التأمين$t813$, 'insurance', 'in_force', $u813$https://fra.gov.eg/wp-content/uploads/2025/03/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-58-%D9%84%D8%B3%D9%86%D8%A9-2025-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u813$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________58______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -34113,7 +34113,7 @@ SELECT id, 1, $b816$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-62-لسنة-2025-بالوقائع : قرار 62/2025 (مُهيكَل، 11 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (62, 2025, $t817$بشأن ضوابط الترخيص بإنشاء المواقع الإلكترونية للأشخاص الطبيعيين والاعتباريين العاملين بقطاع التأمين$t817$, $t817$بشأن ضوابط الترخيص بإنشاء المواقع الإلكترونية للأشخاص الطبيعيين والاعتباريين العاملين بقطاع التأمين$t817$, 'insurance', 'in_force', $u817$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-62-لسنة-2025-بالوقائع.pdf$u817$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________62______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -34506,7 +34506,7 @@ SELECT id, 1, $b828$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-69-لسنة-2023-بالوقائع : قرار 69/2023 (مُهيكَل، 3 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (69, 2023, $t829$بشأن التزام شركات التأمين بتوفير البنية التكنولوجية اللازمة لربط بياناتها مع الهيئة$t829$, $t829$بشأن التزام شركات التأمين بتوفير البنية التكنولوجية اللازمة لربط بياناتها مع الهيئة$t829$, 'insurance', 'in_force', $u829$https://fra.gov.eg/wp-content/uploads/2023/05/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-69-%D9%84%D8%B3%D9%86%D8%A9-2023-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf$u829$, '7117-04-11')
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________69______2023__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -34589,7 +34589,7 @@ SELECT id, 1, $b832$ينشر هذا القرار فى الوقائع المصر�
 -- ===== نشر-قرار-رقم-69-لسنة-2025-بالوقائع : قرار 69/2025 (مُهيكَل، 38 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (69, 2025, $t833$بشأن القواعد والمعايير المهنية لقيد ومزاولة نشاط الوساطة فى التأمين أو الوساطة فى إعادة التأمين$t833$, $t833$بشأن القواعد والمعايير المهنية لقيد ومزاولة نشاط الوساطة فى التأمين أو الوساطة فى إعادة التأمين$t833$, 'insurance', 'in_force', $u833$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-69-لسنة-2025-بالوقائع.pdf$u833$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________69______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -36541,7 +36541,7 @@ SELECT id, 1, $b871$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-77-لسنة-2025-بالوقائع : قرار 77/2025 (مُهيكَل، 39 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (77, 2025, $t872$بشأن ضوابط حماية وفحص شكاوى المتعاملين مع الشركات والجهات العاملة فى قطاع التأمين$t872$, $t872$بشأن ضوابط حماية وفحص شكاوى المتعاملين مع الشركات والجهات العاملة فى قطاع التأمين$t872$, 'insurance', 'in_force', $u872$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-77-لسنة-2025-بالوقائع.pdf$u872$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________77______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -39648,7 +39648,7 @@ SELECT id, 1, $b911$ينشر هذا القرار في الوقائع المص
 -- ===== نشر-قرار-رقم-78-لسنة-2025-بالوقائع : قرار 78/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (78, 2025, $t912$بشأن الرسوم ومقابل الخدمات المستحق على الأشخاص العاملة فى قطاع التأمين وفقاً لقانون التأمين الموحد$t912$, $t912$بشأن الرسوم ومقابل الخدمات المستحق على الأشخاص العاملة فى قطاع التأمين وفقاً لقانون التأمين الموحد$t912$, 'insurance', 'in_force', $u912$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-78-لسنة-2025-بالوقائع.pdf$u912$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________78______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -39924,7 +39924,7 @@ SELECT id, 1, $b914$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-79-لسنة-2025-بالوقائع : قرار 79/2025 (مُهيكَل، 2 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (79, 2025, $t915$بشأن مقابل الحصول على بيانات لأعضاء صناديق التأمين الخاصة$t915$, $t915$بشأن مقابل الحصول على بيانات لأعضاء صناديق التأمين الخاصة$t915$, 'insurance', 'in_force', $u915$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-79-لسنة-2025-بالوقائع.pdf$u915$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________79______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -39960,7 +39960,7 @@ SELECT id, 1, $b917$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-89-لسنة-2025-بالوقائع : قرار 89/2025 (مُهيكَل، 16 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (89, 2025, $t918$بشأن الشروط والمعايير الواجب توافرها فى أعضاء مجالس إدارة شركات التأمين أو إعادة التأمين، والشروط والمعايير الواجب توافرها فى القائمين على الإدارة التنفيذية المسئولين عن الأعمال والوظائف الفنية$t918$, $t918$بشأن الشروط والمعايير الواجب توافرها فى أعضاء مجالس إدارة شركات التأمين أو إعادة التأمين، والشروط والمعايير الواجب توافرها فى القائمين على الإدارة التنفيذية المسئولين عن الأعمال والوظائف الفنية$t918$, 'insurance', 'in_force', $u918$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-89-لسنة-2025-بالوقائع.pdf$u918$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________89______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -40604,7 +40604,7 @@ SELECT id, 1, $b934$ينشر هذا القرار فى الوقائع المص
 -- ===== نشر-قرار-رقم-90-لسنة-2025-بالوقائع : قرار 90/2025 (مُهيكَل، 5 مادة) =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
 VALUES (90, 2025, $t935$بشأن شروط وإجراءات الحصول على الترخيص المؤقت لشركات التأمين الطبي المتخصصة وشركات إدارة برامج الرعاية الصحية$t935$, $t935$بشأن شروط وإجراءات الحصول على الترخيص المؤقت لشركات التأمين الطبي المتخصصة وشركات إدارة برامج الرعاية الصحية$t935$, 'insurance', 'in_force', $u935$https://fra.gov.eg/wp-content/uploads/2025/06/نشر-قرار-رقم-90-لسنة-2025-بالوقائع.pdf$u935$, NULL)
-ON CONFLICT (law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
 
 WITH ins_art______________90______2025__________1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
