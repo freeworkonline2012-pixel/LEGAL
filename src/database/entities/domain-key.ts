@@ -34,6 +34,11 @@ export const DOMAIN_KEYS = [
   // IngestionService.coerceCategory(). إعادة استخدام DOMAIN_KEYS يمنع
   // تكرار هذا الخطأ للمرة الثالثة.
   'aml_cft',
+  // 'legal_profession' أُضيفت 2026-08-28 مع قانون المحاماة 17/1983 وتعديلاته —
+  // أُضيفت فى نفس الوقت لقيد CHECK فى قاعدة البيانات (migrations/003 و007،
+  // كلاهما يُعيد إنشاء laws_category_check فى كل نشر — راجع تعليق 003 عن سبب
+  // ضرورة تحديث الاثنين معاً) تفادياً لنفس فجوة النوع المذكورة أعلاه للمرة الثالثة.
+  'legal_profession',
   'other',
 ] as const;
 
