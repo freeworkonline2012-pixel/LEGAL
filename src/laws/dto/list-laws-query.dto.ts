@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { DOMAIN_KEYS } from '../../database/entities/domain-key';
+import { LAW_KINDS } from '../../database/entities/law-kind';
 import { COUNTRY_CODE_PATTERN } from '../../database/entities/country-code';
 
 // T-VOCAB-1: مصدر واحد للمفردات (DOMAIN_KEYS) — راجع التعليق فى create-law.dto.ts
@@ -25,6 +26,29 @@ export class ListLawsQueryDto {
   @IsOptional()
   @IsIn(['in_force', 'amended', 'repealed'])
   status?: 'in_force' | 'amended' | 'repealed';
+
+  /**
+   * فلترة حسب نوع الأداة التشريعية (T-VOCAB-2 — راجع law-kind.ts). تقبل قيمة
+   * واحدة أو عدة قيم مفصولة بفاصلة فى نفس رابط الاستعلام (مثال:
+   * kind=pm_decision,ministerial_decision,board_decision,circular) — هذا هو
+   * ما تعتمد عليه صفحة «القرارات» فى الواجهة لتجميع عدة أنواع فى استعلام واحد،
+   * بينما صفحة «اللوائح التنفيذية» تمرّر kind=regulation فقط.
+   */
+  @ApiPropertyOptional({
+    example: 'pm_decision,ministerial_decision,board_decision,circular',
+    description: 'قيمة واحدة أو عدة قيم مفصولة بفاصلة من law-kind.ts',
+  })
+  @IsOptional()
+  @Transform(({ value }): string[] =>
+    typeof value === 'string'
+      ? value
+          .split(',')
+          .map((v) => v.trim())
+          .filter((v) => v.length > 0)
+      : (value as string[]),
+  )
+  @IsIn(LAW_KINDS, { each: true })
+  kind?: string[];
 
   @ApiPropertyOptional({ default: 20, maximum: 100 })
   @IsOptional()

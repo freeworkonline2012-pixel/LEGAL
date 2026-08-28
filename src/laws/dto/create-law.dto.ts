@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 import type { LawCategory } from '../../database/entities/law.entity';
 import { DOMAIN_KEYS } from '../../database/entities/domain-key';
+import { LAW_KINDS, type LawKind } from '../../database/entities/law-kind';
 import { COUNTRY_CODE_PATTERN } from '../../database/entities/country-code';
 
 // T-VOCAB-1: مصدر واحد للمفردات (DOMAIN_KEYS) بدل قائمة مكررة هنا — كانت
@@ -52,6 +53,15 @@ export class CreateLawDto {
   @IsOptional()
   @IsIn(LAW_CATEGORIES)
   category?: LawCategory;
+
+  @ApiPropertyOptional({
+    example: 'law',
+    enum: LAW_KINDS,
+    description: 'نوع الأداة التشريعية — افتراضى board_decision إن لم يُحدَّد (راجع law-kind.ts)',
+  })
+  @IsOptional()
+  @IsIn(LAW_KINDS)
+  kind?: LawKind;
 
   @ApiPropertyOptional({
     example: 'EG',

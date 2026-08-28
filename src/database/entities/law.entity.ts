@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { Article } from './article.entity';
 import type { DomainKey } from './domain-key';
+import type { LawKind } from './law-kind';
 
 /**
  * T-VOCAB-1: alias توافقي للمفتاح الموحّد — المصدر الحقيقي للمفردات هو
@@ -36,6 +37,15 @@ export class Law {
 
   @Column({ type: 'text', default: 'other' })
   category: LawCategory;
+
+  /**
+   * نوع الأداة التشريعية (قانون/قرار/لائحة تنفيذية...) — راجع law-kind.ts
+   * (T-VOCAB-2). العمود موجود فى قاعدة البيانات منذ migrations/008 لكنه ظل
+   * غير مكشوف هنا حتى 2026-08-28 — أُضيف الآن لدعم فلترة /api/laws?kind=...
+   * (صفحتا «القرارات» و«اللوائح التنفيذية» فى الواجهة).
+   */
+  @Column({ type: 'text', default: 'board_decision' })
+  kind: LawKind;
 
   /** ISO 3166-1 alpha-2 — راجع country.entity.ts وmigrations/011 */
   @Column({ name: 'country_code', type: 'text', default: 'EG' })

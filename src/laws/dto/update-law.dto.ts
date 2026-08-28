@@ -11,6 +11,7 @@ import {
   Min,
 } from 'class-validator';
 import { DOMAIN_KEYS } from '../../database/entities/domain-key';
+import { LAW_KINDS, type LawKind } from '../../database/entities/law-kind';
 import { COUNTRY_CODE_PATTERN } from '../../database/entities/country-code';
 
 // T-VOCAB-1: مصدر واحد للمفردات (DOMAIN_KEYS) — راجع التعليق فى create-law.dto.ts
@@ -47,6 +48,11 @@ export class UpdateLawDto {
   @IsOptional()
   @IsIn(LAW_CATEGORIES)
   category?: (typeof LAW_CATEGORIES)[number];
+
+  @ApiPropertyOptional({ example: 'law', enum: LAW_KINDS })
+  @IsOptional()
+  @IsIn(LAW_KINDS)
+  kind?: LawKind;
 
   @ApiPropertyOptional({ example: 'EG', description: 'ISO 3166-1 alpha-2' })
   @IsOptional()

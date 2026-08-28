@@ -26,6 +26,9 @@ export class LawsService {
     if (query.status) {
       qb.andWhere('law.status = :status', { status: query.status });
     }
+    if (query.kind && query.kind.length > 0) {
+      qb.andWhere('law.kind IN (:...kind)', { kind: query.kind });
+    }
 
     const [laws, total] = await qb
       .orderBy('law.law_no', 'ASC')
@@ -69,6 +72,7 @@ export class LawsService {
       title: dto.title,
       shortTitle: dto.short_title ?? null,
       category: dto.category ?? 'other',
+      kind: dto.kind ?? 'board_decision',
       countryCode,
       status: dto.status ?? 'in_force',
       officialUrl: dto.official_url ?? null,
@@ -94,6 +98,9 @@ export class LawsService {
     }
     if (dto.category !== undefined) {
       law.category = dto.category;
+    }
+    if (dto.kind !== undefined) {
+      law.kind = dto.kind;
     }
     if (dto.country_code !== undefined) {
       law.countryCode = dto.country_code;
@@ -123,6 +130,7 @@ export class LawsService {
       title: law.title,
       short_title: law.shortTitle,
       category: law.category,
+      kind: law.kind,
       country_code: law.countryCode,
       status: law.status,
       official_url: law.officialUrl,

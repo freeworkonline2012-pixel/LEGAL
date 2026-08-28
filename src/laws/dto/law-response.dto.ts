@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DOMAIN_KEYS } from '../../database/entities/domain-key';
+import { LAW_KINDS } from '../../database/entities/law-kind';
 
 export class LawResponseDto {
   @ApiProperty({ example: '3b9b9a5e-8c1c-4f0d-9f2a-123456789abc' })
@@ -23,6 +24,13 @@ export class LawResponseDto {
     enum: DOMAIN_KEYS,
   })
   category: string;
+
+  @ApiProperty({
+    example: 'law',
+    description: 'نوع الأداة التشريعية — راجع law-kind.ts (T-VOCAB-2)',
+    enum: LAW_KINDS,
+  })
+  kind: string;
 
   @ApiProperty({ example: 'EG', description: 'ISO 3166-1 alpha-2' })
   country_code: string;
