@@ -48,7 +48,7 @@ BEGIN;
 -- migrations/007 — راجع تعليق "تصحيح لاحق حرج" أعلاه لسبب إضافتها هنا أيضاً)
 ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
 ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','other'));
+  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','other'));
 
 -- تصحيح حرج: قانون العمل 12/2003 ملغٍ فعلياً منذ 2025-09-01 بقانون 14/2025
 UPDATE laws SET status = 'repealed', updated_at = now()

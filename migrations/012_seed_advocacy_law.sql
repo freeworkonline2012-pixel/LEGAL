@@ -58,7 +58,7 @@ BEGIN;
 
 ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
 ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','other'));
+  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','other'));
 
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at, last_amended_at)
 VALUES (
