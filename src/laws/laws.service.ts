@@ -20,6 +20,9 @@ export class LawsService {
     if (query.category) {
       qb.andWhere('law.category = :category', { category: query.category });
     }
+    if (query.country) {
+      qb.andWhere('law.country_code = :country', { country: query.country });
+    }
     if (query.status) {
       qb.andWhere('law.status = :status', { status: query.status });
     }
@@ -46,11 +49,18 @@ export class LawsService {
   }
 
   async create(dto: CreateLawDto): Promise<LawResponseDto> {
+    // إصلاح جذرى (راجع migrations/011): التحقق من التكرار كان بدون country_code
+    // — كان سيرفض بالخطأ قانوناً سعودياً/إماراتياً يحمل نفس الرقم والسنة لقانون
+    // مصرى موجود، رغم أنهما ليسا نفس القانون فعلياً. التحقق الآن مركّب مع الدولة،
+    // مطابقاً تماماً لقيد uq_laws_country_no_year فى قاعدة البيانات.
+    const countryCode = dto.country_code ?? 'EG';
     const existing = await this.lawRepository.findOne({
-      where: { lawNo: dto.law_no, lawYear: dto.law_year },
+      where: { lawNo: dto.law_no, lawYear: dto.law_year, countryCode },
     });
     if (existing) {
-      throw new ConflictException('law with same number and year already exists');
+      throw new ConflictException(
+        'law with same number, year and country already exists',
+      );
     }
 
     const law = this.lawRepository.create({
@@ -59,6 +69,7 @@ export class LawsService {
       title: dto.title,
       shortTitle: dto.short_title ?? null,
       category: dto.category ?? 'other',
+      countryCode,
       status: dto.status ?? 'in_force',
       officialUrl: dto.official_url ?? null,
       enactedAt: dto.enacted_at ?? null,
@@ -83,6 +94,9 @@ export class LawsService {
     }
     if (dto.category !== undefined) {
       law.category = dto.category;
+    }
+    if (dto.country_code !== undefined) {
+      law.countryCode = dto.country_code;
     }
     if (dto.status !== undefined) {
       law.status = dto.status;
@@ -109,6 +123,7 @@ export class LawsService {
       title: law.title,
       short_title: law.shortTitle,
       category: law.category,
+      country_code: law.countryCode,
       status: law.status,
       official_url: law.officialUrl,
       enacted_at: law.enactedAt,

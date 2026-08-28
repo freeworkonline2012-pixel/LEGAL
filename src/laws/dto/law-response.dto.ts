@@ -24,6 +24,9 @@ export class LawResponseDto {
   })
   category: string;
 
+  @ApiProperty({ example: 'EG', description: 'ISO 3166-1 alpha-2' })
+  country_code: string;
+
   @ApiProperty({ example: 'in_force', enum: ['in_force', 'amended', 'repealed'] })
   status: string;
 

@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { ArticlesModule } from './articles/articles.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { CountriesModule } from './countries/countries.module';
 import { validate } from './config/env.validation';
 import { buildTypeOrmOptions, createResilientDataSource } from './config/typeorm.config';
 import { FeedbackModule } from './feedback/feedback.module';
@@ -48,6 +49,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     }),
     AuthModule,
     HealthModule,
+    CountriesModule,
     LawsModule,
     ArticlesModule,
     GuidanceModule,

@@ -37,6 +37,10 @@ export class Law {
   @Column({ type: 'text', default: 'other' })
   category: LawCategory;
 
+  /** ISO 3166-1 alpha-2 — راجع country.entity.ts وmigrations/011 */
+  @Column({ name: 'country_code', type: 'text', default: 'EG' })
+  countryCode: string;
+
   @Column({ type: 'text', default: 'in_force' })
   status: LawStatus;
 

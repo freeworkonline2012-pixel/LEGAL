@@ -1,7 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsIn, IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { DOMAIN_KEYS } from '../../database/entities/domain-key';
+import { COUNTRY_CODE_PATTERN } from '../../database/entities/country-code';
 
 // T-VOCAB-1: مصدر واحد للمفردات (DOMAIN_KEYS) — راجع التعليق فى create-law.dto.ts
 const LAW_CATEGORIES = DOMAIN_KEYS;
@@ -11,6 +12,14 @@ export class ListLawsQueryDto {
   @IsOptional()
   @IsIn(LAW_CATEGORIES)
   category?: (typeof LAW_CATEGORIES)[number];
+
+  @ApiPropertyOptional({
+    example: 'EG',
+    description: 'ISO 3166-1 alpha-2 — لا قائمة enum ثابتة، راجع country-code.ts',
+  })
+  @IsOptional()
+  @Matches(COUNTRY_CODE_PATTERN)
+  country?: string;
 
   @ApiPropertyOptional({ example: 'in_force', enum: ['in_force', 'amended', 'repealed'] })
   @IsOptional()

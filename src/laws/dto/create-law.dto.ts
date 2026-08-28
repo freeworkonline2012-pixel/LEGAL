@@ -6,11 +6,13 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Matches,
   MaxLength,
   Min,
 } from 'class-validator';
 import type { LawCategory } from '../../database/entities/law.entity';
 import { DOMAIN_KEYS } from '../../database/entities/domain-key';
+import { COUNTRY_CODE_PATTERN } from '../../database/entities/country-code';
 
 // T-VOCAB-1: مصدر واحد للمفردات (DOMAIN_KEYS) بدل قائمة مكررة هنا — كانت
 // هذه القائمة نسخة يدوية منفصلة نسيت إضافة 'insurance' إليها رغم إضافتها
@@ -50,6 +52,14 @@ export class CreateLawDto {
   @IsOptional()
   @IsIn(LAW_CATEGORIES)
   category?: LawCategory;
+
+  @ApiPropertyOptional({
+    example: 'EG',
+    description: 'ISO 3166-1 alpha-2 — افتراضى EG إن لم يُحدَّد',
+  })
+  @IsOptional()
+  @Matches(COUNTRY_CODE_PATTERN)
+  country_code?: string;
 
   @ApiPropertyOptional({
     example: 'in_force',

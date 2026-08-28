@@ -6,10 +6,12 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Matches,
   MaxLength,
   Min,
 } from 'class-validator';
 import { DOMAIN_KEYS } from '../../database/entities/domain-key';
+import { COUNTRY_CODE_PATTERN } from '../../database/entities/country-code';
 
 // T-VOCAB-1: مصدر واحد للمفردات (DOMAIN_KEYS) — راجع التعليق فى create-law.dto.ts
 const LAW_CATEGORIES = DOMAIN_KEYS;
@@ -45,6 +47,11 @@ export class UpdateLawDto {
   @IsOptional()
   @IsIn(LAW_CATEGORIES)
   category?: (typeof LAW_CATEGORIES)[number];
+
+  @ApiPropertyOptional({ example: 'EG', description: 'ISO 3166-1 alpha-2' })
+  @IsOptional()
+  @Matches(COUNTRY_CODE_PATTERN)
+  country_code?: string;
 
   @ApiPropertyOptional({ example: 'in_force', enum: LAW_STATUSES })
   @IsOptional()

@@ -31,6 +31,10 @@ export class GuidanceDocument {
   @Column({ type: 'text', default: 'other' })
   category: DomainKey;
 
+  /** ISO 3166-1 alpha-2 — راجع country.entity.ts وmigrations/011 */
+  @Column({ name: 'country_code', type: 'text', default: 'EG' })
+  countryCode: string;
+
   @Column({ name: 'related_law_id', type: 'uuid', nullable: true })
   relatedLawId: string | null;
 
