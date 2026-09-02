@@ -1,9 +1,0 @@
-{
-  "byOutcome": {
-    "false_refusal": 19,
-    "correct_answer": 9,
-    "correctly_refused": 15
-  },
-  "positiveCount": 28,
-  "negativeCount": 15
-}

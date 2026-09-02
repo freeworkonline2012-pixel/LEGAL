@@ -48,6 +48,7 @@ export class ArticlesService {
       .createQueryBuilder('article')
       .where('article.law_id = :lawId', { lawId })
       .orderBy('article.article_no', 'ASC')
+      .addOrderBy('article.article_suffix_order', 'ASC')
       .skip(query.offset)
       .take(query.limit)
       .getManyAndCount();
@@ -63,8 +64,12 @@ export class ArticlesService {
     articleNo: number,
     asOf?: string,
   ): Promise<ArticleDetailResponseDto> {
+    // article_suffix_order = 0 = المادة الأساسية (وليست نسخة "مكررا" أو مادة
+    // إصدار تشارك نفس الرقم) — هى المرجع الصحيح لعنوان رقمى مباشر مثل هذا.
+    // نسخ "مكررا" تظهر فى قائمة listByLaw ولها article_no نفسه؛ الوصول
+    // المباشر لها عبر عنوان مخصص متروك كمتابعة لاحقة (راجع تقرير 2026-09-02).
     const article = await this.articleRepository.findOne({
-      where: { lawId, articleNo },
+      where: { lawId, articleNo, articleSuffixOrder: 0 },
     });
     if (!article) {
       throw new NotFoundException('article not found');
@@ -250,6 +255,7 @@ export class ArticlesService {
       id: article.id,
       law_id: article.lawId,
       article_no: article.articleNo,
+      article_suffix_order: article.articleSuffixOrder,
       hierarchical_location: article.hierarchicalLocation,
       title: article.title,
       body: article.body,

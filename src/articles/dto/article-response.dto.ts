@@ -42,6 +42,13 @@ export class ArticleResponseDto {
   @ApiProperty({ example: 110 })
   article_no: number;
 
+  @ApiPropertyOptional({
+    example: 0,
+    description:
+      'ترتيب فرعى داخل نفس رقم المادة. 0 = المادة الأساسية، أرقام موجبة = ترتيب نسخ "مكررا"، -1 = مادة من قانون الإصدار.',
+  })
+  article_suffix_order: number;
+
   @ApiPropertyOptional({ example: 'الباب الثاني — عقد العمل الفردي', nullable: true })
   hierarchical_location: string | null;
 

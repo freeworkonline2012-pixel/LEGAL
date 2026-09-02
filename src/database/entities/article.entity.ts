@@ -26,6 +26,18 @@ export class Article {
   @Column({ name: 'article_no', type: 'int' })
   articleNo: number;
 
+  /**
+   * ترتيب فرعى داخل نفس رقم المادة — ضرورى لتمثيل "المواد المكررة" الشائعة
+   * فى التشريع المصرى (مثال: مادة 5، ثم مادة 5 مكررا) التى تتشارك نفس الرقم
+   * article_no ولا يمكن تمييزها كصفوف فريدة بدونه (انظر
+   * migrations/021_fix_personal_status_and_inheritance_articles.sql).
+   * القيمة 0 = المادة الأساسية (الحالة الافتراضية لكل المواد العادية).
+   * 1, 2, 3.. = ترتيب نسخ "مكررا" (مكررا=1، مكررا ثانيا=2، ...).
+   * -1 = مادة من "قانون الإصدار" تشارك نفس رقم مادة موضوعية فى نفس القانون.
+   */
+  @Column({ name: 'article_suffix_order', type: 'smallint', default: 0 })
+  articleSuffixOrder: number;
+
   @Column({ name: 'hierarchical_location', type: 'text', nullable: true })
   hierarchicalLocation: string | null;
 
