@@ -1,0 +1,5 @@
+[33madf4019[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m chore(ci): add checks-only GitHub Actions workflow (typecheck+test+build)
+[33m3e2f5e8[m test: أول اختبارات وحدة للمشروع - تغطية كاملة لدوال retrieval.ts النقية (30 اختبار)
+[33md74c750[m fix(EP-10): تعزيز prompt الاختيار لرصد شروط استثنائية ضيقة (حادثة g067 - anchoring bias نحو المرشح الأول فى rerank)
+[33m89fd588[m fix(EP-10): توسيع حد مرشحي الاسترجاع من 5 إلى 8 لكل مصدر - المادة 139 لم تكن تصل أصلا لمجمع المرشحين فى g039
+[33mc0b5a33[m fix(golden-set): تصحيح g069 - القيد على المساهم صاحب الحصة الكبيرة هو المادة 165 وليست 166 (نفس تصحيح g067/g068 من EP-06 اللي فات تطبيقه على g069)

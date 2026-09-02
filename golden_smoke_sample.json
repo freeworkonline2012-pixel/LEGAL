@@ -1,0 +1,107 @@
+{
+  "meta": {
+    "total": 10
+  },
+  "items": [
+    {
+      "id": "g039",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 139,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما هى العقوبات الإدارية المتدرجة التى يمكن لصاحب العمل تطبيقها على الموظف المخالف؟"
+    },
+    {
+      "id": "g051",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 1,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما الالتزام الذى يقع على شركة التأمين تجاه المستفيد عند تحقق الخطر المؤمَّن ضده؟"
+    },
+    {
+      "id": "g089",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي عقوبة قيادة السيارة تحت تأثير الكحول وفقاً لقانون المرور؟"
+    },
+    {
+      "id": "g001",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 1,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هو تعريف الأجر وفقاً لقانون العمل رقم 14 لسنة 2025؟"
+    },
+    {
+      "id": "g004",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 7,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل تُعفى دعاوى العمال المتعلقة بأحكام قانون العمل من الرسوم والمصاريف القضائية؟"
+    },
+    {
+      "id": "g007",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 43,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز لجهات التوظيف تقاضي مبالغ مالية من العامل مقابل إلحاقه بالعمل؟"
+    },
+    {
+      "id": "g085",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي مدة عقد إيجار الأماكن غير السكنية وفقاً للقانون المصري؟"
+    },
+    {
+      "id": "g086",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "إيه حكم الإيجار القديم لو المستأجر مات؟"
+    },
+    {
+      "id": "g087",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي إجراءات رفع دعوى الطلاق للضرر فى قانون الأحوال الشخصية؟"
+    },
+    {
+      "id": "g088",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "هل يحق للأم الحضانة بعد سن معينة لأولادها؟"
+    }
+  ]
+}

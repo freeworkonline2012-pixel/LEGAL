@@ -1,0 +1,23 @@
+{
+  "byOutcome": {
+    "correct_answer": 81,
+    "false_refusal": 1,
+    "WRONG_CITATION": 2,
+    "correctly_refused": 14,
+    "HTTP_ERROR": 1
+  },
+  "byStyle": {
+    "full": {
+      "correct_answer": 27,
+      "WRONG_CITATION": 1
+    },
+    "short": {
+      "correct_answer": 28
+    },
+    "paraphrase": {
+      "correct_answer": 26,
+      "false_refusal": 1,
+      "WRONG_CITATION": 1
+    }
+  }
+}

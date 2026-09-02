@@ -1,0 +1,9 @@
+[33mcommit 4e80ada04137aa5cfa98d2e58bbb4ad9524a0644[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Mr.Ahmed <freeworkonline2012@gmail.com>
+Date:   Fri Aug 28 14:48:17 2026 +0000
+
+    feat: seed دليل خدمات الهيئة (FRA integrated services guide) into guidance_documents
+    
+    أول دليل خدمات متكامل صادر عن الهيئة العامة للرقابة المالية (أُعلن 1/12/2025، 410 صفحة). حُمِّل من جهاز المستخدم وطابق حجمه بالبايت (31,635,950) النسخة الرسمية على fra.gov.eg. استُخرج النص عبر pdfplumber مع تصحيح انعكاس الأسطر العربية RTL، بنفس منهجية 009.
+    
+    Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
