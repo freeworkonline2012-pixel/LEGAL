@@ -19,14 +19,20 @@
 -- الفئات الخمس الأصلية) لأن قانون 155/2024 تأمينى بحت ولا يقع تحت أي
 -- من labor/rent/personal_status/traffic/consumer_protection.
 --
--- تصحيح لاحق حرج (2026-08-27، migrations/008): قائمة الفئات فى القيد أدناه
--- عُدِّلت لتضيف 'aml_cft' أيضاً (أُضيفت أصلاً فى migrations/007 بتاريخ لاحق
--- لهذا الملف). السبب: هذا الملف يُعاد تطبيقه بالكامل فى كل نشر (نفس نمط كل
--- migrations/*.sql — لا نسخة "طُبِّق سلفاً" جزئية)، وكان يعيد DROP+ADD لقيد
--- laws_category_check بقائمة الفئات الخمس + insurance فقط فى كل مرة — فور
--- وجود صفوف حقيقية بفئة 'aml_cft' (بعد نجاح 007 لأول مرة)، أي نشر تالٍ كان
--- سيفشل فوراً بخطأ 23514 (check_violation) لأن القيد الأقدم لا يسمح بالقيم
--- التى تحملها صفوف موجودة فعلاً — يوقف تطبيق كل ملفات migrations اللاحقة
+-- تصحيح جذرى (2026-09-04): هذا الملف كان يحمل نسخته الخاصة من قيد
+-- laws_category_check (DROP+ADD)، وهى نفس المشكلة التى وُثِّقت هنا سابقاً
+-- (2026-08-27، migrations/008) عند إضافة 'aml_cft' — حينها كان "الحل" إضافة
+-- الفئة الناقصة لنسخة القيد هنا، بدل وقف تكرار النسخ. هذا الحل الجزئى تكرر
+-- عطله فعلياً مرة أخرى بتاريخ 2026-09-02 (نشر فشل على الإنتاج بخطأ 23514)
+-- عند إضافة فئة 'commercial' فى migrations/020 دون تحديث كل النسخ المكررة
+-- الثمانية (003/007/012/014/015/017/018/019) — سبب هيكلى متكرر بطبيعته:
+-- كل migration يُعاد تطبيقه بالكامل فى كل نشر (run-migration.js يعيد تشغيل
+-- 001 فصاعداً من الصفر كل مرة، بلا جدول تتبع)، فأى نسخة قديمة من القيد
+-- ستفشل حتماً بمجرد وجود صف حقيقى بفئة أضافتها نسخة أحدث.
+--
+-- الإصلاح الجذرى: حُذفت كل النسخ الثمانية المكررة نهائياً؛ القيد الآن
+-- مُعرَّف فى مكان واحد فقط (migrations/020_seed_commercial_code_law.sql —
+-- راجع تعليقه). أى فئة جديدة مستقبلاً يجب أن تُضاف هناك فقط.
 -- (004 وحتى 008) ويمنع بدء تشغيل التطبيق بالكامل. هذا ليس تغييراً فى البيانات
 -- التى يبذرها هذا الملف (قانون العمل 14/2025 وقانون التأمين الموحد 155/2024
 -- كما هما تماماً) — فقط تصحيح لقائمة قيد أصبحت غير مطابقة للواقع بعد إضافة
@@ -44,11 +50,8 @@
 
 BEGIN;
 
--- توسيع قيد الفئة ليشمل 'insurance' و'aml_cft' (الأخيرة أُضيفت لاحقاً فى
--- migrations/007 — راجع تعليق "تصحيح لاحق حرج" أعلاه لسبب إضافتها هنا أيضاً)
-ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
-ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','other'));
+-- قيد laws_category_check أُزيل من هنا (2026-09-04) — راجع التعليق أعلى
+-- الملف. مُعرَّف الآن فى migrations/020 فقط.
 
 -- تصحيح حرج: قانون العمل 12/2003 ملغٍ فعلياً منذ 2025-09-01 بقانون 14/2025
 UPDATE laws SET status = 'repealed', updated_at = now()
@@ -101,7 +104,7 @@ WITH ins_art_law14_1 AS (
 -۳۷ الوزارة المختصة:الوزارة المعنية بشئون العمل.
 -۳۸ الجهة الإدارية المختصة:الوزارة المعنية بشئون العمل ومديرياتها وإداراتها التابعة لها على مستوى الجمهورية.$q5$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -149,7 +152,7 @@ WITH ins_art_law14_2 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 2, NULL, $q7$فى تطبيق أحكام هذا القانون تعتبر السنة ) (٣٦٥يوما،والشهر ثلاثون يوما ما لم يتم الاتفاق على خلاف ذلك.$q7$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -159,7 +162,7 @@ WITH ins_art_law14_3 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 3, $q8$الباب الثاني: الأحكام العامة$q8$, $q9$يعتبر هذا القانون هو القانون العام الذى يحكم علاقات العمل.$q9$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -169,7 +172,7 @@ WITH ins_art_law14_4 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 4, $q10$الباب الثاني: الأحكام العامة$q10$, $q11$يحظر تشغيل العامل سخرة أو جبرا،كما يحظر التحرش أو التنمر أو ممارسة أى عنف لفظى أو جسدى أو نفسى على العامل،وتحدد لائحة تنظيم العمل والجزاءات بالمنشأة الجزاءات التأديبية المقررة لها.$q11$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -180,7 +183,7 @@ WITH ins_art_law14_5 AS (
   SELECT id, 5, $q12$الباب الثاني: الأحكام العامة$q12$, $q13$يحظر كل عمل أو سلوك أو إجراء يكون من شأنه إحداث تمييز أو تفرقة بين الأشخاص فى التدريب،أو الإعلان عن الوظائف أو شغلها،أو شروط أو ظروف العمل أو الحقوق والواجبات الناشئة عن عقد العمل،بسبب الدين أو العقيدة أو الجنس أو الأصل أو العرق أو اللون أو اللغة أو الإعاقة أو المستوى الاجتماعى أو الانتماء السياسى أو النقابى أو الجغرافى أو أى سبب آخر يترتب عليه الإخلال بمبدأ المساواة وتكافؤ الفرص.
 ولا يعتبر تمييزا محظورا كل ميزة أو أفضلية أو منفعة أو حماية تقرر بموجب أحكام هذا القانون والقرارات واللوائح المنفذة له للمرأة أو للطفل أو للأشخاص ذوى الإعاقة والأقزام،كلما كانت مقررة بالقدر اللازم لتحقيق الهدف الذى تقررت من أجله، وتعمل الوزارة المختصة على وضع السياسات والخطط اللازمة لدمجهم فى سوق العمل وتوفير الحماية اللازمة لهم فى بيئة العمل وذلك بالتنسيق مع الوزارة المختصة بالتضامن الاجتماعى والمجالس القومية المتخصصة المعنية.$q13$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -191,7 +194,7 @@ WITH ins_art_law14_6 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 6, $q14$الباب الثاني: الأحكام العامة$q14$, $q15$يقع باطلا ً كل شرط أو اتفاق يخالف أحكام هذا القانون،ولو كان سابق ًا على العمل به،إذا تضمن انتقاصا من حقوق العامل المقررة فيه،أو إبراء من حقوق العامل الناشئة عن عقد العمل خلال مدة سريانه،أو خلال ثلاثة أشهر من تاريخ انتهائه. ويستمر العمل بأية مزايا أو شروط أفضل تكون مقررة،أو تقرر فى عقود العمل الفردية،أو الجماعية أو الأنظمة الأساسية،أو غيرها من لوائح المنشأة، أو بمقتضى العرف. كما يسرى ذلك فى حالة تغيير الكيان القانونى للمنشأة،أو انتقال ملكيتها.$q15$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -202,7 +205,7 @@ WITH ins_art_law14_7 AS (
   SELECT id, 7, $q16$الباب الثاني: الأحكام العامة$q16$, $q17$تعفى من الرسوم والمصاريف القضائية فى جميع مراحل التقاضى الدعاوى الناشئة عن المنازعات المتعلقة بأحكام هذا القانون،التى يرفعها العاملون والمتدرجون، وعمال التلمذة الصناعية،أو المستحقون عن هؤلاء،وللمحكمة فى جميع الأحوال أن تشمل حكمها بالنفاذ المعجل وبلا كفالة،ولها فى حالة رفض الدعوى أن تحكم على رافعها بالمصروفات كلها أو بعضها. وتعفى الفئات المشار إليها فى الفقرة الأولى من هذه المادة من ضريبة الدمغة على كل الشهادات والصور التى تعطى لهم،والشكاوى،والطلبات التى تقدم منهم، تطبيق ًا لأحكام هذا القانون.
 ومع مراعاة حكم المادة ) (١٨٥من هذا القانون لا يشترط بالنسبة لتلك الفئات توقيع محام على صحيفة افتتاح الدعوى،أو صحيفة الطلبات الموضوعية أو طلبات استصدار الأوامر.$q17$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -213,7 +216,7 @@ WITH ins_art_law14_8 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 8, $q18$الباب الثاني: الأحكام العامة$q18$, $q19$يكون للمبالغ المستحقة للعامل،أو المستحقين عنه،والناشئة عن علاقة عمل امتياز على جميع أموال المدين من منقول وعقار،وتستوفى هذه المبالغ قبل المصروفات القضائية،والمبالغ المستحقة للخزانة العامة،ومصروفات الحفظ والترميم وأية مرتبة امتياز مقررة أو تقرر وفق ًا لأى قانون آخر. وتعتبر اشتراكات التأمين الاجتماعى جزءا من حقوق العمال التى تستوفى وتؤدى للهيئة المختصة.$q19$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -223,7 +226,7 @@ WITH ins_art_law14_9 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 9, $q20$الباب الثاني: الأحكام العامة$q20$, $q21$لا يمنع من الوفاء بجميع الالتزامات الناشئة طبق ًا لهذا القانون،حل المنشأة، أو تصفيتها،أو إغلاقها،أو إفلاسها. ويجب أن يحدد القرار أو الحكم الصادر بأى من ذلك،أجلا ً للوفاء بحقوق العاملين،وتتولى الجهة الإدارية المختصة متابعة الوفاء بتلك الحقوق،ويكون لها أن تنوب عن ذوى الشأن فى اتخاذ الإجراءات اللازمة للوفاء بها فى الأجل المحدد. ويصدر الوزير المختص قرارا بتحديد ضوابط وإجراءات ومواعيد الوفاء بحقوق العمال.$q21$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -233,7 +236,7 @@ WITH ins_art_law14_10 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 10, $q22$الباب الثاني: الأحكام العامة$q22$, $q23$إذا تعدد أصحاب العمل كانوا مسئولين بالتضامن فيما بينهم عن الوفاء بجميع الالتزامات الناشئة عن هذا القانون،أو لوائح المنشأة المعتمدة،أو اتفاقيات العمل الجماعية. ويكون الوكيل المفوض أو من تنازل له صاحب العمل عن الأعمال المسندة إليه كلها أو بعضها متضامنين معه فى الوفاء بجميع الالتزامات التى تفرضها أحكام هذا القانون.$q23$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -243,7 +246,7 @@ WITH ins_art_law14_11 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 11, $q24$الباب الثاني: الأحكام العامة$q24$, $q25$لا يترتب على إدماج المنشأة،أو تقسيمها،أو انتقالها بالإرث أو الوصية أو الهبة أو البيع ولو كان بالمزاد العلني،أو النزول،أو الإيجار،أو غير ذلك من التصرفات إنهاء عقود استخدام عمال المنشأة،ويكون الخلف مسئولا ً بالتضامن مع أصحاب الأعمال السابقين عن تنفيذ جميع الالتزامات الناشئة عن هذه العقود.$q25$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -253,7 +256,7 @@ WITH ins_art_law14_12 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 12, $q26$الباب الثاني: الأحكام العامة$q26$, $q27$يستحق العاملون الذين تسرى فى شأنهم أحكام هذا القانون علاوة سنوية دورية فى تاريخ استحقاقها لا تقل عن ) (٪٣من الأجر التأميني،وتستحق تلك العلاوة بانقضاء سنة من تاريخ التعيين،أو من تاريخ استحقاق العلاوة الدورية السابقة. وفى حالة تعرض المنشأة لظروف اقتصادية يتعذر معها صرف العلاوة الدورية المشار إليها،يعرض الأمر على المجلس القومى للأجور للبت فى تخفيضها أو الإعفاء منها وذلك خلال ثلاثين يوما من تاريخ عرض الأمر عليه.$q27$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -263,7 +266,7 @@ WITH ins_art_law14_13 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 13, $q28$الباب الثاني: الأحكام العامة$q28$, $q29$يصدر الوزير المختص قرارا بتحديد اختصاص الجهة الإدارية المختصة فى تطبيق أحكام هذا القانون.$q29$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -273,7 +276,7 @@ WITH ins_art_law14_14 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 14, $q30$الباب الثاني: الأحكام العامة$q30$, $q31$تئول ثلث المبالغ المحكوم بها عن مخالفة أحكام هذا القانون لصالح الوزارة المختصة للصرف منها على أغراض الخدمات الاجتماعية والصحية والثقافية، وتطوير أساليب التدريب المهنى للفئات الأولى بالرعاية من بين العمال الخاضعين لأحكام هذا القانون وعلى الأخص العمالة غير المنتظمة،ويتم توزيعها وتحديد أوجه الصرف بقرار من الوزير المختص،على أن تئول باقى الحصيلة للخزانة العامة للدولة.$q31$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -283,7 +286,7 @@ WITH ins_art_law14_15 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 15, $q32$الباب الثاني: الأحكام العامة$q32$, $q33$يكون تحصيل الرسوم ومقابل الخدمات المنصوص عليها فى هذا القانون،وفق ًا لأحكام قانون تنظيم استخدام وسائل الدفع غير النقدى الصادر بالقانون رقم ١٨لسنة ۲۰۱۹$q33$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -298,7 +301,7 @@ WITH ins_art_law14_16 AS (
 -٤ الراغبين فى التأهيل الأعلى أو المستمر.
 -٥ عمال التلمذة الصناعية.$q35$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -313,7 +316,7 @@ WITH ins_art_law14_17 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 17, $q36$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q36$, $q37$تتولى الجهة الإدارية المختصة القيام بالتوجيه المهنى لراغبى التدريب لمساعدتهم فى اختيار المهن التى يرغبون التدرب عليها وفق ًا لقدراتهم. كما تتولى بالتنسيق مع الوزارات والجهات المعنية،وبالتشاور مع ممثلى منظمات أصحاب الأعمال والعمال الأكثر تمثيلا ً،إعداد التصنيف المهنى الوطنى للمهن والحرف والوظائف فى سوق العمل،وتحديد متطلباتها وتوصيفها،والمهارات والجدارات اللازمة لها،والعمل على تحديثها وفق ًا لمعايير الجودة العالمية،وبما يتوافق مع التغيرات التكنولوجية الحديثة وتغير المناخ. ويصدر الوزير المختص قرارا بالقواعد والإجراءات المنظمة لذلك،والجهات والفئات المستفيدة.$q37$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -323,7 +326,7 @@ WITH ins_art_law14_18 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 18, $q38$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q38$, $q39$ينشأ مجلس يسمى "المجلس الأعلى لتنمية مهارات الموارد البشرية "،ويكون مقره الرئيسى مدينة القاهرة،برئاسة الوزير المختص،ويضم فى عضويته ما يلى: ممثلين عن وزارات ) الصحة،التخطيط والتنمية الاقتصادية والتعاون الدولى، التربية والتعليم والتعليم الفنى التعليم العالى والبحث العلمى،الصناعة،الاستثمار والتجارة الخارجية،الاتصالات وتكنولوجيا المعلومات،التضامن الاجتماعى،قطاع الأعمال العام،التنمية المحلية،الإسكان والمرافق والمجتمعات العمرانية،السياحة والآثار (،يرشحهم الوزراء المعنيون. رئيس الجهاز المركزى للتنظيم والإدارة أو من ينيبه. رئيس المجلس القومى للأشخاص ذوى الإعاقة أو من ينيبه. سبعة أعضاء يمثلون منظمات أصحاب الأعمال الأكثر تمثيلا ً من حيث العضوية، ترشحهم منظماتهم. سبعة أعضاء يمثلون المنظمات النقابية العمالية،ترشحهم منظماتهم الأكثر تمثيلا ً للعمال.على أن يراعى عند الترشيح تمثيل جميع مستويات المنظمات النقابية العمالية ما لم يكن ذلك متعذرا. وللمجلس أن يستعين بمن يراه من ذوى الخبرة من الفئات التى يرى لزوما تمثيلها،دون أن يكون لهم صوت معدود فى المداولات. ويتولى المجلس وضع السياسات العامة لتنمية مهارات الموارد البشرية، وسياسات التدريب والتأهيل،وسياسات تدريب وتأهيل الأشخاص ذوى الإعاقة والأقزام والفئات الأولى بالرعاية بما يتفق مع السياسة العامة للدولة. كما يتولى وضع الخطط اللازمة لربط التعليم والتدريب باحتياجات سوق العمل الحالى ووظائف المستقبل،والمهارات اللازمة لها. ويصدر بتشكيل المجلس واختصاصاته الأخرى ونظام العمل به وأمانته التنفيذية قرار من رئيس مجلس الوزراء،فى موعد لا يتجاوز ستة أشهر من تاريخ العمل بهذا القانون،على أن يجتمع المجلس مرة على الأقل كل ثلاثة أشهر.$q39$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -333,7 +336,7 @@ WITH ins_art_law14_19 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 19, $q40$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q40$, $q41$يجوز للمجلس أن يشكل فى نطاق أى محافظة أو منطقة جغرافية مجلسا تنفيذيا لتنمية مهارات الموارد البشرية،ويحدد بقرار من المجلس رئيس وأعضاء المجلس التنفيذى،على أن يضم فى عضويته ممثلين عن منظمات أصحاب العمل والمنظمات النقابية العمالية المعنية بالتساوى فيما بينهما،كما يضم فى عضويته ممثلى الوزارات والجهات المعنية،ويتولى متابعة تنفيذ الخطط والقرارات،والتوصيات الصادرة عن المجلس الأعلى لتنمية مهارات الموارد البشرية والتنسيق مع الجهات المحلية المختصة بتنمية مهارات الموارد البشرية وتحسين كفاءتها من خلال التدريب المهنى والتدريب المستمر. ويحدد قرار التشكيل الاختصاصات الأخرى للمجلس،ونظام العمل به.$q41$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -347,7 +350,7 @@ WITH ins_art_law14_20 AS (
 -٣ وضع الشروط والقواعد التنفيذية لضبط عمليات التمويل. - ٤متابعة وتقييم تنفيذ جميع الأعمال الممولة منه.
 ويصدر رئيس مجلس الوزراء قرارا بتشكيل مجلس إدارة الصندوق برئاسة الوزير المختص وعضوية ممثلى المنظمات النقابية العمالية ومنظمات أصحاب الأعمال بالتساوى فيما بينهما،وممثلى الوزارات والجهات المختصة،وتحديد اختصاصاته الأخرى ونظام العمل به،والمعاملة المالية لرئيس وأعضاء مجلس الإدارة،على أن تكون من موارده الذاتية،وفروعه فى المحافظات ولائحة نظامه الأساسى،ونظام تحصيل موارده،والنظام المحاسبى الواجب اتباعه. ولمجلس إدارة الصندوق أن يستخدم وسائل القانون الخاص فى تحقيق أهدافه ومباشرة اختصاصاته.$q43$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -364,7 +367,7 @@ WITH ins_art_law14_21 AS (
 -٢ الإعانات والتبرعات والهبات التى يقبلها مجلس إدارة الصندوق طبق ًا للقواعد التى تحددها لائحة النظام الأساسى وفق ًا للقوانين المعمول بها فى هذا الشأن.
 -٣ عائد استثمار أموال الصندوق. ويكون للصندوق حساب خاص لدى أحد البنوك التجارية المعتمدة لدى البنك المركزى،ويعد الصندوق سنويا القوائم الدالة على المركز المالي،وتخضع أمواله لرقابة الجهاز المركزى للمحاسبات ويرحل فائض أمواله من سنة إلى أخرى.$q45$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -380,7 +383,7 @@ WITH ins_art_law14_22 AS (
 -٣ المنشآت التى تتولى تدريب عمالها.
 -٤ الكيانات التى تزاول عمليات تأهيل وتدريب الأشخاص ذوى الإعاقة والأقزام،والفئات الأولى بالرعاية.$q47$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -393,7 +396,7 @@ WITH ins_art_law14_23 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 23, $q48$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q48$, $q49$يشترط لمزاولة عمليات التدريب الحصول على ترخيص بذلك من الوزارة المختصة باستثناء الجهات المنصوص عليها فى البندين ) (٣، ٢من المادة )(٢٢ من هذا القانون. ويصدر الوزير المختص قرارا بتحديد شروط وإجراءات منح الترخيص، ومدته،وتجديده،وحالات إلغائه،ورسومه بما لا يزيد على مائة ألف جنيه، وحالات الإعفاء منها. كما يحدد القرار قواعد،وإجراءات إنشاء،واعتماد مراكز التدريب الخاضعة لأحكام هذا القانون. وتلتزم الوزارة المختصة بإمساك سجل ورقى أو إلكترونى لقيد الجهات التى يتم الترخيص لها بمزاولة عمليات التدريب،وإخطار المجلس الأعلى لتنمية الموارد والمهارات البشرية بما يتم قيده فى هذا السجل.$q49$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -403,7 +406,7 @@ WITH ins_art_law14_24 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 24, $q50$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q50$, $q51$تلتزم الجهات المشار إليها فى المادة ) (٢٢من هذا القانون فيما عدا البندين )(٣، ٢ بإخطار الوزارة المختصة بالبرامج التدريبية التى تقدمها لاعتمادها،على أن تتضمن ما يأتي: الشروط التى يجب توافرها فى المتدربين للالتحاق بالبرامج. مدى كفاية العمليات التدريبية من حيث موضوعات،ومجالات التدريب،وعدد الساعات المخصصة لها. مستويات وتخصصات المدربين. مستوى المهارة التى يكتسبها المتدرب بعد الانتهاء من البرنامج. ويصدر الوزير المختص قرارا بتحديد إجراءات ومواعيد الإخطار والاعتماد بعد التنسيق مع الهيئة المصرية لضمان الجودة والاعتماد فى التعليم الفنى والتقنى والتدريب المهنى )إتقان( المنشأة بالقانون رقم ١٦٠لسنة. ٢٠٢٢$q51$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -413,7 +416,7 @@ WITH ins_art_law14_25 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 25, $q52$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q52$, $q53$يشترط فى المدربين الذين يزاولون أعمال التدريب أن يرخص لهم بذلك من الوزارة المختصة بناء على طلبهم أو طلب إحدى الجهات المشار إليها فى المادة ٢٢من هذا القانون. ويصدر الوزير المختص قرارا بتحديد شروط وقواعد،وإجراءات منح الترخيص،والرسوم المستحقة عنه بما لا يجاوز خمسة آلاف جنيه،وحالات إيقافه أو إلغائه. على أن يستثنى من ذلك المدربون التابعون للجهات المنصوص عليها فى البندين ) (٣، ٢من المادة ) (٢٢من هذا القانون،إذا اقتصر عملهم بالتدريب داخل هذه الجهات دون غيرها. وتلتزم الوزارة المختصة بإعداد سجل ورقى أو إلكترونى لقيد المدربين المرخص لهم،ويتم التأشير فيه حال إيقاف أو إلغاء الترخيص.$q53$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -423,7 +426,7 @@ WITH ins_art_law14_26 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 26, $q54$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q54$, $q55$تلتزم الجهة التى تزاول عمليات التدريب أن تمنح المتدرب لديها شهادة تفيد اجتيازه البرنامج التدريبى الذى عقدته له،والمستوى الذى بلغه،ويحدد بقرار من الوزير المختص البيانات الأخرى التى تدون فى هذه الشهادة وقواعد اعتمادها من الجهة الإدارية المختصة،والرسم المقابل لذلك بما لا يجاوز خمسمائة جنيه.$q55$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -433,7 +436,7 @@ WITH ins_art_law14_27 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 27, $q56$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q56$, $q57$يلتزم كل من يرغب فى مزاولة مهنة أو حرفة من التى يصدر بتحديدها قرار من الوزير المختص،أن يتقدم بطلب إلى الجهة الإدارية المختصة للحصول على ترخيص بمزاولتها. ويحدد القرار شروط وقواعد،وإجراءات منح الترخيص،والرسوم المقررة عنه بما لا يجاوز خمسمائة جنيه،وحالات الإعفاء منها. ولا يجوز تشغيل العامل إلا إذا كان حاصلا ً على هذا الترخيص. وعلى طالب الترخيص أن يرفق بطلبه شهادة تفيد مستوى مهارته،ويصدر الوزير المختص بالتشاور مع المنظمة النقابية العمالية المعنية ومنظمة أصحاب الأعمال المعنية قرارا بتحديد جميع البيانات التى يجب إثباتها فى تلك الشهادة، والأحكام الخاصة بقياس مستوى المهارة والجهات التى تتولى تحديد هذا المستوى، وكيفية إجرائه،وشروط التقدم له،والمكان الذى يجرى فيه لكل حرفة أو مهنة ودرجات المهارة التى تقدرها طبق ًا لنتائج الاختبارات،والرسم المقرر عنها بما لا يجاوز خمسمائة جنيه وحالات الإعفاء من هذا الرسم. ويستثنى من الحصول على هذه الشهادة خريجو المدارس الفنية المتوسطة، وفوق المتوسطة والمعاهد العليا،والجامعات،الذين يعملون فى مجال تخصصهم.$q57$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -443,7 +446,7 @@ WITH ins_art_law14_28 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 28, $q58$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q58$, $q59$يشترط فى المتدرج ألا يقل سنه عن أربعة عشر عاما،ويصدر الوزير المختص قرارا بالقواعد والإجراءات المنظمة للتدرج المهنى لدى صاحب العمل.$q59$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -453,7 +456,7 @@ WITH ins_art_law14_29 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 29, $q60$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q60$, $q61$يجب أن يكون اتفاق التدرج مكتوبا،وتحدد فيه على الأخص مدة تعلم المهنة أو الصنعة أو الحرفة،ومراحلها المتتابعة والمكافأة التى يحصل عليها المتدرج فى كل مرحلة بصورة تصاعدية،على ألا تقل فى المرحلة الأخيرة عن الحد الأدنى للأجر المحدد لفئة العمال فى المهنة،أو الصنعة أو الحرفة التى يتدرج فيها.$q61$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -463,7 +466,7 @@ WITH ins_art_law14_30 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 30, $q62$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q62$, $q63$لصاحب العمل أن ينهى اتفاق التدرج إذا ثبت لديه عدم صلاحية المتدرج، أو عدم استعداده لتعلم المهنة،أو الصنعة،أو الحرفة،بصورة حسنة،كما يجوز للمتدرج أن ينهى الاتفاق. ويشترط أن يخطر الطرف الراغب فى إنهاء الاتفاق الطرف الآخر بذلك قبل الإنهاء بثلاثة أيام على الأقل.$q63$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -473,7 +476,7 @@ WITH ins_art_law14_31 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 31, $q64$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الأول: التدريب$q64$, $q65$مع عدم الإخلال بأحكام الفصل الرابع من الباب الثانى من هذا الكتاب، تسرى على المتدرجين الأحكام الخاصة بالإجازات،وساعات العمل،وفترات الراحة المنصوص عليها فى هذا القانون.$q65$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -484,7 +487,7 @@ WITH ins_art_law14_32 AS (
   SELECT id, 32, $q66$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q66$, $q67$ينشأ مجلس يسمى "المجلس الأعلى لتخطيط وتشغيل القوى العاملة فى الداخل والخارج" برئاسة الوزير المختص،ويضم ممثلين للوزارات والجهات المختصة، وعددا متساويا من ممثلى كل من منظمات أصحاب الأعمال المعنية الأكثر تمثيلا ً، ترشحهم منظماتهم وممثلى المنظمات النقابية العمالية المعنية،على أن يراعى تمثيل جميع مستويات المنظمات النقابية العمالية ما لم يكن ذلك متعذرا.
 ويتولى المجلس رسم السياسة العامة لتشغيل العمالة فى الداخل والخارج، ووضع النظم والقواعد،والإجراءات اللازمة لهذا التشغيل من واقع احتياجات أسواق العمل فى الداخل والخارج،والاستعداد لوظائف المستقبل،بما يتفق مع السياسة العامة للدولة. ويصدر بتشكيل المجلس،واختصاصاته،ونظام العمل به قرار من رئيس مجلس الوزراء فى مدة أقصاها ستة أشهر من تاريخ العمل بهذا القانون.$q67$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -495,7 +498,7 @@ WITH ins_art_law14_33 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 33, $q68$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q68$, $q69$مع عدم الإخلال بأحكام قانون حقوق الأشخاص ذوى الإعاقة الصادر بالقانون رقم ١٠لسنة، ۲۰۱٨على كل قادر على العمل،وراغب فيه أن يتقدم بطلب لقيد اسمه بالجهة الإدارية المختصة مع بيان سنه ومهنته ومؤهلاته وخبراته السابقة، وعلى هذه الجهة قيد تلك الطلبات بسجلات ورقية أو إلكترونية وإعطاء الطالب شهادة تفيد القيد دون مقابل،وتحدد البيانات التى يجب أن تتضمنها الشهادة المشار إليها بقرار من الوزير المختص. ولا يجوز تشغيل العامل إلا إذا كان حاصلا ً على الشهادة المشار إليها فى الفقرة الأولى من هذه المادة،واستثناء من ذلك لصاحب العمل أن يعين من غير الحاصلين عليها بشرط قيد اسم العامل بالجهة الإدارية المختصة خلال ثلاثين يوما من تاريخ تسلمه العمل. ويجوز لصاحب العمل أن يستوفى احتياجاته الوظيفية والمهنية والحرفية بالنسبة للوظائف والأعمال التى خلت أو أنشئت لديه ممن ترشحهم الجهة الإدارية المختصة التى يقع فى دائرتها محل عمله من المسجلين لديها مراعية أسبقية القيد.$q69$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -505,7 +508,7 @@ WITH ins_art_law14_34 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 34, $q70$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q70$, $q71$إذا كان الراغب فى العمل يمارس حرفة أو مهنة من التى يصدر بتحديدها قرار من الوزير المختص وفق ًا لنص المادة ) (۲۷من هذا القانون،وجب عليه أن يرفق بطلب القيد شهادة قياس مستوى مهارته وترخيص مزاولتها.$q71$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -515,7 +518,7 @@ WITH ins_art_law14_35 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 35, $q72$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q72$, $q73$مع عدم الإخلال بأحكام قانون حقوق الأشخاص ذوى الإعاقة المشار إليه تلتزم المنشآت القائمة وقت تطبيق هذا القانون،وتلك التى تنشأ مستقبلا ً أن تعيد إلى الجهة الإدارية المختصة شهادة قيد العامل الصادرة عنها خلال خمسة وأربعين يوما من تاريخ استلام العمل بعد استيفاء البيانات المدونة بها،وعليها تدوين رقم شهادة القيد، وتاريخها أمام اسم العامل فى سجل قيد العمال بالمنشأة.$q73$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -528,7 +531,7 @@ WITH ins_art_law14_36 AS (
 -٢ عدد الوظائف الشاغرة بسبب الإحلال أو التوسعات الجديدة،والوظائف التى تم إلغاؤها.
 -٣ بيان بتقدير الاحتياجات المتوقعة حسب الحالة التعليمية والمهنية خلال العام التالي. وذلك كله وفق ًا للنماذج التى تعدها الوزارة المختصة. وعلى الجهة الإدارية المختصة موافاة الهيئة القومية للتأمين الاجتماعى بنسخة من البيانات المشار إليها بالفقرة الثانية من هذه المادة.$q75$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -542,7 +545,7 @@ WITH ins_art_law14_37 AS (
   SELECT id, 37, $q76$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q76$, $q77$تلتزم المنشآت المشار إليها فى المادة ) (٣٥من هذا القانون بإمساك سجل ورقى أو إلكترونى لقيد أسماء الأشخاص ذوى الإعاقة والأقزام الحاصلين على شهادات التأهيل أو بطاقة إثبات الإعاقة والخدمات المتكاملة،بحسب الأحوال،الذين ألحقوا
 بالعمل لديها،يشتمل على البيانات الواردة فى شهادات التأهيل أو بطاقة إثبات الإعاقة والخدمات المتكاملة بحسب الأحوال،ويجب تقديم هذا السجل إلى الجهة الإدارية المختصة كلما طلب منها ذلك. ويجب إخطار تلك الجهة ببيان يتضمن العدد الإجمالى للعاملين،وعدد الوظائف التى يشغلها الأشخاص ذوو الإعاقة والأقزام،والأجر الذى يتقاضاه كل منهم،وذلك وفق ًا للنموذج والموعد اللذين يصدر بتحديدهما قرار من الوزير المختص.$q77$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -553,7 +556,7 @@ WITH ins_art_law14_38 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 38, $q78$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q78$, $q79$تلتزم جميع المنشآت الخاضعة لأحكام هذا القانون بموافاة الوزارة المختصة ورقيا أو إلكترونيا بالبيانات أو المعلومات اللازمة لإنشاء أو تحديث قواعد بيانات العمالة،ونظام معلومات سوق العمل خلال ثلاثين يوما من تاريخ طلبها. كما يجب على أصحاب الأعمال أو من يمثلونهم بذل العناية الواجبة للتعاون مع الجهة الإدارية المختصة لاستيفاء استمارات جمع البيانات أو المعلومات ورقيا أو إلكترونيا. وعلى الوزارة المختصة القيام بجمع البيانات اللازمة عن سوق العمل وإجراء الدراسات والأبحاث الميدانية منفردة أو بالتنسيق مع الجهات المختصة،وعليها أن تصدر تقارير دورية قطاعية أو جغرافية عن احتياجات سوق العمل الحالى والمستقبلى من المهن والمهارات،ورصد أية تغيرات تطرأ عليه. ) الفصل الثانى ( التشغيل فى الداخل والخارج$q79$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -565,7 +568,7 @@ WITH ins_art_law14_39 AS (
 -١ الأعمال العرضية وما فى حكمها.
 -٢ الوظائف الرئيسية التى يعتبر شاغلوها وكلاء مفوضين عن صاحب العمل. وللوزير المختص أن يصدر قرارا بسريان أحكام هذا الفصل على كل،أو بعض الأعمال والوظائف والفئات المشار إليها فى البندين ) (٢، ١من هذه المادة.$q81$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -580,7 +583,7 @@ WITH ins_art_law14_40 AS (
 -۲ شركات القطاع العام وقطاع الأعمال العام والقطاع الخاص المصرية للعاملين لديها فيما تبرمه من تعاقدات مع الجهات الأجنبية فى حدود أعمالها، وطبيعة نشاطها.
 -٣ وكالات التشغيل الخاصة التى تتخذ شكل الشركة المساهمة،أو التوصية بالأسهم،أو ذات المسئولية المحدودة أو الشخص الواحد المرخص لها بذلك من الوزارة المختصة.$q83$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -596,7 +599,7 @@ WITH ins_art_law14_41 AS (
 -٢ ألا يقل رأسمال الشركة المصدر أو المدفوع،بحسب الأحوال،عن مائتين وخمسين ألف جنيه وأن يكون مملوك ًا بأكمله للمصريين إذا كانت الشركة تزاول عمليات التشغيل بالداخل،وألا يقل عن خمسمائة ألف جنيه إذا كانت تزاول عمليات تشغيل المصريين بالخارج أو بالداخل والخارج معا،وأن تكون الأغلبية المطلقة للمؤسسين وأعضاء مجلس الإدارة من المصريين الذين يمتلكون فى مجموعهم )(٪٥١ على الأقل من رأسمالها.
 -٣ أن تقدم الشركة تأمين ًا لا يقل عن مليون جنيه إما نقدا أو بخطاب ضمان غير مشروط وغير قابل للإلغاء صادر من أحد البنوك المسجلة لدى البنك المركزى، لصالح الوزارة المختصة،وأن يكون ساريا طوال مدة سريان الترخيص وذلك لضمان التزام المرخص له بالتزاماته،ويتعين استكمال قيمة التأمين بمقدار ما لم تقم بأدائه من غرامات أو تعويضات حكم بها عليها،أو مبالغ تقاضتها دون وجه حق، طبق ًا لأحكام هذا القانون،وذلك خلال خمسة عشر يوما من تاريخ إخطار الشركة المرخص لها بكتاب موصى عليه بعلم الوصول بوجوب استكمال التأمين. ويكون الترخيص لمدة سنة قابلة للتجديد وفق ًا للقواعد والإجراءات التى يصدر بها قرار من الوزير المختص،وذلك مقابل أداء الرسم الذى يحدده الوزير المختص لمنح الترخيص أو تجديده بما لا يجاوز عشرة آلاف جنيه،وللوزير المختص إضافة شروط أخرى للحصول على الترخيص،وله وقف إصدار تراخيص جديدة إذا اقتضت المصلحة العامة ذلك فى ضوء متغيرات سوق العمل الفعلية.$q85$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -609,7 +612,7 @@ WITH ins_art_law14_42 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 42, $q86$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q86$, $q87$يصدر الوزير المختص قرارا يتضمن التزامات الشركات المرخص لها بالتشغيل والشروط الواجب توافرها فى مقر الشركة وإدارتها،وتنظيم إجراءات العمل فى هذا النشاط والسجلات اللازمة لمباشرة عملها والتى يتعين إمساكها،وقواعد القيد فيها، والرقابة والتفتيش عليها،والشروط الواجب توافرها فى الإعلانات التى تنشر عن فرص العمل.$q87$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -619,7 +622,7 @@ WITH ins_art_law14_43 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 43, $q88$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q88$, $q89$يحظر على الجهات المشار إليها فى المادة ) (٤٠من هذا القانون تقاضى أى مبالغ مالية من العامل بطريقة مباشرة أو غير مباشرة نظير إلحاقه بالعمل،ولها أن تتقاضى مقابل ذلك من صاحب العمل. واستثناء من أحكام الفقرة الأولى من هذه المادة يجوز للشركات المشار إليها فى البند ) (٣من المادة ) (٤٠من هذا القانون أن تتقاضى مبلغ ًا لا يجاوز ) (٪١من أجر العامل الذى يتم إلحاقه بالعمل،وذلك عن السنة الأولى فقط كمصروفات إدارية، ويحظر تقاضى أى مبالغ أخرى من العامل تحت أى مسمى.$q89$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -636,7 +639,7 @@ WITH ins_art_law14_44 AS (
 -٦ قيام الشركة بالإعلان عن وظائف غير حقيقية أو تجاوز الشركة حدود التعاقد مع أصحاب الأعمال.
 -٧ تقاضى الشركة أى مبالغ من العامل نظير تشغيله بالمخالفة لأحكام هذا القانون. ويجوز للوزير المختص إيقاف نشاط الشركة مؤقت ًا فى أى من الحالات المبينة فى الفقرة الأولى من هذه المادة لحين الفصل فى مدى ثبوت تلك الحالات،أو زوال تلك المخالفات. ولا يخل إلغاء الترخيص فى أى من الحالات المبينة فى هذه المادة بالمسئولية الجنائية أو المدنية أو التأديبية.$q91$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -653,7 +656,7 @@ WITH ins_art_law14_45 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 45, $q92$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q92$, $q93$مع مراعاة حكم المادة ) (٤٠من هذا القانون،لا يجوز للمنشآت تشغيل عمال عن طريق متعهد أو مقاول توريد عمال.$q93$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -663,7 +666,7 @@ WITH ins_art_law14_46 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 46, $q94$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q94$, $q95$مع عدم الإخلال بأحكام قانون تنظيم ممارسة العمل الأهلى الصادر بالقانون رقم ١٤٩لسنة ۲۰۱۹يجوز للوزير المختص،وفق ًا لاحتياجات سوق العمل الترخيص للجمعيات والمؤسسات الأهلية بإنشاء مكاتب لتشغيل المتعطلين بالداخل. وعلى تلك المكاتب مراعاة الأحكام الواردة فى هذا الفصل من القانون والقرارات الوزارية الصادرة بشأنه. ويصدر الوزير المختص قرارا بتنظيم أعمال تلك المكاتب،وشروط منح الترخيص وحالات إلغائه والرسوم المقررة عليه بما لا يجاوز خمسة آلاف جنيه. وتعفى تلك المكاتب من الشكل القانونى للشركات،كما تعفى من تقديم التأمين أو خطاب الضمان.$q95$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -673,7 +676,7 @@ WITH ins_art_law14_47 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 47, $q96$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q96$, $q97$لصاحب العمل الإعلان عن الوظائف الشاغرة بمختلف وسائل الإعلام، أو أن يعهد إلى وكالات التشغيل الخاصة لشغل تلك الوظائف. وعلى صاحب العمل أو وكالة التشغيل إخطار الجهة الإدارية المختصة ورقيا أو إلكترونيا بالإعلان،وتقديم بيان بالوظائف التى تم شغلها وفق ًا له.$q97$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -684,7 +687,7 @@ WITH ins_art_law14_48 AS (
   SELECT id, 48, $q98$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q98$, $q99$تلتزم الجهات المشار إليها فى المادة ) (٤٠من هذا القانون عدا البند ) (۱منها، بأن تقدم إلى الوزارة المختصة خلال خمسة أيام عمل فعلية صورة طبق الأصل من الطلب الوارد إليها بشأن توفير فرص العمل بالخارج وشروطها،موثقة من السلطات المختصة،كما تقدم نسخة من الاتفاقيات وعقود العمل المبرمة،متضمنة تحديد العمل والأجر المحدد له وشروط وظروف أدائه والتزامات العامل. ويكون للوزارة المختصة خلال خمسة عشر يو ما على الأكثر من تاريخ إخطارها بالاتفاقيات والطلبات والعقود المستوفاة الاعتراض عليها فى حالة عدم مناسبة الأجر، أو مخالفتها للنظام العام والآداب العامة.
 فإذا انقضت المدة المشار إليها دون اعتراض من الوزارة اعتبرت الاتفاقيات والطلبات والعقود موافق ًا عليها. ويصدر الوزير المختص قرارا بإجراءات وأسلوب ووسيلة إخطار تلك الجهات بشأن اعتراض الوزارة المختصة.$q99$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -695,7 +698,7 @@ WITH ins_art_law14_49 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 49, $q100$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q100$, $q101$تتولى الوزارة المختصة بالتعاون مع الوزارات والجهات المعنية متابعة تنفيذ الاتفاقيات الدولية والتعاقدات المتعلقة بالعمالة المصرية فى الخارج،وبحث تسوية المنازعات الناشئة عن تنفيذ هذه الاتفاقيات والتعاقدات.$q101$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -705,7 +708,7 @@ WITH ins_art_law14_50 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 50, $q102$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q102$, $q103$للمنظمات الدولية أن تزاول عمليات إلحاق العمالة المصرية ممن يتمتعون بخبرات وكفاءات خاصة للعمل خارج البلاد،إذا كان التعاقد مع جهات حكومية، أو هيئات عامة عربية أو أجنبية بعد أخذ موافقة الجهات المعنية. وعليها أن تقدم إلى الوزارة المختصة بيان ًا بفرص العمل التى تم توفيرها بهذه الجهات وعقود العمل المبرمة.$q103$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -715,7 +718,7 @@ WITH ins_art_law14_51 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 51, $q104$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q104$, $q105$تلتزم جميع الجهات التى تزاول عمليات التشغيل بالداخل والخارج أن توافى الوزارة المختصة ببيانات ونتائج أعمالها على الأقل كل ستة أشهر،ويصدر بتحديد قواعد وإجراءات ذلك قرار من الوزير المختص.$q105$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -726,7 +729,7 @@ WITH ins_art_law14_52 AS (
   SELECT id, 52, $q106$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q106$, $q107$لا يجوز ممارسة عمليات إلحاق المصريين بالداخل والخارج إلكترونيا من خلال مواقع أو صفحات أو منصات إلكترونية إلا بعد الحصول على ترخيص بذلك من الوزارة المختصة،ويستثنى من ذلك وكالات التشغيل المشار إليها فى البند )(٣ من المادة ). (٤٠ ويصدر الوزير المختص بالتشاور مع الوزير المعنى بشئون الاتصالات قرارا بقواعد منح هذا الترخيص،ومدته بما لا يجاوز سنة،والرسوم المقررة عليه بما لا يقل عن ألف جنيه ولا يزيد على عشرة آلاف جنيه،وضوابط وقواعد التشغيل، والتقارير التى تقدمها عن نتائج أعمالها،وآليات التنسيق معها.
 ) الفصل الثالث ( تشغيل النساء$q107$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -737,7 +740,7 @@ WITH ins_art_law14_53 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 53, $q108$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q108$, $q109$مع عدم الإخلال بأحكام المواد التالية،تسرى على النساء العاملات جميع الأحكام المنظمة لتشغيل العمال،دون تمييز. ويستحق جميع العاملين من الذكور والإناث أجرا متساويا عن العمل ذى القيمة المتساوية،ويشمل ذلك كل صور الأجر وعناصره من مزايا نقدية أو عينية أو علاوات أو حوافز أو بدلات أو غيرها. ويصدر الوزير المختص،بعد أخذ رأى كل من المجلس القومى للمرأة والمجلس القومى للطفولة والأمومة،قرارا بتحديد الأحوال أو الأعمال التى لا يجوز تشغيل النساء فيها،بهدف توفير التدابير اللازمة لحماية الأمومة،أو مواجهة مخاطر السلامة والصحة المهنية.$q109$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -747,7 +750,7 @@ WITH ins_art_law14_54 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 54, $q110$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q110$, $q111$للعاملة الحق فى إجازة وضع لمدة أربعة أشهر تشمل المدة التى تسبق الوضع والتى تليه،على ألا تقل مدة هذه الإجازة بعد الوضع عن خمسة وأربعين يوما، بشرط أن تقدم شهادة طبية مبين ًا بها التاريخ الذى يرجح حصول الوضع فيه، وتكون هذه الإجازة مدفوعة الأجر،وفى جميع الأحوال لا تستحق العاملة هذه الإجازة لأكثر من ثلاث مرات طوال مدة خدمتها. ويخصم من الأجر الذى يلتزم به صاحب العمل،ما يلتزم بأدائه من تعويض عن الأجر وفق ًا لحكم المادة ) (٧٧من قانون التأمينات الاجتماعية والمعاشات الصادر بالقانون رقم ١٤٨لسنة ٢٠١٩ وتخفض ساعات العمل اليومية للمرأة الحامل ساعة على الأقل اعتبارا من الشهر السادس من الحمل،ولا يجوز إلزامها بساعات عمل إضافية طوال مدة الحمل وحتى نهاية ستة أشهر من تاريخ الوضع.$q111$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -757,7 +760,7 @@ WITH ins_art_law14_55 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 55, $q112$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q112$, $q113$للعاملة بعد انتهاء إجازة الوضع المبينة بالمادة ) (٥٤من هذا القانون الحق فى العودة إلى وظيفتها أو وظيفة مماثلة لها دون الإخلال بأية مزايا كانت مقررة لوظيفتها الأصلية. ويحظر فصل العاملة أو إنهاء خدمتها أثناء إجازة الوضع. كما يحظر فصلها أو إنهاء خدمتها عقب عودتها من هذه الإجازة،ما لم يثبت صاحب العمل أن الفصل أو إنهاء الخدمة لسبب مشروع. ومع ذلك،يكون لصاحب العمل حرمان العاملة من التعويض عن أجرها عن مدة الإجازة المشار إليها أو استرداد ما تم أداؤه منه إذا ثبت اشتغالها خلال الإجازة لدى الغير،وذلك مع عدم الإخلال بالمساءلة التأديبية.$q113$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -767,7 +770,7 @@ WITH ins_art_law14_56 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 56, $q114$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q114$, $q115$يكون للعاملة التى ترضع طفلها خلال السنتين التاليتين لتاريخ الوضع، فضلا ً عن فترة الراحة المقررة،الحق فى فترتين أخريين للرضاعة لا تقل كل منهما عن نصف ساعة،وللعاملة الحق فى ضم هاتين الفترتين. وتحسب هاتان الفترتان الإضافيتان من ساعات العمل ولا يترتب على ذلك أى تخفيض فى الأجر.$q115$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -777,7 +780,7 @@ WITH ins_art_law14_57 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 57, $q116$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q116$, $q117$مع مراعاة حكم الفقرة الثانية من المادة ) (٧٢من قانون الطفل الصادر بالقانون رقم ١٢لسنة، ١٩٩٦يكون للعاملة فى المنشأة التى تستخدم خمسين عاملا ً فأكثر الحق فى الحصول على إجازة دون أجر لمدة لا تجاوز سنتين،وذلك لرعاية طفلها، ولا تستحق هذه الإجازة لأكثر من ثلاث مرات طوال مدة خدمتها شريطة أن يكون قد مر على وجودها فى المنشأة سنة على الأقل،وعلى ألا تقل المدة بين الإجازة الأولى والثانية عن سنتين.$q117$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -787,7 +790,7 @@ WITH ins_art_law14_58 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 58, $q118$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q118$, $q119$للعاملة أن تنهى عقد العمل بسبب زواجها،أو حملها،أو إنجابها،على أن تخطر صاحب العمل كتابة برغبتها فى ذلك خلال ثلاثة أشهر من تاريخ إبرام عقد الزواج،أو ثبوت الحمل،أو من تاريخ الوضع بحسب الأحوال،مع مراعاة ألا يؤثر ذلك على الحقوق المقررة لها وفق ًا لأحكام هذا القانون أو لأحكام قانون التأمينات الاجتماعية والمعاشات المشار إليه.$q119$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -797,7 +800,7 @@ WITH ins_art_law14_59 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 59, $q120$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q120$, $q121$يجب على صاحب العمل فى حالة تشغيله عاملة أو أكثر أن يعلق فى أماكن العمل أو تجمع العمال نسخة من نظام تشغيل النساء. ويجب أن يتضمن ذلك النظام إجراءات وضوابط وقواعد ومواعيد ساعات العمل المرن أو العمل عن بعد للمرأة التى ترعى أطفالا ً ذوى إعاقة أو أقزام.$q121$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -807,7 +810,7 @@ WITH ins_art_law14_60 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 60, $q122$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q122$, $q123$مع عدم الإخلال بأحكام قانون الطفل المشار إليه على صاحب العمل الذى يستخدم مائة عاملة فأكثر فى مكان واحد أن ينشئ دا را للحضانة،أو يعهد إلى دار للحضانة برعاية أطفال العاملات. وتلتزم المنشآت التى تقع فى منطقة واحدة وتستخدم كل منها أقل من مائة عاملة،أن تشترك فى تنفيذ الالتزام المنصوص عليه فى الفقرة الأولى من هذه المادة. واستثناء من ذلك،لصاحب العمل أن يتحمل تكاليف رعاية الأطفال بدار الحضانة. وذلك كله بالضوابط والأوضاع التى يصدر بها قرار من الوزير المختص بعد التنسيق مع الوزير المعنى بشئون التضامن الاجتماعى والمجلس القومى للطفولة والأمومة. ) الفصل الرابع ( أحكام تشغيل وتدريب الأطفال$q123$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -817,7 +820,7 @@ WITH ins_art_law14_61 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 61, $q124$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q124$, $q125$تسرى على هذا الفصل أحكام قانون الطفل المشار إليه فيما لم يرد بشأنه نص خاص. ويعتبر طفلا ً فى تطبيق أحكام هذا القانون،كل من لم يبلغ ثمانى عشرة سنة.$q125$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -827,7 +830,7 @@ WITH ins_art_law14_62 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 62, $q126$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q126$, $q127$يحظر تشغيل الأطفال قبل بلوغهم خمس عشرة سنة،ومع ذلك يجوز تدريبهم متى بلغت سنهم أربع عشرة سنة بما لا يعوقهم عن مواصلة التعليم. ويلتزم كل صاحب عمل يدرب طفلا ً دون سن الخامسة عشرة بمنحه بطاقة تثبت أنه يتدرب لديه،وتلصق عليها صورة الطفل،وت ُعتمد من الجهة الإدارية المختصة، وتختم بخاتمها.$q127$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -837,7 +840,7 @@ WITH ins_art_law14_63 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 63, $q128$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q128$, $q129$يكون تشغيل أو تدريب الأطفال،وتحديد الظروف والأحوال والقواعد والإجراءات التى يتم فيها ذلك،وفق ًا للقرار الصادر من الوزير المختص بالتنسيق مع المجلس القومى للطفولة والأمومة.$q129$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -847,7 +850,7 @@ WITH ins_art_law14_64 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 64, $q130$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q130$, $q131$يحظر تشغيل أو تدريب الأطفال فى الأعمال،والمهن،والصناعات التى من شأنها أن تعرض صحتهم البدنية أو النفسية أو سلامتهم أو أخلاقهم للخطر،أو تعوقهم عن مواصلة التعليم كما يحظر تشغيلهم أو تدريبهم فى أى عمل غير مشروع،أو أية أعمال تعتبر من صور أسوأ أشكال عمل الأطفال وفق ًا للاتفاقيات والمواثيق والمعاهدات الدولية التى صدقت عليها جمهورية مصر العربية. ويصدر الوزير المختص بالتنسيق مع المجلس القومى للطفولة والأمومة قرارا بتحديد تلك الأعمال والمهن والصناعات طبق ًا لمراحل السن المختلفة.$q131$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -857,7 +860,7 @@ WITH ins_art_law14_65 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 65, $q132$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q132$, $q133$يحظر تشغيل الطفل أكثر من ست ساعات يوميا،ويجب أن تتخلل ساعات العمل فترة أو أكثر لتناول الطعام والراحة لا تقل فى مجموعها عن ساعة واحدة، وتحدد هذه الفترة أو الفترات بحيث لا يعمل الطفل أكثر من أربع ساعات متصلة، ويحظر تشغيل الطفل ساعات عمل إضافية أو تشغيله فى أيام الراحة الأسبوعية والعطلات الرسمية. وفى جميع الأحوال،يحظر تشغيل الطفل فيما بين الساعة السابعة مساء والسابعة صباحا.$q133$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -870,7 +873,7 @@ WITH ins_art_law14_66 AS (
 -٣ إبلاغ الجهة الإدارية المختصة بأسماء الأطفال العاملين لديه،والأعمال المكلفين بها،وأسماء الأشخاص المنوط بهم مراقبة أعمالهم.
 -٤ توفير سكن منفصل للأطفال عن غيرهم من البالغين،وفق ًا للضوابط والأحكام التى يصدر بها قرار من الوزير المختص،ويحظر فى جميع الأحوال مبيت الطفل في مكان العمل.$q135$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -883,7 +886,7 @@ WITH ins_art_law14_67 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 67, $q136$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q136$, $q137$مع عدم الإخلال بأحكام قانون الطفل المشار إليه،تقوم جهات التأهيل بإخطار الجهة الإدارية المختصة التى يقع فى دائرتها محل إقامة الطفل ذى الإعاقة بما يفيد تأهيله،وتقيد لديها أسماء الأطفال الذين تم تأهيلهم فى سجل خاص ورقى أو إلكتروني،وتسلم إلى الطفل ذى الإعاقة أو من ينوب عنه شهادة القيد دون مقابل. وتلتزم الجهة الإدارية المختصة بمعاونة الأطفال ذوى الإعاقة المقيدين لديها فى الالتحاق بالأعمال التى تناسب أعمارهم وكفايتهم ومحال إقامتهم،وعليها إخطار مديرية التضامن الاجتماعى الواقعة فى دائرتها ببيان شهرى عن الأطفال ذوى الإعاقة الذين تم تشغيلهم.$q137$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -894,7 +897,7 @@ WITH ins_art_law14_68 AS (
   SELECT id, 68, $q138$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q138$, $q139$يحظر على الأبوين أو متولى أمر الطفل،بحسب الأحوال،تشغيل الطفل بالمخالفة لأحكام هذا القانون،والقرارات التنفيذية الصادرة له.
 ) الفصل الخامس ( تنظيم عمل الأجانب$q139$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -905,7 +908,7 @@ WITH ins_art_law14_69 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 69, $q140$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q140$, $q141$يقصد بالعمل فى تطبيق أحكام هذا الفصل كل عمل تابع أو حر أو لحساب النفس أو العمل فى أى مهنة أو صنعة أو حرفة بما فى ذلك العمل فى الخدمة المنزلية.$q141$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -915,7 +918,7 @@ WITH ins_art_law14_70 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 70, $q142$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q142$, $q143$يخضع عمل الأجانب فى جميع منشآت القطاع الخاص،ووحدات القطاع العام، وقطاع الأعمال العام،والهيئات العامة والإدارة المحلية،والجهاز الإدارى للدولة للأحكام الواردة فى هذا الفصل،وذلك مع مراعاة شرط المعاملة بالمثل. ويحدد الوزير المختص النسبة القصوى لتشغيل الأجانب فى تلك المنشآت والجهات،وحالات الاستثناء من تلك النسبة،والمهن والحرف التى يحظر على الأجانب الاشتغال بها. ويجوز للوزير المختص إعفاء الأجانب من شرط المعاملة بالمثل.$q143$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -925,7 +928,7 @@ WITH ins_art_law14_71 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 71, $q144$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q144$, $q145$لا يجوز للأجنبى العمل داخل البلاد إلا بعد الحصول على ترخيص بذلك من الوزارة المختصة وأن يكون مصرحا له بدخول البلاد والإقامة بها بقصد العمل، ولا يجوز لأصحاب الأعمال تشغيل الأجانب إلا بعد الحصول على هذا الترخيص. ويصدر الوزير المختص قرارا بشروط الحصول على الترخيص المشار إليه، وإجراءاته،والبيانات التى يتضمنها،وإجراءات تجديده،والرسم الذى يحصل عنه ورسوم الإعفاء من شروط الاستقدام،بما لا يقل عن خمسة آلاف جنيه،ولا يزيد على مائة وخمسين ألف جنيه،ويحدد حالات إلغاء الترخيص قبل انتهاء مدته، وحالات إعفاء الأجانب من شرط الحصول عليه،وحالات الإعفاء من شرط الاستقدام وبما يتماشى مع احتياجات سوق العمل. ويلتزم كل من يستخدم أجنبيا أعفى من شرط الحصول على الترخيص بأن يخطر الجهة الإدارية المختصة بذلك خلال سبعة أيام من مزاولة الأجنبى للعمل،وعند انتهاء خدمته لديه.$q145$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -935,7 +938,7 @@ WITH ins_art_law14_72 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 72, $q146$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q146$, $q147$يلتزم صاحب العمل بإبلاغ الجهة الإدارية والسلطات المختصة عن غياب العامل الأجنبى عن العمل لمدة خمسة عشر يوما متصلة دون مسوغ قانونى يجيز ذلك، ويصدر الوزير المختص قرارا بالضوابط والشروط والإجراءات المنظمة لذلك.$q147$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -945,7 +948,7 @@ WITH ins_art_law14_73 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 73, $q148$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q148$, $q149$مع عدم الإخلال بأحكام قانون الاستثمار الصادر بالقانون رقم ٧٢لسنة، ٢٠١٧ يجوز للوزير المختص بالاتفاق مع الوزير المعنى بشئون الاستثمار،وضع القواعد والضوابط اللازمة للترخيص بالعمل للأجانب المخاطبين بأحكام قانون الاستثمار المشار إليه.$q149$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -955,7 +958,7 @@ WITH ins_art_law14_74 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 74, $q150$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثانى: التشغيل$q150$, $q151$يلتزم صاحب العمل الذى يعمل لديه الأجنبى بإعادته إلى الدولة التى تم استقدامه منها على نفقة صاحب العمل الخاصة حال انتهاء علاقة العمل،ما لم ينص عقد العمل على خلاف ذلك. ويصدر الوزير المختص قرارا بالحالات والمواعيد والإجراءات المنظمة لذلك.$q151$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -965,7 +968,7 @@ WITH ins_art_law14_75 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 75, $q152$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثالث: تشغيل العمالة غير المنتظمة$q152$, $q153$تهدف أحكام هذا الباب إلى تنظيم ودعم وتشغيل العمالة غير المنتظمة والعاملين فى القطاع غير الرسمى على المستوى القومى،ومساعدتهم فى الحصول على فرص العمل اللائقة لهم،وتنمية مهاراتهم بما يتناسب مع احتياجات سوق العمل فى الداخل والخارج،وحمايتهم أثناء العمل،وتقديم الدعم اللازم أثناء فترات التعطل. وتسرى على العمالة غير المنتظمة والعاملين فى القطاع غير الرسمى،الذين يعملون لدى أصحاب الأعمال،جميع الحقوق والواجبات الواردة فى هذا القانون. ويصدر الوزير المختص قرارا بالقواعد والأحكام المنظمة لشروط وظروف عمل تلك الفئات،وطرق الحصول على حقوقهم والقيام بواجباتهم،بما يتوافق مع طبيعة وفترات عملهم.$q153$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -975,7 +978,7 @@ WITH ins_art_law14_76 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 76, $q154$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثالث: تشغيل العمالة غير المنتظمة$q154$, $q155$تتولى الوزارة المختصة رسم سياسة ومتابعة تشغيل العمالة غير المنتظمة وعلى الأخص عمال الزراعة الموسميون،وعمال المقاولات وعمال البحر،وعمال المناجم والمحاجر،بما يتفق مع السياسة العامة للدولة. وللوزير المختص تحديد فئات العمالة غير المنتظمة بالتشاور مع الوزراء المعنيين والمنظمات النقابية العمالية المعنية،ومنظمات أصحاب الأعمال المعنيين.$q155$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -985,7 +988,7 @@ WITH ins_art_law14_77 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 77, $q156$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثالث: تشغيل العمالة غير المنتظمة$q156$, $q157$تلتزم الجهة الإدارية المختصة بحصر وقيد العمالة غير المنتظمة،وفق ًا لتصنيفها وفئاتها،فى السجلات الورقية أو الإلكترونية المعدة لذلك. كما تلتزم بإعداد قواعد بيانات قومية لفئات العمالة غير المنتظمة،وربطها بأجهزة ووزارات الدولة بالتنسيق مع الجهات المعنية،وعلى الأخص الجهاز المركزى للتعبئة العامة والإحصاء،والهيئة القومية للتأمين الاجتماعي. ويصدر الوزير المختص قرارا بالقواعد والإجراءات اللازمة لذلك.$q157$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -995,7 +998,7 @@ WITH ins_art_law14_78 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 78, $q158$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثالث: تشغيل العمالة غير المنتظمة$q158$, $q159$ينشأ صندوق لحماية وتشغيل العمالة غير المنتظمة يسمى "صندوق إعانات الطوارئ والخدمات الاجتماعية والصحية للعمالة غير المنتظمة"،تكون له الشخصية الاعتبارية العامة،ويتبع الوزير المختص،ويكون مقره الرئيسى محافظة القاهرة، وله أن ينشئ فروعا فى المحافظات. ويصدر رئيس مجلس الوزراء قرارا بتشكيل مجلس إدارة الصندوق،برئاسة الوزير المختص،وعضوية ممثلى المنظمات النقابية العمالية المعنية ومنظمات أصحاب الأعمال المعنية بالتساوى فيما بينهما،وممثلى الوزارات والجهات المعنية، ويحدد القرار اختصاصات المجلس،والنظام الأساسى للصندوق،والمعاملة المالية لرئيس وأعضاء مجلس الإدارة،على أن تكون من موارده الذاتية،والنظام المحاسبى الواجب اتباعه.$q159$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1019,7 +1022,7 @@ WITH ins_art_law14_79 AS (
 -١٣ إنشاء المنصات الإلكترونية اللازمة لتقديم خدمات الصندوق الرقمية.
 - ١٤إقامة مشروعات تنموية تستهدف الارتقاء بأوضاع العمالة غير المنتظمة، أو دمج العاملين فى القطاع غير الرسمى بالقطاع الرسمى على المستوى القومى، سواء منفردا أو بالتعاون مع الجهات والمنظمات الدولية أو الإقليمية المتخصصة بعد موافقة الجهات الوطنية المعنية.$q161$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1043,7 +1046,7 @@ WITH ins_art_law14_80 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 80, $q162$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثالث: تشغيل العمالة غير المنتظمة$q162$, $q163$يصدر الوزير المختص بالتشاور مع الوزراء المعنيين اللوائح المالية والإدارية للصندوق،ونظام تحصيل موارده،ولائحة الخدمات التى يقدمها،وقيمة الإعانات المالية الطارئة وضوابط استحقاقها،ومدتها،وحالات وقفها،والمستندات اللازمة لإثباتها،وطريقة وآليات صرفها.$q163$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1053,7 +1056,7 @@ WITH ins_art_law14_81 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 81, $q164$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثالث: تشغيل العمالة غير المنتظمة$q164$, $q165$يجوز بقرار من رئيس الجمهورية فى حالات الطوارئ العامة صرف إعانات طوارئ عاجلة لفئات العمالة غير المنتظمة أو بعضها،أو لأسرهم،وذلك فى الحالات والأحوال التى يحددها القرار.$q165$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1073,7 +1076,7 @@ WITH ins_art_law14_82 AS (
 -٩ عائد الخدمات التى يقدمها الصندوق بمقابل رمزى ) إن وجدت (.
 -١٠ عائد استثمار أموال الصندوق. ويصدر بتحديد فئات الرسوم والاشتراكات المشار إليها فى هذه المادة، وبما لا يزيد على الحد الأقصى المقرر،ومواعيد الوفاء بها،قرار من رئيس مجلس إدارة الصندوق.$q167$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1093,7 +1096,7 @@ WITH ins_art_law14_83 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 83, $q168$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثالث: تشغيل العمالة غير المنتظمة$q168$, $q169$يكون للصندوق حساب خاص لدى أحد البنوك التجارية المسجلة لدى البنك المركزى المصرى وموازنة مستقلة،تعد على نمط موازنات الهيئات العامة الاقتصادية،ويعد الصندوق سنويا القوائم الدالة على المركز المالى وفق ًا لنظام المحاسبة المالية،وتبدأ السنة المالية للصندوق مع السنة المالية للدولة،وتنتهى بانتهائها،وتخضع أمواله لرقابة الجهاز المركزى للمحاسبات،ويرحل فائض أمواله من سنة مالية إلى أخرى.$q169$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1103,7 +1106,7 @@ WITH ins_art_law14_84 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 84, $q170$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثالث: تشغيل العمالة غير المنتظمة$q170$, $q171$تعد أموال الصندوق أموالا ً عامة،وبصفة خاصة فيما يتعلق بتطبيق أحكام قانون العقوبات.وللصندوق الحق فى اتخاذ إجراءات التنفيذ المباشر والحجز الإدارى وفق ًا لأحكام القانون رقم ۳۰۸لسنة ١٩٥٥فى شأن الحجز الإدارى.$q171$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1113,7 +1116,7 @@ WITH ins_art_law14_85 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 85, $q172$الكتاب الثانى: التدريب والتشغيل وتشغيل العمالة غير المنتظمة — الباب الثالث: تشغيل العمالة غير المنتظمة$q172$, $q173$يلتزم العاملون بالوزارة المختصة ومديرياتها كل فى حدود اختصاصه، بتنفيذ أحكام هذا الباب وما يصدر عن مجلس إدارة الصندوق من لوائح وقرارات بالتنسيق مع إدارة الصندوق،ويصدر قرار من الوزير المختص بقواعد وإجراءات وآليات التنسيق.$q173$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1123,7 +1126,7 @@ WITH ins_art_law14_86 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 86, $q174$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q174$, $q175$تسرى أحكام هذا الفصل على العقد الذى يتعهد بمقتضاه عامل بأن يعمل لدى صاحب عمل تحت إدارته أو إشرافه لقاء أجر.$q175$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1133,7 +1136,7 @@ WITH ins_art_law14_87 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 87, $q176$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q176$, $q177$يبرم عقد العمل الفردى لمدة غير محددة،أو لمدة محددة إذا كانت طبيعة العمل تقتضى ذلك كما يجوز باتفاق الطرفين تجديد العقد لمدد أخرى مماثلة.$q177$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1146,7 +1149,7 @@ WITH ins_art_law14_88 AS (
 -٢ إذا لم ينص العقد على مدته.
 -٣ إذا كان مبرما لمدة محددة واستمر الطرفان فى تنفيذه بعد انتهاء هذه المدة دون اتفاق مكتوب بينهما.$q179$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1164,7 +1167,7 @@ WITH ins_art_law14_89 AS (
 -٤ طبيعة ونوع العمل محل العقد.
 -٥ الأجر المتفق عليه،وطريقة وموعد أدائه،وسائر المزايا النقدية والعينية المتفق عليها. وإذا لم يوجد عقد مكتوب فيكون لكل من العامل وصاحب العمل الحق فى إثبات علاقة العمل،ومدته،وجميع الحقوق المترتبة عليها بطرق الإثبات كافة. ويعطى صاحب العمل للعامل إيصالا ً بما يكون قد أودعه لديه من أوراق وشهادات.$q181$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1179,7 +1182,7 @@ WITH ins_art_law14_90 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 90, $q182$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q182$, $q183$تحدد فترة الاختبار فى عقد العمل لمدة لا تزيد على ثلاثة أشهر. ولا يجوز تعيين العامل تحت الاختبار أكثر من مرة واحدة لدى صاحب عمل واحد.$q183$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1189,7 +1192,7 @@ WITH ins_art_law14_91 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 91, $q184$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q184$, $q185$لا يجوز لصاحب العمل أن يخرج على الشروط المتفق عليها فى عقد العمل الفردى،أو اتفاقية العمل الجماعية،أو أن يكلف العامل بعمل غير المتفق عليه، إلا إذا دعت الضرورة إلى ذلك،منعا لوقوع حادث،أو لإصلاح ما نشأ عنه، أو فى حالة القوة القاهرة،على أن يكون ذلك بصفة مؤقتة،وله أن يكلف العامل بعمل غير المتفق عليه،إذا كان لا يختلف عنه اختلاف ًا جوهريا. وفى جميع الأحوال،لا يجوز المساس بحقوق العامل.$q185$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1199,7 +1202,7 @@ WITH ins_art_law14_92 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 92, $q186$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q186$, $q187$على صاحب العمل أن ينشئ ملف ًا ورقيا أو إلكترونيا لكل عامل يتضمن اسمه، ومهنته،ودرجة مهارته عند التحاقه بالعمل،ومحل إقامته،وحالته الاجتماعية، وتاريخ بداية خدمته،وأجره،وبيان ما يطرأ عليه من تطورات والجزاءات التى وقعت عليه،وبيان ما حصل عليه من إجازات،وأن يدرج أو يودع فى الملف صورة من عقد العمل،ومحاضر التحقيق إن وجدت،وتقارير رؤسائه عن عمله وفق ًا لما تقرره لائحة المنشأة،وأية أوراق أخرى تتعلق بخدمة العامل وما يفيد التأمين عليه لدى الهيئة القومية للتأمين الاجتماعي،والكشف الطبى الابتدائى،ولا يجوز الاطلاع على هذه البيانات إلا لمن رخص له قانون ًا بذلك،وأن يقدم هذا الملف إلى الجهة الإدارية المختصة أو المحكمة العمالية المختصة حسب الأحوال عند طلبه. وعليه أن يحتفظ بملف العامل ورقيا أو إلكترونيا لمدة خمس سنوات على الأقل تبدأ من تاريخ انتهاء علاقة العمل،وفى جميع الأحوال يجب الاحتفاظ بالملف عند وجود نزاع قضائى لحين الفصل فى الدعوى بحكم بات.$q187$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1210,7 +1213,7 @@ WITH ins_art_law14_93 AS (
   SELECT id, 93, $q188$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q188$, $q189$يلتزم صاحب العمل،بنقل العامل من الجهة التى تم التعاقد معه فيها إلى مكان العمل،كما يلتزم بإعادته إلى تلك الجهة خلال ثلاثة أيام من تاريخ انتهاء عقد العمل لأحد الأسباب المبينة فى هذا القانون،ولو كان خلال فترة الاختبار،إلا إذا رفض العامل كتابة العودة خلال المدة المشار إليها.
 فإذا لم يقم صاحب العمل بذلك وجب على الجهة الإدارية المختصة،بناء على طلب العامل،إعادته إلى الجهة التى تم التعاقد معه فيها على نفقتها،ولهذه الجهة استرداد ما أنفقته بطريق الحجز الإدارى.$q189$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1221,7 +1224,7 @@ WITH ins_art_law14_94 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 94, $q190$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q190$, $q191$إذا عهد صاحب العمل إلى صاحب عمل آخر بتأدية عمل من أعماله،أو جزء منها،وذلك فى منطقة عمل واحدة وجب على الأخير أن يسوى بين عماله،وعمال صاحب العمل الأصلى فى جميع الحقوق،ويكون الأخير متضامن ًا معه فى الوفاء بجميع الالتزامات التى تفرضها أحكام هذا القانون. وفى جميع الأحوال،لا يجوز المساس بحقوق العامل.$q191$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1231,7 +1234,7 @@ WITH ins_art_law14_95 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 95, $q192$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q192$, $q193$يلتزم العامل الذى تم تدريبه على نفقة صاحب العمل بأن يقضى لديه المدة المتفق عليها،وفى حالة تركه العمل قبل انقضاء هذه المدة يلتزم بسداد نفقات التدريب،دون إخلال بحق صاحب العمل فى التعويض،ما لم ينص عقد العمل على خلاف ذلك. ) الفصل الثانى ( أنماط العمل الجديدة$q193$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1246,7 +1249,7 @@ WITH ins_art_law14_96 AS (
 -٤ تقاسم العمل،وهو العمل الذى يقوم بإنجازه أكثر من شخص ويتقاسمون فيه الأدوار أو الأوقات،كما يتقاسمون الأجر،وفق ًا لما يتم الاتفاق عليه.
 -٥ أى صور أخرى للعمل يصدر بتحديدها قرار من الوزير المختص.$q195$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1261,7 +1264,7 @@ WITH ins_art_law14_97 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 97, $q196$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q196$, $q197$تسرى على علاقات العمل فى أنماط العمل الجديدة ما يسرى على علاقات العمل التقليدية،وذلك مع مراعاة طبيعة كل عمل وطريقة أدائه. كما يسرى على العاملين فى تلك الأنماط جميع الحقوق والواجبات التى تسرى على العاملين فى الأنماط التقليدية للعمل،وعلى الأخص الحماية الاجتماعية والضمان الاجتماعي،والحد الأدنى للأجر وطريقة حسابه،وضمان الحصول عليه،وإتاحة التدريب المهنى وبرامج تنمية المهارات،والحق فى المفاوضة الجماعية،والحرية النقابية وفق ًا لأحكام قانون المنظمات النقابية العمالية وحماية حق التنظيم النقابى الصادر بالقانون رقم ۲۱۳لسنة ٢٠١٧$q197$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1271,7 +1274,7 @@ WITH ins_art_law14_98 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 98, $q198$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q198$, $q199$يجوز باتفاق الطرفين فى أنماط العمل الجديدة أن يقوم العامل بالعمل لدى أكثر من صاحب عمل مع التزام العامل بعدم إفشاء أسرار العمل،أو أن يعمل لحساب نفسه إلى جانب عمله لدى الغير.$q199$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1281,7 +1284,7 @@ WITH ins_art_law14_99 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 99, $q200$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q200$, $q201$يجب أن تكون علاقة العمل فى أنماط العمل الجديدة واضحة ومحددة فى عقد عمل مكتوب ورقيا أو إلكترونيا،ويجوز للعامل إثبات علاقة العمل بكافة طرق الإثبات.$q201$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1291,7 +1294,7 @@ WITH ins_art_law14_100 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 100, $q202$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q202$, $q203$يصدر الوزير المختص بالتشاور مع المنظمات النقابية العمالية ومنظمات أصحاب الأعمال القرارات اللازمة لتنظيم أنماط العمل الجديدة،وتحديد صورها والنماذج الاسترشادية لعقود ولوائح العمل،وطرق إثبات علاقة العمل،وآليات حصول الطرفين على حقوقهم،وذلك فى موعد لا يتجاوز ستة أشهر من تاريخ إصدار هذا القانون. ) الفصل الثالث ( الأجور$q203$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1302,7 +1305,7 @@ WITH ins_art_law14_101 AS (
   SELECT id, 101, $q204$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q204$, $q205$يشكل المجلس القومى للأجور برئاسة الوزير المعنى بشئون التخطيط والتنمية الاقتصادية والتعاون الدولى،وعضوية كل من: الوزير المختص،أو من ينيبه. الوزير المعنى بشئون التضامن الاجتماعي،أو من ينيبه. الوزير المعنى بشئون المالية،أو من ينيبه. الوزير المعنى بشئون الصناعة،أو من ينيبه. الوزير المعنى بشئون قطاع الأعمال العام،أو من ينيبه. الوزير المعنى بشئون التموين والتجارة الداخلية،أو من ينيبه. رئيس المجلس القومى للمرأة،أو من ينيبه. رئيس الجهاز المركزى للتعبئة العامة والإحصاء. الرئيس التنفيذى للهيئة العامة للاستثمار والمناطق الحرة. رئيس مجلس إدارة الهيئة القومية للتأمين الاجتماعي. رئيس الجهاز المركزى للتنظيم والإدارة،أو من ينيبه. رئيس المجلس القومى للأشخاص ذوى الإعاقة،أو من ينيبه. ستة أعضاء يمثلون منظمات أصحاب الأعمال،يتم اختيارهم من المنظمات الأكثر تمثيلا ً،من حيث العضوية.
 ستة أعضاء يمثلون المنظمات النقابية العمالية المعنية الأكثر تمثيلا ً للعمال، ترشحهم منظماتهم،على أن يراعى تمثيل جميع مستويات المنظمات النقابية المعنية ما لم يكن ذلك متعذرا. ويجوز للمجلس الاستعانة بعدد كاف من الخبراء والمختصين أو الشخصيات العامة،وفق ًا للموضوعات المطروحة على جدول الأعمال،دون أن يكون لهم صوت معدود فى المداولات.$q205$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1318,7 +1321,7 @@ WITH ins_art_law14_102 AS (
 -٤ وضع المعايير والضوابط التى على أساسها يتم قبول أو رفض طلبات التخفيض أو الإعفاء من صرف العلاوة الدورية السنوية.
 -٥ إخطار الوزارات المعنية بقبول أو رفض الطلبات المقدمة من ذوى الشأن بالتخفيض أو الإعفاء من صرف العلاوة الدورية السنوية. ويصدر رئيس مجلس الوزراء قرارا بتحديد نظام العمل بالمجلس،واختصاصاته الأخرى،فى موعد أقصاه ستة أشهر من تاريخ العمل بهذا القانون.$q207$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1333,7 +1336,7 @@ WITH ins_art_law14_103 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 103, $q208$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q208$, $q209$يجتمع المجلس القومى للأجور بدعوة من رئيسه كل ستة أشهر على الأقل، أو كلما دعت الحاجة إلى ذلك،وتكون اجتماعاته صحيحة بحضور أغلبية الأعضاء، وتصدر قراراته بأغلبية أراء الحاضرين من أعضائه،وعند التساوى يرجح الجانب الذي منه الرئيس.$q209$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1343,7 +1346,7 @@ WITH ins_art_law14_104 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 104, $q210$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q210$, $q211$تلتزم المنشآت الخاضعة لأحكام هذا القانون بتنفيذ قرارات المجلس القومى للأجور،كل فيما يخصها.$q211$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1353,7 +1356,7 @@ WITH ins_art_law14_105 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 105, $q212$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q212$, $q213$يتعين على أجهزة التفتيش بالوزارة المختصة القيام بإجراء التفتيش الدورى على المنشآت الخاضعة لأحكام هذا القانون للتحقق من تنفيذ قرارات المجلس القومى للأجور،وعلى أصحاب الأعمال أو من يمثلونهم،إمساك سجلات ورقية أو إلكترونية تتضمن بيانات العاملين والأجر المستحق لكل عامل.$q213$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1363,7 +1366,7 @@ WITH ins_art_law14_106 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 106, $q214$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q214$, $q215$مع عدم الإخلال بالاختصاص المقرر لمحاكم مجلس الدولة،لكل ذى مصلحة الطعن على القرارات الصادرة عن المجلس القومى للأجور فى طلبات أصحاب الأعمال بالتخفيض أو الإعفاء من صرف العلاوة الدورية السنوية أمام المحكمة العمالية،وذلك خلال ثلاثين يوما من التاريخ المقرر لصرف العلاوة أو الإخطار بالقرار المطعون فيه،بحسب الأحوال.$q215$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1373,7 +1376,7 @@ WITH ins_art_law14_107 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 107, $q216$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q216$, $q217$يحدد الأجر وفق ًا لعقد العمل الفردى،أو اتفاقية العمل الجماعية،أو لائحة المنشأة المعتمدة،فإذا لم يحدد بأى من هذه الطرق استحق العامل أجر المثل إن وجد،وإلا قدر الأجر طبق ًا لعرف المهنة فى الجهة التى يؤدى فيها العمل،فإن لم يوجد عرف تولى قاضى الأمور الوقتية بالمحكمة العمالية المختصة تقدير الأجر وفق ًا لمقتضيات العدالة،مع مراعاة أحكام هذا القانون.$q217$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1387,7 +1390,7 @@ WITH ins_art_law14_108 AS (
 -٣ فى غير ما ذكر فى البندين ) (٢، ۱من هذه المادة تؤدى للعمال أجورهم مرة كل أسبوع على الأكثر ما لم يتفق على غير ذلك.
 -٤ إذا انتهت علاقة العمل لأى سبب يؤدى صاحب العمل للعامل أجره وجميع المبالغ المستحقة له فى مدة لا تجاوز سبعة أيام من تاريخ مطالبة العامل بهذه المستحقات. وفى جميع الأحوال،يجب ألا يقل ما يحصل عليه العامل عن الحد الأدنى للأجور،ويحظر احتجاز أجر العامل أو جزء منه دون سند قانوني.$q219$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1401,7 +1404,7 @@ WITH ins_art_law14_109 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 109, $q220$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q220$, $q221$يكون حساب متوسط الأجر اليومى لعمال الإنتاج،أو العمال الذين يتقاضون أجورا أساسية مضاف ًا إليها عمولة أو نسبة مئوية على أساس متوسط ما تقاضاه العامل عن أيام العمل الفعلية فى السنة الميلادية السابقة،أو عن المدة التى اشتغلها إن قلت عن ذلك مقسوما على عدد أيام العمل الفعلية عن ذات الفترة.$q221$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1411,7 +1414,7 @@ WITH ins_art_law14_110 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 110, $q222$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q222$, $q223$يحظر على صاحب العمل أن ينقل العامل من فئة عمال الأجر الشهرى إلى فئة عمال اليومية،أو بالأجر الأسبوعى،أو بالساعة،أو بالإنتاج،إلا بعد موافقته، ويكون للعامل فى هذه الحالة جميع الحقوق التى اكتسبها فى المدة التى قضاها بالأجر الشهري.$q223$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1421,7 +1424,7 @@ WITH ins_art_law14_111 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 111, $q224$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q224$, $q225$إذا حضر العامل إلى مقر عمله فى الوقت المحدد للعمل،وكان مستعدا لمباشرة عمله،وحالت دون ذلك أسباب ترجع إلى صاحب العمل،اعتبر كأنه أدى عمله فعلا ً واستحق أجره كاملا ً،أما إذا حضر وحالت بينه وبين مباشرة عمله أسباب قهرية خارجة عن إرادة صاحب العمل استحق نصف أجره.$q225$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1431,7 +1434,7 @@ WITH ins_art_law14_112 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 112, $q226$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q226$, $q227$لا يجوز لصاحب العمل إلزام العامل بشراء أغذية،أو سلع أو خدمات من محال معينة،أو مما ينتجه صاحب العمل من سلع،أو ما يقدمه من خدمات.$q227$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1441,7 +1444,7 @@ WITH ins_art_law14_113 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 113, $q228$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q228$, $q229$لا يجوز لصاحب العمل أن يقتطع من أجر العامل أكثر من عشرة بالمائة، وفاء لما يكون قد أقرضه من مال أثناء سريان العقد،أو أن يتقاضى أية فائدة عن هذه القروض،ويسرى هذا الحكم على الأجور المدفوعة مقدما.$q229$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1451,7 +1454,7 @@ WITH ins_art_law14_114 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 114, $q230$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q230$, $q231$مع عدم الإخلال بأحكام قانون تنظيم بعض أوضاع وإجراءات التقاضى فى مسائل الأحوال الشخصية الصادر بالقانون رقم ١لسنة، ۲۰۰۰لا يجوز فى جميع الأحوال الاستقطاع أو الحجز،أو النزول عن الأجر المستحق للعامل لأداء أى دين إلا فى حدود خمسة وعشرين بالمائة من هذا الأجر،ويجوز رفع نسبة الخصم إلى خمسين بالمائة فى حالة دين النفقة. وعند التزاحم يقدم دين النفقة ثم ما يكون مطلوبا لصاحب العمل بسبب ما أتلفه العامل من أدوات أو مهمات أو استردادا لما صرف إليه بغير وجه حق أو ما وقع على العامل من جزاءات. ويشترط لصحة النزول عن الأجر فى حدود النسبة المقررة بهذه المادة أن تصدر به موافقة مكتوبة من العامل. وتحسب النسبة المشار إليها فى الفقرة الأولى من هذه المادة بعد استقطاع ضريبة الدخل على الأجر،وقيمة الاشتراكات والمبالغ المستحقة وفق ًا لقانون التأمينات الاجتماعية والمعاشات المشار إليه،وما يكون صاحب العمل قد أقرضه للعامل فى حدود النسبة المنصوص عليها فى المادة ) (١١٣من هذا القانون.$q231$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1461,7 +1464,7 @@ WITH ins_art_law14_115 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 115, $q232$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q232$, $q233$لا تبرأ ذمة صاحب العمل من الأجر إلا إذا وقع العامل بما يفيد استلام الأجر فى السجل المعد لذلك،أو فى كشوف الأجور،أو إتمام تحويل أجره ومستحقاته إلى حسابه بأحد البنوك،ويلتزم صاحب العمل بإعطاء العامل بيان ًا بمفردات أجره.$q233$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1472,7 +1475,7 @@ WITH ins_art_law14_116 AS (
   SELECT id, 116, $q234$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q234$, $q235$مع مراعاة حكم المادة ) (١١٥من هذا القانون،يسلم صاحب العمل إلى عماله من الأطفال أجورهم أو مكافآتهم أو غير ذلك مما يستحقونه قانون ًا.ويكون هذا التسليم مبرئًا لذميه.
 ) الفصل الرابع ( ساعات العمل وفترات الراحة$q235$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1483,7 +1486,7 @@ WITH ins_art_law14_117 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 117, $q236$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q236$, $q237$مع عدم الإخلال بأحكام القانون رقم ١٣٣لسنة ١٩٦١فى شأن تنظيم تشغيل العمال فى المنشآت الصناعية،لا يجوز تشغيل العامل تشغيلا ً فعليا أكثر من ثمانى ساعات فى اليوم،أو ثمان وأربعين ساعة فى الأسبوع،ولا تدخل فيها الفترات المخصصة لتناول الطعام والراحة. ويجوز بقرار من الوزير المختص تخفيض الحد الأقصى لساعات العمل لبعض فئات العمال،أو فى بعض الصناعات أو الأعمال التى يحددها.$q237$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1493,7 +1496,7 @@ WITH ins_art_law14_118 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 118, $q238$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q238$, $q239$يجب أن تتخلل ساعات العمل فترة أو أكثر لتناول الطعام والراحة،ولا تقل فى مجموعها عن ساعة ويراعى فى تحديد هذه الفترة ألا يعمل العامل أكثر من خمس ساعات متصلة. وللوزير المختص أن يحدد بقرار منه الحالات،أو الأعمال التى يتحتم لأسباب فنية أو لظروف التشغيل استمرار العمل فيها دون فترة راحة،والأعمال المرهقة التى يمنح العامل فيها فترات راحة،وتحسب من ساعات العمل الفعلية.$q239$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1503,7 +1506,7 @@ WITH ins_art_law14_119 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 119, $q240$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q240$, $q241$يجب تنظيم ساعات العمل وفترات الراحة،بحيث لا تجاوز الفترة بين بداية ساعات العمل ونهايتها أكثر من عشر ساعات فى اليوم الواحد،وتحسب فترة الراحة من ساعات التواجد،إذا كان العامل أثناءها فى مكان العمل. ويستثنى من هذا الحكم العمال المشتغلون فى أعمال متقطعة بطبيعتها،والأعمال ذات الطبيعة الخاصة،والتى يحددها الوزير المختص بقرار منه،بحيث لا تزيد مدة تواجدهم فى المنشأة على اثنتى عشرة ساعة فى اليوم الواحد.$q241$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1514,7 +1517,7 @@ WITH ins_art_law14_120 AS (
   SELECT id, 120, $q242$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q242$, $q243$يجب تنظيم العمل بالمنشأة بحيث يحصل كل عامل على راحة أسبوعية لا تقل عن أربع وعشرين ساعة كاملة بعد ستة أيام عمل متصلة على الأكثر،وفى جميع الأحوال تكون الراحة الأسبوعية مدفوعة الأجر.
 واستثناء من الحكم الوارد فى الفقرة الأولى من هذه المادة،يجوز فى الأماكن البعيدة عن العمران،وفى الأعمال التى تتطلب طبيعة العمل،أو ظروف التشغيل فيها استمرار العمل تجميع الراحات الأسبوعية المستحقة للعامل عن مدة لا تجاوز ثمانية أسابيع،وتحدد لائحة تنظيم العمل والجزاءات قواعد الحصول على الراحات الأسبوعية المجمعة،وتضع المنشآت التى يقل عدد عمالها عن عشرة عمال قواعد تنظيم الراحات الأسبوعية المجمعة بها وفق ًا للقرارات التى تصدرها المنشأة. ويراعى فى حساب مدة الراحات الأسبوعية المجمعة أن تبدأ من ساعة وصول العمال إلى أقرب موقع به مواصلات وتنتهى ساعة العودة إليه.$q243$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1525,7 +1528,7 @@ WITH ins_art_law14_121 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 121, $q244$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q244$, $q245$يجوز لصاحب العمل عدم التقيد بالأحكام الواردة بالمواد )، ۱۱۹، ۱۱۸، ١١٧ (۱۲۰من هذا القانون،إذا كان التشغيل بقصد مواجهة ضرورات عمل غير عادية، أو ظروف استثنائية،ويشترط فى هذه الحالات إبلاغ الجهة الإدارية المختصة فى خلال سبعة أيام من وقوع ظروف العمل غير العادية أو الظروف الاستثنائية بمبررات التشغيل الإضافى والمدة اللازمة لإتمام العمل. وفى هذه الحالة يستحق العامل بالإضافة إلى أجره عن ساعات العمل الأصلية، أجرا عن ساعات التشغيل الإضافية حسبما يتم الاتفاق عليه فى عقد العمل الفردى أو الجماعى،بحيث لا يقل عن الأجر الذى يستحقه العامل مضاف ًا إليه ) (٪٣٥عن ساعة العمل النهارية،و ) (٪٧٠عن ساعة العمل الليلية تحسب على أساس أجر ساعة عمله الأصلية،فإذا وقع التشغيل فى يوم الراحة استحق العامل مثل أجره تعويضا عن هذا اليوم،ويمنحه صاحب العمل يوما آخر عوضا عنه خلال الأسبوع التالي. وفى جميع الأحوال،لا يجوز أن تزيد ساعات وجود العامل بالمنشأة على اثنتى عشرة ساعة.$q245$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1535,7 +1538,7 @@ WITH ins_art_law14_122 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 122, $q246$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q246$, $q247$على صاحب العمل أن يضع بالمداخل الرئيسية التى يستعملها العمال،أو فى مكان ظاهر بالمنشأة جدولا ً ببيان يوم الراحة الأسبوعية،وساعات العمل،وفترات الراحة المقررة لكل العاملين،وما يطرأ على هذا الجدول من تعديل مع إخطار الجهة الإدارية المختصة بصورة من هذا الجدول،أو ما يطرأ عليه من تعديل خلال سبعة أيام من تنفيذه على الأكثر.$q247$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1548,7 +1551,7 @@ WITH ins_art_law14_123 AS (
 -٢ العمال المشتغلين بالأعمال التجهيزية والتكميلية التى يتعين إنجازها قبل أو بعد انتهاء العمل.
 -٣ العمال المخصصين للحراسة والنظافة. ويحدد الحد الأقصى لساعات العمل الفعلية والإضافية للأعمال المشار إليها فى البندين ) (٣، ٢من الفقرة الأولى من هذه المادة بقرار من الوزير المختص، ويستحق العمال فى هذه الحالة أجرا إضافيا طبق ًا لنص المادة ) (١٢١من هذا القانون. ) الفصل الخامس ( الإجازات$q249$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1565,7 +1568,7 @@ WITH ins_art_law14_124 AS (
 -٣ ثلاثون يوما لمن أمضى عشر سنوات كاملة لدى صاحب عمل أو أكثر، أو لمن تجاوزت سنه خمسين عاما.
 -٤ خمسة وأربعون يوما للأشخاص ذوى الإعاقة والأقزام. وإذا قلت مدة خدمة العامل عن سنة تكون إجازته بنسبة المدة التى قضاها في العمل بشرط أن يكون قد أمضى ستة أشهر على الأقل فى خدمة صاحب العمل. وفى جميع الأحوال،تزاد مدة الإجازة السنوية بمقدار سبعة أيام للعمال الذين يعملون فى الأعمال الخطرة،أو المضرة بالصحة،أو فى المناطق النائية،والتى يصدر بتحديدها قرار من الوزير المختص بعد أخذ رأى الجهات المعنية.$q251$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1579,7 +1582,7 @@ WITH ins_art_law14_125 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 125, $q252$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q252$, $q253$يحدد صاحب العمل مواعيد الإجازة السنوية حسب مقتضيات العمل وظروفه، ولا يجوز قطعها إلا لأسباب قوية تقتضيها مصلحة العمل. ولا يجوز للعامل النزول عن إجازته،ويلتزم بالقيام بالإجازة فى التاريخ، والمدة التى حددها صاحب العمل وتم إخطاره بها،وإذا رفض العامل كتابة القيام بالإجازة سقط حقه فى اقتضاء مقابلها. وفى جميع الأحوال،يجب أن يحصل العامل على إجازة سنوية مدتها خمسة عشر يوما،منها ستة أيام متصلة على الأقل،ويلتزم صاحب العمل بتسوية رصيد الإجازات،أو الأجر المقابل له كل ثلاث سنوات على الأكثر،فإذا انتهت علاقة العمل قبل استنفاد العامل رصيد إجازته السنوية استحق الأجر المقابل لهذا الرصيد. ولا يجوز تجزئة الإجازة أو ضمها أو تأجيلها بالنسبة للأطفال والأشخاص ذوى الإعاقة والأقزام.$q253$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1591,7 +1594,7 @@ WITH ins_art_law14_126 AS (
 -١ إخطار صاحب العمل قبل القيام بالإجازة بعشرة أيام على الأقل.
 -٢ إثبات ما يفيد دخوله الامتحان فعليا.$q255$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1603,7 +1606,7 @@ WITH ins_art_law14_127 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 127, $q256$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q256$, $q257$لصاحب العمل أن يحرم العامل من أجره عن مدة الإجازة،أو يسترد ما أداه من أجر عنها،إذا ثبت اشتغاله خلالها لدى الغير،وذلك دون إخلال بالجزاء التأديبي.$q257$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1613,7 +1616,7 @@ WITH ins_art_law14_128 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 128, $q258$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q258$, $q259$للعامل أن ينقطع عن العمل لسبب عارض لمدة لا تجاوز سبعة أيام خلال السنة، وبحد أقصى يومان فى المرة الواحدة،وتحسب الإجازة العارضة من الإجازة السنوية المقررة للعامل. وللعامل الذى يولد له مولود الحق فى إجازة طارئة مدفوعة الأجر يوم الولادة لا تحسب من رصيد إجازاته السنوية،بحد أقصى ثلاث مرات طوال مدة الخدمة.$q259$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1623,7 +1626,7 @@ WITH ins_art_law14_129 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 129, $q260$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q260$, $q261$للعامل الحق فى إجازة بأجر فى العطلات والأعياد والمناسبات التى يصدر بتحديدها قرار من الوزير المختص،وتسرى بالنسبة للأعياد الدينية لغير المسلمين أحكام قرار مجلس الوزراء الصادر فى هذا الشأن. ولصاحب العمل تشغيل العامل فى هذه الأيام،إذا اقتضت ظروف العمل ذلك، ويستحق العامل فى هذه الحالة بالإضافة إلى أجره عن هذا اليوم مثلى هذا الأجر أو أن يمنح العامل يوما آخر عوضا عنه بناء على طلب كتابى من العامل يودع بالملف الخاص به.$q261$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1633,7 +1636,7 @@ WITH ins_art_law14_130 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 130, $q262$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q262$, $q263$للعامل الذى أمضى فى خدمة صاحب عمل خمس سنوات متصلة،الحق فى إجازة بأجر لمدة شهر لأداء فريضة الحج،أو زيارة بيت المقدس،وتكون هذه الإجازة مرة واحدة طوال مدة خدمته.$q263$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1644,7 +1647,7 @@ WITH ins_art_law14_131 AS (
   SELECT id, 131, $q264$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q264$, $q265$للعامل الذى يثبت مرضه،أو إصابته على نحو يحول بينه وبين أداء عمله الحق فى إجازة مرضية تحددها الجهة الطبية المختصة،ويستحق العامل خلالها تعويضا عن الأجر،تحدد نسبته ومدته،وفق ًا لأحكام قانون التأمينات الاجتماعية والمعاشات المشار إليه. ويكون للعامل الذى يثبت مرضه فى المنشآت الصناعية التى يسرى فى شأنها قانون تيسير منح تراخيص المنشآت الصناعية الصادر بالقانون رقم ١٥لسنة، ٢٠١٧الحق فى إجازة مرضية كل ثلاث سنوات تقضى فى الخدمة على أساس ثلاثة أشهر بأجر،
 ثم ستة أشهر بأجر يعادل ) (٪٨٥من أجره،ثم ثلاثة أشهر بأجر يعادل ) (٪٧٥من أجره، وذلك إذا قررت الجهة الطبية المختصة احتمال شفائه. ويخصم من الأجر الذى يلتزم به صاحب العمل،ما يلتزم بأدائه نظام التأمين الاجتماعى من تعويض عن الأجر. وللعامل أن يستفيد من متجمد إجازاته السنوية إلى جانب ما يستحقه من إجازة مرضية،كما له أن يطلب تحويل الإجازة المرضية إلى إجازة سنوية،إذا كان له رصيد يسمح بذلك.$q265$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1655,7 +1658,7 @@ WITH ins_art_law14_132 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 132, $q266$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q266$, $q267$للجهة الطبية المختصة منع العامل المخالط لمريض بمرض معد من أحد أفراد أسرته من مزاولة عمله المدة المناسبة بما لا يجاوز ثلاثة أشهر،وتحدد هذه الأمراض بقرار من الوزير المعنى بشئون الصحة،كما يحدد القرار الجهة الطبية المختصة المشار إليها.$q267$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1665,7 +1668,7 @@ WITH ins_art_law14_133 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 133, $q268$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q268$, $q269$تثبت عدم اللياقة للخدمة صحيا وفق ًا لأحكام قانون التأمينات الاجتماعية والمعاشات المشار إليه. ) الفصل السادس ( واجبات العمال ومساءلتهم$q269$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1686,7 +1689,7 @@ WITH ins_art_law14_134 AS (
 -١٠ أن يخطر جهة العمل بالبيانات الصحيحة المتعلقة بمحل إقامته وحالته الاجتماعية وموقفه من أداء الخدمة العسكرية،والبيانات الأخرى التى تتطلب القوانين أو النظم إدراجها فى السجل الخاص به،وبكل تغيير يطرأ على بيان من البيانات السابقة فى المواعيد المحددة لذلك.
 -١١ أن يتبع النظم التى يضعها صاحب العمل لتنمية وتطوير مهاراته وخبراته مهنيا وثقافيا،أو لتأهيله للقيام بعمل يتفق،أو يتناسب مع عمله والتطور التقنى داخل المنشأة،وذلك بالاشتراك مع المنظمة النقابية العمالية المعنية.$q271$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1708,7 +1711,7 @@ WITH ins_art_law14_135 AS (
   SELECT id, 135, $q272$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q272$, $q273$مع عدم الإخلال بأحكام القانون رقم ١٣٧لسنة ١٩٥٨فى شأن الاحتياطات الصحية للوقاية من الأمراض المعدية بالإقليم المصرى،ومع مراعاة أحكام المادتين )۱۳۲ و (۱۳۸من هذا القانون يلتزم العامل بالخضوع للاختبارات الطبية عن تعاطى المواد المخدرة أو الأمراض المعدية حينما يطلب منه صاحب العمل ذلك وعلى نفقته،ويتم الاختبار الطبى بالهيئة العامة للتأمين الصحى أو المعامل المركزية بوزارة الصحة.
 وتتم الاختبارات الطبية عن تعاطى المواد المخدرة والتظلم منها وفق ًا للتنظيم والإجراءات والضمانات التى يصدر بها قرار من الوزير المختص،على أن يكون من بينها إجراء فحص لذات العينة فى ذات يوم سحبها،وفى حالة اختلاف نتيجتى الفحص يتم إجراء تحليل توكيدى لدى أى من الجهتين المشار إليهما فى الفقرة الأولى من هذه المادة. فإذا تأكدت إيجابية العينة يتم إحالة العامل للمحكمة العمالية المختصة لإعمال شئونها. وفى جميع الأحوال،يلتزم صاحب العمل باتباع السرية فى إجراء الكشف الطبى وعدم الإفصاح عن الوضع الصحى للعامل بناء على هذه الاختبارات.$q273$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1725,7 +1728,7 @@ WITH ins_art_law14_136 AS (
 -٥ طلب أو قبول هدايا،أو مكافآت،أو عمولات،أو مبالغ،أو أشياء أخرى بأية صفة كانت بمناسبة قيامه بواجباته بغير موافقة صاحب العمل.
 -٦ جمع تبرعات نقدية أو عينية،أو توزيع منشورات،أو جمع توقيعات، أو تنظيم اجتماعات داخل مكان العمل دون موافقة صاحب العمل كتابة،مع مراعاة ما تقضى به أحكام قانون المنظمات النقابية العمالية وحماية حق التنظيم النقابى المشار إليه.$q275$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1741,7 +1744,7 @@ WITH ins_art_law14_137 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 137, $q276$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q276$, $q277$على كل صاحب عمل يستخدم عشرة عمال فأكثر أن يعد لائحة بقواعد تنظيم العمل وفق ًا لطبيعة النشاط،على أن تتضمن على الأخص نظم الترقى،والنقل، والأجور،والمخالفات التى تمثل خروجا على مقتضى الواجب الوظيفى،والجزاءات التأديبية،خلال ستين يوما من بداية عمل المنشأة أو تاريخ توافر هذا النصاب، أو نفاذ هذا القانون،بحسب الأحوال،وعليه تسليم الجهة الإدارية المختصة نسخة من اللائحة لمراجعتها والتصديق عليها وعلى الجهة الإدارية المختصة استطلاع رأى المنظمة النقابية العمالية المختصة والتى يتعين عليها إبداء رأيها إلى الجهة الإدارية المختصة فى موعد لا يتجاوز خمسة عشر يوما من تاريخ تسلمها للائحة وإلا اعتبر ذلك بمثابة موافقة على اللائحة،فإذا لم تقم الجهة الإدارية المختصة بالتصديق، أو الاعتراض على اللائحة خلال ثلاثين يوما من تاريخ استلامها اعتبرت اللائحة نافذة. وعلى صاحب العمل أن يعلق هذه اللائحة فى مكان ظاهر بالمنشأة وفروعها ومواقع عملها. وللوزير المختص أن يصدر قرارا بالقواعد العامة لهذه اللائحة.$q277$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1751,7 +1754,7 @@ WITH ins_art_law14_138 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 138, $q278$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q278$, $q279$يشترط فى الفعل الذى تجوز مساءلة العامل عنه تأديبيا أن يكون ذا صلة بالعمل، وتحدد لائحة الجزاءات المخالفات والجزاءات المقررة لها،وفق ًا لما هو منصوص عليه فى المادة ) (١٣٩من هذا القانون وبما يحقق تناسب الجزاء مع المخالفة. ولا يجوز توقيع جزاء تأديبى على العامل بعد مضى ثلاثين يوما من تاريخ الانتهاء من التحقيق فى المخالفة.$q279$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1769,7 +1772,7 @@ WITH ins_art_law14_139 AS (
 -٧ الخفض إلى وظيفة فى الدرجة الأدنى مباشرة،دون تخفيض الأجر.
 -٨ الفصل من الخدمة وفق ًا لأحكام هذا القانون.$q281$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1787,7 +1790,7 @@ WITH ins_art_law14_140 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 140, $q282$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q282$, $q283$لا يجوز لصاحب العمل توقيع أكثر من جزاء عن المخالفة الواحدة،كما لا يجوز له الجمع بين اقتطاع جزء من أجر العامل تطبيق ًا لحكم المادة ) (١٣٩من هذا القانون وبين أى جزاء مالي،إذا زاد ما يجب اقتطاعه على أجر خمسة أيام فى الشهر الواحد.$q283$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1797,7 +1800,7 @@ WITH ins_art_law14_141 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 141, $q284$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q284$, $q285$لا يجوز توقيع جزاء على العامل إلا بعد إبلاغه كتابة بما نسب إليه وسماع أقواله، وتحقيق دفاعه وإثبات ذلك فى محضر يودع فى ملفه الخاص،على أن يبدأ التحقيق خلال سبعة أيام على الأكثر من تاريخ اكتشاف المخالفة ولا يتجاوز ثلاثة أشهر من تاريخ بداية التحقيق ويجوز أن تزاد ثلاثة أشهر أخرى إذا تكشف أثناء التحقيق وقائع أو مستندات جديدة،وللمنظمة النقابية التى يتبعها العامل أن تندب ممثلا ً عنها لحضور التحقيق. ويجوز فى المخالفات التى يعاقب عليها بالإنذار،أو الخصم من الأجر الأساسى الذى لا يزيد مقداره على أجر يوم واحد،أن يكون التحقيق شفاهة،على أن يثبت مضمونه في القرار الذى يصدر بتوقيع الجزاء. وفى جميع الحالات،يشترط أن يكون القرار الصادر بتوقيع الجزاء مسببا.$q285$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1807,7 +1810,7 @@ WITH ins_art_law14_142 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 142, $q286$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q286$, $q287$تختص الشئون القانونية بالمنشأة بالتحقيق مع العامل،وفى حالة عدم وجودها فلصاحب العمل أن يعهد بالتحقيق فى موضوع المخالفة إلى شخص آخر من ذوى الخبرة أو أحد العاملين بالمنشأة،بشرط ألا يقل المستوى الوظيفى للمحقق عن مستوى العامل الذى يحقق معه.$q287$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1817,7 +1820,7 @@ WITH ins_art_law14_143 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 143, $q288$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q288$, $q289$لا يجوز لصاحب العمل أن يوقع جزاء الخصم على العامل عن المخالفة الواحدة بما يزيد على خمسة أيام من الأجر الأساسي،كما لا يجوز أن يقتطع من هذا الأجر وفاء للجزاءات التى يوقعها أكثر من أجر خمسة أيام فى الشهر الواحد. وإذا حدد الخصم بنسبة محددة من الأجر،اعتبر أن المقصود بذلك هو الأجر الأساسى اليومى للعامل.$q289$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1827,7 +1830,7 @@ WITH ins_art_law14_144 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 144, $q290$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q290$, $q291$يجوز تشديد الجزاء إذا عاد العامل إلى ارتكاب مخالفة جديدة من نوع المخالفة التى سبق مجازاته عليها،متى وقعت هذه المخالفة خلال سنة من تاريخ إبلاغ العامل بتوقيع الجزاء السابق.$q291$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1840,7 +1843,7 @@ WITH ins_art_law14_145 AS (
 -٢ إذا أت ُهم العامل بارتكاب جناية أو جنحة مخلة بالشرف أو الأمانة أو الآداب العامة،أو أى جنحة أخرى داخل محل العمل.
 -٣ إذا طلب صاحب العمل من المحكمة العمالية المختصة فصل العامل من الخدمة.$q293$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1853,7 +1856,7 @@ WITH ins_art_law14_146 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 146, $q294$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q294$, $q295$للعامل التظلم من قرار وقفه عن العمل الصادر وفق ًا للبندين ) (٢، ١من المادة )(١٤٥ من هذا القانون بموجب عريضة تقدم لقاضى الأمور الوقتية بالمحكمة العمالية المختصة، رار صدور الق ه ب اره،أو علم اريخ إخط ن ت ام م ة أي لال ثلاث ك خ وذل المتظلم منه. وعلى القاضى الفصل فى هذا التظلم فى اليوم التالى لتقديمه على الأكثر،فإذا قضى بعدم صحة القرار الصادر بالوقف،قضى بعودته للعمل مرة أخرى.$q295$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1863,7 +1866,7 @@ WITH ins_art_law14_147 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 147, $q296$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q296$, $q297$لصاحب العمل أن يطلب من قاضى الأمور الوقتية بالمحكمة العمالية المختصة مد فترة الإيقاف عن العمل لمدة أو لمدد أخرى مع صرف نصف أجر العامل وذلك قبل انتهاء مدة الإيقاف بعشرة أيام. وعلى قاضى الأمور الوقتية البت فى هذا الطلب قبل انتهاء فترة الإيقاف،فإذا لم يصدر قراره خلال هذه المدة ولم يعد العامل إلى عمله،يستمر إيقاف العامل مع صرف الأجر كاملا ً لحين البت فى الطلب فإذا قضى برفض الطلب يعاد لعمله فور انتهاء مدة إيقافه الأخيرة. فإذا كان الوقف لأحد الأسباب الواردة بالبند ) (٢من المادة ) (١٤٥من هذا القانون،ورأت السلطة المختصة بالاتهام حفظ التحقيق،أو إصدار أمر بأن لا وجه لإقامة الدعوى الجنائية،أو قدم العامل للمحاكمة الجنائية وقضى ببراءته،وجبت إعادته إلى عمله مع صرف ما لم يصرف له من مستحقات عن فترة الإيقاف،وإلا اعتبر عدم إعادته للعمل فصلا ً تعسفيا.$q297$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1881,7 +1884,7 @@ WITH ins_art_law14_148 AS (
 -٦ إذا ثبت وجود العامل فى حالة سكر بين أو متأثرا بما تعاطاه من مادة مخدرة أثناء ساعات العمل.
 -٧ إذا ثبت اعتداء العامل على صاحب العمل،أو المدير العام،وكذلك إذا وقع منه اعتداء جسيم على أحد رؤسائه أثناء العمل،أو بسببه. وفى جميع الأحوال،لا يجوز الفصل من الخدمة إلا وفق ًا لأحكام هذا القانون.$q299$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1903,7 +1906,7 @@ WITH ins_art_law14_149 AS (
 -٣ صاحب العمل،أو من يمثله )عضوا(. ولرئيس اللجنة أن يستعين بذوى الخبرة حسب الموضوع المعروض.
 ويجب أن تنتهى اللجنة من أعمالها خلال واحد وعشرين يوما من تاريخ تقديم الطلب،فإذا تمت التسوية الودية،يثبت رئيس اللجنة ذلك فى محضر يوقعه طرفا النزاع،ويلحق بمحضر الجلسة التى تم فيها،ويحال إلى قاضى الأمور الوقتية بالمحكمة العمالية المختصة،ويكون قابلا ً للتنفيذ بالأمر الذى يصدره وينتهى به النزاع فى حدود ما تمت التسوية الودية فيه. ويصدر الوزير المختص قرارا بنظام عمل اللجنة والنماذج والسجلات التى تستعين بها.$q301$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1917,7 +1920,7 @@ WITH ins_art_law14_150 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 150, $q302$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q302$, $q303$إذا لم تتم تسوية النزاع وديا يحرر رئيس اللجنة محضرا بما تم،ويوقع منه ومن طرفى النزاع،ويثبت ما تم من أعمال وما تلقته اللجنة من مستندات ورأيها فى موضوع النزاع،ويحال إلى المحكمة العمالية المختصة بناء على طلب أى من طرفيه، ويحدد قلم كتاب المحكمة جلسة لنظر النزاع فى مدة لا تجاوز عشرين يوما من تاريخ ورود الطلب،وعليه إعلان طرفى النزاع بها. فإذا كان موضوع النزاع يتعلق بفصل العامل،وجب على المحكمة أن تفصل فى هذا الطلب بصفة مستعجلة خلال ثلاثة أشهر من تاريخ أول جلسة،فإذا رأت من ظاهر الأوراق صحة طلب العامل،ألزمت صاحب العمل أن يؤدى إلى العامل ما يعادل أجره من تاريخ الفصل،وبحد أقصى ستة أشهر،ويكون قرارها نهائيا. وتخصم المبالغ التى استوفاها العامل نفاذ ًا لقرار المحكمة من مبلغ التعويض الذى يحكم به أو أى مبالغ أخرى مستحقة له قبل صاحب العمل،مع مراعاة نص المادة ) (١٤٣من هذا القانون. فإذا كان فصل العامل بسبب النشاط النقابي،قضت المحكمة بإعادته إلى عمله إذا طلب ذلك.$q303$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1928,7 +1931,7 @@ WITH ins_art_law14_151 AS (
   SELECT id, 151, $q304$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q304$, $q305$إذا تسبب العامل بخطئه،أو بمناسبة عمله فى فقد،أو إتلاف مهمات،أو آلات أو خامات،أو منتجات أو غيرها،يملكها صاحب العمل،أو كانت فى عهدته التزم بأداء قيمة ما فقد،أو أتلف.
 ولصاحب العمل بعد إجراء التحقيق وإخطار العامل أن يبدأ باقتطاع المبلغ المشار إليه من أجره،على ألا يزيد ما يقتطع لهذا الغرض على أجر خمسة أيام فى الشهر الواحد. ويجوز للعامل أن يتظلم أمام المحكمة العمالية المختصة من تقدير صاحب العمل وفق ًا للمدد والإجراءات المحددة فى هذا القانون. فإذا لم يقض لصاحب العمل بالمبلغ الذى قدره،للإتلاف أو قضى له بأقل منه، وجب عليه رد ما اقتطع دون وجه حق خلال سبعة أيام من تاريخ صدور الحكم. ولا يجوز لصاحب العمل أن يستوفى مستحقاته بطريق الاقتطاع وفق ًا لحكم هذه المادة،فيما زاد على أجر شهرين.$q305$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1939,7 +1942,7 @@ WITH ins_art_law14_152 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 152, $q306$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q306$, $q307$لا تخل الأحكام الواردة بهذا الفصل بالضمانات المقررة بقانون المنظمات النقابية العمالية وحماية حق التنظيم النقابى المشار إليه،لأعضاء مجالس إدارات المنظمات النقابية.$q307$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1949,7 +1952,7 @@ WITH ins_art_law14_153 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 153, $q308$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q308$, $q309$يجب على صاحب العمل أن يمسك سجلا ً ورقيا أو إلكترونيا لقيد الجزاءات المالية الموقعة على العمال،مع بيان سبب توقيعها واسم العامل ومقدار أجره، وأن يفرد لحصيلتها حسابا خاصا للصرف على عمال المنشأة فى الأغراض الاجتماعية والثقافية والرياضية،ولا يجوز صرف هذه المبالغ للوفاء بالالتزامات المنصوص عليها فى المادة ) (٢٧٢من هذا القانون وتوزع حصيلة تلك الأموال عند تصفية المنشأة بالتساوى على العمال الموجودين بها وقت التصفية. ) الفصل السابع ( انتهاء علاقة العمل الفردية$q309$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1960,7 +1963,7 @@ WITH ins_art_law14_154 AS (
   SELECT id, 154, $q310$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q310$, $q311$مع عدم الإخلال بما نصت عليه المواد ) (٩٥، ۸۸، ۸۷من هذا القانون، ينتهى عقد العمل محدد المدة بانقضاء مدته.
 فإذا أبرم العقد أو جدد لمدة تزيد على خمس سنوات،جاز للعامل إنهاؤه دون تعويض عند انقضاء خمس سنوات،وذلك بعد إخطار صاحب العمل قبل الإنهاء بثلاثة أشهر. وتسرى أحكام الفقرة الثانية من هذه المادة على حالات إنهاء العامل للعقد بعد انقضاء المدة المذكورة. فإذا كان الإنهاء من جانب صاحب العمل استحق العامل مكافأة تعادل أجر شهر عن كل سنة من سنوات الخدمة.$q311$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1971,7 +1974,7 @@ WITH ins_art_law14_155 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 155, $q312$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q312$, $q313$إذا أبرم عقد العمل لإنجاز عمل معين،انتهى العقد بإنجاز هذا العمل،ويجوز تجديده باتفاق صريح بين طرفيه،وذلك لعمل أو أعمال أخرى مماثلة. فإذا انتهى العقد المبرم لإنجاز عمل معين واستمر طرفاه فى تنفيذه،اعتبر ذلك تجديدا منهما لهذا العقد،أو أعمال أخرى مماثلة. فإذا استغرق إنجاز العمل الأصلي،أو الأعمال التى جدد لها لأكثر من خمس سنوات،لا يجوز للعامل إنهاء العقد قبل تمام إنجاز هذه الأعمال.$q313$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1981,7 +1984,7 @@ WITH ins_art_law14_156 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 156, $q314$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q314$, $q315$مع عدم الإخلال بأحكام المادة ) (١٦٥من هذا القانون إذا كان عقد العمل غير محدد المدة،جاز لأى من طرفيه إنهاؤه بشرط أن يخطر الطرف الآخر كتابة قبل الإنهاء بثلاثة أشهر.$q315$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1991,7 +1994,7 @@ WITH ins_art_law14_157 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 157, $q316$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q316$, $q317$مع عدم الإخلال بحكم المادة ) (٢٣٥من هذا القانون،ومع مراعاة أحكام المواد من ) ١٥٨إلى (١٧٥من هذا القانون،لا يجوز لأصحاب الأعمال والعمال إنهاء عقد العمل غير محدد المدة،إلا بمبرر مشروع وكاف. ويراعى فى جميع الأحوال،أن يتم الإنهاء فى وقت مناسب لظروف العمل.$q317$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2001,7 +2004,7 @@ WITH ins_art_law14_158 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 158, $q318$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q318$, $q319$لا يجوز تعليق الإخطار بالإنهاء على شرط واقف،أو فاسخ. ويبدأ سريان مهلة الإخطار من تاريخ تسلمه.$q319$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2011,7 +2014,7 @@ WITH ins_art_law14_159 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 159, $q320$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q320$, $q321$لا يجوز توجيه الإخطار للعامل خلال إجازاته،ولا تحتسب مهلة الإخطار إلا من اليوم التالى لانتهاء الإجازة،وإذا حصل العامل على إجازة مرضية خلال مهلة الإخطار يوقف سريان هذه المهلة ولا يبدأ سريانها من جديد إلا من اليوم التالى لانتهاء تلك الإجازة.$q321$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2021,7 +2024,7 @@ WITH ins_art_law14_160 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 160, $q322$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q322$, $q323$يظل عقد العمل قائما طوال مهلة الإخطار،ويلتزم طرفاه بتنفيذ جميع الالتزامات الناشئة عنه وينتهى العقد بانقضاء هذه المهلة.$q323$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2031,7 +2034,7 @@ WITH ins_art_law14_161 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 161, $q324$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q324$, $q325$لا يجوز الاتفاق على الإعفاء من شرط الإخطار أو تخفيض مدته،ويجوز الاتفاق على زيادة هذه المدة. ويجوز لصاحب العمل إعفاء العامل من مراعاة مهلة الإخطار كلها،أو بعضها فى حالة إنهاء العقد من جانب العامل.$q325$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2041,7 +2044,7 @@ WITH ins_art_law14_162 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 162, $q326$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q326$, $q327$إذا كان الإخطار بالإنهاء من جانب صاحب العمل،يحق للعامل أن يتغيب يوما كاملا ً فى الأسبوع أو ثمانى ساعات أثناء الأسبوع،وذلك للبحث عن عمل آخر مع استحقاقه لأجره عن يوم أو ساعات الغياب. ويكون للعامل تحديد يوم الغياب،أو ساعاته،بشرط أن يخطر صاحب العمل بذلك فى اليوم السابق للغياب على الأقل.$q327$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2051,7 +2054,7 @@ WITH ins_art_law14_163 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 163, $q328$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q328$, $q329$لصاحب العمل أن يعفى العامل من العمل أثناء مهلة الإخطار،مع احتساب مدة خدمة العامل مستمرة إلى حين انتهاء تلك المهلة،مع ما يترتب على ذلك من آثار، وبخاصة استحقاق العامل أجره عن هذه المهلة.$q329$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2061,7 +2064,7 @@ WITH ins_art_law14_164 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 164, $q330$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q330$, $q331$إذا أنهى صاحب العمل عقد العمل غير محدد المدة دون إخطار أو قبل انقضاء مهلة الإخطار،يلتزم بأن يؤدى للعامل مبلغ ًا يعادل أجره عن مدة المهلة،أو الجزء الباقى منها. وفى هذه الحالة تحسب مدة المهلة،أو الجزء الباقى منها ضمن مدة خدمة العامل،ويستمر صاحب العمل فى تحمل الأعباء،والالتزامات المترتبة على ذلك،أما إذا كان الإنهاء صادرا من جانب العامل فإن العقد ينتهى من وقت تركه العمل.$q331$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2077,7 +2080,7 @@ WITH ins_art_law14_165 AS (
 -٥ استخدام العامل لحقه فى الإجازات الممنوحة له طبق ًا لأحكام هذا القانون.
 -٦ اللون،أو الجنس،أو الحالة الاجتماعية،أو المسئوليات العائلية، أو الحمل أو الدين أو الرأى السياسي.$q333$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2093,7 +2096,7 @@ WITH ins_art_law14_166 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 166, $q334$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q334$, $q335$يعتبر العامل مستقيلا ً من العمل إذا تغيب بدون مبرر مشروع أكثر من عشرين يوما متقطعة خلال السنة الواحدة،أو أكثر من عشرة أيام متتالية،على أن يسبق ذلك إنذار بخطاب موصى عليه بعلم الوصول من صاحب العمل،أو من يمثله،للعامل بعد غيابه عشرة أيام فى الحالة الأولى،وخمسة أيام فى الحالة الثانية.$q335$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2103,7 +2106,7 @@ WITH ins_art_law14_167 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 167, $q336$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q336$, $q337$للعامل أن يقدم استقالته كتابة لصاحب العمل بشرط أن تكون موقعة من العامل أو من وكيله الخاص،ومعتمدة من الجهة الإدارية المختصة. ولا تنتهى خدمة العامل إلا بالقرار الصادر بقبول الاستقالة،وعلى العامل أن يستمر فى العمل إلى أن تبت جهة عمله فى الاستقالة خلال عشرة أيام من تاريخ تقديمها،وإلا اعتبرت مقبولة بفوات هذه المدة،وللعامل المستقيل أو وكيله الخاص العدول عن الاستقالة خلال عشرة أيام من تاريخ إخطاره بقبول صاحب العمل الاستقالة على أن يكون هذا العدول مكتوبا ومعتمدا من الجهة الإدارية المختصة، وفى هذه الحالة تعتبر الاستقالة كأن لم تكن.$q337$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2113,7 +2116,7 @@ WITH ins_art_law14_168 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 168, $q338$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q338$, $q339$للعامل إنهاء العقد إذا أخل صاحب العمل بالتزام من التزاماته الجوهرية الناشئة عن هذا القانون،أو عقد العمل الفردى أو الجماعى،أو لائحة النظام الأساسى للمنشأة،أو إذا وقع على العامل،أو أحد ذويه اعتداء من صاحب العمل، أو ممن يمثله. ويعتبر الإنهاء فى هذه الحالات بمثابة إنهاء للعقد من جانب صاحب العمل بغير مبرر مشروع.$q339$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2124,7 +2127,7 @@ WITH ins_art_law14_169 AS (
   SELECT id, 169, $q340$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q340$, $q341$ينتهى عقد العمل بوفاة العامل حقيقة،أو حكما،طبق ًا للقواعد القانونية المقررة، ولا ينتهى عقد العمل بوفاة صاحب العمل،إلا إذا كان قد أبرم لاعتبارات تتعلق بشخص صاحب العمل،أو بنشاطه الذى ينقطع بوفاته.
 فإذا توفى العامل وهو فى الخدمة،يصرف صاحب العمل لأسرته ما يعادل أجر شهرين طبق ًا لآخر أجر تقاضاه لمواجهة نفقات الجنازة،تصرف للأرمل،فإذا لم يوجد صرفت لأرشد الأولاد،أو إلى أى شخص يثبت قيامه بتحمل نفقات الجنازة، وذلك بحد أدنى ألف جنيه. كما تصرف منحة تعادل أجر العامل عن الشهر الذى توفى فيه والشهرين التاليين له،وذلك بالإضافة إلى الأجر المستحق عن أيام العمل خلال شهر الوفاة،تصرف طبق ًا لأحكام قانون التأمينات الاجتماعية والمعاشات المشار إليه. ويلتزم صاحب العمل بنفقات تجهيز ونقل الجثمان إلى الجهة التى استقدم العامل منها،أو الجهة التى تطلب أسرته نقله إليها.$q341$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2135,7 +2138,7 @@ WITH ins_art_law14_170 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 170, $q342$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q342$, $q343$مع عدم الإخلال بأحكام قانون التأمينات الاجتماعية والمعاشات المشار إليه، ينتهى عقد العمل بعجز العامل عن تأدية عمله عجزا كليا،أيا كان سبب هذا العجز. فإذا كان عجز العامل عجزا جزئيا،فلا تنتهى علاقة العمل بهذا العجز،إلا إذا ثبت عدم وجود عمل آخر،لدى صاحب العمل،يستطيع العامل أن يقوم به على وجه مرض. وإذا ثبت وجود هذا العمل الآخر،كان على صاحب العمل بناء على طلب العامل كتابة،أن ينقله إلى ذلك العمل.$q343$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2145,7 +2148,7 @@ WITH ins_art_law14_171 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 171, $q344$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q344$, $q345$لا يجوز تحديد سن للتقاعد تقل عن ستين سنة. ويجوز لصاحب العمل إنهاء العقد إذا بلغ العامل سن الستين،ما لم يكن العقد محدد المدة،وكانت مدته تمتد إلى ما بعد بلوغه هذه السن،وفى هذه الحالة لا ينتهى العقد إلا بانقضاء مدته. وتطبق أحكام قانون التأمينات الاجتماعية والمعاشات المشار إليه فيما يتعلق بسن استحقاق المعاش.$q345$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2155,7 +2158,7 @@ WITH ins_art_law14_172 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 172, $q346$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q346$, $q347$يستحق العامل عن مدة عمله بعد سن الستين،مكافأة بواقع أجر نصف شهر عن كل سنة من السنوات الخمس الأولى من الخدمة،وأجر شهر عن كل سنة من السنوات التالية لها،وذلك إذا لم تكن له حقوق عن هذه المدة،وفق ًا لأحكام تأمين الشيخوخة،والعجز،والوفاة المنصوص عليها فى قانون التأمينات الاجتماعية والمعاشات المشار إليه. وتستحق هذه المكافأة عن سنوات الخدمة السابقة على سن الثامنة عشرة، وذلك للمتدرج والعامل عند بلوغ هذه السن. وتحسب المكافأة على أساس آخر أجر كان يتقاضاه العامل،أو المتدرج حسب الأحوال. وتصرف المكافأة فى حالة استحقاقها للوفاة وفق ًا لأحكام قانون التأمينات الاجتماعية والمعاشات المشار إليه.$q347$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2165,7 +2168,7 @@ WITH ins_art_law14_173 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 173, $q348$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q348$, $q349$يحظر على صاحب العمل إنهاء عقد العامل لمرض العامل،إلا إذا استنفد إجازاته المرضية،وما تبقى من متجمد إجازاته السنوية المستحقة له،وذلك مع عدم الإخلال بأحكام قانون التأمينات الاجتماعية والمعاشات المشار إليه. وعلى صاحب العمل أن يخطر العامل برغبته فى إنهاء العقد قبل مضى خمسة عشر يوما من تاريخ استنفاد العامل لإجازاته. فإذا شفى العامل قبل تمام الإخطار،امتنع على صاحب العمل إنهاء العقد لمرض العامل.$q349$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2175,7 +2178,7 @@ WITH ins_art_law14_174 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 174, $q350$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q350$, $q351$لصاحب العمل أن ينهى عقد العمل ولو كان محدد المدة،أو مبرما لإنجاز عمل معين إذا حكم نهائيا على العامل بعقوبة جناية أو بعقوبة مقيدة للحرية فى جريمة ماسة بالشرف أو الأمانة،وذلك ما لم تأمر المحكمة بوقف تنفيذ العقوبة.$q351$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2186,7 +2189,7 @@ WITH ins_art_law14_175 AS (
   SELECT id, 175, $q352$الكتاب الثالث: علاقات العمل — الباب الأول: علاقات العمل الفردية$q352$, $q353$يلتزم صاحب العمل بأن يمكن العامل من الاطلاع على تدرجه الوظيفى وعناصر أجره،وأن يعطى العامل بناء على طلبه ودون مقابل شهادة تحدد خبرته وكفاءته المهنية،وذلك أثناء سريان العقد،أو عند انتهائه.
 ويلتزم صاحب العمل بمنح العامل عند انتهاء علاقة العمل شهادة يبين فيها تاريخ التحاقه بالعمل،وتاريخ انتهائه،ونوع العمل الذى كان يؤديه،والمزايا التى كان يحصل عليها،ويجوز بناء على طلب العامل،أن تتضمن تلك الشهادة مقدار الأجر الذى كان يتقاضاه،وسبب انتهاء علاقة العمل،وذلك خلال خمسة عشر يوما من تاريخ طلبها. كما يلتزم بأن يرد للعامل عند انتهاء علاقة العمل ما يكون قد أودعه لديه من أوراق،أو شهادات،أو أدوات،وما يفيد إخلاء طرفه،فور طلبهم.$q353$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2197,7 +2200,7 @@ WITH ins_art_law14_176 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 176, $q354$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q354$, $q355$تنشأ بدائرة اختصاص كل محكمة ابتدائية محكمة تسمى "المحكمة العمالية"،كما تنشأ بدائرة كل محكمة من محاكم الاستئناف دوائر استئنافية متخصصة،لنظر الطعون التى ترفع إليها فى الأحكام الصادرة عن المحكمة العمالية. ويكون تعيين مقار المحاكم العمالية بقرار يصدر من وزير العدل،وله عند الضرورة ولاعتبارات يراها كظروف المكان أو الكثافة العمالية،وبناء على طلب من رئيس المحكمة الابتدائية المختصة،تعيين مقار أخرى لنظر الدعاوى العمالية داخل اختصاص المحاكم الجزئية التابعة للمحكمة الابتدائية. ويكون قضاتها من قضاة المحاكم الابتدائية،ومحاكم الاستئناف،ويصدر باختيارهم قرار من مجلس القضاء الأعلى.$q355$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2207,7 +2210,7 @@ WITH ins_art_law14_177 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 177, $q356$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q356$, $q357$تختص المحكمة العمالية المشار إليها فى المادة ) (١٧٦من هذا القانون، دون غيرها،بنظر النزاعات الناشئة عن تطبيق أحكام القوانين واللوائح المنظمة لعلاقات العمل كافة،وكذلك الدعاوى المتعلقة بحقوق العمال التأمينية والمنتفعين عنهم، والمنظمات النقابية العمالية وتشكيلاتها،وذلك دون الإخلال باختصاصات محاكم مجلس الدولة.$q357$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2217,7 +2220,7 @@ WITH ins_art_law14_178 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 178, $q358$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q358$, $q359$تشكل كل دائرة من دوائر المحكمة العمالية من ثلاثة من القضاة بالمحاكم الابتدائية،يكون أحدهم على الأقل بدرجة رئيس من الفئة )أ(. وتشكل كل دائرة من الدوائر الاستئنافية المتخصصة من ثلاثة من قضاة الاستئناف يكون أحدهم على الأقل بدرجة رئيس بمحكمة الاستئناف.$q359$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2227,7 +2230,7 @@ WITH ins_art_law14_179 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 179, $q360$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q360$, $q361$تعين الجمعية العمومية للمحكمة الابتدائية فى بداية كل عام قضائى قاضيا بدرجة رئيس محكمة من الفئة )أ( ليحكم بصفة مؤقتة مع عدم المساس بأصل الحق فى المسائل المستعجلة التى يخشى عليها من فوات الوقت،وإصدار الأوامر على عرائض،والأوامر الوقتية،وأوامر الأداء فى تلك المسائل أيا كانت قيمة الحق محل الطلب الذى تختص به المحاكم العمالية.$q361$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2237,7 +2240,7 @@ WITH ins_art_law14_180 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 180, $q362$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q362$, $q363$يكون الطعن فى الأحكام،والتظلم من الأوامر الصادرة عن قاضى الأمور المستعجلة أمام المحاكم العمالية المتخصصة دون غيرها.$q363$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2247,7 +2250,7 @@ WITH ins_art_law14_181 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 181, $q364$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q364$, $q365$تختص دوائر المحاكم العمالية بنظر الجرائم الناشئة عن تطبيق أحكام القوانين واللوائح المنظمة لعلاقات العمل،وحقوق العمال التأمينية والمنتفعين عنهم، والمنظمات النقابية العمالية وتشكيلاتها ويكون استئنافها أمام الدوائر الاستئنافية المتخصصة.$q365$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2257,7 +2260,7 @@ WITH ins_art_law14_182 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 182, $q366$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q366$, $q367$لا يجوز الطعن بالنقض فى الأحكام الصادرة عن الدوائر الاستئنافية المتخصصة فى الجرائم الناشئة عن تطبيق أحكام القوانين واللوائح المنظمة لعلاقات العمل، وحقوق العمال التأمينية والمنتفعين عنهم،والمنظمات النقابية العمالية وتشكيلاتها، فى غير الأحوال الصادر فيها أحكام بعقوبة مقيدة للحرية.$q367$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2267,7 +2270,7 @@ WITH ins_art_law14_183 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 183, $q368$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q368$, $q369$تختص المحكمة العمالية بالفصل فى منازعات التنفيذ الوقتية والموضوعية فى الأحكام والأوامر الصادرة عنها،أو تلك التى تصدر وفق ًا للمادة ) (١٧٩من هذا القانون،ويطعن فى الأحكام الصادرة عنها أمام الدوائر الاستئنافية المتخصصة. ويختص رؤساء الدوائر بالمحكمة العمالية بإصدار القرارات والأوامر المتعلقة بالتنفيذ. ويكون الاختصاص بالفصل فى التظلمات من هذه القرارات والأوامر أمام المحكمة ذاتها،على ألا يكون من بين أعضائها من أصدر القرار،أو الأمر المتظلم منه.$q369$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2277,7 +2280,7 @@ WITH ins_art_law14_184 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 184, $q370$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q370$, $q371$ينشأ فى دائرة اختصاص المحكمة العمالية قلم كتاب خاص بالمحكمة،وإدارة خاصة لتنفيذ الأحكام،والقرارات الصادرة عنها،أو عن دوائرها الاستئنافية. ويصدر رئيس المحكمة الابتدائية المختصة قرارا بتنظيم العمل بها.$q371$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2287,7 +2290,7 @@ WITH ins_art_law14_185 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 185, $q372$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q372$, $q373$ينشأ فى مقر كل محكمة ابتدائية،وكذا بكل مقر آخر تنعقد فيه المحكمة العمالية، مكتب للمساعدة القانونية العمالية يناط به كل ما من شأنه معاونة المتقاضين فى إقامة دعواهم العمالية على الوجه القانونى الصحيح،وتكون سائر خدمات هذا المكتب للمتقاضين اختيارية،ودون مقابل. ويصدر وزير العدل قرارا بتشكيل هذه المكاتب،وتحديد مقراتها،وما يلزم لحسن سير العمل فيها.$q373$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2298,7 +2301,7 @@ WITH ins_art_law14_186 AS (
   SELECT id, 186, $q374$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q374$, $q375$تشكل بمحكمة النقض دائرة أو أكثر تختص دون غيرها،بالفصل فى الطعون بالنقض فى الأحكام الصادرة عن المحاكم العمالية. كما تنشأ بمحكمة النقض دائرة أو أكثر لفحص تلك الطعون،فإذا رأت أن الطعن غير جائز أو غير مقبول للأسباب الواردة فى المادة ) (٢٦٣من قانون المرافعات المدنية والتجارية الصادر بالقانون رقم ١٣لسنة، ١٩٦٨أمرت بعدم قبوله بقرار مسبب وإذا رأت أن الطعن جدير بالنظر،أحالته إلى الدائرة المختصة.
 وتشكل الدوائر الواردة فى الفقرة الثانية من هذه المادة من ثلاثة من قضاة المحكمة بدرجة نائب رئيس على الأقل،ويعرض الطعن على تلك الدوائر فور إيداع نيابة النقض مذكرة برأيها. وفى جميع الأحوال،لا يجوز الطعن فى القرار الصادر عن دائرة فحص الطعون بأى طريق. واستثناء من أحكام الفقرة الثانية من المادة ) (٢٦٩من قانون المرافعات المدنية والتجارية المشار إليه،وإذا قضت محكمة النقض بنقض الحكم المطعون فيه حكمت فى موضوع الدعوى ولو كان الطعن لأول مرة.$q375$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2309,7 +2312,7 @@ WITH ins_art_law14_187 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 187, $q376$الكتاب الثالث: علاقات العمل — الباب الثاني: المحاكم العمالية المتخصصة$q376$, $q377$تتبع فى الطعن على أحكام المحاكم العمالية الأحكام الواردة فى قوانين الإجراءات الجنائية،وحالات وإجراءات الطعن أمام محكمة النقض،والمرافعات المدنية والتجارية، والإثبات فى المواد المدنية والتجارية،بحسب الأحوال،وذلك فيما لم يرد بشأنه نص خاص فى هذا القانون.$q377$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2319,7 +2322,7 @@ WITH ins_art_law14_188 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 188, $q378$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q378$, $q379$ينشأ بالوزارة المختصة مجلس يسمى "المجلس الأعلى للتشاور الاجتماعي"، وتكون له الشخصية الاعتبارية العامة،يهدف إلى تعزيز التعاون والتشاور والحوار بين أطراف العمل الثلاثة فى جميع قضايا العمل،بما يحقق التوازن والاستقرار فى علاقات العمل الفردية والجماعية.$q379$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2339,7 +2342,7 @@ WITH ins_art_law14_189 AS (
 -٩ التشاور حول مسودة تقارير الحكومة الدورية المتعلقة باتفاقيات العمل الدولية.
 -١٠ إبداء الرأى فى الموضوعات التى تعرض عليه من الوزارة المختصة.$q381$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2360,7 +2363,7 @@ WITH ins_art_law14_190 AS (
   SELECT id, 190, $q382$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q382$, $q383$يشكل المجلس بقرار من رئيس مجلس الوزراء برئاسة الوزير المختص،ويضم فى عضويته ممثلين عن الوزارات والجهات المعنية،وممثلى منظمات أصحاب الأعمال المعنية والمنظمات النقابية العمالية المعنية،ترشحهم منظماتهم بالتساوى فيما بينهما،على أن يراعى عند الترشيح تمثيل جميع مستويات المنظمات النقابية المعنية وتمثيل المرأة بما لا يقل عن الثلث لكل من الأطراف الثلاث،ما لم يتعذر ذلك.
 ويحضر اجتماعات المجلس ممثلون عن المجلس القومى للمرأة والمجلس القومى للأشخاص ذوى الإعاقة،والمجلس القومى للأمومة والطفولة والمجلس القومى لحقوق الإنسان،وذلك دون أن يكون لهم صوت معدود فى المداولات. وللمجلس دعوة من يراه من ذوى الخبرة والمتخصصين لحضور جلساته،وفق ًا للموضوعات المطروحة دون أن يكون لهم صوت معدود فى المداولات. ويحدد القرار نظام العمل به،واختصاصاته الأخرى.$q383$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2371,7 +2374,7 @@ WITH ins_art_law14_191 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 191, $q384$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q384$, $q385$دورة انعقاد المجلس أربع سنوات،تبدأ من اليوم التالى لصدور قرار رئيس مجلس الوزراء الصادر بالتشكيل،ويعاد تشكيله خلال الستين يوما الأخيرة على الأقل قبل انتهاء دورته. وإذا خلا محل أحد الأعضاء خلال مدة الدورة لأى سبب من الأسباب،تلتزم الجهة التى خلا محل ممثلها بترشيح ممثل آخر لها لاستكمال مدته.$q385$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2381,7 +2384,7 @@ WITH ins_art_law14_192 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 192, $q386$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q386$, $q387$للمجلس أن ينشئ فروعا له فى المحافظات للقيام بمهامه على مستوى المحافظة برئاسة مدير مديرية العمل،وعضوية ممثلى المنظمات النقابية العمالية المعنية ومنظمات أصحاب الأعمال المعنية بالتساوى فيما بينهم،كما له أن يشكل لجان ًا نوعية من بين أعضائه أو من غيرهم للقيام بالمهام التى يوكلها إليهم،على أن يراعى فى ذلك التمثيل الثلاثى للمجلس. كما له أن ينشئ وحدات متخصصة للقيام بالأبحاث والدراسات اللازمة لأعماله منفردا أو بالتعاون مع المراكز البحثية المعتمدة ومراكز الأبحاث بالجامعات. ويصدر المجلس اللوائح المالية والإدارية اللازمة لتنظيم عمل فروعه،ولجانه النوعية،ووحداته البحثية المتخصصة.$q387$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2392,7 +2395,7 @@ WITH ins_art_law14_193 AS (
   SELECT id, 193, $q388$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q388$, $q389$يجوز للمجلس قبول الهبات والمنح والتبرعات بعد العرض على مجلس إدارته وموافقة ثلثى أعضائه على الأقل،ووفق ًا للقواعد والإجراءات المقررة قانون ًا.
 ويكون للمجلس حساب خاص ضمن حساب الخزانة الموحد لدى البنك المركزى، وله أن يفتح حسابا لدى أحد البنوك المسجلة لدى البنك المركزى بعد موافقة وزير المالية،ويرحل فائض أمواله من سنة مالية إلى أخرى،وله أن يستثمر أمواله استثمارا أمن ًا،ويخضع حسابه لرقابة الجهاز المركزى للمحاسبات. ) الفصل الثانى ( المفاوضة الجماعية$q389$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2406,7 +2409,7 @@ WITH ins_art_law14_194 AS (
 -٢ التعاون بين طرفى علاقة العمل لتحقيق التنمية الاجتماعية لعمال المنشأة.
 -٣ تسوية المنازعات الجماعية بين العمال وأصحاب الأعمال.$q391$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2419,7 +2422,7 @@ WITH ins_art_law14_195 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 195, $q392$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q392$, $q393$تكون المفاوضة الجماعية على مستوى المنشأة أو فروعها،أو المهنة، أو الصناعة،أو على المستوى الإقليمى،أو على المستوى القومى.$q393$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2429,7 +2432,7 @@ WITH ins_art_law14_196 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 196, $q394$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q394$, $q395$إذا أثير نزاع عمل جماعى وجب على طرفيه الدخول فى مفاوضة جماعية لتسويته وديا. ويلتزم طرفا المفاوضة الجماعية بتقديم ما يطلب منهما من بيانات ومعلومات ومستندات تتعلق بموضوع النزاع،والسير فى إجراءات المفاوضة. فإذا رفض أحد الطرفين البدء فى إجراءات المفاوضة الجماعية جاز للطرف الآخر أن يطلب من الجهة الإدارية المختصة تحريك إجراءات التفاوض بدعوة منظمة أصحاب الأعمال أو المنظمة النقابية العمالية المعنية أو المفوض العمالي، بحسب الأحوال،للتدخل وإقناع الطرف الرافض بالعدول عن موقفه.$q395$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2439,7 +2442,7 @@ WITH ins_art_law14_197 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 197, $q396$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q396$, $q397$إذا أسفرت المفاوضة الجماعية عن اتفاق الطرفين يدون اتفاقهما فى اتفاقية عمل جماعية طبق ًا للشروط والقواعد المحددة فى هذا القانون.$q397$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2449,7 +2452,7 @@ WITH ins_art_law14_198 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 198, $q398$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q398$, $q399$يحظر على طرفى علاقة العمل أثناء المفاوضة اتخاذ إجراءات،أو إصدار قرارات تتعلق بالموضوعات محل التفاوض،إلا فى حالة الضرورة والاستعجال ويشترط أن يكون الإجراء أو القرار فى هذه الحالة مؤقت ًا. ) الفصل الثالث ( اتفاقيات العمل الجماعية$q399$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2459,7 +2462,7 @@ WITH ins_art_law14_199 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 199, $q400$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q400$, $q401$مع عدم الإخلال بأحكام قانون المنظمات النقابية العمالية وحماية حق التنظيم النقابى المشار إليه،يكون إبرام الاتفاقية الجماعية لمدة لا تزيد على ثلاث سنوات، أو للمدة اللازمة لتنفيذ مشروع معين،فإذا زادت المدة فى الحالة الأخيرة على ثلاث سنوات تعين على طرفى الاتفاقية التفاوض لتجديدها أو لتعديل شروطها فى ضوء ما يستجد من ظروف اقتصادية،أو اجتماعية،وتتبع فى شأن التجديد أحكام المادة ) (٢٠٢من هذا القانون.$q401$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2469,7 +2472,7 @@ WITH ins_art_law14_200 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 200, $q402$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q402$, $q403$يقع باطلا ً كل نص يرد فى اتفاقية العمل الجماعية ويكون مخالف ًا لأحكام هذا القانون،أو القوانين ذات الصلة. وفى حالة تعارض نص فى عقد العمل الفردى مع نص فى الاتفاقية،يسرى الحكم الذى يحقق فائدة كبرى للعامل.$q403$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2479,7 +2482,7 @@ WITH ins_art_law14_201 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 201, $q404$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q404$, $q405$يجب أن تكون اتفاقية العمل الجماعية مكتوبة باللغة العربية،ويجوز كتابة نسخة منها بلغة أجنبية،وفى حالة التعارض أو الخلاف يعتد بالنص المكتوب باللغة العربية.$q405$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2489,7 +2492,7 @@ WITH ins_art_law14_202 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 202, $q406$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q406$, $q407$يتعين على طرفى اتفاقية العمل الجماعية سلوك طريق المفاوضة الجماعية لتجديدها قبل انتهاء مدتها بثلاثة أشهر،فإذا انقضت المدة الأخيرة دون الاتفاق على التجديد امتد العمل بالاتفاقية مدة ثلاثة أشهر ويستمر التفاوض لتجديدها،فإذا انقضى شهران دون التوصل إلى اتفاق كان لأى من طرفى الاتفاقية عرض الأمر على الجهة الإدارية المختصة لاتخاذ ما يلزم نحو اتباع إجراءات الوساطة وفق ًا لأحكام هذا القانون.$q407$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2499,7 +2502,7 @@ WITH ins_art_law14_203 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 203, $q408$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q408$, $q409$تكون اتفاقية العمل الجماعية نافذة وملزمة لطرفيها بعد التوقيع عليها،ويتعين إيداعها لدى الجهة الإدارية المختصة لقيدها خلال ثلاثين يوما من تاريخ التوقيع عليها فى سجل ورقى أو إلكترونى يعد لهذا الغرض،ويجوز للجهة الإدارية المختصة الاعتراض عليها إذا توافرت حالة من الحالات المنصوص عليها فى المادة )(٢٠٠ من هذا القانون،وإخطار طرفى الاتفاقية بالاعتراض وأسبابه،وذلك بكتاب موصى عليه ومصحوبا بعلم الوصول. فإذا انقضت المدة المذكورة،ولم تقم الجهة الإدارية المختصة بالاعتراض، وجب عليها إجراء القيد وفق ًا للأحكام السابقة.$q409$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2509,7 +2512,7 @@ WITH ins_art_law14_204 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 204, $q410$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q410$, $q411$إذا رفضت الجهة الإدارية المختصة قيد الاتفاقية وفق أحكام المادة ) (٢٠٣من هذا القانون،جاز لأى من طرفى الاتفاقية اللجوء إلى قاضى الأمور المستعجلة بالمحكمة العمالية المختصة التى يقع بدائرتها محل العمل،وفق ًا للإجراءات المعتادة لرفع الدعوى،وذلك خلال ثلاثين يوما من تاريخ الإخطار بالاعتراض،فإذا قضت بقيد الاتفاقية وجب على الجهة الإدارية المختصة إجراء القيد فى السجل الخاص بذلك.$q411$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2519,7 +2522,7 @@ WITH ins_art_law14_205 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 205, $q412$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q412$, $q413$يلتزم صاحب العمل بأن يضع اتفاقية العمل الجماعية فى مكان ظاهر بمحل العمل،متضمنة نصوصها والموقعين عليها وتاريخ إيداعها لدى الجهة الإدارية المختصة.$q413$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2529,7 +2532,7 @@ WITH ins_art_law14_206 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 206, $q414$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q414$, $q415$يكون الانضمام إلى الاتفاقية بعد قيدها لدى الجهة الإدارية المختصة للعمال ومنظماتهم النقابية،وأصحاب الأعمال ومنظماتهم من غير طرفى الاتفاقية الجماعية، بناء على اتفاق بين الطرفين الراغبين فى الانضمام ودون حاجة إلى موافقة طرفى الاتفاقية الأصليين،بطلب موقع من الطرفين يقدم إلى الجهة الإدارية المختصة.$q415$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2539,7 +2542,7 @@ WITH ins_art_law14_207 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 207, $q416$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q416$, $q417$تلتزم الجهة الإدارية المختصة بالتأشير على هامش السجل المشار إليه فى المادة )(٢٠٣ من هذا القانون بما يطرأ على اتفاقية العمل الجماعية من تجديد،أو انضمام، أو تعديل خلال خمسة عشر يوما من تاريخ حصوله.$q417$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2549,7 +2552,7 @@ WITH ins_art_law14_208 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 208, $q418$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q418$, $q419$يلتزم طرفا اتفاقية العمل الجماعية بتنفيذها بطريقة تتفق مع ما يقتضيه حسن النية، وأن يمتنعا عن القيام بأى عمل،أو إجراء،من شأنه أن يعطل تنفيذ أحكامها.$q419$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2559,7 +2562,7 @@ WITH ins_art_law14_209 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 209, $q420$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q420$, $q421$إذا طرأت ظروف استثنائية غير متوقعة وترتب على حدوثها أن تنفيذ أحد الطرفين للاتفاقية،أو لحكم من أحكامها أصبح مرهق ًا،وجب على الطرفين سلوك طريق المفاوضة الجماعية لمناقشة هذه الظروف،والوصول إلى اتفاق يحقق التوازن بين مصلحتيهما. فإذا لم يصل الطرفان إلى اتفاق وجب عليهما عرض الأمر على الجهة الإدارية المختصة لاتخاذ ما يلزم نحو اتباع إجراءات التوفيق،أو الوساطة والتحكيم وفق ًا لأحكام هذا القانون.$q421$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2570,7 +2573,7 @@ WITH ins_art_law14_210 AS (
   SELECT id, 210, $q422$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q422$, $q423$لكل من طرفى اتفاقية العمل الجماعية،وكذلك لكل ذى مصلحة من العمال، أو أصحاب الأعمال،أن يطلب الحكم بتنفيذ أى من أحكامها،أو بالتعويض عن عدم تنفيذها أو مخالفتها.
 ولا يحكم بالتعويض على المنظمة النقابية العمالية المعنية،أو منظمة أصحاب الأعمال،إلا إذا كان التصرف الذى ترتب عليه الضرر الموجب للتعويض قد صدر عن مجلس إدارة المنظمة،أو الممثل القانونى لها.$q423$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2581,7 +2584,7 @@ WITH ins_art_law14_211 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 211, $q424$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q424$, $q425$للمنظمة النقابية العمالية،ولمنظمة أصحاب الأعمال التى تكون طرف ًا فى الاتفاقية الجماعية أن ترفع لمصلحة أى عضو من أعضائها جميع الدعاوى الناشئة عن الإخلال بأحكام الاتفاقية. وللعضو الذى رفعت الدعوى من المنظمة لمصلحته أن يتدخل فيها،كما يجوز له رفع هذه الدعوى ابتداء مستقلا ً عنها.$q425$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2591,7 +2594,7 @@ WITH ins_art_law14_212 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 212, $q426$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q426$, $q427$مع عدم الإخلال بحق التقاضي،تخضع المنازعات الناشئة عن الاتفاقية الجماعية للإجراءات التى يتفق عليها الطرفان،مع مراعاة الأحكام الواردة فى الباب الثالث من هذا الكتاب. ) الفصل الرابع ( منازعات العمل الجماعية الفرع الأول أحكام عامة$q427$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2601,7 +2604,7 @@ WITH ins_art_law14_213 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 213, $q428$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q428$, $q429$مع عدم الإخلال بحق التقاضي،تسرى أحكام هذا الفصل على كل نزاع يتعلق بشروط العمل أو ظروفه أو أحكام التشغيل ينشأ بين صاحب عمل أو مجموعة من أصحاب الأعمال،أو منظماتهم،وجميع العمال أو فريق منهم أو منظماتهم.$q429$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2612,7 +2615,7 @@ WITH ins_art_law14_214 AS (
   SELECT id, 214, $q430$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q430$, $q431$إذا انقضى شهر من تاريخ بدء المفاوضة دون الوصول إلى اتفاق جاز للطرفين أو لأحدهما اللجوء للجهة الإدارية المختصة لبدء إجراءات التوفيق.
 الفرع الثانى التوفيق$q431$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2623,7 +2626,7 @@ WITH ins_art_law14_215 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 215, $q432$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q432$, $q433$تحدد الجهة الإدارية المختصة جلسة للتوفيق فى النزاع فى موعد لا يتجاوز خمسة أيام من تاريخ تقديم الطلب إليها،ويخطر به طرفا النزاع قبل الموعد المحدد بثلاثة أيام على الأقل. ويصدر الوزير المختص قرارا بإجراءات وقواعد التوفيق.$q433$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2633,7 +2636,7 @@ WITH ins_art_law14_216 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 216, $q434$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q434$, $q435$إذا اتفق طرفا النزاع على تسويته وديا وفق ًا لأحكام هذا الفرع،يحرر الاتفاق ويوقع عليه منهما فى اتفاقية عمل جماعية،وتتخذ بشأنه الإجراءات الواردة فى هذا القانون،وتكون ملزمة لهما.$q435$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2643,7 +2646,7 @@ WITH ins_art_law14_217 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 217, $q436$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q436$, $q437$مع مراعاة أحكام قانون التحكيم فى المواد المدنية والتجارية الصادر بالقانون رقم ۲۷لسنة، ١٩٩٤إذا لم تتم تسوية النزاع خلال واحد وعشرين يوما من تاريخ بدء التوفيق،جاز للطرفين اللجوء إلى الجهة الإدارية المختصة لاتخاذ إجراءات إحالة النزاع إلى مركز الوساطة والتحكيم المنصوص عليه فى المادة ) (٢١٨من هذا القانون. الفرع الثالث مركز الوساطة والتحكيم$q437$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2654,7 +2657,7 @@ WITH ins_art_law14_218 AS (
   SELECT id, 218, $q438$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q438$, $q439$ينشأ بالوزارة المختصة مركز يسمى "مركز الوساطة والتحكيم"،تكون له الشخصية الاعتبارية،ويتبع الوزير المختص،ويتكون من قسمين قسم الوساطة، وقسم التحكيم. ويكون له رئيس تنفيذى يصدر بتعيينه وتحديد معاملته المالية قرار من رئيس مجلس الوزراء بناء على ترشيح من الوزير المختص،وذلك لمدة ثلاث سنوات قابلة للتجديد.
 ويصدر رئيس مجلس الوزراء قرارا بتحديد الهيكل الإدارى والمالى لمركز الوساطة والتحكيم ونظام العمل به والرسوم المقررة على خدماته بما لا يجاوز خمسين ألف جنيه،وحالات الإعفاء منها. ويلتزم مركز الوساطة والتحكيم بنصوص هذا القانون وجميع القرارات واللوائح الصادرة تنفيذ ًا له والضمانات والمبادئ الأساسية للتقاضى فى قانون المرافعات المدنية والتجارية،وتسرى فى ما لم يرد فى شأنه نص خاص فى هذا القانون ولوائح مركز الوساطة والتحكيم أحكام قانون التحكيم فى المواد المدنية والتجارية المشار إليه.$q439$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2665,7 +2668,7 @@ WITH ins_art_law14_219 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 219, $q440$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q440$, $q441$يعد مركز الوساطة والتحكيم قائمة من الوسطاء وقائمة من المحكمين الذين تنطبق عليهم الشروط الواردة فى هذا القانون،ويؤدى كل منهم أمام رئيس المركز القسم الآتى ":أقسم باالله العظيم أن أؤدى مهمتى بالذمة والأمانة والصدق وألا أفشى سرا من أسرار العمل التى أطلع عليها بحكم مهمتى".$q441$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2675,7 +2678,7 @@ WITH ins_art_law14_220 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 220, $q442$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q442$, $q443$استثناء من أحكام المادتين ) (٢٢٦، ٢٢١من هذا القانون،يجوز لمركز الوساطة والتحكيم الاستعانة بأعضاء من الجهات والهيئات القضائية بعد موافقة مجالسهم الخاصة.$q443$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2691,7 +2694,7 @@ WITH ins_art_law14_221 AS (
 -٥ ألا يكون قد سبق فصله بالطريق التأديبي.
 -٦ قضاء مدة التدريب الأولى على أعمال الوساطة ومجالاتها بالمركز. - ٧اجتياز الاختبار الذى يعقده مركز الوساطة والتحكيم بدرجة لا تقل عن سبعين بالمائة.$q445$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2707,7 +2710,7 @@ WITH ins_art_law14_222 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 222, $q446$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q446$, $q447$لطرفى النزاع اختيار أحد الوسطاء المقيدين بالقائمة فى موعد غايته سبعة أيام من تاريخ تقديم طلب الوساطة. فإذا انقضت المدة المشار إليها،ولم يتفق الطرفان على اختيار الوسيط، تولى المركز اختيار الوسيط خلال ثلاثة أيام من تاريخ انتهاء تلك المدة.$q447$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2717,7 +2720,7 @@ WITH ins_art_law14_223 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 223, $q448$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q448$, $q449$تبدأ مهمة الوسيط من تاريخ إحالة النزاع إليه،وعليه إنجاز مهمته خلال شهر. وللوسيط جميع الصلاحيات فى نظر النزاع،والإلمام بعناصره،وله على وجه الخصوص سماع طرفى النزاع والاطلاع على ما يلزم من مستندات،وطلب البيانات والمعلومات التى تعينه على أداء مهمته.$q449$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2727,7 +2730,7 @@ WITH ins_art_law14_224 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 224, $q450$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q450$, $q451$مع عدم الإخلال بحكم المادة ) (٢٢٣من هذا القانون،يحق لطرفى النزاع أو أحدهما خلال خمسة عشر يوما أن يطلب من مركز الوساطة والتحكيم استبدال وسيط النزاع لمرة واحدة،فإذا رفض الطرف الآخر استبداله تعين على مركز الوساطة والتحكيم الفصل فى هذا الطلب فى موعد لا يجاوز يومين،فإذا تم اختيار وسيط جديد تحسب مدة أعماله من تاريخ تسلمه للمهمة.$q451$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2738,7 +2741,7 @@ WITH ins_art_law14_225 AS (
   SELECT id, 225, $q452$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q452$, $q453$على الوسيط أن يبذل مساعيه للتقريب بين وجهات نظر طرفى النزاع، فإذا لم يتمكن من تحقيق ذلك كان عليه أن يقدم للطرفين كتابة ما يقترحه من توصيات لحل النزاع. فإذا قبل الطرفان التوصيات التى قدمها الوسيط يتم إثبات ذلك فى اتفاق يوقعه الطرفان والوسيط ويصبح هذا الاتفاق ملزما للطرفين فى حدود ما تم الاتفاق عليه، ويثبت ذلك بالسجل الورقى أو الإلكترونى المعد لهذا الشأن. وإذا لم يقبل الطرفان هذه التوصيات أو بعضها يعرض الوسيط عليهما اللجوء إلى التحكيم،فإذا وافقا أحيل النزاع إلى قسم التحكيم بالمركز.
 وفى جميع الأحوال،على وسيط النزاع أن يقدم خلال خمسة أيام من تاريخ انتهاء مهمته تقريرا لقسم الوساطة،يتضمن ملخصا للنزاع والأوراق،والمستندات المقدمة من طرفيه،والتوصيات،وما تم قبوله من الطرفين،وما تم رفضه وأسباب الرفض.$q453$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2756,7 +2759,7 @@ WITH ins_art_law14_226 AS (
 -٦ قضاء مدة التدريب الأولى لمركز الوساطة والتحكيم على أعمال التحكيم،ومجالاته.
 -٧ اجتياز الاختبار الذى يعقد من مركز الوساطة والتحكيم بدرجة لا تقل عن خمسة وسبعين بالمائة.$q455$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2773,7 +2776,7 @@ WITH ins_art_law14_227 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 227, $q456$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q456$, $q457$تشكل هيئة التحكيم باتفاق الطرفين من محكم واحد أو أكثر،بشرط أن يكون العدد فرديا،لنظر النزاع القائم،وذلك فى موعد غايته خمسة عشر يوما من تاريخ إحالة النزاع لقسم التحكيم. وإذا لم يتفق طرفا التحكيم على اختيار المحكمين خلال المدة المشار إليها فى الفقرة الأولى من هذه المادة يتولى المركز اختيار المحكمين وفق ًا للوائح المنظمة لعمل المركز.$q457$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2783,7 +2786,7 @@ WITH ins_art_law14_228 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 228, $q458$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q458$, $q459$يوقع طرفا النزاع مشارطة التحكيم التى تحوى موضوع النزاع،والشروط والإجراءات التى يجرى عليها التحكيم،وتتبع فيما لم تتضمنه مشارطة التحكيم الأحكام المقررة فى قانون التحكيم فى المواد المدنية والتجارية المشار إليه.$q459$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2793,7 +2796,7 @@ WITH ins_art_law14_229 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 229, $q460$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q460$, $q461$يتعين على المحكم أو المحكمين عند الفصل فى النزاع المعروض مراعاة التشريعات المعمول بها داخل الدولة،والاتفاقيات الدولية المصدق عليها، ومبادئ القانون الطبيعى،والعرف والعدالة الاجتماعية،وفق ًا للحالة الاقتصادية والاجتماعية السائدة فى منطقة المنشأة،ويصدر الحكم بأغلبية الآراء فى حالة تعدد المحكمين. ويتعين على المحكم،أو المحكمين الفصل فى النزاع المعروض خلال ثلاثين يوما من تاريخ إحالة النزاع. ويعتبر حكم التحكيم نهائيا،ويكون قابلا ً للتنفيذ بعد وضع الصيغة التنفيذية عليه من المحكمة العمالية المختصة.$q461$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2803,7 +2806,7 @@ WITH ins_art_law14_230 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 230, $q462$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q462$, $q463$تشكل بقسم التحكيم دائرة عليا أو أكثر،لإعادة النظر،مكونة من خمسة محكمين من المقيدين بقائمتها للطعن فى الأحكام المشار إليها فى المادة )(٢٢٩ من هذا القانون. وإذا تضمن شرط أو مشارطة التحكيم أن يكون على درجتين،يحال النزاع إلى تلك الدائرة خلال خمسة عشر يوما من تاريخ صدور حكم أول درجة،ويتعين عليها الفصل فى النزاع خلال خمسة وأربعين يوما من تاريخ الإحالة إليها. ) الفصل الخامس ( الإضراب والإغلاق$q463$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2813,7 +2816,7 @@ WITH ins_art_law14_231 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 231, $q464$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q464$, $q465$للعمال حق الإضراب عن العمل للمطالبة بما يرونه محقق ًا لمصالحهم المهنية والاقتصادية والاجتماعية،وذلك بعد استنفاد طرق التسوية الودية للمنازعات المنصوص عليها فى هذا القانون،ويكون إعلانه،وتنظيمه من خلال المنظمة النقابية العمالية المعنية،أو المفوض العمالى فى حدود الضوابط والإجراءات المقررة فى هذا القانون.$q465$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2823,7 +2826,7 @@ WITH ins_art_law14_232 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 232, $q466$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q466$, $q467$يجب أن يتضمن الإعلان عن الإضراب،إخطار كل من صاحب العمل والجهة الإدارية المختصة قبل التاريخ المحدد للإضراب بعشرة أيام على الأقل،وذلك بكتاب مسجل وموصى عليه بعلم الوصول،على أن يتضمن الإخطار الأسباب الدافعة للإضراب ومواعيده.$q467$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2833,7 +2836,7 @@ WITH ins_art_law14_233 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 233, $q468$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q468$, $q469$يحظر على العمال الدعوة إلى الإضراب،أو إعلانه بقصد تعديل اتفاقية عمل جماعية أثناء مدة سريانها.$q469$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2843,7 +2846,7 @@ WITH ins_art_law14_234 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 234, $q470$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q470$, $q471$يحظر الإضراب أو الدعوة إليه أو إعلانه بالمنشآت الحيوية التى تقدم خدمات أساسية للمواطنين والتى يترتب على توقف العمل فيها الإخلال بالأمن القومى. ويحظر الدعوة للإضراب أو إعلانه فى الظروف الاستثنائية. ويصدر رئيس مجلس الوزراء قرارا بتحديد المنشآت الحيوية والخدمات الأساسية التى تقدمها.$q471$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2853,7 +2856,7 @@ WITH ins_art_law14_235 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 235, $q472$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q472$, $q473$يترتب على الإضراب عن العمل وقف الالتزامات الناشئة عن عقد العمل خلال مدة الإضراب.$q473$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2863,7 +2866,7 @@ WITH ins_art_law14_236 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 236, $q474$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q474$, $q475$يحق لصاحب العمل لضرورات اقتصادية،الإغلاق الكلى أو الجزئى للمنشأة، أو تقليص حجمها أو نشاطها،بما قد يمس حجم العمالة بها على نحو مؤقت أو دائم، وذلك فى الأوضاع،وبالشروط والإجراءات المنصوص عليها فى هذا القانون.$q475$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2874,7 +2877,7 @@ WITH ins_art_law14_237 AS (
   SELECT id, 237, $q476$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q476$, $q477$فى تطبيق أحكام المادة ) (٢٣٦من هذا القانون،يجب على صاحب العمل أن يتقدم بطلب إغلاق المنشأة،أو تقليص حجمها،أو نشاطها إلى لجنة تشكل لهذا الغرض،ويجب أن يتضمن الطلب الأسباب،والأوضاع،والشروط والإجراءات، التى يستند إليها فى ذلك،وأعداد،وفئات العمال الذين سيتم الاستغناء عنهم.
 وعلى اللجنة أن تصدر قرارها مسببا خلال خمسة وأربعين يوما على الأكثر من تاريخ تقديم الطلب إليها،فإذا كان القرار صادرا بقبول الطلب وجب أن يحدد موعد تنفيذه. فإذا لم تصدر اللجنة قرارها خلال المدة المشار إليها،اعتبر ذلك موافقة ضمنية على الإغلاق بالأوضاع والشروط والإجراءات التى تقدم بها صاحب العمل. ولصاحب الشأن أن يتظلم من قرار اللجنة أمام لجنة أخرى تشكل لهذا الغرض، ويترتب على قبول التظلم وقف تنفيذ قرار اللجنة. ويصدر رئيس مجلس الوزراء قرارا بتشكيل كل من اللجنتين المشار إليهما فى هذه المادة،وتحديد اختصاصاتهما،والجهات التى تمثل فيهما،والإجراءات التى تتبع أمامهما،ومواعيد،وإجراءات التظلم،على أن يتضمن تشكيلهما ممثلا ً عن المنظمة النقابية العمالية المعنية،وممثلا ً عن منظمة أصحاب الأعمال المعنية ترشحه كل منهما.$q477$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2885,7 +2888,7 @@ WITH ins_art_law14_238 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 238, $q478$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q478$, $q479$يخطر صاحب العمل العمال،والمنظمة النقابية العمالية المعنية بالطلب المقدم منه،وبالقرار الصادر بالإغلاق الكلى،أو الجزئى للمنشأة،أو بتقليص حجمها، أو نشاطها.ويكون تنفيذ ذلك القرار اعتبارا من التاريخ الذى تحدده اللجنة التى نظرت الطلب،أو التظلم على حسب الأحوال.$q479$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2895,7 +2898,7 @@ WITH ins_art_law14_239 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 239, $q480$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q480$, $q481$فى حالة الإغلاق الجزئى أو تقليص حجم المنشأة أو نشاطها،إذا لم تتضمن الاتفاقية الجماعية السارية فى المنشأة المعايير الموضوعية لاختيار من سيتم الاستغناء عنهم من العمال،يتعين على صاحب العمل أن يتشاور فى هذا الشأن مع المنظمة النقابية العمالية المعنية،وذلك بعد صدور القرار وقبل التنفيذ. وتعتبر الأقدمية،والأعباء العائلية،والسن،والقدرات والمهارات المهنية للعمال من المعايير التى يمكن الاسترشاد بها فى هذا الشأن. ويصدر الوزير المختص قرارا بالمعايير الموضوعية لاختيار من سيتم الاستغناء عنهم من العمال،وذلك بالتشاور مع منظمات العمال وأصحاب الأعمال.$q481$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2905,7 +2908,7 @@ WITH ins_art_law14_240 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 240, $q482$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q482$, $q483$يحظر على صاحب العمل التقدم بطلب الإغلاق الكلى أو الجزئى للمنشأة، أو تقليص حجمها أو نشاطها أثناء مراحل تسوية منازعات العمل الجماعية،كما يحظر عليه أن يتقدم بهذا الطلب بسبب أو أثناء إضراب العمال عن العمل.$q483$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2915,7 +2918,7 @@ WITH ins_art_law14_241 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 241, $q484$الكتاب الثالث: علاقات العمل — الباب الثالث: علاقات العمل الجماعية$q484$, $q485$مع عدم الإخلال بحكم المادة ) (٢٣٨من هذا القانون،فى الحالات التى يحق فيها لصاحب العمل إنهاء عقد العمل لأسباب اقتصادية يجوز له بدلا ً من استخدام هذا الحق أن يعدل من شروط العقد بصفة مؤقتة،وله على الأخص أن يكلف العامل بعمل غير متفق عليه،ولو كان يختلف عن عمله الأصلى كما له أن يخفض أجر العامل بما لا يقل عن الحد الأدنى للأجور. فإذا قام صاحب العمل بتعديل شروط العقد وفق ًا للفقرة الأولى من هذه المادة جاز للعامل أن ينهى عقد العمل دون أن يلتزم بالإخطار،ويعتبر الإنهاء فى هذه الحالة إنهاء مبررا من جانب صاحب العمل والعامل. وفى جميع الأحوال،يستحق العامل مكافأة تعادل أجر شهر عن كل سنة من السنوات الخمس الأولى من سنوات الخدمة وشهر ونصف الشهر عن كل سنة تجاوز ذلك.$q485$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2925,7 +2928,7 @@ WITH ins_art_law14_242 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 242, $q486$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل$q486$, $q487$ينظم هذا الكتاب أحكام وضوابط الوقاية من الحوادث والأضرار الصحية الناتجة عن العمل أو المتصلة به،أو التى تقع أثناءه،أو بسببه،وذلك للحد من المخاطر وأسبابها التى تنطوى عليها بيئة العمل.$q487$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2935,7 +2938,7 @@ WITH ins_art_law14_243 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 243, $q488$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل$q488$, $q489$يقصد فى تطبيق أحكام هذا الكتاب بالمنشأة كل مشروع أو مرفق يملكه أو يديره شخص من أشخاص القانون العام أو الخاص.$q489$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2945,7 +2948,7 @@ WITH ins_art_law14_244 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 244, $q490$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل$q490$, $q491$تسرى أحكام هذا الكتاب على جميع مواقع العمل،والمنشآت وفروعها أيا كان نوعها،أو تبعيتها،سواء كانت برية أو بحرية أو جوية. كما تسرى أيضا على المسطحات المائية بجميع أنواعها ووسائل النقل المختلفة.$q491$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2955,7 +2958,7 @@ WITH ins_art_law14_245 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 245, $q492$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل$q492$, $q493$مع عدم الإخلال بأحكام التفتيش والضبطية القضائية فى هذا القانون،يجوز للوزير المختص بقرار منه الترخيص بإنشاء مكاتب امتثال تهدف إلى التحقق من استيفاء اشتراطات السلامة والصحة المهنية وتأمين بيئة العمل فى المنشآت المخاطبة بأحكام هذا الكتاب،وتقديم الدعم الفنى والمشورة اللازمة. ويحدد القرار الشكل القانونى لمكاتب الامتثال وشروط وضوابط مزاولة نشاطها، ومؤهلات العاملين بها،وشروط وقواعد الترخيص،ومدته،والرسوم المقررة عليه، بما لا يجاوز مائة ألف جنيه.$q493$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2971,7 +2974,7 @@ WITH ins_art_law14_246 AS (
 -٥ تغيرات الضغط الجوى.
 -٦ مخاطر الانفجار.$q495$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2991,7 +2994,7 @@ WITH ins_art_law14_247 AS (
 -٣ كل خطر ينشأ عن الكهرباء )الديناميكية والاستاتيكية(.
 -٤ كل خطر ينشأ عن عدم مراعاة التناسب بين البنية الجسدية للعامل والمعدات والآلات،وبين مكان العمل.$q497$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3009,7 +3012,7 @@ WITH ins_art_law14_248 AS (
 -٣ وحدات تداول،ونقل وتخزين،ومعالجة المخلفات الطبية،والبيطرية الخطرة.
 -٤ وحدات استقبال،وتخزين،ومعالجة التصريفات بأنواعها المختلفة.$q499$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3030,7 +3033,7 @@ WITH ins_art_law14_249 AS (
 -٦ تدريب العمال على طرق التعامل مع المواد الكيميائية الخطرة،والمواد المسببة للسرطان وتعريفهم بمخاطرها،وبطرق الأمان،والوقاية من هذه المخاطر.
 -٧ معايير التعرض والحدود العتبية.$q501$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3047,7 +3050,7 @@ WITH ins_art_law14_250 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 250, $q502$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الأول: تأمين بيئة العمل$q502$, $q503$تلتزم المنشأة،وفروعها بتوفير وسائل السلامة والصحة المهنية وتأمين بيئة العمل فى أماكن العمل بما يكفل وسائل الوقاية من المخاطر غير المباشرة،والتى تنشأ،أو يتفاقم الضرر أو الخطر من عدم توافرها،كوسائل الإنقاذ والإسعاف، والنظافة والترتيب،والتنظيم بأماكن العمل،والتأكد من حصول العاملين بأماكن الطهى وتداول وتناول الأطعمة والمشروبات على الشهادات الصحية الدالة على خلوهم من الأمراض الوبائية والمعدية.$q503$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3057,7 +3060,7 @@ WITH ins_art_law14_251 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 251, $q504$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الأول: تأمين بيئة العمل$q504$, $q505$تلتزم المنشأة،وفروعها باتخاذ الاحتياطات والاشتراطات اللازمة للوقاية من مخاطر الحريق،طبق ًا لما تحدده الجهة المختصة بوزارة الداخلية.$q505$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3067,7 +3070,7 @@ WITH ins_art_law14_252 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 252, $q506$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الأول: تأمين بيئة العمل$q506$, $q507$تلتزم المنشأة،وفروعها بتوفير وسائل السلامة والصحة المهنية وتأمين بيئة العمل بما يكفل الوقاية من كل خطر ينشأ عن العمل داخل الأماكن الضيقة والمغلقة.$q507$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3077,7 +3080,7 @@ WITH ins_art_law14_253 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 253, $q508$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الأول: تأمين بيئة العمل$q508$, $q509$تلتزم المنشأة وفروعها بإجراء تقييم وتحليل للمخاطر،والكوارث الصناعية والطبيعية المتوقعة والكوارث الناتجة عن التشغيل وإعداد خطط طوارئ لحماية المنشأة والعمال والمترددين عليها عند وقوع الحوادث والكوارث،على أن يتم اختبار فاعلية هذه الخطط،وإجراء تجارب عملية عليها للتأكد من كفاءتها،وتدريب العمال لمواجهة متطلباتها،وتصحيحها إذا لزم الأمر. ويجوز للمنشأة الاسترشاد برأى خبير استشارى،أو مراكز استشارية فى مجال السلامة والصحة المهنية وتأمين بيئة العمل عند إعداد خطط الطوارئ. كما تلتزم المنشأة بإبلاغ الجهة الإدارية المختصة بخطط الطوارئ، وبأى تعديلات تطرأ عليها،وكذلك فى حالة تخزين مواد خطرة أو استخدامها. وفى حالة التنبؤ بوقوع حادث أو خطر فى مكان العمل قد يؤدى إلى تهديد وشيك وخطير على صحة العمال أو حياتهم،يجوز للعامل مغادرة مكان العمل إلى مكان آمن داخل المنشأة أو موقع العمل أو خارجه إذا لزم الأمر،دون إذن،وعليهم إخطار المشرف المباشر بأية أخطار يتعرضون لها،ولا يترتب على هذا الانسحاب أى عواقب أو مساءلة تأديبية. وتلتزم المنشأة بضمان عدم عودة العمال إلى بيئة العمل غير الآمنة إلى أن يتم إزالة الخطر. وفى حالة امتناع المنشأة عن تنفيذ ما توجبه أحكام هذه المادة،والقرارات المنفذة لها فى المواعيد التى تحددها الجهة الإدارية المختصة،وترتب على ذلك وجود خطر داهم على صحة العاملين أو المترددين أو سلامتهم،على الجهة الإدارية المختصة أن تأمر بإغلاق المنشأة كليا أو جزئيا،أو إيقاف معدة أو آلة أو أكثر حتى زوال أسباب الخطر،وينفذ القرار الصادر بالإغلاق أو الإيقاف بالطرق الإدارية مع عدم الإخلال بحق العاملين فى تقاضى أجورهم خلال فترة الإغلاق أو الإيقاف الجزئى أو الكلى. وللجهة الإدارية المختصة أن تقوم بإزالة أسباب الخطر بطريق التنفيذ المباشر على نفقة المنشأة بالتنسيق مع الجهات المعنية.$q509$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3087,7 +3090,7 @@ WITH ins_art_law14_254 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 254, $q510$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الأول: تأمين بيئة العمل$q510$, $q511$تلتزم المنشآت وفروعها بتوفير بيئة عمل آمنة،وغير عدائية،خالية من التحرش والتنمر والعنف،وتوفير الوسائل الكفيلة بالوقاية منهم. ويصدر الوزير المختص قرارا بتحديد نماذج لمدونة السلوك الوظيفي، والقواعد والإجراءات اللازمة لتقديم الشكاوى وسبل تسويتها واتخاذ الإجراءات اللازمة فى شأنها.$q511$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3097,7 +3100,7 @@ WITH ins_art_law14_255 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 255, $q512$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الأول: تأمين بيئة العمل$q512$, $q513$يصدر الوزير المختص قرارا بقواعد ومعايير وبيان حدود الأمان فى أماكن العمل،والاشتراطات،والاحتياطات اللازمة لدرء المخاطر المبينة بهذا الباب، وذلك بالتنسيق مع الجهات المختصة.$q513$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3110,7 +3113,7 @@ WITH ins_art_law14_256 AS (
 -٢ تنظيم برامج تدريبية متخصصة ونوعية لرفع كفاءة ومستوى أداء أعضاء جهاز التفتيش المشار إليه فى البند ) (١من هذه المادة،وتزويدهم بالخبرات الفنية والتطورات الحديثة بما يضمن أفضل مستويات السلامة والصحة المهنية وتأمين بيئة العمل.
 -٣ تزويد جهاز التفتيش المشار إليه بأجهزة ومعدات القياس،وجميع الإمكانيات اللازمة لأداء مهمته. ويكون التفتيش على المنشآت المتعلق عملها بالأمن القومى،والتى تحدد بقرار من رئيس مجلس الوزراء،بمعرفة الجهة التى يحددها هذا القرار.$q515$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3130,7 +3133,7 @@ WITH ins_art_law14_257 AS (
 -٦ الاطلاع على كميات المخزون من المواد الخطرة التى قد تهدد المنشأة. وعلى الجهة الإدارية المختصة بناء على تقرير جهاز تفتيش السلامة والصحة المهنية وتأمين بيئة العمل الأمر بإغلاق المنشأة كليا أو جزئيا،أو إيقاف آلة،أو أكثر، وذلك فى حالة وجود خطر داهم يهدد سلامة المنشأة،أو صحة العمال والمترددين، أو سلامة بيئة العمل حتى زوال أسباب الخطر،مع عدم الإخلال بحق العاملين فى تقاضي أجورهم.
 وللجهة الإدارية المختصة بناء على قرار الإغلاق أن تقوم بإزالة أسباب الخطر بطريق التنفيذ المباشر على نفقة المنشأة. وينفذ القرار الصادر بالإغلاق أو الإيقاف بالطرق الإدارية. وتصدر الجهة الإدارية المختصة الأمر بإلغاء الإغلاق،أو الإيقاف فور زوال أسباب الخطر.$q517$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3147,7 +3150,7 @@ WITH ins_art_law14_258 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 258, $q518$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الثاني: التفتيش فى مجال السلامة$q518$, $q519$مع مراعاة حكم المادة ) (٢٤٢من هذا القانون،يكون لمفتشى السلامة والصحة المهنية وتأمين بيئة العمل حق التفتيش على المنشآت للتحقق من توافر اشتراطات السلامة والصحة المهنية وتأمين بيئة العمل تطبيق ًا لأحكام هذا القانون،والقرارات المنفذة له.$q519$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3157,7 +3160,7 @@ WITH ins_art_law14_259 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 259, $q520$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الثالث: تنظيم أجهزة السلامة والصحة المهنية$q520$, $q521$يصدر الوزير المختص القرارات اللازمة بتحديد المنشآت،وفروعها، التى تلتزم بإنشاء أجهزة وظيفية للسلامة والصحة المهنية وتأمين بيئة العمل، واللجان المختصة بذلك. وتختص اللجان المشار إليها بالفقرة الأولى من هذه المادة ببحث ظروف العمل وأسباب حوادث وإصابات العمل وغيرها،ووضع القواعد،والاحتياطات الكفيلة بمنعها،وتكون قرارات هذه اللجان ملزمة للمنشأة وفروعها. ويجب أن يشمل التدريب العاملين بالجهاز الوظيفى للسلامة والصحة المهنية وتأمين بيئة العمل وأعضاء اللجان المختصة بذلك،والمسئولين عن الإدارة،والإنتاج بمستوياتهم كافة بما يتفق ومسئوليتهم،وطبيعة عملهم.$q521$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3167,7 +3170,7 @@ WITH ins_art_law14_260 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 260, $q522$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الثالث: تنظيم أجهزة السلامة والصحة المهنية$q522$, $q523$تلتزم كل منشأة يعمل بها ثلاثون عاملا ً فأكثر،بموافاة الجهة الإدارية المختصة بإحصائية نصف سنوية ببيانات حقيقية عن الأمراض العادية،والمزمنة، والحوادث الجسيمة،والإصابات،وذلك خلال النصف الأول من شهرى يوليو، ويناير على الأكثر. كما تلتزم المنشآت الخاضعة لأحكام هذا الكتاب،بإخطار الجهة الإدارية المختصة بكل حادث جسيم يقع بالمنشأة،أو عند ظهور أعراض مرض مهني، وذلك خلال أربع وعشرين ساعة من وقوعه،ويصدر الوزير المختص قرارا بالنماذج التى تستخدم لهذا الغرض. وتلتزم جميع المنشآت الخاضعة لأحكام هذا الكتاب بموافاة الوزارة المختصة إلكترونيا على المنصة الإلكترونية المعدة لذلك بكافة البيانات والتقارير والإحصائيات اللازمة والتى يصدر بتحديدها قرار من الوزير المختص،ويحدد القرار البيانات الأساسية المطلوبة لذلك.$q523$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3177,7 +3180,7 @@ WITH ins_art_law14_261 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 261, $q524$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الثالث: تنظيم أجهزة السلامة والصحة المهنية$q524$, $q525$تتولى الوزارة المختصة،والمركز القومى لدراسات السلامة والصحة المهنية وتأمين بيئة العمل المشار إليه فى المادة ) (٢٦٣من هذا القانون،والجهات التى يرخص لها،التدريب الأساسى،والمتقدم،والنوعى،والتخصصى للأخصائيين والفنيين،وأعضاء اللجان فى مجال السلامة والصحة المهنية. ويصدر الوزير المختص قرارا بقواعد منح التراخيص،ونظم التدريب فى الحالات السابقة فى مجال التدريب الأساسى،وتدريب السلامة والصحة المهنية والتدريب النوعي،والتخصصى،للكليات والمعاهد،والجمعيات الأهلية والشركات والمؤسسات المتخصصة،على أن يتضمن شروط منح الترخيص وإجراءاته،ومدته، والرسم المقرر عنه،بما لا يزيد على خمسين ألف جنيه،وحالات الإعفاء منه.$q525$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3188,7 +3191,7 @@ WITH ins_art_law14_262 AS (
   SELECT id, 262, $q526$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الثالث: تنظيم أجهزة السلامة والصحة المهنية$q526$, $q527$يشترط لمزاولة أعمال الخبرة والاستشارات فى مجال السلامة والصحة المهنية وتأمين بيئة العمل الحصول على الترخيص اللازم من الوزارة المختصة.
 ويصدر الوزير المختص قرارا بتحديد شروط وقواعد،وإجراءات منح الترخيص،ومدته،وقيده فى السجل الورقى أو الإلكترونى المعد لهذا الغرض، والرسوم المقررة عنه بما لا يزيد على خمسين ألف جنيه،وحالات الإعفاء منه.$q527$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3199,7 +3202,7 @@ WITH ins_art_law14_263 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 263, $q528$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الرابع: أجهزة البحوث والدراسات$q528$, $q529$يختص المركز القومى لدراسات السلامة والصحة المهنية وتأمين بيئة العمل المعاد تنظيمه بقرار رئيس الجمهورية رقم ۳۳۳لسنة ۲۰۰۳بالاشتراك مع الوزارة المختصة،بإعداد الخطط المركزية للبحوث والدراسات فى مجالات السلامة والصحة المهنية وتأمين بيئة العمل طبق ًا لنتائج التحليل الإحصائى لإصابات العمل بالمنشآت، ويتابع تنفيذها بالتنسيق مع الأجهزة المعنية فى الوزارة المختصة،وذلك وفق ًا للقواعد والإجراءات التى يصدر بها قرار من الوزير المختص.$q529$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3209,7 +3212,7 @@ WITH ins_art_law14_264 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 264, $q530$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الرابع: أجهزة البحوث والدراسات$q530$, $q531$ينشأ مجلس يسمى "المجلس الأعلى للسلامة والصحة المهنية وتأمين بيئة العمل"، برئاسة الوزير المختص،وعضوية ممثلين عن الوزارات والجهات المختصة،وعدد متساو من ممثلى كل من منظمات أصحاب الأعمال المعنية الأكثر تمثيلا ً ترشحهم منظماتهم،وممثلى المنظمات النقابية العمالية المعنية الأكثر تمثيلا ً ترشحهم منظماتهم، على أن يراعى عند الترشيح تمثيل كافة مستويات المنظمات النقابية المعنية ما لم يتعذر ذلك،وعدد من ذوى الخبرة. ويتولى المجلس رسم السياسة العامة فى هذه المجالات واقتراح ما يلزم فى شأن تنفيذها بما يتفق مع السياسة العامة للدولة. ويصدر بتشكيل المجلس،واختصاصاته،ونظام العمل به قرار من رئيس مجلس الوزراء.$q531$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3219,7 +3222,7 @@ WITH ins_art_law14_265 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 265, $q532$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الرابع: أجهزة البحوث والدراسات$q532$, $q533$يشكل فى نطاق كل محافظة لجنة فرعية للمجلس الأعلى للسلامة والصحة المهنية وتأمين بيئة العمل،برئاسة المحافظ المختص،وتضم فى عضويتها ممثلين عن الوزارات والجهات المختصة،وممثلى المنظمات النقابية العمالية المعنية ترشحهم منظماتهم ما لم يتعذر ذلك،ومنظمات أصحاب الأعمال بالتساوى فيما بينهما،وعدد من ذوى الخبرة. ويصدر بتشكيلها،وتحديد اختصاصاتها،ونظام العمل بها قرار من الوزير المختص.$q533$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3231,7 +3234,7 @@ WITH ins_art_law14_266 AS (
 -١ الكشف الطبى الابتدائى على العامل قبل التحاقه بالعمل للتأكد من سلامته، ولياقته الصحية طبق ًا لنوع واحتياجات العمل الذى يسند إليه.
 -٢ كشف القدرات للتأكد من لياقة العامل من ناحية قدراته الجسمانية والعقلية والنفسية بما يناسب احتياجات العمل. وتجرى هذه الفحوص طبق ًا للأحكام المنظمة للتأمين الصحى،ويصدر الوزير المختص بالاتفاق مع الوزير المعنى بشئون الصحة قرارا بتحديد مستويات اللياقة والسلامة الصحية والقدرات العقلية والنفسية التى تتم على أساسها هذه الفحوص.$q535$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3245,7 +3248,7 @@ WITH ins_art_law14_267 AS (
 -١ تدريب العامل على الأسس السليمة لأداء مهنته.
 -۲ إحاطة العامل قبل مزاولة العمل بمخاطر مهنته،وإلزامه باستخدام وسائل الوقاية المقررة لها مع توفير أدوات الوقاية الشخصية المناسبة وتدريبه على استخدامها. ولا يجوز للمنشأة أن تحمل العامل أية نفقات أو تقتطع من أجره أى مبالغ لقاء توفير وسائل الحماية اللازمة له.$q537$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3257,7 +3260,7 @@ WITH ins_art_law14_268 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 268, $q538$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الخامس: الخدمات الاجتماعية والصحية$q538$, $q539$يلتزم العامل بأن يستعمل وسائل الوقاية،ويتعهد بالعناية بما فى حوزته منها، وبتنفيذ التعليمات الصادرة للمحافظة على صحته ووقايته من حوادث العمل،وعليه ألا يرتكب أى فعل يقصد به منع تنفيذ التعليمات أو إساءة استعمال الوسائل الموضوعة لحمايته وسلامة العمال المشتغلين معه أو تغييرها أو إلحاق ضرر أو تلف بها،وذلك دون الإخلال بما يفرضه أى قانون آخر فى هذا الشأن.$q539$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3270,7 +3273,7 @@ WITH ins_art_law14_269 AS (
 -۲ فحص شكوى العامل المرضية،ومعرفة علاقتها بنوع العمل بمعرفة طبيب المنشأة،إن وجد.
 -٣ التنسيق مع الهيئة العامة للتأمين الصحى لإجراء الفحص الطبى الدورى لجميع عمال المنشأة للمحافظة على لياقتهم الصحية والنفسية والعقلية، وسلامتهم بصفة مستمرة واكتشاف ما يظهر من أمراض مهنية فى مراحلها الأولى ولإجراء الفحص عند انتهاء الخدمة،وذلك كله طبق ًا لأنظمة التأمين الصحى المقررة فى هذا الشأن.$q541$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3284,7 +3287,7 @@ WITH ins_art_law14_270 AS (
   SELECT id, 270, $q542$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الخامس: الخدمات الاجتماعية والصحية$q542$, $q543$تلتزم المنشأة بأن توفر لعمالها وسائل الإسعاف الأولية. وإذا زاد عدد عمال المنشأة فى مكان واحد أو بلد واحد أو فى دائرة نصف قطرها خمسة عشر كيلو مترا على خمسين عاملا ً،تلتزم المنشأة بأن تستخدم ممرضا مؤهلا ً أو أكثر الأعمال التمريض أو الإسعاف بكل وردية عمل بها،وأن تعهد إلى طبيب لعيادتهم فى المكان الذى تعده لهذا الغرض،وأن تقدم لهم الأدوية اللازمة للعلاج،وذلك كله بالمجان.
 وإذا عولج العامل فى الحالتين المنصوص عليهما فى الفقرتين الأولى والثانية من هذه المادة بمستشفى حكومى أو خيرى،وجب على المنشأة أن تؤدى إلى إدارة المستشفى نفقات العلاج،والأدوية،والإقامة. ويتبع فى تحديد نفقات العلاج،والأدوية،والإقامة المنصوص عليها فى الفقرات السابقة الطرق والأوضاع التى يصدر بها قرار من الوزير المختص بالاتفاق مع الوزير المعنى بشئون الصحة.$q543$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3295,7 +3298,7 @@ WITH ins_art_law14_271 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 271, $q544$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الخامس: الخدمات الاجتماعية والصحية$q544$, $q545$يلتزم من يستخدم عمالا ً فى أماكن لا تصل إليها وسائل المواصلات العادية أن يوفر لهم وسائل الانتقال المناسبة على نفقته الخاصة. وعلى من يستخدم عمالا ً فى المناطق البعيدة عن العمران أن يوفر لهم التغذية المناسبة،والمساكن الملائمة مع مراعاة تخصيص بعضها للعمال المتزوجين على نفقته الخاصة. ويصدر الوزير المختص بالاتفاق مع الوزراء المعنيين،ومع منظمات أصحاب الأعمال والعمال القرارات اللازمة لتحديد المناطق البعيدة عن العمران،واشتراطات ومواصفات المساكن،وتعيين أصناف الطعام والكميات التى تقدم منها لكل عامل، وما يؤديه صاحب العمل مقابلا ً لها. ويجوز بالنسبة لنظام الوجبات الغذائية الواردة فى الفقرة الثالثة من هذه المادة الأخذ بنظام توافق عليه إدارة المنشأة والمنظمة النقابية العمالية أو المفوض العمالى فى حالة عدم وجودها،بشرط أن يعتمد من الجهة الإدارية المختصة،ويحظر الاستعاضة عن تقديم تلك الوجبات كلها أو بعضها بمقابل نقدى.$q545$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3305,7 +3308,7 @@ WITH ins_art_law14_272 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 272, $q546$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الخامس: الخدمات الاجتماعية والصحية$q546$, $q547$تلتزم المنشأة التى يبلغ عدد عمالها خمسين عاملا ً فأكثر بتقديم الخدمات الاجتماعية والثقافية اللازمة لعمالها،وذلك بالاشتراك مع المنظمة النقابية العمالية، دون تحميل العامل أى التزامات،ويصدر الوزير المختص بالتشاور مع منظمات أصحاب الأعمال والعمال القرارات المشار إليها بتحديد الحد الأدنى لهذه الخدمات.$q547$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3315,7 +3318,7 @@ WITH ins_art_law14_273 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 273, $q548$الكتاب الرابع: السلامة والصحة المهنية وتأمين بيئة العمل — الباب الخامس: الخدمات الاجتماعية والصحية$q548$, $q549$يتمتع صندوق الخدمات الاجتماعية والصحية والثقافية بالشخصية الاعتبارية، ويهدف إلى تقديم الخدمات اللازمة للنهوض بالمستوى الاجتماعى والصحى والثقافى للعاملين بمنشآت القطاع العام،وقطاع الأعمال العام،والقطاع الخاص. ويصدر رئيس مجلس الوزراء قرارا بتشكيل مجلس إدارة الصندوق برئاسة الوزير المختص،وعضوية ممثلى المنظمات النقابية العمالية المعنية ومنظمات أصحاب الأعمال بالتساوى فيما بينهما،ترشحهم منظماتهم،وممثلى الوزارات والجهات المعنية ويحدد القرار اختصاصات المجلس والنظام الأساسى للصندوق والمعاملة المالية لرئيس وأعضاء مجلس الإدارة،على أن تكون من موارده الذاتية، والنظام المحاسبى الواجب إتباعه. ويكون للصندوق حساب خاص لدى أحد البنوك التجارية المسجلة لدى البنك المركزى المصرى،وموازنة مستقلة،ويعد الصندوق سنويا القوائم الدالة على المركز المالى وفق ًا لنظام المحاسبة المالية،وتبدأ السنة المالية للصندوق مع السنة المالية للدولة،وتنتهى بانتهائها وتخضع أمواله لرقابة الجهاز المركزى للمحاسبات، ويرحل فائض أمواله من سنة إلى أخرى. وتلتزم المنشآت المشار إليها بالفقرة الأولى من هذه المادة والتى يبلغ عدد عمالها عشرون عاملا ً فأكثر بسداد اشتراك سنوى لا يقل عن ثمانية جنيهات ولا يجاوز ستة عشر جنيها عن كل عامل سنويا لتمويل هذا الصندوق،ويصدر بتحديد قيمة الاشتراك السنوى قرار من الوزير المختص،بعد العرض على مجلس إدارة الصندوق،ويحق للمنشأة حال تقديمها للخدمات الواردة بالمادة ٢٧٤من هذا القانون،أو تقديمها لميزة أفضل للعاملين لديها خصم قيمة تلك الخدمات أو الميزة أو خصم ) (٪۷۰من المبلغ المستحق عليها للصندوق سنويا،أيهما أقل.$q549$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3335,7 +3338,7 @@ WITH ins_art_law14_274 AS (
 -٩ دعم الأنشطة النقابية العمالية.
 -١٠ مشاركة العمال وأصحاب العمل فى توفير بيئة عمل آمنة خالية من العنف والتحرش والتنمر من خلال إقامة الندوات التوعوية وتمويل المشروعات التنموية التى تستهدف ذلك متى توافرت الموارد. وللوزير المختص بالاتفاق مع مجلس إدارة الصندوق إضافة خدمات أخرى على أن تكون فى ذات مجال عمل الصندوق. ويصدر رئيس مجلس الوزراء قرارا باللائحة المالية والإدارية للصندوق، وصلاحيات وضوابط الصرف والرقابة عليها.$q551$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3356,7 +3359,7 @@ WITH ins_art_law14_275 AS (
   SELECT id, 275, $q552$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الأول: تفتيش العمل والضبطية القضائية$q552$, $q553$يكون للعاملين القائمين على تنفيذ أحكام هذا القانون،والقرارات الصادرة تنفيذ ًا له،الذين يصدر بتحديدهم قرار من وزير العدل بالاتفاق مع الوزير المختص، صفة مأمورى الضبط القضائى بالنسبة للجرائم التى تقع فى دوائر اختصاصهم، وتكون متعلقة بأعمال وظائفهم.
 ويؤدى كل منهم أمام الوزير المختص قبل مباشرة عمله القسم الآتى ":أقسم باالله العظيم أن أؤدى مهمتى بالذمة والأمانة والصدق وألا أفشى سرا من أسرار العمل التى أطلع عليها بحكم وظيفتى".$q553$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3367,7 +3370,7 @@ WITH ins_art_law14_276 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 276, $q554$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الأول: تفتيش العمل والضبطية القضائية$q554$, $q555$يحمل كل من له صفة الضبطية القضائية،بطاقة تثبت هذه الصفة،وله حق دخول جميع أماكن العمل وتفتيشها للتحقق من تطبيق أحكام هذا القانون،والقرارات المنفذة له،وفحص الدفاتر والأوراق المتعلقة بذلك،وطلب المستندات والبيانات اللازمة من أصحاب الأعمال أو من ينوب عنهم. ويحدد الوزير المختص بقرار منه قواعد وإجراءات التكليف بتفتيش أماكن العمل ليلا ً وفى غير أوقات العمل الرسمية للقائمين به والمكافآت التى تستحق لهم.$q555$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3377,7 +3380,7 @@ WITH ins_art_law14_277 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 277, $q556$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الأول: تفتيش العمل والضبطية القضائية$q556$, $q557$على أصحاب الأعمال أو من ينوب عنهم أن يسهلوا مهمة المكلفين بمراقبة تنفيذ أحكام هذا القانون،والقرارات المنفذة له،وأن يقدموا لهم المستندات والبيانات اللازمة لأداء مهمتهم.$q557$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3387,7 +3390,7 @@ WITH ins_art_law14_278 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 278, $q558$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الأول: تفتيش العمل والضبطية القضائية$q558$, $q559$على أصحاب الأعمال أو من ينوب عنهم الاستجابة لطلبات الحضور التى توجه إليهم من العاملين المشار إليهم فى المادة ) (٢٧٥من هذا القانون،وذلك فى المواعيد التي يحددونها.$q559$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3397,7 +3400,7 @@ WITH ins_art_law14_279 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 279, $q560$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الأول: تفتيش العمل والضبطية القضائية$q560$, $q561$على السلطات والوزارات والجهات والهيئات المعنية مساعدة العاملين المكلفين بمراقبة تنفيذ أحكام هذا القانون والقرارات المنفذة له عند قيامهم بوظائفهم متى طلب ذلك منها.$q561$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3407,7 +3410,7 @@ WITH ins_art_law14_280 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 280, $q562$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q562$, $q563$مع عدم الإخلال بأية عقوبة أشد ينص عليها قانون العقوبات أو أى قانون آخر، يعاقب بالعقوبات المنصوص عليها فى المواد التالية عن الجرائم المشار إليها فيها.$q563$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3417,7 +3420,7 @@ WITH ins_art_law14_281 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 281, $q564$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q564$, $q565$يعاقب كل من يخالف أحكام المادتين ) (٥، ٤من هذا القانون بغرامة لا تقل عن خمسة آلاف جنيه ولا تزيد على خمسين ألف جنيه،وتتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة،وتضاعف الغرامة فى حالة العود.$q565$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3427,7 +3430,7 @@ WITH ins_art_law14_282 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 282, $q566$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q566$, $q567$يعاقب كل من يخالف أحكام المادتين )/۸۲البندين ۱و/۲۷۳)، (۲فقرة رابعة( من هذا القانون،والقرارات الوزارية المنفذة لها،بغرامة لا تقل عن ألف جنيه ولا تزيد على عشرة آلاف جنيه،وتتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة،وتضاعف الغرامة فى حالة العود. كما يعاقب بذات العقوبة المشار إليها فى الفقرة الأولى من هذه المادة، كل من يخالف أحكام المادة )/٢١بند (۱من هذا القانون.$q567$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3437,7 +3440,7 @@ WITH ins_art_law14_283 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 283, $q568$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q568$, $q569$يعاقب كل من يخالف أحكام المواد ) ۳۷فقرة أولى /٤٨،فقرة أولى (١٥٣، من هذا القانون والقرارات الوزارية المنفذة لها،بغرامة لا تقل عن ألفى جنيه ولا تزيد على عشرة آلاف جنيه،وتضاعف الغرامة فى حالة العود. كما يعاقب بذات العقوبة المشار إليها بالفقرة الأولى من هذه المادة،كل من يخالف حكم المادة ۱۳۷من هذا القانون.$q569$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3447,7 +3450,7 @@ WITH ins_art_law14_284 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 284, $q570$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q570$, $q571$يعاقب كل من يخالف أحكام المادة ) (٢٦من هذا القانون والقرارات الوزارية المنفذة لها بغرامة لا تقل عن ألف جنيه ولا تزيد على عشرة آلاف جنيه، وتتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة،وتضاعف الغرامة فى حالة العود.$q571$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3457,7 +3460,7 @@ WITH ins_art_law14_285 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 285, $q572$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q572$, $q573$يعاقب كل من يخالف أحكام المادة ) (٢٣من هذا القانون والقرارات الوزارية المنفذة لها،بغرامة لا تقل عن عشرين ألف جنيه ولا تزيد على مائة ألف جنيه،وللمحكمة عند الحكم بالإدانة أن تقضى بإغلاق المنشأة،وتضاعف الغرامة فى حالة العود.$q573$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3467,7 +3470,7 @@ WITH ins_art_law14_286 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 286, $q574$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q574$, $q575$يعاقب كل من يخالف أحكام المادة السابعة من مواد إصدار هذا القانون والمواد ) (٦٨، ٥٢، ٥١، ٤٦، ٣٦، ٢٥، ٢٤من هذا القانون،والقرارات الوزارية المنفذة لها،بغرامة لا تقل عن ألف جنيه ولا تزيد على عشرين ألف جنيه، وتتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة،وتضاعف الغرامة فى حالة العود. كما يعاقب بذات العقوبة المشار إليها بالفقرة الأولى من هذه المادة،كل من يخالف أحكام المواد ) (۱۷٥، ۱۲۲، ۳۸من هذا القانون.$q575$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3477,7 +3480,7 @@ WITH ins_art_law14_287 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 287, $q576$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q576$, $q577$يعاقب كل من يخالف أحكام المواد ) (۱۰۸، ۱۰٤، ٤٥من هذا القانون، بغرامة لا تقل عن ألفى جنيه ولا تزيد على عشرين ألف جنيه،وتتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة،وتضاعف الغرامة فى حالة العود.$q577$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3487,7 +3490,7 @@ WITH ins_art_law14_288 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 288, $q578$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q578$, $q579$يعاقب كل من يخالف أحكام المواد )، ۱۱۹، ۱۱۸، ۱۱۷، ٦٠، ٥۳، ۲۷ /١٣٥، ۱۳۲، ۱٢٤، ۱۲۳فقرة ثانية /٢٥٤،فقرة أولى( من هذا القانون والقرارات الوزارية المنفذة لها،بغرامة لا تقل عن خمسمائة جنيه ولا تزيد على خمسة آلاف جنيه،وتتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة، وتضاعف الغرامة فى حالة العود. كما يعاقب بذات العقوبة المشار إليها بالفقرة الأولى من هذه المادة، كل من يخالف أحكام المواد )، ۸۹، ٥۹، ٥۸، ٥۷، ٥٦، ٥٥، ٥٤، ۲۹، ۱۲، ١١٦، ١١٥، ١١٤، ١١٣، ١١٢، ۱۱۱، ۱۱۰، ٩٤، ۹۳، ۹۲، ۹۱، ۹۰ /۱۳۸، ۱۳۱، ۱۲۹، ۱۲۸، ۱۲٦، ۱۲٥، ۱۲۱، ۱۲۰فقرة ثانية، ١٥٦، (١٧٣، ١٦٤، ١٦٢، ١٥٩من هذا القانون.$q579$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3497,7 +3500,7 @@ WITH ins_art_law14_289 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 289, $q580$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q580$, $q581$يعاقب صاحب العمل أو من يمثله عن المنشأة إذا خالف أى من أحكام المواد )، ٦٣ (٦٦، ٦٤من هذا القانون والقرارات الوزارية المنفذة لها،بغرامة لا تقل عن ألفى جنيه ولا تزيد على عشرة آلاف جنيه،وفى كل الأحوال تتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة،وفى حالة العود تضاعف الغرامة ويحكم بغلق المنشأة لمدة لا تجاوز الستة أشهر. كما يعاقب بذات العقوبة المشار إليها بالفقرة الأولى من هذه المادة،كل من يخالف أحكام المادتين ) (٦٥، ٦٢من هذا القانون.$q581$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3507,7 +3510,7 @@ WITH ins_art_law14_290 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 290, $q582$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q582$, $q583$يعاقب كل من يخالف أحكام المادتين ) (۳۷، ۳۳من هذا القانون والقرارات الوزارية المنفذة لها،بغرامة لا تقل عن خمسمائة جنيه ولا تزيد على ألف جنيه، وتتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة،وتضاعف الغرامة فى حالة العود. كما يعاقب بذات العقوبة المشار إليها بالفقرة الأولى من هذه المادة،كل من يخالف أحكام المادتين ) (٢٠٥، ٣٥من هذا القانون.$q583$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3520,7 +3523,7 @@ WITH ins_art_law14_291 AS (
 -۲ تقاضى مبالغ دون وجه حق من أجر العامل أو من مستحقاته عن عمله فى الداخل،أو الخارج.
 -٣ تقديم بيانات غير صحيحة عن اتفاقيات أو عقود إلحاق للعمل بالخارج، أو أجورهم أو شروط وظروف عملهم،أو عقود عمل وهمية بالمخالفة للواقع. وفى جميع الأحوال،يحكم برد المبالغ التى تم تقاضيها أو الحصول عليها دون وجه حق،وللمحكمة أن تقضى فى حالات الإدانة بإغلاق المنشأة،ويكون الإغلاق وجوبيا فى حالة الإدانة بإحدى الجرائم المشار إليها فى البند ) (١من هذه المادة.$q585$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3533,7 +3536,7 @@ WITH ins_art_law14_292 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 292, $q586$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q586$, $q587$يعاقب كل من يخالف أحكام المادة ) (٤٢من هذا القانون،والقرارات الوزارية المنفذة لها،بغرامة لا تقل عن خمسة آلاف جنيه ولا تزيد على مائة ألف جنيه، وتتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة،وتضاعف الغرامة فى حالة العود.$q587$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3543,7 +3546,7 @@ WITH ins_art_law14_293 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 293, $q588$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q588$, $q589$يعاقب كل من يخالف أحكام المواد ) (٧٤، ۷۲، ۷۱، ۷۰من هذا القانون، والقرارات الوزارية المنفذة لها،بغرامة لا تقل عن عشرين ألف جنيه ولا تزيد على مائة ألف جنيه،وتتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة، وتضاعف الغرامة فى حالة العود.$q589$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3553,7 +3556,7 @@ WITH ins_art_law14_294 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 294, $q590$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q590$, $q591$يعاقب كل من يخالف أحكام المواد )، ١٤٥، ١٤٤، ١٤٣، ١٤٢، ١٤١، ١٤٠ / ١٥١فقرة ثانية (۱۹۸، ۱٥۲،من هذا القانون،بغرامة لا تقل عن ألف جنيه ولا تزيد على عشرين ألف جنيه،وتضاعف الغرامة فى حالة العود.$q591$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3564,7 +3567,7 @@ WITH ins_art_law14_295 AS (
   SELECT id, 295, $q592$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q592$, $q593$يعاقب كل من يخالف أحكام المواد ) (۲۳۹، ۲۳۷، ۲۳٦من هذا القانون والقرارات الوزارية المنفذة لها،بغرامة لا تقل عن ثلاثة آلاف جنيه ولا تزيد على عشرة آلاف جنيه،وتتعدد الغرامة بتعدد العمال الذين وقعت فى شأنهم الجريمة، وتضاعف الغرامة فى حالة العود.
 كما يعاقب بذات العقوبة المشار إليها بالفقرة الأولى من هذه المادة، كل من يخالف أحكام المواد )/٢٤١، ٢٤۰، ۲۳۸، ۱۷۲، ۱۷۰، ۱٦٩فقرة ثالثة( من هذا القانون.$q593$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3575,7 +3578,7 @@ WITH ins_art_law14_296 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 296, $q594$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q594$, $q595$يعاقب كل من يخالف أحكام المواد )، ٢٦١، ٢٦٠، ٢٥٩، ٢٥٥، ٢٥٤، ٢٤٥ (۲۷۲، ۲۷۱، ۲۷۰، ٢٦٦، ٢٦٢من هذا القانون،والقرارات الوزارية المنفذة لها بغرامة لا تقل عن خمسة آلاف جنيه ولا تجاوز مائة ألف جنيه،وتضاعف الغرامة فى حالة العود. كما يعاقب بذات العقوبة المشار إليها بالفقرة الأولى من هذه المادة كل من يخالف أحكام المواد )، ٢٦٧، ٢٥٣، ٢٥٢، ٢٥١، ٢٥٠، ٢٤٩، ٢٤٨، ٢٤٧، ٢٤٦ (٢٦٩، ٢٦٨من هذا القانون.$q595$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3585,7 +3588,7 @@ WITH ins_art_law14_297 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 297, $q596$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q596$, $q597$يعاقب صاحب العمل أو من يمثله عن المنشأة إذا خالف أحكام المادتين )، ۲۷۷ (۲۷۸من هذا القانون،بغرامة لا تقل عن خمسة آلاف جنيه ولا تجاوز عشرين ألف جنيه،وتضاعف الغرامة فى حالة العود.$q597$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3595,7 +3598,7 @@ WITH ins_art_law14_298 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 298, $q598$الكتاب الخامس: تفتيش العمل والعقوبات — الباب الثانى: العقوبات$q598$, $q599$يعاقب المسئول عن الإدارة الفعلية للشخص الاعتبارى بالعقوبة ذاتها المقررة عن الأفعال التى ترتكب بالمخالفة لأحكام هذا القانون إذا ثبت علمه بها وكان إخلاله بالواجبات التى تفرضها عليه تلك الإدارة قد أسهم فى وقوع الجريمة. ويكون الشخص الاعتبارى مسئولا ً بالتضامن عن الوفاء بما يحكم به من عقوبات مالية وتعويضات.$q599$
   FROM laws WHERE law_no = 14 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3612,7 +3615,7 @@ WITH ins_art_law155_1 AS (
 تأمينات الحياة:جميع عمليات التأمين التي يكون فيها الخطر المؤمن ضده يتعلق بحياة الأشخاص،ويكون الغرض منها دفع مبالغ بسبب وفاة شخص معين أو عجزه عجزا كليا أو جزئيا دائما أو مؤقت ًا أو بلوغه سن ًا معينة أو ضمان معاش يدفع له أو للمستفيدين منه مدى الحياة أو خلال فترة محددة،كما يشمل أيضا ذات التأمينات التي ترتبط المزايا الخاصة بها باستثمارات في الأوراق والأدوات المالية. تأمينات الحوادث الشخصية طويلة الأجل:جميع عمليات التأمين التي تزيد مدتها على سنة،والتي يكون فيها الخطر المؤمن ضده متعلق ًا بالشخص وناتجا عن حادث وترتب عنه الوفاة أو العجز. تأمينات العلاج الطبي طويلة الأجل:جميع عمليات التأمين التي تزيد مدتها على سنة،ويكون الغرض منها صرف مزايا نقدية للأشخاص المؤمن عليهم في حالات العجز الناتج عن المرض،وكذا تغطية تكاليف العلاج الطبي. نشاط شركات إدارة برامج الرعاية الصحية:النشاط الذى تتولى من خلاله الشركة مسئولية جميع الأعمال الإدارية المرتبطة بوثائق التأمين الطبي التي تصدرها شركات التأمين،وذلك كطرف ثالث بين شركة التأمين والعميل،وذلك على النحو الذي تحدده الهيئة. عمليات تكوين الأموال:العمليات التي يكون الغرض منها تكوين مال من مشتركين يصرف فى تاريخ محدد مقابل قسط أو أقساط دورية،دون أن يرتبط ذلك باحتمالات الحياة أو الوفاة. الأطراف المرتبطة:الأشخاص الذين يجمع بينهم اتفاق بغرض الاستحواذ أو السيطرة الفعلية على إحدى الشركات الخاضعة لأحكام هذا القانون،سواء كان هذا الاتفاق مكتوبا أو غير مكتوب. ويعد من الأطراف المرتبطة الأشخاص الطبيعيون وأى من أزواجهم وأقاربهم حتى الدرجة الثانية،والأشخاص الاعتبارية والكيانات والاتحادات والروابط والتجمعات المالية المكونة من شخصين أو أكثر والتي تكون غالبية أسهم أو حصص إحداها مملوكة مباشرة أو بطريق غير مباشر للطرف الآخر أو يكون مالكها شخصا واحدا،كما يعد من الأطراف المرتبطة الأشخاص الخاضعون للسيطرة الفعلية لشخص آخر.
 صندوق التأمين الخاص:كل نظام بين مجموعة من الأفراد تربطهم مهنة أو عمل واحد أو أي صلة اجتماعية أخرى ويتألف بغير رأسمال،ويكون الغرض منه أن يؤدى إلى أعضائه أو المستفيدين منه تعويضات أو مزايا تأمينية أو اجتماعية أو معاشات دورية وفق ًا لنظامه الأساسي المعتمد من الهيئة والضوابط أو المعايير التي يصدرها مجلس إدارة الهيئة. صناديق التأمين الحكومية:الصناديق التي تتولى عمليات التأمين ضد الأخطار التى لا تقبلها عادة شركات التأمين أو تلك التي ترى الحكومة مزاولتها بنفسها لهدف قومي أو اجتماعي. نظام المزايا المحددة:النظام الذي تحدد فيه الميزة التأمينية سلف ًا من خلال دراسة اكتوارية للمركز المالي للصندوق بما يكفل تحقيق التوازن بين المزايا والموارد. نظام الاشتراكات المحددة:النظام الذي تحدد فيه حقوق المشترك بالرصيد التراكمي المتجمع في حسابه عند الاستحقاق،ولا تكون فيه المزايا محددة مسبق ًا. النظام المختلط:النظام الذي يجمع بين نظامي المزايا المحددة والاشتراكات المحددة. الحوسبة السحابية:النموذج الذي يمكن من الوصول الشبكي من أي مكان وبشكل مناسب وعند الطلب إلى مجموعة مشتركة من المصادر المادية أو الافتراضية كالشبكات والخوادم ووسائط التخزين والتطبيقات والخدمات التي يمكن توفيرها بسرعة واستخدامها بأقل جهد أو السداد الإلكتروني أو الأنشطة والإعلانات الإلكترونية الخاصة بأى من المنشآت أو الأفراد الخاضعين لإشراف ورقابة الهيئة بما في ذلك آليات ضمان حماية بيانات العملاء وسهولة استرجاعها وقواعد وضوابط الرقابة عليها من الهيئة. مجمعة التأمين:كيانات تؤسسها مجموعة من شركات التأمين أو إعادة التأمين بهدف الاكتتاب في أخطار معينة. الكيان:أى شركة أو منشأة أو مؤسسة أيا كان شكلها القانوني،مصرية أو أجنبية،تسيطر أو تستحوذ بشكل مباشر أو غير مباشر على نسبة ) (٪١٠أو أكثر من حجم نشاط التأمين بالسوق،أو يمثل نشاط التأمين بالنسبة لها وما يرتبط به من خدمات نسبة تزيد على ) (٪٥٠من ملكية شركاتها التابعة داخل جمهورية مصر العربية التي تعمل في تلك الأنشطة أو الخدمات.$q604$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3643,7 +3646,7 @@ WITH ins_art_law155_2 AS (
 -١٣ تأمينات العلاج الطبي قصير الأجل.
 -١٤ التأمين ضد المخاطر الإلكترونية. ً ثالثا -التأمين الطبي المتخصص بنوعيه طويل وقصير الأجل وما يرتبط بهما من خدمات وأنشطة. ً رابعا -التأمين متناهى الصغر: وللهيئة أن ترخص بممارسة أى من الأنواع السابقة بأسلوب التأمين التكافلي، وذلك وفق ًا للأحكام الواردة في هذا القانون. ويجوز لها أن ترخص بإنشاء شركات تأمين متخصصة في أحد فروع التأمين، وذلك وفق ًا للقواعد والإجراءات التي يصدرها مجلس إدارة الهيئة على ألا يقل رأسمالها عن الحد المقرر بالنسبة لشركات التأمين الطبي المتخصصة. ويصدر عن مجلس إدارة الهيئة قرار بتحديد ماهية كل من التأمين الطبي وتأمينات الحوادث الشخصية طويلة وقصيرة الأجل،كما يكون للمجلس أن يصدر قرارا بتحديد أنواع تأمينات أخرى وفروع لها.$q606$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3690,7 +3693,7 @@ WITH ins_art_law155_3 AS (
 -٣ الأجهزة المعاونة التى تنشأ وفق ًا لحكم المادة ) (١٢٢من هذا القانون.
 -٤ مكاتب تمثيل منشآت التأمين أو إعادة التأمين أو الأنشطة المرتبطة بهما. ولمجلس إدارة الهيئة الموافقة على الترخيص بأى أنشطة أو خدمات تأمين أخرى وفق ًا لمتطلبات السوق،وذلك كله وفق ًا للمعايير والقواعد التي يقررها،وعلى ألا يقل رأسمالها المصدر والمدفوع عن الحد المقرر بالنسبة لشركات التأمين الطبي المتخصصة. ) الفصل الثاني ( نشاط التأمين$q608$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3718,7 +3721,7 @@ WITH ins_art_law155_4 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 4, NULL, $q610$يكون محلا ً للتأمين كل مصلحة اقتصادية مشروعة تعود على الشخص من عدم وقوع خطر معين.$q610$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3732,7 +3735,7 @@ WITH ins_art_law155_5 AS (
 -٣ كل شرط مطبوع لم يبرز بشكل ظاهر وكان متعلق ًا بحالة من الأحوال التي تؤدى إلى البطلان أو السقوط.
 -٤ كل شرط تعسفى آخر يتبين أنه لم يكن لمخالفته أثر في وقوع الحادث المؤمن ضده.$q612$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3746,7 +3749,7 @@ WITH ins_art_law155_6 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 6, NULL, $q614$تسقط بالتقادم الدعاوى الناشئة عن نشاط التأمين وإعادة التأمين وما يرتبط به من خدمات بانقضاء ثلاث سنوات من وقت حدوث الواقعة التى تولدت عنها هذه الدعاوى. ولا تسرى المدة المشار إليها بالفقرة الأولى من هذه المادة في الأحوال الآتية: ) أ ( في حالة إخفاء بيانات متعلقة بالخطر المؤمن ضده،أو تقديم بيانات غير صحيحة أو غير دقيقة عن هذا الخطر إلا من اليوم الذي علمت فيه شركة التأمين بذلك. )ب( في حالة وقوع الحادث المؤمن ضده إلا من اليوم الذي علم فيه ذوو الشأن بوقوعه.$q614$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3756,7 +3759,7 @@ WITH ins_art_law155_7 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 7, NULL, $q616$يقع باطلا ً كل اتفاق يخالف أحكام تنظيم عقد التأمين الواردة بهذا القانون،إلا أن يكون ذلك لمصلحة المؤمن له أو لمصلحة المستفيد.$q616$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3766,7 +3769,7 @@ WITH ins_art_law155_8 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 8, NULL, $q618$لا يلتزم المؤمن فى تعويض المؤمن له إلا عن الضرر الناتج من وقوع الخطر المؤمن منه بشرط ألا يجاوز ذلك قيمة التأمين. ) الفصل الثالث ( أحكام خاصة ببعض أنواع التأمين تأمينات الأشخاص وعمليات تكوين الأموال$q618$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3776,7 +3779,7 @@ WITH ins_art_law155_9 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 9, NULL, $q620$لا يجوز للشركات التي تزاول تأمينات الأشخاص وعمليات تكوين الأموال أن تميز بين وثيقة وأخرى من وثائق النوع الواحد إلا في الأحوال التي يجيزها مجلس إدارة الهيئة،ويصدر مجلس إدارة الهيئة قرارا بالأحكام والقواعد والضوابط المنظمة لذلك.$q620$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3787,7 +3790,7 @@ WITH ins_art_law155_10 AS (
   SELECT id, 10, NULL, $q622$لا يجوز للشركات المنصوص عليها فى المادة ) (٩من هذا القانون أن تقتطع بصفة مباشرة أو غير مباشرة أى جزء من أموالها المقابلة لتعهداتها الناشئة عن وثائق التأمين التي أصدرتها لتوزيعها بصفة ربح على المساهمين أو حملة الوثائق أو لأداء أى مبلغ يخرج عن التزاماتها.
 ولا يجوز توزيع أرباح على المساهمين إلا بمقدار المال الزائد الذي يحدده الخبير الاكتواري في تقريره بعد إجراء الفحص المشار إليه فى المادة ) (١٧٤من هذا القانون، ويتم التوزيع وفق ًا للقواعد التي يحددها مجلس إدارة الهيئة في هذا الشأن. وفي تطبيق هذه المادة يجوز اعتبار أموال الشركة فى جمهورية مصر العربية وفى الخارج وحدة واحدة وذلك بعد موافقة مجلس إدارة الهيئة ودون الإخلال بأحكام المادة ) (١٧٥من هذا القانون.$q622$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3798,7 +3801,7 @@ WITH ins_art_law155_11 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 11, NULL, $q624$يجوز للهيئة الترخيص لشركات التأمين المنصوص عليها في المادة )(٩ من هذا القانون بعمل سحب يانصيب وذلك وفق ًا للأحكام والضوابط الصادرة عن مجلس إدارة الهيئة.$q624$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3808,7 +3811,7 @@ WITH ins_art_law155_12 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 12, NULL, $q626$في حالة إفلاس أو تصفية إحدى الشركات التي تزاول تأمينات الأشخاص وعمليات تكوين الأموال يتم تقدير المبالغ المستحقة لكل حامل وثيقة لم تنته مدتها بما يعادل الاحتياطى الحسابي الخاص بها يوم الحكم بالإفلاس أو صدور قرار بالتصفية. ويتم تقدير الاحتياطى الحسابى المشار إليه بالفقرة الأولى من هذه المادة آخر المدة بمعرفة خبير اكتوارى لمقابلة التزامات الشركة قبل حملة الوثائق في نهاية السنة المالية،وذلك وفق ًا للقواعد والأسس الفنية التي يعتمدها مجلس إدارة الهيئة.$q626$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3818,7 +3821,7 @@ WITH ins_art_law155_13 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 13, NULL, $q628$المبالغ التي تلتزم شركة التأمين فى مجال التأمين على الحياة بدفعها إلى المؤمن له أو إلى المستفيد عند وقوع الحادث المؤمن ضده أو حلول الأجل المنصوص عليه في وثيقة التأمين،تصبح مستحقة من وقت وقوع الحادث المؤمن ضده أو وقت حلول الأجل دون حاجة إلى إثبات ضرر أصاب المؤمن له أو أصاب المستفيد.$q628$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3829,7 +3832,7 @@ WITH ins_art_law155_14 AS (
   SELECT id, 14, NULL, $q630$تبرأ ذمة شركة التأمين من التزاماتها بدفع مبلغ التأمين إذا انتحر الشخص المؤمن على حياته،ومع ذلك تلتزم الشركة بأن تدفع لمن يئول إليهم الحق مبلغ ًا يساوى نصيبه في قيمة الاحتياطي الحسابي للتأمين.
 فإذا كان سبب الانتحار مرضا أفقد المريض إرادته بقى التزام شركة التأمين قائما بأكمله،وعلى الشركة المؤمنة أن تثبت أن المؤمن على حياته مات منتحرا، وعلى المستفيد أن يثبت أن المؤمن على حياته كان وقت انتحاره فاقد الإرادة. وإذا اشتملت وثيقة التأمين على شرط يلزم شركة التأمين بدفع مبلغ التأمين ولو كان انتحار الشخص عن اختيار وإدراك،فلا يكون هذا الشرط نافذ ًا إلا إذا وقع الانتحار بعد سنتين من تاريخ العقد.$q630$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3840,7 +3843,7 @@ WITH ins_art_law155_15 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 15, NULL, $q632$إذا كان التأمين على حياة شخص غير المؤمن له برئت ذمة شركة التأمين من التزاماتها متى تسبب المؤمن له عمدا في وفاة ذلك الشخص أو وقعت الوفاة بناء على تحريض منه. وإذا كان التأمين على الحياة لصالح شخص غير المؤمن له فلا يستفيد هذا الشخص من التأمين إذا تسبب عمدا في وفاة الشخص المؤمن على حياته،أو وقعت الوفاة بناء على تحريض منه. فإذا كان ما وقع من هذا الشخص مجرد شروع فى إحداث الوفاة،كان للمؤمن له الحق في أن يستبدل بالمستفيد شخصا آخر،ولو كان المستفيد قد قبل ما اشترط لمصلحته من تأمين.$q632$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3850,7 +3853,7 @@ WITH ins_art_law155_16 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 16, NULL, $q634$يجوز في التأمين على الحياة الاتفاق على أن يدفع مبلغ التأمين،إما إلى أشخاص معينين،وإما إلى أشخاص يعينهم المؤمن له فيما بعد. ويعتبر التأمين معقودا لمصلحة مستفيدين معينين إذا ذكر المؤمن له في الوثيقة أن التأمين معقود لمصلحة زوجه أو أولاده أو فروعه من ولد منهم ومن لم يولد، أو لورثته دون ذكر أسمائهم.فإذا كان التأمين لصالح الورثة دون ذكر أسمائهم كان لهؤلاء الحق فى مبلغ التأمين كل بنسبة نصيبه فى الميراث،ويثبت لهم هذا الحق ولو نزلوا عن الإرث. ويقصد بالزوج الشخص الذى تثبت له هذه الصفة وقت وفاة المؤمن له،ويقصد بالأولاد الفروع الذين يثبت لهم فى ذلك الوقت حق الإرث.$q634$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3860,7 +3863,7 @@ WITH ins_art_law155_17 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 17, NULL, $q636$يجوز للمؤمن له الذي التزم بدفع أقساط دورية،أن يتحلل في أي وقت من العقد بإخطار كتابى يرسله إلى المؤمن قبل انتهاء الفترة الجارية،وفى هذه الحالة تبرأ ذمته من الأقساط اللاحقة وتتوقف التغطية التأمينية.$q636$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3872,7 +3875,7 @@ WITH ins_art_law155_18 AS (
 -١ في العقود المبرمة مدى الحياة دون اشتراط بقاء المؤمن على حياته مدة معينة.
 -٢ في جميع العقود المشترط فيها دفع مبلغ التأمين بعد عدد معين من السنين. ولا يكون قابلا ً للتخفيض التأمين على الحياة إذا كان مؤقت ًا.$q638$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3886,7 +3889,7 @@ WITH ins_art_law155_19 AS (
 -١ في العقود المبرمة مدى الحياة لا يجوز أن يقل مبلغ التأمين المخفض عن القيمة التي كان يستحقها المؤمن له لو كان قد دفع ما يعادل الاحتياطى الحسابي في تاريخ التخفيض مخصوما منه ) (٪١من مبلغ التأمين الأصلي،باعتبار أن هذا المبلغ هو مقابل التأمين الذى يجب دفعه مرة واحدة في تأمين من ذات النوع وطبق ًا لتعريفة التأمين التي كانت مرعية في عقد التأمين الأصلي.
 -٢ في العقود المتفق فيها على أداء مبلغ التأمين بعد عدد معين من السنين، لا يجوز أن يقل مبلغ التأمين المخفض عن جزء من مبلغ التأمين الأصلى بنسبة ما دفع من أقساط.$q640$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3898,7 +3901,7 @@ WITH ins_art_law155_20 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 20, NULL, $q642$يجوز للمؤمن له،متى كان قد دفع ثلاثة أقساط سنوية على الأقل،أن يصفى التأمين بشرط أن يكون الحادث المؤمن منه محقق الوقوع. كما تكون قابلة للتصفية عقود التأمين المؤقتة بقسط وحيد مسدد بالكامل في بداية سريان التأمين. ولا يكون قابلا ً للتصفية،التأمين على الحياة إذا كان مؤقت ًا.$q642$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3908,7 +3911,7 @@ WITH ins_art_law155_21 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 21, NULL, $q644$تعتبر شروط التخفيض والتصفية جزءا من الشروط العامة للتأمين ويجب أن تذكر في وثيقة التأمين.$q644$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3918,7 +3921,7 @@ WITH ins_art_law155_22 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 22, NULL, $q646$لا يترتب على البيانات الخاطئة ولا على الغلط فى سن الشخص الذي عقد التأمين على حياته بطلان التأمين،إلا إذا كانت السن الحقيقية للمؤمن عليه تجاوز الحد المعين الذي نصت عليه تعريفة التأمين. وفى غير ذلك من الأحوال،إذا ترتب على البيانات الخاطئة أو الغلط، أن القسط المتفق عليه أقل من القسط الذي كان يجب أداؤه،وجب تخفيض مبلغ التأمين بما يتعادل مع النسبة بين القسط الواجب أداؤه على أساس السن الحقيقية والقسط المتفق عليه،ما لم يتم الاتفاق على خلاف ذلك. أما إذا كان القسط المتفق على دفعه أكبر مما كان يجب دفعه على أساس السن الحقيقية للمؤمن على حياته،وجب على شركة التأمين أن ترد دون فوائد،الزيادة التي حصل عليها،وأن تخفض الأقساط التالية إلى الحد الذى يتناسب مع السن الحقيقية للمؤمن عليه.$q646$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3928,7 +3931,7 @@ WITH ins_art_law155_23 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 23, NULL, $q648$في التأمين على الحياة لا يكون شركة التأمين التي دفعت مبلغ التأمين حق في الحلول محل المؤمن له أو المستفيد في حقوقه قبل من تسبب في الحادث المؤمن ضده أو قبل المسئول عن هذا الحادث.$q648$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3939,7 +3942,7 @@ WITH ins_art_law155_24 AS (
   SELECT id, 24, NULL, $q650$يقع باطلا ً التأمين على حياة الغير ما لم يوافق الغير عليه كتابة قبل إبرام العقد، فإذا كان هذا الغير لا تتوافر فيه الأهلية فلا يكون العقد صحيحا إلا بموافقة من يمثله قانون ًا. وتكون هذه الموافقة لازمة لصحة حوالة الحق في الاستفادة من التأمين أو لصحة رهن هذا الحق.
 التأمين ضد أخطار الحريق$q650$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3950,7 +3953,7 @@ WITH ins_art_law155_25 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 25, NULL, $q652$في التأمين ضد أخطار الحريق تكون شركة التأمين مسئولة عن جميع الأضرار الناشئة عن حريق،أو عن بداية حريق يمكن أن تصبح حريق ًا كاملا ً،أو عن خطر حريق يمكن أن يتحقق. ولا يقتصر التزام الشركة على الأضرار الناشئة مباشرة عن الحريق،بل يتناول أيضا الأضرار التي تكون نتيجة حتمية لذلك،وبالأخص ما يلحق الأشياء المؤمن عليها من ضرر بسبب اتخاذ وسائل الإنقاذ أو منع امتداد الحريق. وتكون الشركة مسئولة عن ضياع الأشياء المؤمن عليها واختفائها أثناء الحريق ما لم يثبت أن ذلك كان نتيجة سرقة،ولو تم الاتفاق على غير ذلك.$q652$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3960,7 +3963,7 @@ WITH ins_art_law155_26 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 26, NULL, $q654$تضمن شركة التأمين تعويض الأضرار الناجمة عن الحريق ولو نشأ هذا الحريق عن عيب في الشيء المؤمن عليه.$q654$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3970,7 +3973,7 @@ WITH ins_art_law155_27 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 27, NULL, $q656$تكون شركة التأمين مسئولة عن الأضرار الناشئة عن خطأ المؤمن له غير المتعمد،وكذلك تكون مسئولة عن الأضرار الناجمة عن حادث مفاجئ أو قوة قاهرة. أما الخسائر والأضرار التي يحدثها المؤمن له عمدا أو غش ًا،فلا تكون شركة التأمين مسئولة عنها ولو اتفق على غير ذلك.$q656$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3980,7 +3983,7 @@ WITH ins_art_law155_28 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 28, NULL, $q658$تساءل شركة التأمين عن الأضرار التي تسبب فيها الأشخاص الذين يكون المؤمن له مسئولا ً عنهم،أيا كان نوع خطئهم ومداه ما لم يكن للمؤمن له دور في تحقق تلك الأضرار.$q658$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3991,7 +3994,7 @@ WITH ins_art_law155_29 AS (
   SELECT id, 29, NULL, $q660$إذا كان الشيء المؤمن عليه مثقلا ً برهن حيازى أو إشهار الرهن في سجل الضمانات المنقولة أو رهن تأمينى أو غير ذلك من التأمينات العينية،انتقلت هذه الحقوق إلى التأمين المستحق للمدين بمقتضى عقد التأمين.
 فإذا شهرت هذه الحقوق أو أعلنت إلى شركة التأمين ولو بكتاب موصى عليه، فلا يجوز لها أن تدفع ما فى ذمتها للمؤمن له إلا برضاء الدائنين. فإذا حجز على الشيء المؤمن عليه أو وضع هذا الشيء تحت الحراسة، فلا يجوز لشركة التأمين إذا أعلنت بذلك على الوجه المبين فى الفقرة الثانية من هذه المادة أن تدفع للمؤمن له شيئًا مما في ذمتها.$q660$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4002,7 +4005,7 @@ WITH ins_art_law155_30 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 30, NULL, $q662$تحل شركة التأمين قانون ًا بما دفعته من تعويض عن الأضرار المغطاة في الدعاوى التي تكون للمؤمن له قبل من تسبب بفعله فى الضرر الذى نجمت عنه مسئولية شركة التأمين،ما لم يكن من أحدث الضرر قريبا أو صهرا للمؤمن له ممن يكونون معه في معيشة واحدة،أو شخصا يكون المؤمن له مسئولا ً عن أفعاله. نشاط التأمين الطبي المتخصص وما يرتبط به من خدمات$q662$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4012,7 +4015,7 @@ WITH ins_art_law155_31 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 31, NULL, $q664$للهيئة الترخيص بإنشاء شركات تأمين متخصصة يقتصر غرضها على مزاولة التأمين الطبي بنوعيه قصير وطويل الأجل. ويكون تأسيس تلك الشركات وقيدها والترخيص لها بمزاولة النشاط من الهيئة وفق ًا للشروط والقواعد والإجراءات الواردة بأحكام هذا القانون والقرارات الصادرة تنفيذ ًا له. ويحدد مجلس إدارة الهيئة الحد الأدنى لرأس المال المصدر والمدفوع بالكامل لتلك الشركات بما لا يقل عن ستين مليون جنيه أو ما يعادلها بالعملات الأجنبية الحرة التي يقبلها البنك المركزى المصرى.$q664$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4022,7 +4025,7 @@ WITH ins_art_law155_32 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 32, NULL, $q666$لا يجوز لأى شركة مزاولة نشاط إدارة برامج الرعاية الصحية إلا بعد الحصول على ترخيص بذلك من الهيئة والقيد لديها في سجل يعد لهذا الغرض. ويقتصر غرض الشركة على مزاولة نشاط إدارة برامج الرعاية الصحية. ويكون تأسيس تلك الشركات وقيدها والترخيص لها بمزاولة النشاط من الهيئة وفق ًا للشروط والقواعد والإجراءات الواردة بأحكام هذا القانون والقرارات الصادرة تنفيذ ًا له.$q666$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4032,7 +4035,7 @@ WITH ins_art_law155_33 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 33, NULL, $q668$يجوز لشركات إدارة برامج الرعاية الصحية أن تقوم بإدارة برامج الرعاية الصحية ذاتية التمويل لصالح المؤسسات أو الهيئات أو أصحاب الأعمال على أن يقوم العميل بسداد تكاليف الرعاية الصحية بالكامل،ولا يجوز لشركات إدارة برامج الرعاية الصحية ممارسة نشاط التأمين أو تحمل الخطر تحت أى مسمى أو تحديد أقساط أو اشتراكات سابقة أو لاحقة في برامجها تحت أى مسمى أو تحصيلها من العميل.$q668$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4042,7 +4045,7 @@ WITH ins_art_law155_34 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 34, NULL, $q670$يحدد مجلس إدارة الهيئة الحد الأدنى لرأس المال المصدر والمدفوع بالكامل لشركات إدارة برامج الرعاية الصحية بما لا يقل عن خمسة عشر مليون جنيه أو ما يعادلها بالعملات الأجنبية الحرة التي يقبلها البنك المركزى المصرى. نشاط التأمين التكافلي وإعادة التأمين التكافلي$q670$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4052,7 +4055,7 @@ WITH ins_art_law155_35 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 35, NULL, $q672$يجوز بترخيص من الهيئة تأسيس شركات تأمين يقتصر غرضها الوحيد على مزاولة التأمين التكافلي أو إعادة التأمين التكافلي. ويكون تأسيس تلك الشركات وقيدها والترخيص لها بمزاولة النشاط وفق ًا للشروط والقواعد والإجراءات الواردة بهذا القانون والقرارات الصادرة تنفيذ ًا له.$q672$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4062,7 +4065,7 @@ WITH ins_art_law155_36 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 36, NULL, $q674$لا يجوز أن تجمع شركة التأمين التكافلي بين مزاولة فروع التأمين الواردة في البند أولا ً من الفقرة الأولى من المادة ) (٢من هذا القانون ومزاولة الفروع الواردة بالبند ثانيا من ذات المادة. كما لا يجوز الجمع بين ممارسة صيغة التأمين التكافلي أو إعادة التأمين التكافلي، وغيرها من صيغ التأمين وإعادة التأمين. نشاط التأمين متناهى الصغر$q674$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4073,7 +4076,7 @@ WITH ins_art_law155_37 AS (
   SELECT id, 37, NULL, $q676$يعد تأمين ًا متناهى الصغر كل تأمين يستهدف ذوى الدخول المنخفضة في مجالات تأمين الممتلكات والأشخاص لحمايتهم من أخطار قد يتعرضون لها وبحد أقصى للتغطية مبلغ مائتي ألف جنيه،ويجوز لمجلس إدارة الهيئة زيادته سنويا بنسبة لا تزيد على ) (٪٢٥وذلك في الفروع المنصوص عليها بالمادة ) (٢من هذا القانون.
 وتحدد قرارات مجلس إدارة الهيئة أنواع هذا التأمين والحد الأقصى لمبالغ التأمين وأسس الاكتتاب والشروط والقواعد الخاصة بهذا النوع من التأمين.$q676$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4084,7 +4087,7 @@ WITH ins_art_law155_38 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 38, NULL, $q678$تعفى أقساط وثائق التأمين متناهى الصغر من الرسوم المقررة بالمادة )(٢٠٨ من هذا القانون،وذلك وفق ًا للقواعد التي يصدرها مجلس إدارة الهيئة. نشاط التأمين الإلزامى$q678$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4104,7 +4107,7 @@ WITH ins_art_law155_39 AS (
 -٩ التأمين ضد المخاطر التي يتعرض لها المصريون في الخارج.
 التأمين الإلزامي عن المسئولية المدنية الناشئة عن حوادث مركبات النقل السريع داخل جمهورية مصر العربية$q680$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4124,7 +4127,7 @@ WITH ins_art_law155_40 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 40, NULL, $q682$يجب التأمين عن المسئولية المدنية الناشئة عن حوادث مركبات النقل السريع المرخص في تسييرها طبق ًا لأحكام قانون المرور الصادر بالقانون رقم ٦٦لسنة ١٩٧٣ ويشمل التأمين حالات الوفاة والإصابة البدنية التي ينتج عنها عجز،وكذا الأضرار المادية التي تلحق بممتلكات الغير عدا تلفيات المركبات،وذلك وفق ًا لأحكام وثيقة التأمين الصادرة في هذا الشأن.$q682$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4134,7 +4137,7 @@ WITH ins_art_law155_41 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 41, NULL, $q684$تقبل في نطاق تطبيق أحكام هذا القانون بطاقات التأمين الموحدة عن سير المركبات عبر البلاد العربية أو وثائق أو بطاقات أو شهادات التأمين الصادرة طبق ًا للاتفاقيات الدولية النافذة فى جمهورية مصر العربية،بشرط أن يكون التأمين بموجب هذه البطاقات أو الوثائق أو الشهادات ساريا طوال مدة بقاء المركبة في جمهورية مصر العربية وشاملا ً أوجه المسئولية المدنية المنصوص عليها فى المادة )(٤٠ من هذا القانون،وأن تبين البطاقة أو الشهادة أو الوثيقة مجمعة التأمين المصرية التي تعهدت بتسوية التعويضات المترتبة على ذلك.$q684$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4144,7 +4147,7 @@ WITH ins_art_law155_42 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 42, NULL, $q686$يلتزم مالك المركبة أو من يقوم مقامه قانون ًا بالتأمين الإلزامي على المركبة، وذلك عند ترخيص المركبة أو عند تجديد الترخيص بحسب الأحوال.$q686$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4155,7 +4158,7 @@ WITH ins_art_law155_43 AS (
   SELECT id, 43, NULL, $q688$مع مراعاة حكم المادة ) (٤٢من هذا القانون يتم التأمين لدى إحدى شركات التأمين المسجلة لدى الهيئة والمرخص لها بمزاولة فرع التأمين الإلزامي عن المسئولية المدنية الناشئة عن حوادث مركبات النقل السريع طبق ًا لأحكام هذا القانون.
 وتكون مزاولة هذا التأمين من خلال مجمعة تنشأ بين تلك الشركات لإدارة التأمين الإلزامى عن المسئولية المدنية الناشئة عن حوادث مركبات النقل السريع بجمهورية مصر العربية،وذلك وفق ًا للنظام الأساسي للمجمعة المعتمد من الهيئة ويمتنع على أى شركة تأمين مزاولة هذا النشاط خارج المجمعة،ولا يجوز حل مجمعة التأمين أو تصفيتها إلا بقرار من مجلس إدارة الهيئة وتلتزم هذه الشركات بقبول التأمين المشار إليه وبإصدار الوثائق الخاصة به.$q688$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4166,7 +4169,7 @@ WITH ins_art_law155_44 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 44, NULL, $q690$تكون لكل مركبة تغطية تأمينية إلزامية خاصة بها مطابقة للنموذج الذي يصدربه قرار من رئيس مجلس إدارة الهيئة،ويصدر عن مجلس إدارة الهيئة القواعد والضوابط والإجراءات التنفيذية لهذا التأمين.$q690$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4176,7 +4179,7 @@ WITH ins_art_law155_45 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 45, NULL, $q692$يسری مفعول التغطية التأمينية طوال مدة الترخيص بتسيير المركبة،وخلال المهلة المسموح فيها بتجديد الترخيص طبق ًا لأحكام قانون المرور المشار إليه، ويسرى مفعول تجديد التغطية التأمينية من اليوم التالى لانتهاء مدة الترخيص حتى نهاية المهلة المسموح خلالها بتجديده.$q692$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4186,7 +4189,7 @@ WITH ins_art_law155_46 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 46, NULL, $q694$يصدر بتحديد أسعار التأمين المنصوص عليه بالمادة ) (٤٠من هذا القانون وما يرتبط به من مصروفات إصدار وتحصيل قرار من مجلس إدارة الهيئة،وذلك استنادا إلى الدراسات الفنية والاكتوارية التي تعد في هذا الشأن. ولمجلس إدارة الهيئة بعد أخذ رأى وزارة الداخلية وموافقة رئيس مجلس الوزراء، تحديد أسعار إضافية لهذا التأمين فى الحالات التي تزيد فيها المخاطر التأمينية. وعلى مجمعة التأمين المعنية الالتزام بهذه الأسعار في الوثائق التي تصدرها.$q694$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4197,7 +4200,7 @@ WITH ins_art_law155_47 AS (
   SELECT id, 47, NULL, $q696$تؤدى مجمعة التأمين المعنية مبلغ التأمين المحدد عن الحوادث المشار إليها في المادة ) (٤٠من هذا القانون إلى المستحق أو ورثته وذلك دون الحاجة إلى اللجوء للقضاء في هذا الخصوص.
 ويكون مبلغ التأمين الذي تؤديه مجمعة التأمين المعنية مائة ألف جنيه في حالات الوفاة أو العجز الكلى المستديم ويحدد مقدار مبلغ التأمين في حالات العجز الجزئي المستديم بمقدار نسبة العجز كما يحدد التعويض عن الأضرار التي تلحق بممتلكات الغير بحد أقصى عشرون ألف جنيه. ولمجلس إدارة الهيئة،استنادا إلى الدراسات الفنية والاكتوارية التي تعد في هذا الشأن،زيادة مبالغ التأمين المذكورة وبما لا يزيد على ) (٪٥٠منها في كل حالة، وذلك بعد أخذ رأى وزارة الداخلية وموافقة رئيس مجلس الوزراء. ويحدد مجلس إدارة الهيئة كيفية وشروط أداء مبلغ التأمين للمستحقين في كل من الحالات المشار إليها،على أن يصرف مبلغ التأمين في مدة لا تجاوز ثلاثين يوما من تاريخ إبلاغ شركة التأمين أو الصندوق المشار إليه بالمادة ) (٦١من هذا القانون بوقوع الحادث واستيفاء المستندات اللازمة لفحص الطلب.$q696$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4208,7 +4211,7 @@ WITH ins_art_law155_48 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 48, NULL, $q698$للمضرور أو ورثته اتخاذ الإجراءات القضائية قبل المتسبب عن الحادث والمسئول عن الحقوق المدنية،لمطالبته بما يجاوز مبلغ التأمين المنصوص عليه وفق ًا لأحكام وثيقة التأمين الصادرة وفق ًا لهذا القانون.$q698$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4218,7 +4221,7 @@ WITH ins_art_law155_49 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 49, NULL, $q700$لا يجوز لمجمعة التأمين المعنية أداء مبلغ التأمين إلى وكيل المضرور أو وكيل ورثته إلا بمقتضى توكيل خاص مصدق عليه صادر بعد تحديد مبلغ التأمين وفق ًا لنص المادة ) (٤٧من هذا القانون. ويجب أن يتضمن التوكيل قيمة مبلغ التأمين وبما يخول للوكيل حق استلامه من مجمعة التأمين المعنية أو الصندوق المشار إليه بالمادة ) (٦١من هذا القانون.$q700$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4228,7 +4231,7 @@ WITH ins_art_law155_50 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 50, NULL, $q702$في حالة تلقى النيابة العامة بلاغ ًا أو محضر استدلال محررا من مأمور الضبط القضائى فى واقعة حادث موجب للتعويض وفق ًا لأحكام التأمين الإلزامي عن المسئولية الناشئة عن حوادث مركبات النقل السريع،يستعلم من إدارة المرور المختصة عن اسم المؤمن له،ويثبت ذلك بمحضر التحقيق وعليها إخطار مجمعة التأمين المعنية بوقوع الحادث،وكذلك الصندوق في الحالات التي يختص بها وفق ًا لأحكام المادة ) (٦١من هذا القانون بالنموذج الصادر فى هذا الشأن عن النيابة العامة محددا به بيانات المركبة.$q702$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4238,7 +4241,7 @@ WITH ins_art_law155_51 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 51, NULL, $q704$يلتزم المؤمن له أو من ينوب عنه قانون ًا بإبلاغ مجمعة التأمين المعنية بالحادث الذي تسببت فيه المركبة،والموجب للتعويض وفق ًا لهذا القانون،خلال خمسة عشر يوما من تاريخ وقوعه،وعليه أن يتخذ جميع الاحتياطات والإجراءات اللازمة لتجنب تفاقم الأضرار الناجمة عنه. كما يلتزم بأن يقدم إلى مجمعة التأمين المعنية جميع الأوراق والمستندات المتعلقة بالحادث حال تسليمها له. وإذا أخل المؤمن له بأى من التزاماته المنصوص عليها في الفقرتين الأولى والثانية من هذه المادة فإن لمجمعة التأمين الرجوع عليه بالأضرار التي تصيبها نتيجة ذلك،ما لم يكن التأخير مبررا.$q704$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4248,7 +4251,7 @@ WITH ins_art_law155_52 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 52, NULL, $q706$إذا كانت المسئولية عن حادث موجب لاستحقاق مبلغ التأمين وفق ًا للتأمين الإلزامي عن المسئولية الناشئة عن حوادث مركبات النقل السريع مشتركة بين مركبتين أو أكثر،يحق للمضرور أو ورثته الحصول على مبلغ التأمين المنصوص عليه في المادة ) (٤٧من هذا القانون من أى من مؤمنى المركبات المتسببة في الحادث والصندوق المشار إليه فى المادة ) (٦١من هذا القانون،بحسب الأحوال. وتكون تسوية مبلغ التأمين بين مجمعة التأمين المعنية والصندوق،بحسب الأحوال،بالتساوى بينهما.$q706$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4258,7 +4261,7 @@ WITH ins_art_law155_53 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 53, NULL, $q708$إذا توفى المصاب أو لحق به عجز كلى مستديم من جراء الحادث خلال سنة من تاريخ وقوعه وثبت بشهادة طبية معتمدة أن الوفاة أو العجز الكلى المستديم كانا نتيجة الحادث،وجب على مجمعة التأمين المعنية أن تؤدى إلى الورثة أو المضرورين مبلغ التأمين المنصوص عليه فى المادة ) (٤٧من هذا القانون،أو أن تكمل مبلغ التأمين الذي سبق أن دفعته ليصل إلى هذا الحد.$q708$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4268,7 +4271,7 @@ WITH ins_art_law155_54 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 54, NULL, $q710$يجوز للمضرور أو ورثته الجمع بين مبلغ التأمين المنصوص عليه في هذا القانون وأي مبالغ أخرى تستحق بمقتضى وثائق تأمين اختيارية تكون قد أبرمت لتغطية الإصابات البدنية أو الوفاة الناجمة عن حوادث المركبات.$q710$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4278,7 +4281,7 @@ WITH ins_art_law155_55 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 55, NULL, $q712$لمجمعة التأمين المعنية إذا أدت مبلغ التأمين فى حالة قيام المسئولية المدنية قبل غير المؤمن له أو على غير المصرح له بقيادة المركبة،أن ترجع على المسئول عن وقوع الأضرار لاسترداد ما تكون قد أدته من تأمين.$q712$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4288,7 +4291,7 @@ WITH ins_art_law155_56 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 56, NULL, $q714$يجوز لمجمعة التأمين المعنية أن ترجع على المؤمن له بقيمة ما تكون قد أدته من مبلغ التأمين إذا ثبت أن التأمين قد عقد بناء على إدلاء المؤمن له ببيانات كاذبة أو إخفائه وقائع جوهرية تؤثر فى حكم مجمعة التأمين المعنية على قبولها تغطية الخطر أو أن المركبة استخدمت في أغراض لا يخولها الترخيص.$q714$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4298,7 +4301,7 @@ WITH ins_art_law155_57 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 57, NULL, $q716$لا يترتب على حق الرجوع المقرر لمجمعة التأمين المعنية وفق ًا لأحكام المادتين ) (٥٦، ٥٥من هذا القانون الإخلال بحق المضرور فى الرجوع على المسئول عن الحقوق المدنية. ) الفصل الرابع ( نشاط مجمعات التأمين$q716$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4312,7 +4315,7 @@ WITH ins_art_law155_58 AS (
 -٣ الأخطار الطبيعية.
 -٤ الحالات الأخرى التي يقررها مجلس إدارة الهيئة ووفق ًا للضوابط والمعايير التي يقررها. ويكون لمجمعة التأمين الحق فى إصدار الوثائق التي تغطى هذه الأخطار وفى هذه الحالة تخضع لذات الضوابط المقررة على شركات التأمين في هذا الشأن ومنها تلك المتعلقة بالمخصصات الفنية.$q718$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4326,7 +4329,7 @@ WITH ins_art_law155_59 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 59, NULL, $q720$يضع الأعضاء المؤسسون للمجمعة النظام الأساسي لها،ويصدر بإنشاء مجمعة التأمين والتصديق على نظامها قرار من مجلس إدارة الهيئة. وتسجل المجمعة في سجل خاص لدى الهيئة بعد أداء رسم مقداره مائة ألف جنيه، يسدد وفق ًا لطرق السداد المقررة قانونا وتكتسب الشخصية الاعتبارية الخاصة من تاريخ نشر قرار التسجيل في الوقائع المصرية. ويجب إخطار الهيئة بأية تعديلات تطرأ على النظام الأساسي وبمبررات هذا التعديل،ولا يجوز العمل بهذه التعديلات إلا بعد اعتمادها من مجلس إدارة الهيئة ونشرها بالوقائع المصرية. ) الفصل الخامس ( نشاط صناديق التأمين الحكومية$q720$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4336,7 +4339,7 @@ WITH ins_art_law155_60 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 60, NULL, $q722$يكون إنشاء صندوق التأمين الحكومى بقرار من رئيس مجلس الوزراء بناء على اقتراح من مجلس إدارة الهيئة،ويكون له الشخصية الاعتبارية الخاصة من تاريخ نشر هذا القرار بالوقائع المصرية. ويصدر بتحديد شروط وأسعار عمليات التأمين المشار إليها قرار من مجلس إدارة الهيئة. ويتم تسجيل تلك الصناديق بالسجل المعد لذلك بالهيئة فى مقابل رسم يحدده مجلس إدارة الهيئة بما لا يجاوز خمسين ألف جنيه،يسدد وفق ًا لطرق السداد المقررة قانون ًا. ويصدر مجلس إدارة الهيئة قرارا بالأحكام المنظمة لأوجه رقابة الهيئة على هذه الصناديق.$q722$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4351,7 +4354,7 @@ WITH ins_art_law155_61 AS (
 -٤ حالات إعسار شركة التأمين كليا أو جزئيا.
 -٥ الحالات الأخرى التى يصدر بها قرار من مجلس إدارة الهيئة. ويؤدى الصندوق مبلغ التأمين للمستحقين طبق ًا لأحكام المادة ) (٤٧من هذا القانون،ويحق له فى الحالة المنصوص عليها في البندين ) (٣، ٢من الفقرة الأولى من هذه المادة الرجوع على مالك السيارة أو المركبة المتسببة فى الضرر بقيمة التأمين الذي أداه. ويجب على المتضرر تقديم طلب التعويض للصندوق مصحوبا بالمستندات التي يصدر بتحديدها قرار من مجلس إدارة الهيئة،ويتولى الصندوق البت في الطلب خلال شهر من تاريخ تقديمه. ولا يجوز للمتضرر اتخاذ أية إجراءات قضائية ضد الصندوق قبل تقديم الطلب ومرور المدة المشار إليها بالفقرة الثالثة من هذه المادة،ولا تقبل الدعاوى المرفوعة دون مراعاة تقديم الطلب المشار إليه. ويختص رئيس مجلس الوزراء بتعديل نظام الصندوق. وتتولى مجمعة التأمين المعنية تمويل الصندوق بنسبة من متحصلات الأقساط، ويصدر بتحديد هذه النسبة قرار من مجلس إدارة الهيئة بناء على تقرير فني تعده الهيئة عن هذه المتحصلات. كما تلتزم شركات التأمين أعضاء مجمعة التأمين المعنية المرخص لها بمزاولة نشاط التأمين الإلزامي عن المسئولية المدنية الناشئة عن حوادث مركبات النقل السريع داخل جمهورية مصر العربية بسداد أى عجز مالي يواجه الصندوق.$q724$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4369,7 +4372,7 @@ WITH ins_art_law155_62 AS (
 -٢ إذا ثبت أن الصندوق لا يسير وفق ًا لأحكام هذا القانون أو القرارات المنفذة له أو لنظامها الأساسي بحسب الأحوال. وينذر الصندوق بالمخالفات ويمنح مهلة ثلاثين يوما لإبداء دفاعه وفى حالة عدم تصحيح وضعه يصفى الصندوق. ويحدد القرار قواعد وإجراءات التصفية والجهة التي تئول إليها هذه الأموال، ويكون لها ما للصندوق من حقوق وتتحمل بالتزاماته.
 ) الفصل السادس ( نشاط صناديق التأمين الخاصة أحكام عامة$q726$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4382,7 +4385,7 @@ WITH ins_art_law155_63 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 63, NULL, $q728$تخضع لأحكام هذا القانون صناديق التأمين الخاصة المسجلة لدى الهيئة في تاريخ العمل به،كما تسرى أحكامه على صناديق التأمين الخاصة التي تبلغ قيمة مواردها السنوية مائة ألف جنيه فأكثر،وبشرط ألا يقل عدد أعضائها عن مائة عضو. ولصناديق التأمين الخاصة أن تعمل بنظام المزايا المحددة أو نظام الاشتراكات المحددة أو النظام المختلط.$q728$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4392,7 +4395,7 @@ WITH ins_art_law155_64 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 64, NULL, $q730$يجب أن تسجل صناديق التأمين الخاصة بمجرد إنشائها في السجل المعد لذلك بالهيئة وذلك وفق ًا للقواعد والإجراءات المنصوص عليها في هذا الباب. وتضع الهيئة الشروط الواجب توافرها في النظم الأساسية للصناديق الخاضعة لأحكام هذا القانون.$q730$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4402,7 +4405,7 @@ WITH ins_art_law155_65 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 65, NULL, $q732$مع عدم الإخلال بالأوضاع القائمة لصناديق التأمين الخاصة وقت العمل بأحكام هذا القانون،لا يجوز السماح بإنشاء أكثر من صندوق واحد في ذات الجهة التابع لها أعضاء الصناديق إلا في الحالات وبالضوابط التي يصدر بها قرار عن مجلس إدارة الهيئة.$q732$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4412,7 +4415,7 @@ WITH ins_art_law155_66 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 66, NULL, $q734$يلتزم الصندوق بتحقيق المساواة والعدالة بين جميع أعضائه،ولا يجوز تقرير ميزة لصالح أحد الأعضاء أو فئة منهم.$q734$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4423,7 +4426,7 @@ WITH ins_art_law155_67 AS (
   SELECT id, 67, NULL, $q736$على صناديق التأمين الخاصة المسجلة بسجلات الهيئة والتي يبلغ حجم أموالها عشرة ملايين جنيه على الأقل أن تنشئ لها موقعا إلكترونيا لتمكين أعضائها من الاطلاع على جميع البيانات والأحكام الخاصة بالصندوق،ومنها أغراضه ومزاياه واشتراكاته والقرارات الصادرة عن إدارته وذلك وفق ًا للضوابط التي تضعها الهيئة.
 تسجيل الصناديق وتعديل أنظمتها الأساسية$q736$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4434,7 +4437,7 @@ WITH ins_art_law155_68 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 68, NULL, $q738$يقدم طلب قيد الصندوق إلى الهيئة مرفق ًا به النظام الأساسي للصندوق وفق ًا للنموذج المعتمد من مجلس إدارة الهيئة،وبعد استيفاء البيانات والمستندات التي تحددها الهيئة. وتصدر الهيئة قرار إنشاء الصندوق واعتماد نظامه الأساسى وقيده بسجلات الهيئة وفق ًا لأحد الأنظمة الواردة بالمادة ) (٦٣من هذا القانون وما تضعه الهيئة من ضوابط. ولا يجوز للصندوق مزاولة نشاطه إلا بعد تمام القيد فى سجل الهيئة ويعد ذلك ترخيصا بمزاولة النشاط،ويكتسب الصندوق الشخصية الاعتبارية الخاصة بمجرد القيد،وبعد سداد رسوم قيد لا تتجاوز خمسة آلاف جنيه تسدد وفق ًا لطرق السداد المقررة قانون ًا. وينشر قرار القيد والنظام الأساسى على الموقع الإلكتروني للصندوق وكذا الموقع الإلكترونى الذى تخصصه الهيئة لهذا الغرض.$q738$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4444,7 +4447,7 @@ WITH ins_art_law155_69 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 69, NULL, $q740$يجب أن يرفق بطلب قيد الصندوق دراسة اكتوارية من أحد الخبراء الاكتواريين المسجلين لدى الهيئة،وذلك وفق ًا للشروط والضوابط والقواعد التي يحددها مجلس إدارة الهيئة.$q740$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4455,7 +4458,7 @@ WITH ins_art_law155_70 AS (
   SELECT id, 70, NULL, $q742$يلتزم الصندوق بإخطار الهيئة بكل تعديل أو تغيير يطرأ على نظامه الأساسي، ويرفق الصندوق المستندات المؤيدة له،ويتم الإخطار وفق ًا للضوابط والمعايير التي يحددها مجلس إدارة الهيئة،ولا يجوز العمل بهذا التعديل إلا بعد اعتماده من الهيئة. وينشر قرار التعديل على الموقع الإلكترونى للصندوق وكذا الموقع الإلكتروني الذي تخصصه الهيئة لهذا الغرض.
 النظام المالي للصندوق$q742$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4470,7 +4473,7 @@ WITH ins_art_law155_71 AS (
 -٣ عائد استثمار أموال الصندوق.
 -٤ أية موارد أخرى يوافق عليها مجلس إدارة الصندوق وتقرها الهيئة.$q744$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4484,7 +4487,7 @@ WITH ins_art_law155_72 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 72, NULL, $q746$يلتزم كل صندوق بتخصيص جميع أمواله لمقابلة التزاماته قبل أعضائه، ويصدر عن مجلس إدارة الهيئة قرار بتحديد قواعد وضوابط ونسب استثمار الأموال الواجب تخصيصها طبق ًا لأحكام هذا القانون،وكذلك تقويمها واستبدال غيرها والتصرف فيها. وللهيئة حق الاطلاع على حسابات الصندوق والحصول على جميع البيانات التي تطلبها عن أمواله المودعة بالبنك المختص أو لدى أمين حفظ الأوراق المالية،وعلى الصندوق أن يقدم إذن ًا كتابيا بذلك للبنك المختص أو أمين حفظ الأوراق المالية.$q746$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4495,7 +4498,7 @@ WITH ins_art_law155_73 AS (
   SELECT id, 73, NULL, $q748$يكون لكل صندوق قوائم مالية سنوية يتم إعدادها وفق ًا لدليل تطبيق معايير المحاسبة المصرية على صناديق التأمين الخاصة التي تصدرها الهيئة، وعلى المسئولين عن إدارة الصندوق أن يمسكوا حسابات منتظمة تتناول إيرادات الصندوق ومصروفاته وعناصر مركزه المالي. وتبدأ السنة المالية للصندوق فى أول يناير وتنتهى فى ٣١ديسمبر من كل سنة، ويلتزم الصندوق بأن يقدم للهيئة قبل ثلاثين يوما من التاريخ المحدد لانعقاد الجمعية العامة تقريرا عن نشاطه مرفق ًا به قائمة بمركزه المالي وقائمة بحساب إيراداته ومصروفاته وتقرير مراقب الحسابات،وكذا بيان بمدد الاشتراكات الجديدة وقيمتها وعدد المشتركين الذين توقفوا خلال العام عن سداد اشتراكاتهم من خلال النموذج الذي تعده الهيئة لهذا الغرض،وذلك كله بما لا يخل بالتزام الصندوق بعقد الجمعية العامة في موعد أقصاه ثلاثة أشهر من انتهاء السنة المالية.
 وتلتزم الصناديق التي يزيد حجم أموالها على الحد الأدنى الذي يحدده مجلس إدارة الهيئة بإعداد قوائم مالية دورية. ويتولى مراجعة حسابات الصندوق مراقب حسابات أو أكثر تختاره وتحدد أتعابه الجمعية العامة العادية للصندوق من بين المقيدين بسجل مراقبي الحسابات بالهيئة.$q748$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4506,7 +4509,7 @@ WITH ins_art_law155_74 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 74, NULL, $q750$يقدم الصندوق تقريرا اكتواريا إلى الهيئة بمركزه المالي يعده أحد الخبراء الاكتواريين كل خمس سنوات على الأكثر يوضح فيه مدى كفاية أموال الصندوق لمقابلة التزاماته وفق ًا للأسس الفنية التي تعتمدها الهيئة في هذا الخصوص،ويتم إعداد هذا التقرير وفق ًا للشروط والضوابط التي يصدرها مجلس إدارة الهيئة. ولمجلس إدارة الهيئة أن يطلب تقديم هذا التقرير فى أى وقت قبل مضى خمس سنوات بحيث لا تقل المدة عن سنة من تاريخ آخر تقرير. على أن ترسل صورة منه إلى الهيئة خلال ستة أشهر من انتهاء الفترة التي أعد عنها التقرير مصحوبة بشهادة من الخبير الاكتوارى تثبت أن المسئولين عن إدارة الصندوق قد وضعوا تحت تصرفه جميع البيانات والمعلومات التي طلبها ويراها ضرورية لأداء مهامه،ويلتزم الخبير بإخطار الهيئة بأى خطأ أو مخالفات قد تتكشف لديه أثناء إعداد التقرير الاكتواري. وللهيئة مد هذا الميعاد لفترة لا تزيد على ثلاثة أشهر. وإذا تبين للهيئة أن تقرير الخبير الاكتوارى لا يعبر عن حقيقة المركز المالي للصندوق فلها أن تأمر بإعادة إعداد التقرير بواسطة خبير اكتوارى آخر على نفقة الصندوق. ويلتزم الصندوق فى جميع الحالات بنفقات إعادة الفحص.$q750$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4517,7 +4520,7 @@ WITH ins_art_law155_75 AS (
   SELECT id, 75, NULL, $q752$تتمتع الصناديق المسجلة وفق ًا لأحكام هذا القانون بالمزايا الآتية: ) أ ( الإعفاء من رسوم الشهر والتوثيق التى يقع عبء أدائها عليها في عقود الملكية والرهن والعقود الخاصة بالحقوق العينية الأخرى،وكذلك من رسوم التصديق على التوقيعات. )ب( الإعفاء من رسوم الدمغة المفروضة على جميع العقود والمحررات والمطبوعات والسجلات.
 )ج( الإعفاء من الضريبة على العقارات المبنية المملوكة للصندوق،والمستخدمة في أداء الأنشطة الأساسية الخاصة به. )د( إعفاء عائد وناتج التعامل في الأوراق المالية من ضريبة الدخل فيما عدا أذون الخزانة والسندات الحكومية كما يعفى إيراد القروض والودائع بجميع أنواعها المخصصة للصناديق من هذه الضريبة. كما تعفى اشتراكات العاملين فى صناديق التأمين الخاصة،والتي تنشأ طبق ًا لأحكام هذا القانون من الدخول فى وعاء الضريبة على الدخل المقررة عليهم.$q752$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4528,7 +4531,7 @@ WITH ins_art_law155_76 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 76, NULL, $q754$على الصندوق أن يحتفظ فى مركز إدارته بالوثائق والمكاتبات والسجلات الخاصة به،وتحدد الهيئة السجلات وما يقوم مقامها والتي يتعين على الصندوق إمساكها وما تحويه من بيانات والمدى الزمني للاحتفاظ بها. ولكل عضو من أعضاء الصندوق حق الاطلاع على سجلات الصندوق ومستنداته في حدود بياناته الشخصية. إدارة الصندوق )الجمعية العامة -مجلس الإدارة -مدير الاستثمار($q754$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4538,7 +4541,7 @@ WITH ins_art_law155_77 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 77, NULL, $q756$تتكون الجمعية العامة للصندوق من جميع الأعضاء الذين أوفوا بالالتزامات التي يحددها النظام الأساسى للصندوق ومضت على عضويتهم به ستة أشهر على الأقل من تاريخ صدور موافقة مجلس إدارة الصندوق بقبول عضويتهم،ولا تسرى هذه المدة على الجمعية العامة التأسيسية التي تعقد لانتخاب مجلس إدارة فور تسجيل الصندوق بالسجل المعد لهذا الغرض بالهيئة والترخيص له بمزاولة النشاط.$q756$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4548,7 +4551,7 @@ WITH ins_art_law155_78 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 78, NULL, $q758$تنعقد الجمعية العامة العادية للصندوق خلال الثلاثة أشهر التالية لانتهاء السنة المالية بدعوة من رئيس مجلس إدارة الصندوق،وتحدد الدعوة زمان ومكان الاجتماع وجدول الأعمال. كما يجوز لرئيس مجلس إدارة الصندوق أو لعدد من الأعضاء لا يقل عن الربع أو لرئيس مجلس إدارة الهيئة دعوة الجمعية العامة غير العادية في الحالات التي تستلزم ذلك وفق ًا لأحكام هذا الباب والإجراءات والضوابط التي يحددها مجلس إدارة الهيئة والنظام الأساسي للصندوق.$q758$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4566,7 +4569,7 @@ WITH ins_art_law155_79 AS (
 -٧ انتخاب أعضاء مجلس الإدارة.
 -٨ النظر في الموضوعات الأخرى المحددة في إخطار الدعوة.$q760$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4587,7 +4590,7 @@ WITH ins_art_law155_80 AS (
 -٢ الموافقة على عزل مجلس إدارة الصندوق،وتعيين مجلس إدارة مؤقت بما لا يجاوز عاما لحين انتخاب مجلس إدارة جديد.
 -٣ تصفية الصندوق أو إدماجه أو تحويل أمواله إلى صندوق آخر أو إلى وثيقة تأمين جماعية لدى إحدى شركات التأمين العاملة في جمهورية مصر العربية.$q762$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4601,7 +4604,7 @@ WITH ins_art_law155_81 AS (
   SELECT id, 81, NULL, $q764$يلتزم الصندوق بإبلاغ الهيئة والأعضاء بموعد ومكان اجتماع الجمعية العامة عن طريق البريد قبل انعقاده بخمسة عشر يوما على الأقل بموجب كتاب موصى عليه بعلم الوصول مرفق به صورة من الدعوة،وجدول الأعمال والأوراق المرفقة به.كما يتم الإعلان عن الدعوة بمقار وفروع الجهة التابع لها الصندوق في مكان واضح بذات البيانات المشار إليها،ويجوز بدلا ً من إرسال الخطابات بالبريد نشر الدعوة في إحدى الصحف اليومية المصرية واسعة الانتشار الصادرة باللغة العربية أو أية وسائل اتصال أخرى توافق عليها الهيئة وذلك وفق ًا للنموذج الذي تعده الهيئة لهذا الغرض.ويكون النشر أيضا على الموقع الإلكتروني للصندوق وكذا على الموقع الإلكتروني الذى تخصصه الهيئة لهذا الغرض وفق ًا للقواعد والإجراءات التي يحددها مجلس إدارة الهيئة.
 وعلى المختصين المعنيين بالصندوق أو من يكلفونه لهذا الغرض أن يضعوا تحت تصرف الأعضاء جميع مرفقات إخطار الدعوة. وإذا تضمن جدول أعمال الجمعية العامة انتخاب أعضاء مجلس الإدارة توجه الدعوة قبل الاجتماع بمدة لا تقل عن ثلاثين يوما،ويجب أن تتضمن الدعوة في هذه الحالة فتح باب الترشح لتلقى الطلبات خلال أسبوع يبدأ من اليوم التالي لتاريخ توجيه الدعوة ممن تتوافر لديهم شروط الترشح الموضحة بالنظام الأساسي للصندوق، وكذلك تتضمن الدعوة أسماء المقترح ترشيحهم من ذوى الخبرة وفق ًا للضوابط والمعايير التي يحددها مجلس إدارة الهيئة. وللهيئة إيفاد ممثل لها لحضور الاجتماع ومراقبة صحة الإجراءات وإبداء ما تراه من ملاحظات.$q764$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4612,7 +4615,7 @@ WITH ins_art_law155_82 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 82, NULL, $q766$يكون اجتماع الجمعية العامة العادية للصندوق صحيحا بحضور الأغلبية المطلقة لأعضائه،فإذا لم يكتمل العدد أجل الاجتماع إلى جلسة أخرى تعقد خلال مدة أقلها ساعة وأقصاها خمسة عشر يوما من تاريخ الاجتماع الأول،ويكون الانعقاد في هذه الحالة صحيحا إذا حضره بأنفسهم عدد لا يقل عن خمسمائة عضو أو عن ) (٪١٠من عدد الأعضاء أيهما أقل. وتصدر قرارات الجمعية العامة العادية بالأغلبية المطلقة للأعضاء الحاضرين. ويجوز لعضو الجمعية العامة أن ينيب عنه كتابة على النموذج المعد لهذا الغرض من الهيئة عضوا آخر يمثله فى حضور الجمعية العامة على أن يعتمد ذلك من مدير الصندوق وقبل انعقاد الجمعية العامة بحد أقصى اليوم السابق على انعقاد الجمعية، ولا يجوز أن ينوب العضو عن أكثر من عضو واحد.$q766$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4623,7 +4626,7 @@ WITH ins_art_law155_83 AS (
   SELECT id, 83, NULL, $q768$يكون اجتماع الجمعية العامة غير العادية صحيحا بحضور ثلثي عدد أعضاء الصندوق،فإذا لم يكتمل النصاب يؤجل الاجتماع إلى جلسة أخرى تعقد خلال مدة أقلها ساعة وأقصاها خمسة عشر يوما من تاريخ الاجتماع الأول،ويكون الانعقاد في هذه الحالة صحيحا إذا حضره بأنفسهم عدد لا يقل عن ألف عضو أو عن )(٪٢٥ من عدد الأعضاء أيهما أقل.
 وتصدر قرارات الجمعية العامة غير العادية بأغلبية أصوات الأعضاء الحاضرين فيما عدا ما يتعلق بتصفية الصندوق أو إدماجه أو تحويل أمواله إلى صندوق آخر، فيشترط حضور ثلثي عدد أعضاء الصندوق أو ألف وخمسمائة عضو بأنفسهم أيهما أقل، ويصدر القرار بموافقة ثلاثة أرباع عدد أعضاء الصندوق الحاضرين.$q768$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4634,7 +4637,7 @@ WITH ins_art_law155_84 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 84, NULL, $q770$لا يكون اجتماع الجمعية العامة للصندوق صحيحا إلا بتوافر النصاب المنصوص عليه في هذا القانون،وبحضور مراقب الحسابات،وفى حالة تعذر حضور مراقب الحسابات بنفسه يمكن حضور من ينوب عنه على أن يوضح للجمعية العامة أسباب عدم حضوره. ويجوز أن ينص فى النظام الأساسى للصندوق بأن تنعقد الجمعية العامة للصندوق في ذات التوقيت وفى أكثر من مقر وفق ًا للتوزيع الجغرافى وعدد أعضاء الصندوق. ولا يجوز للجمعية العامة للصندوق مناقشة أى موضوعات غير واردة بجدول الأعمال الصادر مع إخطار الدعوة للانعقاد،فيما عدا ما ترى الهيئة عرضه عليها. ويجب أن يعد محضر عن كل اجتماع للجمعية العامة للصندوق يتضمن عدد الحضور ومدى توافر النصاب والقرارات المتخذة ونتائج التصويت،ويوقع المحضر من رئيس الاجتماع ومراقب الحسابات وأمين سر الاجتماع. وتتم موافاة الهيئة بمحضر اجتماع الجمعية العامة للصندوق خلال خمسة عشر يوما من تاريخ الاجتماع ولا تعتبر قرارات الجمعية سارية إلا بعد التصديق عليها من الهيئة،وعلى الهيئة إصدار قرارها بالتصديق أو قرارها بالرفض مسببا خلال ثلاثين يوما من تاريخ تسليم الطلب بالتصديق على تلك القرارات.$q770$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4644,7 +4647,7 @@ WITH ins_art_law155_85 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 85, NULL, $q772$لا يجوز لعضو الجمعية العامة الاشتراك فى التصويت إذا كان موضوع القرار المعروض إبرام اتفاق معه أو رفع دعوى عليه أو التصالح عنها فيما بينه وبين الصندوق.$q772$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4654,7 +4657,7 @@ WITH ins_art_law155_86 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 86, NULL, $q774$يكون لكل صندوق مجلس إدارة يتكون من عدد فردى من الأعضاء لا يقل عن خمسة ولا يزيد على أحد عشر عضوا،على أن يكون من بينهم اثنان من ذوى الخبرة. ويحدد النظام الأساسي للصندوق اختصاصات مجلس الإدارة وشروط وكيفية انتخاب واختيار أعضائه،وإنهاء عضويتهم.$q774$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4664,7 +4667,7 @@ WITH ins_art_law155_87 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 87, NULL, $q776$لا يجوز الجمع بين عضوية مجلس إدارة الصندوق والعمل به،ويلتزم عضو مجلس الإدارة بالإفصاح عن أى حالة من حالات تعارض المصالح ممن يتعاملون مع الصندوق حال وجود علاقة معه. ولا يجوز لعضو مجلس الإدارة الاشتراك في التصويت إذا كان موضوع القرار المعروض إبرام اتفاق معه أو رفع دعوى عليه أو التصالح عنها فيما بينه وبين الصندوق.$q776$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4674,7 +4677,7 @@ WITH ins_art_law155_88 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 88, NULL, $q778$تكون مدة العضوية لعضو مجلس إدارة الصندوق ثلاث سنوات،ويجوز تجديدها لدورة واحدة أخرى متصلة. ولا يكون اجتماع المجلس صحيحا إلا بحضور ثلثى أعضائه،وتصدر قراراته بأغلبية أصوات أعضائه الحاضرين،وفى حالة تساوي الأصوات يرجح الجانب الذي منه الرئيس. ويمثل الصندوق أمام القضاء وفى مواجهة الغير رئيس مجلس إدارته.$q778$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4684,7 +4687,7 @@ WITH ins_art_law155_89 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 89, NULL, $q780$ينعقد مجلس الإدارة مرة كل ثلاثة أشهر على الأقل للنظر في شئون الصندوق. ويعتبر مستقيلا ً من المجلس كل عضو يتخلف عن الحضور في ثلاث جلسات متتالية أو أكثر من نصف جلسات المجلس خلال العام دون عذر مقبول. ولرئيس الهيئة دعوة مجلس إدارة الصندوق للانعقاد كلما رأى ضرورة للنظر في الموضوعات التى يرى عرضها على المجلس،ويجب على مجلس إدارة الصندوق أن يبت في هذه الموضوعات خلال شهر على الأكثر من تاريخ إبلاغه بها. وللهيئة أن توفد مندوبا عنها لحضور اجتماعات مجلس إدارة الصندوق كلما رأت ضرورة لذلك،ويكون له حق الاشتراك فى مناقشات المجلس دون أن يكون له حق التصويت.$q780$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4694,7 +4697,7 @@ WITH ins_art_law155_90 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 90, NULL, $q782$يلتزم رئيس مجلس إدارة الصندوق أو المدير التنفيذى له بحسب الأحوال، بالإفصاح للهيئة ولأعضاء الصندوق عن أية أحداث جوهرية من شأنها التأثير على المزايا المالية التي يمنحها الصندوق لأعضائه.$q782$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4712,7 +4715,7 @@ WITH ins_art_law155_91 AS (
 -٢ حماية أصول وموارد الصندوق من الضياع نتيجة سوء الاستخدام أو عدم الالتزام بالقوانين ذات الصلة.
 -٣ وضع قواعد المساءلة والمحاسبة داخل الصندوق.$q784$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4730,7 +4733,7 @@ WITH ins_art_law155_92 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 92, NULL, $q786$يجوز للصناديق الخاصة المخاطبة بأحكام هذا القانون استخدام ما تراه من الأنظمة الإلكترونية لعرض بنود اجتماعات الجمعيات العامة العادية أو غير العادية والتصويت عليها عن بعد من قبل أعضائها الذين يحق لهم المشاركة والتصويت في الجمعية وذلك كله وفق ًا للشروط والإجراءات التي يصدر بها قرار من مجلس إدارة الهيئة.$q786$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4748,7 +4751,7 @@ WITH ins_art_law155_93 AS (
 -٧ إعداد التقارير ربع السنوية والسنوية عن نشاط الصندوق للعرض على مجلس الإدارة للنظر في إقرارها.
 -٨ ما يرى مجلس إدارة الصندوق إسناده إليه وتكليفه به من اختصاصات. ويكون المدير التنفيذي للصندوق مسئولا ً مسئولية مباشرة أمام مجلس الإدارة ويكون له الحق فى حضور جلساته دون أن يكون له صوت معدود.$q788$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4771,7 +4774,7 @@ WITH ins_art_law155_94 AS (
 -٤ الإشراف على الإجراءات الخاصة بتدبير الاعتمادات وتوفير السيولة النقدية اللازمة لتمكين الصندوق من مباشرة نشاطه.
 -٥ تلقى تقارير جهات الرقابة فيما يتعلق بالنواحى المالية والإشراف على دراستها وإعداد الردود عليها.$q790$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4786,7 +4789,7 @@ WITH ins_art_law155_95 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 95, NULL, $q792$يلتزم الصندوق الذي يبلغ حجم أمواله المستثمرة خمسين مليون جنيه فأكثر بتعيين مدير استثمار متفرغ مسئول عن إدارة استثمار أموال الصندوق ترخص له الهيئة بذلك، أو أن يعهد بإدارة واستثمار أمواله إلى شركة أو أكثر من الشركات المرخص لها من الهيئة بإدارة صناديق الاستثمار. وذلك كله وفق ًا للقواعد والضوابط التي يضعها مجلس إدارة الهيئة في هذا الشأن. الإشراف والرقابة$q792$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4796,7 +4799,7 @@ WITH ins_art_law155_96 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 96, NULL, $q794$تتولى الهيئة الإشراف والرقابة على صناديق التأمين الخاصة وفق ًا لأحكام هذا القانون للوقوف على مدى سلامة مراكزها المالية،وقدرتها على الوفاء بالتزاماتها وحماية حقوق الأعضاء والمشتركين والمستفيدين والتأكد من الالتزام بأحكام هذا القانون والقرارات الصادرة عن الهيئة.$q794$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4813,7 +4816,7 @@ WITH ins_art_law155_97 AS (
 -٦ عزل المدير التنفيذي للصندوق.
 -٧ تنحية واحد أو أكثر من مجلس إدارة الصندوق.$q796$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4830,7 +4833,7 @@ WITH ins_art_law155_98 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 98, NULL, $q798$يجوز لمجلس إدارة الهيئة حل مجلس إدارة الصندوق إذا تبين أن المجلس قد دأب على مخالفة أحكام هذا القانون أو نظامه الأساسى بعد إجراء تحقيق إدارى،وله في هذه الحالة تعيين مجلس مؤقت لمدة سنة على الأكثر،ويتعين على مجلس الإدارة الذي تم حله تسليم جميع المستندات والسجلات والأموال الخاصة بالصندوق إلى المجلس المؤقت.كما يتعين على مجلس الإدارة المؤقت دعوة الجمعية العامة العادية لانتخاب أعضاء جدد قبل انتهاء مدة السنة. ولا يجوز لأعضاء مجلس الإدارة الذى تم حله الترشح لعضوية المجلس لدورتين متتاليتين. الاندماج والتحويل والتصفية والشطب$q798$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4840,7 +4843,7 @@ WITH ins_art_law155_99 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 99, NULL, $q800$يجوز بقرار من الهيئة الترخيص لصندوق أو أكثر بناء على طلبه بالاندماج في صندوق آخر وذلك بعد موافقة الجمعية العامة غير العادية لكل صندوق، ويعتبر الصندوق المندمج فيه خلف ًا للصندوق المندمج،ويحل محله حلولا ً قانونيا فيما له من حقوق وما عليه من التزامات. ويتم الاندماج وفق ًا للقواعد والإجراءات التي يحددها مجلس إدارة الهيئة.$q800$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4850,7 +4853,7 @@ WITH ins_art_law155_100 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 100, NULL, $q802$مع عدم الإخلال بالتوازن المالي للصندوق يجوز لأى عضو من أعضاء الصندوق تحويل ما يخصه من حقوق والتزامات إلى صندوق آخر يوافق على هذا التحويل ويجب على عضو الصندوق طالب التحويل إلى صندوق آخر أن يحصل على موافقة الجمعية العامة لكل صندوق على حدة. ويتم التحويل وفق ًا للقواعد والإجراءات التي يحددها مجلس إدارة الهيئة.$q802$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4864,7 +4867,7 @@ WITH ins_art_law155_101 AS (
 -٣ إذا ثبت أن الصندوق لا يسير وفق ًا لأحكام هذا القانون أو القرارات المنفذة لها أو لنظامه الأساسي.
 -٤ إذا كانت إدارة الصندوق يشوبها غش أو تدليس. وفي الحالات الثلاث الأخيرة،ينذر الصندوق بالمخالفات ويمنح مهلة ثلاثين يوما لإبداء دفاعه،وفى حالة عدم تصحيح وضعه يصفى الصندوق. وفى جميع الحالات يتضمن قرار التصفية تشكيل لجنة للتصفية تكون مهمتها إنهاء إجراءات التصفية وتوزيع صافى أموال الصندوق على أعضائه وقت التصفية، وعلى القائمين على إدارة الصندوق تسليم جميع المستندات والسجلات والأموال الخاصة بالصندوق إلى اللجنة بمجرد طلبها ويحظر عليهم التصرف في أي شأن من شئون الصندوق إلا بأمر كتابي منها.$q804$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4878,7 +4881,7 @@ WITH ins_art_law155_102 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 102, NULL, $q806$في حالة شطب الصندوق لتوقفه عن مباشرة أعماله أو لتصفيته يئول صافي أمواله إلى الأعضاء فى تاريخ التصفية ويوزع عليهم ناتج التصفية وفق ًا لتقرير الخبير الاكتواري واعتماد الهيئة.$q806$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4892,7 +4895,7 @@ WITH ins_art_law155_103 AS (
 -٣ بعد انتهاء إجراءات تصفية الصندوق. ويتم نشر قرار الشطب على الموقع الإلكترونى الذى تخصصه الهيئة لهذا الغرض.
 أحكام ختامية$q808$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4906,7 +4909,7 @@ WITH ins_art_law155_104 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 104, NULL, $q810$أموال الصناديق الخاصة أموال خاصة،وتعد أمواله أموالا ً عامة في تطبيق أحكام الباب الرابع من الكتاب الثاني من قانون العقوبات،ويعد القائمون على إدارته موظفين عموميين في تطبيق أحكام البابين الثالث والرابع من قانون العقوبات.$q810$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4916,7 +4919,7 @@ WITH ins_art_law155_105 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 105, NULL, $q812$على القائمين على إدارة الصندوق أن يضعوا تحت تصرف أعضائه جميع البيانات الواجب تقديمها إلى الهيئة وفق ًا لأحكام المادتين ) (٧٤، ٧٣من هذا القانون والقرارات الصادرة تنفيذ ًا له وأن تسلم نسخة منها إلى من يطلبها من الأعضاء مقابل مبلغ لا يجاوز خمسين جنيها يتم تحصيله بالطرق المقررة قانون ًا عن كل مستند وفق ًا للشروط والأوضاع التي يضعها مجلس إدارة الهيئة.$q812$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4926,7 +4929,7 @@ WITH ins_art_law155_106 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 106, NULL, $q814$تؤدى الصناديق رسما سنويا للهيئة يحدده مجلس إدارة الهيئة بما لا يجاوز واحدا ونصف ًا في الألف من جملة الاشتراكات السنوية للصندوق مقابل فحص واعتماد أسس تحديد اشتراكات وتعويضات أعضائها بمراعاة الأسس الاكتوارية والفنية والتحقق من كفاية أموالها للوفاء بالتزاماتها وجمع وتصنيف وإتاحة البيانات والمعلومات ذات الصلة بعمل الصناديق،ودراسة شكاوى الصناديق وأعضائها وفق ًا لأحكام هذا القانون.$q814$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4937,7 +4940,7 @@ WITH ins_art_law155_107 AS (
   SELECT id, 107, NULL, $q816$للصناديق الخاضعة لأحكام هذا القانون أن تنشئ فيما بينها اتحادا أو أكثر أو جهازا معاون ًا أو أكثر غير هادف للربح،وذلك بقصد الاتفاق على القيام بجمع وتحليل ونشر المعلومات أو القيام بأعمال منع وتقليل الخسائر أو غير ذلك من الأعمال التي تهم الأعضاء. ويتعين أن يتضمن النظام الأساسى للاتحاد أو الجهاز نصوصا حول طبيعة العلاقة بين أعضائه والتزاماتهم وجزاءات مخالفة أحكامه. ويصدر مجلس إدارة الهيئة قرارا باعتماد إنشاء الاتحاد أو الجهاز والتصديق على نظامه الأساسى ويقيد الاتحاد أو الجهاز فى سجل خاص لدى الهيئة بعد أداء رسم مقداره خمسة آلاف جنيه،يسدد وفق ًا لطرق السداد المقررة قانون ًا.
 وينشر قرار الإنشاء والنظام الأساسى بالوقائع المصرية،وكذا على الموقع الإلكترونى للاتحاد أو الجهاز بحسب الأحوال،وكذا على الموقع الإلكتروني الذى تخصصه الهيئة لهذا الغرض. ويكون لكل منها الشخصية الاعتبارية الخاصة من تاريخ هذا النشر.$q816$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4948,7 +4951,7 @@ WITH ins_art_law155_108 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 108, NULL, $q818$يلتزم رئيس وأعضاء مجلس إدارة الصندوق وجميع القائمين على الإدارة التنفيذية به بمراعاة كل القوانين واللوائح والقرارات المنظمة لصناديق التأمين الخاصة والنظام الأساسى للصندوق،وعليهم بذل العناية والحرص فى مباشرتهم لجميع الأعمال المتعلقة بالصندوق وفى إدارتهم لأمواله بغية تعظيم العائد على الأموال المستثمرة. ) الفصل السابع ( نشاط الاتحادات والأجهزة المعاونة ومكاتب التمثيل اتحاد التأمين$q818$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4958,7 +4961,7 @@ WITH ins_art_law155_109 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 109, NULL, $q820$اتحاد شركات التأمين،اتحاد غير هادف للربح يتكون من شركات التأمين وإعادة التأمين الخاضعة لهذا القانون أيا كان نوع النشاط الذي تزاوله،ويتمتع بشخصية اعتبارية مستقلة،ويعد من أشخاص القانون الخاص ويسجل فى سجل خاص بالهيئة، ويشار إليه في هذا القانون بالاتحاد.$q820$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4972,7 +4975,7 @@ WITH ins_art_law155_110 AS (
 -٣ توثيق التعاون والتنسيق بين الاتحاد والهيئة بما يحقق صالح سوق التأمين والاقتصاد القومي.
 -٤ توثيق الصلات بين الاتحاد والاتحادات الأخرى في مصر والخارج.$q822$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4986,7 +4989,7 @@ WITH ins_art_law155_111 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 111, NULL, $q824$تعتبر كل شركة تأمين أو إعادة تأمين خاضعة لأحكام هذا القانون عضوا بالاتحاد بمجرد تسجيلها بالهيئة. وعلى الشركة موافاة الاتحاد خلال خمسة عشر يوما بصورة من قرار التسجيل وبأسماء أعضاء مجلس إدارتها،وتلتزم بأحكام نظامه الأساسي.$q824$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5000,7 +5003,7 @@ WITH ins_art_law155_112 AS (
 -٣ عائد استثمار أموال الاتحاد.
 -٤ أى موارد أخرى يوافق عليها مجلس إدارة الاتحاد.$q826$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5024,7 +5027,7 @@ WITH ins_art_law155_113 AS (
 -٩ تعيين مراقب الحسابات من بين المقيدين بسجل مراقبي الحسابات بالهيئة، وتحديد أتعابه.
 -١٠ المسائل الأخرى التى يرى مجلس إدارة الاتحاد عرضها على الجمعية العامة وإدراجها في جدول الأعمال. ويحدد النظام الأساسي للاتحاد الاختصاصات الأخرى للجمعية العامة، وغيرها من الإجراءات والقواعد المتعلقة بنظام عملها.$q828$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5044,7 +5047,7 @@ WITH ins_art_law155_114 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 114, NULL, $q830$يكون للاتحاد مجلس إدارة مكون من رئيس واثنى عشر عضوا،لمدة أربع سنوات قابلة للتجديد لمرة واحدة متصلة. ويحدد النظام الأساسي للاتحاد اختصاصات مجلس إدارة الاتحاد ورئيسه وقواعد ونظام عملهما،كما يحدد قواعد وإجراءات وضوابط وشروط انتخاب مجلس الإدارة. ولا يجوز حل مجلس إدارة الاتحاد إلا بناء على حكم قضائي.$q830$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5054,7 +5057,7 @@ WITH ins_art_law155_115 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 115, NULL, $q832$يعتمد مجلس إدارة الهيئة النظام الأساسى للاتحاد بناء على عرض مجلس إدارة الاتحاد وبعد موافقة الجمعية العامة للاتحاد،وينشر بالوقائع المصرية وعلى الموقع الإلكتروني لكل من الاتحاد والهيئة. ويحدد النظام الأساسى للاتحاد أجهزته الأخرى المعاونة واختصاصاتها ونظام عملها،وكذا أحكام وقواعد وإجراءات مساءلة أعضاء الاتحاد والتدابير الإدارية الواجب اتخاذها حال مخالفة نظامه الأساسى أو قواعد السلوك المهني. اتحادات المهن والأنشطة التأمينية الأخرى$q832$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5065,7 +5068,7 @@ WITH ins_art_law155_116 AS (
   SELECT id, 116, NULL, $q834$تنشأ اتحادات غير هادفة للربح للأشخاص المرخص لهم من الهيئة بمزاولة المهن التأمينية أو الأنشطة المرتبطة بالتأمين المسجلين بسجلات الهيئة،وتتمتع هذه الاتحادات بالشخصية الاعتبارية المستقلة،وتعد من أشخاص القانون الخاص، وتسجل في سجل خاص بالهيئة. ويجوز أن يضم الاتحاد أكثر من مهنة أو نشاط من الأنشطة المرتبطة بالتأمين، ولا يجوز إنشاء أكثر من اتحاد للمهنة أو النشاط الواحد.
 ويكون تأسيس الاتحادات المشار إليها بالفقرة الأولى من هذه المادة من عدد لا يقل عن ) (٪٥١من الأشخاص المرخص لهم من الهيئة بمزاولة المهن التأمينية أو الأنشطة المرتبطة بها وفق ًا لطبيعة نشاط الاتحاد شريطة ألا تقل حصتهم السوقية أو حجم أعمالهم عن ) (٪٥١من إجمالي حجم النشاط فى السوق المعنية، وتتولى الهيئة التأكد من توافر متطلبات التأسيس وقيام هؤلاء الأشخاص بتشكيل الجمعية التأسيسية لإعداد مشروع النظام الأساسي،وعرضه على الهيئة للنظر في اعتماده،ونشره بالوقائع المصرية وعلى الموقع الإلكتروني للهيئة. ويلتزم الأشخاص المرخص لهم من الهيئة بمزاولة المهن التأمينية أو الأنشطة المرتبطة بالتأمين المسجلون بسجلات الهيئة بالاشتراك في عضوية الاتحاد المعنى بالنشاط بمجرد تسجيله بالهيئة،ومراعاة نظامه الأساسي.$q834$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5079,7 +5082,7 @@ WITH ins_art_law155_117 AS (
 -٢ التنسيق مع الهيئة فى المسائل المشتركة وتسوية المنازعات بين الأعضاء.
 -٣ توثيق الصلة بين الاتحاد وغيره من الاتحادات الأخرى في الداخل والخارج.$q836$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5096,7 +5099,7 @@ WITH ins_art_law155_118 AS (
 -٣ عائد استثمار أموال الاتحاد.
 -٤ أى موارد أخرى يوافق عليها مجلس إدارة الاتحاد.$q838$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5115,7 +5118,7 @@ WITH ins_art_law155_119 AS (
 -٣ تحديد قيمة مقابل العضوية الذي يؤديه طالب الانضمام للاتحاد بما لا يجاوز خمسين ألف جنيه للشخص الطبيعى ومائة ألف جنيه للشخص الاعتبارى.
 -٤ تحديد قيمة الاشتراك السنوى للأعضاء بما لا يجاوز خمسين ألف جنيه للشخص الطبيعي ومائة ألف جنيه للشخص الاعتباري. ويجوز للجمعية العامة غير العادية زيادة قيمة مقابل العضوية والاشتراك السنوى أو أحدهما بما لا يجاوز الضعف سنويا.$q840$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5135,7 +5138,7 @@ WITH ins_art_law155_120 AS (
 -٤ قواعد ونظام العمل بمجلس الإدارة ولجانه وأجهزته المعاونة.
 -٥ أحكام وقواعد وإجراءات مساءلة أعضاء الاتحاد والتدابير الإدارية الواجب اتخاذها حال مخالفة نظامه الأساسي أو قواعد السلوك المهني.$q842$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5151,7 +5154,7 @@ WITH ins_art_law155_121 AS (
   SELECT id, 121, NULL, $q844$تكون مدة مجلس إدارة الاتحاد أربع سنوات قابلة للتجديد لمرة واحدة متصلة، ولا يجوز حل مجلس إدارة الاتحاد إلا بناء على حكم قضائي.
 الأجهزة المعاونة$q844$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5162,7 +5165,7 @@ WITH ins_art_law155_122 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 122, NULL, $q846$يجوز بقرار من مجلس إدارة الهيئة إنشاء أجهزة معاونة لقطاع التأمين وذلك وفق ًا للقواعد والإجراءات التي يصدرها مجلس إدارة الهيئة. ويسجل الجهاز فى سجل خاص لدى الهيئة بعد أداء رسم يحدده مجلس إدارة الهيئة بما لا يجاوز خمسين ألف جنيه،يسدد وفق ًا لطرق السداد المقررة قانون ًا. وينشر قرار الإنشاء والنظام الأساسى بالوقائع المصرية وعلى الموقع الإلكتروني للجهاز وكذا الموقع الإلكترونى للهيئة،ويكتسب الجهاز الشخصية الاعتبارية المستقلة اعتبارا من تاريخ هذا النشر،ويعد من أشخاص القانون الخاص. ويعتبر من قبيل الأجهزة المعاونة فى حكم هذه المادة المعاهد التأمينية ومراكز التدريب ومراكز الحاسبات وتكنولوجيا المعلومات وتداول البيانات التي تنشئها شركات التأمين فيما بينها في مجال التأمين. مكاتب تمثيل منشآت التأمين أو إعادة التأمين أو الأنشطة المرتبطة بهما$q846$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5173,7 +5176,7 @@ WITH ins_art_law155_123 AS (
   SELECT id, 123, NULL, $q848$يجوز للهيئة الترخيص بإنشاء مكاتب تمثيل في جمهورية مصر العربية للشركات الأجنبية التى تعمل فى مجال التأمين أو إعادة التأمين أو الأنشطة والخدمات المرتبطة بهما وفق ًا للشروط والضوابط التي يصدر بها قرار عن مجلس إدارة الهيئة،وذلك بعد أداء رسم تسجيل مقداره خمسة آلاف دولار أو ما يعادله بالعملات الأجنبية الحرة التي يقبلها البنك المركزى المصرى،يسدد وفق طرق السداد المقررة قانون ًا. ويقتصر غرض عملها على دراسة سوق التأمين والعلاقات العامة والاتصالات، والقيام بدور حلقة اتصال مع المراكز الرئيسية فى الخارج والمساهمة في تذليل المشاكل والصعوبات وتقديم التسهيلات لشركات السوق المحلية. وتجدد تلك الموافقة سنويا مقابل رسم مقداره ألف دولار أو ما يعادله بالعملات الأجنبية الحرة التى يقبلها البنك المركزى المصرى،يسدد وفق طرق السداد المقررة قانون ًا.
 وتخضع تلك المكاتب لإشراف ورقابة الهيئة،ويكون للهيئة حق الاطلاع في أي وقت على الدفاتر والسجلات الخاصة بها وطلب ما تراه من البيانات والمستندات التي تحقق أغراض الإشراف والرقابة عليها. ويجب على تلك المكاتب أن تخطر الهيئة بأى تعديلات تطرأ على بياناتها المسجلة لدى الهيئة. وفى حالة مخالفة أى من تلك المكاتب لأى من شروط وضوابط الهيئة يتم إنذارها بالمخالفة وطلب إزالتها خلال ثلاثين يوما من تاريخ إنذارها،فإذا لم تتم إزالتها يتم شطبها من السجل بقرار من مجلس إدارة الهيئة. وتلتزم تلك المكاتب بإخطار الهيئة عند إغلاقها المكتب سواء بصورة مؤقتة أو نهائية.$q848$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5185,7 +5188,7 @@ WITH ins_art_law155_124 AS (
   SELECT id, 124, $q849$الفصل الثامن: المهن التأمينية$q849$, $q850$لا يجوز للخبير الاكتوارى من الأشخاص الطبيعيين أن يزاول أعماله إلا بعد الحصول على ترخيص بذلك من الهيئة ويسجل فى السجل المعد لذلك بالهيئة، ويتم قيد اسمه وفق ًا للشروط والقواعد والإجراءات التي يضعها مجلس إدارة الهيئة، والتي من بينها على وجه الخصوص ما يلى: أن يكون حاصلا ً على إحدى الدرجات أو الدبلومات الآتية: ) أ ( درجة زميل أو رفيق من أحد المعاهد الآتية: معهد وكلية الخبراء الاكتواريون بالمملكة المتحدة. جمعية الخبراء الاكتواريون بالولايات المتحدة الأمريكية. )ب( درجة مهنية تالية لمرحلة الدراسة الجامعية الأولى فى العلوم الاكتوارية من إحدى جمعيات أو معاهد الخبراء الاكتواريين،معادلة للشهادات الواردة في البند )أ(، التي يعتمدها مجلس إدارة الهيئة.
 ويسرى القيد لمدة خمس سنوات قابلة للتجديد،ويقدم طلب التجديد في سجل الخبراء الاكتواريين وفق ًا للشروط والأوضاع التي يحددها مجلس إدارة الهيئة، على أن يتم اتخاذ إجراءات التجديد خلال ثلاثة الأشهر الأخيرة على الأقل من الموعد المذكور. ويؤدى طالب القيد أو التجديد رسما يحدده مجلس إدارة الهيئة بما لا يجاوز عشرة آلاف جنيه للشخص الطبيعي،يسدد وفق ًا لطرق السداد المقررة قانون ًا.$q850$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5201,7 +5204,7 @@ WITH ins_art_law155_125 AS (
 -٤ توافر جميع الشروط المتطلبة لقيد الأشخاص الطبيعيين في سجل الخبراء لدى كل من يزاول أعمال الخبرة الاكتوارية من خلال الشخص الاعتباري.
 -٥ أن يقتصر غرض الشركة على مزاولة أعمال الخبرة الاكتوارية. وتؤدى الشركة طالبة القيد أو التجديد رسما يحدده مجلس إدارة الهيئة بما لا يجاوز خمسين ألف جنيه يسدد وفق ًا لطرق السداد المقررة قانون ًا. وفى حالة قيام مانع لدى العضو القائم بالإدارة التنفيذية يحول دون مباشرة أعماله، يجوز لمجلس إدارة الشركة أن يكلف مؤقت ًا أحد الخبراء الاكتواريين من المقيدين بسجلات الهيئة بتولى مهام القائم بالإدارة التنفيذية لحين تعيين آخر مكانه أو زوال المانع،شريطة أن تتوافر لديه ذات الشروط والمعايير التي تصدر عن مجلس إدارة الهيئة.$q852$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5220,7 +5223,7 @@ WITH ins_art_law155_126 AS (
 -٣ عدم الالتزام بالقواعد والمعايير المهنية اللازمة لمزاولة المهنة والتي يصدر بها قرار عن مجلس إدارة الهيئة.
 -٤ إذا ثبت أنه قام بأعمال مخالفة للقوانين أو اللوائح المتعلقة بمهنته أو تنطوي على خطأ عمدى أو خطأ جسيم. وفي الحالات الثلاث الأخيرة يجب إجراء تحقيق من خلال الهيئة.$q854$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5235,7 +5238,7 @@ WITH ins_art_law155_127 AS (
   SELECT id, 127, $q855$الفصل الثامن: المهن التأمينية$q855$, $q856$على طالب القيد أو التجديد أن يقدم قبل قيده بالسجل أو عند تجديد هذا القيد وثيقة تأمين مسئولية مهنية يحدد حداها الأدنى والأقصى في ضوء حجم أعماله وفق ًا للضوابط التي يصدر بها قرار من الهيئة. ويكتفى بالنسبة للخبراء الاكتواريين والقائم بمهام الإدارة التنفيذية لها الذين يعملون باسم ولحساب شركة خبرة اكتوارية واحدة فقط أن تتم تغطيتهم من خلال وثيقة شاملة عن أعمال شركتهم لدى إحدى شركات التأمين المسجلة بالهيئة. ويباشر الخبير الاكتوارى أعماله وفق ًا للقواعد والضوابط والشروط الصادرة عن مجلس إدارة الهيئة. وفي جميع الأحوال،يلتزم الخبراء الاكتواريون الطبيعيون والاعتباريون في مباشرة أعمالهم بقواعد ومعايير الخبرة الاكتوارية المعتمدة من مجلس إدارة الهيئة.
 خبراء التأمين الاستشاريون$q856$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5246,7 +5249,7 @@ WITH ins_art_law155_128 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 128, $q857$الفصل الثامن: المهن التأمينية$q857$, $q858$لا يجوز لخبير التأمين الاستشارى من الأشخاص الطبيعيين أن يمارس أعمال الخبرة الاستشارية إلا بعد قيد اسمه فى السجل المعد لذلك بالهيئة. ويتم القيد وفق ًا للشروط والقواعد والإجراءات التي يضعها مجلس إدارة الهيئة.$q858$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5256,7 +5259,7 @@ WITH ins_art_law155_129 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 129, $q859$الفصل الثامن: المهن التأمينية$q859$, $q860$يسرى القيد لمدة خمس سنوات قابلة للتجديد ويتعين أن يتم اتخاذ إجراءات التجديد خلال الثلاثة أشهر الأخيرة على الأقل من الموعد المذكور. ويؤدى طالب القيد أو التجديد رسما يحدده مجلس إدارة الهيئة بما لا يجاوز عشرة آلاف جنيه للشخص الطبيعي،يسدد وفق ًا لطرق السداد المقررة قانون ًا.$q860$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5266,7 +5269,7 @@ WITH ins_art_law155_130 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 130, $q861$الفصل الثامن: المهن التأمينية$q861$, $q862$لا يجوز التكليف بأعمال الخبرة الاستشارية للتأمين أمام المحاكم أو أمام هيئات التحكيم أو غيرها إلا لخبراء تأمين استشاريين مقيدين بالسجل المعد لهذا الغرض بالهيئة.$q862$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5281,7 +5284,7 @@ WITH ins_art_law155_131 AS (
 -٤ توافر جميع الشروط المطلوبة لقيد الأشخاص الطبيعيين في سجل الخبراء لدى كل من يزاول أعمال الخبرة الاستشارية في التأمين من خلال الشخص الاعتباري.
 -٥ أن يقتصر غرض الشركة على مزاولة أعمال الخبرة الاستشارية في التأمين. وتؤدى الشركة طالبة القيد أو التجديد رس ما يحدده مجلس إدارة الهيئة بما لا يجاوز خمسين ألف جنيه،يسدد وفق ًا لطرق السداد المقررة قانون ًا. وفى حالة قيام مانع لدى العضو القائم بالإدارة التنفيذية يحول دون مباشرة أعماله، يجوز لمجلس إدارة الشركة أن يكلف مؤقت ًا أحد خبراء التأمين الاستشاريين من المقيدين بسجلات الهيئة بتولى مهام القائم بالإدارة التنفيذية لحين تعيين آخر مكانه أو زوال المانع،شريطة أن تتوافر لديه ذات الشروط والمعايير التي تصدر عن مجلس إدارة الهيئة.$q864$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5300,7 +5303,7 @@ WITH ins_art_law155_132 AS (
 -٣ عدم الالتزام بالقواعد والمعايير المهنية اللازمة لمزاولة المهنة والتي يصدر بها قرار عن مجلس إدارة الهيئة.
 -٤ إذا ثبت أنه قام بأعمال مخالفة للقوانين أو اللوائح المتعلقة بمهنته أو تنطوي على خطأ عمدى أو خطأ جسيم. وفي الحالات الثلاث الأخيرة يجب إجراء تحقيق من خلال الهيئة.$q866$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5314,7 +5317,7 @@ WITH ins_art_law155_133 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 133, $q867$الفصل الثامن: المهن التأمينية$q867$, $q868$على طالب القيد أو التجديد أن يقدم قبل قيده بالسجل أو عند تجديد هذا القيد وثيقة تأمين مسئولية مهنية يحدد حدها الأقصى وفق ًا للضوابط الصادرة عن الهيئة. ويكتفى بالنسبة لخبراء التأمين الاستشاريين والقائم بأعمال الإدارة التنفيذية لها الذين يعملون باسم ولحساب شركة خبرة استشارية بأن يتم تغطيتهم من خلال وثيقة شاملة عن أعمال تلك الشركة لدى إحدى شركات التأمين المسجلة بالهيئة. ويباشر خبراء التأمين الاستشاريون أعمالهم وفق ًا للقواعد والضوابط والشروط الصادرة عن مجلس إدارة الهيئة. خبراء تقييم الأخطار أو معاينة وتقدير الأضرار$q868$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5324,7 +5327,7 @@ WITH ins_art_law155_134 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 134, $q869$الفصل الثامن: المهن التأمينية$q869$, $q870$لا يجوز لأى شخص من الأشخاص الطبيعيين مزاولة مهنة تقييم الأخطار أو معاينة وتقدير الأضرار إلا بعد قيد اسمه في السجل المعد لذلك بالهيئة. وعلى طالب القيد فى هذا السجل أن يحدد فرعين على الأكثر من فروع تأمينات الممتلكات أو المسئوليات التي نص عليها بالمادة ) (٢من هذا القانون لممارسة تخصصه المهني سواء فى مجال تقييم الأخطار أو معاينة وتقدير الأضرار. ويتم القيد وفق ًا للشروط والقواعد والإجراءات التي يضعها مجلس إدارة الهيئة.$q870$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5334,7 +5337,7 @@ WITH ins_art_law155_135 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 135, $q871$الفصل الثامن: المهن التأمينية$q871$, $q872$يقدم طلب القيد أو التجديد فى سجل خبراء تقييم الأخطار أو معاينة وتقدير الأضرار وفق ًا للشروط والأوضاع التي يحددها مجلس إدارة الهيئة،ويسرى القيد لمدة خمس سنوات قابلة للتجديد،ويتعين أن يتم اتخاذ إجراءات تجديد القيد خلال ثلاثة الأشهر الأخيرة على الأقل من الموعد المذكور. ويؤدى طالب القيد أو التجديد رسما يحدده مجلس إدارة الهيئة بما لا يجاوز عشرة آلاف جنيه للشخص الطبيعي،يسدد وفق ًا لطرق السداد المقررة قانون ًا.$q872$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5350,7 +5353,7 @@ WITH ins_art_law155_136 AS (
 -٤ توافر جميع الشروط المطلوبة لقيد الأشخاص الطبيعيين في سجل الخبراء لدى كل من يزاول أعمال الخبرة في تقييم الأخطار ومعاينة وتقدير الأضرار من المسجلين بالهيئة من خلال الشخص الاعتباري.
 -٥ أن يقتصر غرض الشركة على مزاولة أعمال الخبرة في تقييم الأخطار ومعاينة وتقدير الأضرار. وتؤدى الشركة طالبة القيد أو التجديد رس ما يحدده مجلس إدارة الهيئة بما لا يجاوز خمسين ألف جنيه،يسدد وفق ًا لطرق السداد المقررة قانون ًا. وفى حالة قيام مانع لدى العضو القائم بالإدارة التنفيذية يحول دون مباشرة أعماله، يجوز لمجلس إدارة الشركة أن يكلف مؤقت ًا أحد خبراء تقييم الأخطار أو تقدير الأضرار من المقيدين بسجلات الهيئة بتولى مهام القائم بالإدارة التنفيذية لحين تعيين آخر مكانه أو زوال المانع،شريطة أن تتوافر لديه ذات الشروط والمعايير التي تصدر عن مجلس إدارة الهيئة.$q874$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5370,7 +5373,7 @@ WITH ins_art_law155_137 AS (
 -٣ عدم الالتزام بالقواعد والمعايير المهنية اللازمة لمزاولة المهنة والتي يصدر بها قرار عن مجلس إدارة الهيئة.
 -٤ إذا ثبت أنه قام بأعمال مخالفة للقوانين أو اللوائح المتعلقة بمهنته أو تنطوي على خطأ عمدى أو خطأ جسيم. وفي الحالات الثلاث الأخيرة يجب إجراء تحقيق من خلال الهيئة.$q876$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5384,7 +5387,7 @@ WITH ins_art_law155_138 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 138, $q877$الفصل الثامن: المهن التأمينية$q877$, $q878$على طالب القيد أو التجديد أن يقدم قبل قيده بالسجل أو عند تجديد هذا القيد وثيقة تأمين مسئولية مهنية يحدد حداها الأدنى والأقصى فى ضوء حجم أعماله وفق ًا للضوابط التي يصدر بها قرار من الهيئة. ويكتفى بالنسبة لخبراء تقييم الأخطار ومعاينة وتقدير الأضرار والعضو المنتدب والقائم بأعمال الإدارة التنفيذية لها الذين يعملون باسم ولحساب شركة خبرة معاينة وتقدير الأضرار بأن يتم تغطيتهم من خلال وثيقة شاملة عن أعمال تلك الشركة لدى إحدى شركات التأمين المسجلة بالهيئة. ويباشر خبراء تقييم الأخطار ومعاينة وتقدير الأضرار أعمالهم وفق ًا للقواعد والضوابط والشروط الصادرة عن مجلس إدارة الهيئة. وسطاء التأمين وإعادة التأمين$q878$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5394,7 +5397,7 @@ WITH ins_art_law155_139 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 139, $q879$الفصل الثامن: المهن التأمينية$q879$, $q880$لا يجوز لأى من الأشخاص الطبيعيين مزاولة أعمال الوساطة في التأمين في جمهورية مصر العربية إلا بعد قيد اسمه فى السجل المعد لذلك بالهيئة. ويتم القيد وفق ًا للشروط والقواعد والإجراءات التي يصدر بها قرار من مجلس إدارة الهيئة. ولا يجوز مزاولة أعمال الوساطة في إعادة التأمين في جمهورية مصر العربية إلا من خلال أشخاص اعتبارية تؤسس لهذا الغرض وفق ًا لأحكام هذا القانون والقرارات الصادرة تنفيذ ًا له على أن يقوم بمباشرة تلك الأعمال ممثلو الشخص الاعتباري من المقيدة أسماؤهم في السجل المعد لذلك بالهيئة.$q880$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5404,7 +5407,7 @@ WITH ins_art_law155_140 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 140, $q881$الفصل الثامن: المهن التأمينية$q881$, $q882$يسرى القيد في سجل وسطاء التأمين وإعادة التأمين للأشخاص الطبيعيين لمدة خمس سنوات قابلة للتجديد وفق ًا للشروط والأوضاع التي يصدر بها قرار عن مجلس إدارة الهيئة،ويتعين أن يتم اتخاذ إجراءات التجديد قبل نهاية هذه المدة بثلاثة أشهر على الأقل. ويؤدى طالب القيد أو التجديد رسما يحدده مجلس إدارة الهيئة بما لا يجاوز عشرة آلاف جنيه للشخص الطبيعى،يسدد وفق ًا لطرق السداد المقررة قانون ًا.$q882$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5420,7 +5423,7 @@ WITH ins_art_law155_141 AS (
 -٥ أن يقتصر غرض الشركة على مزاولة أعمال الوساطة فى التأمين أو إعادة التأمين. وتؤدى الشركة طالبة القيد أو التجديد رس ما يحدده مجلس إدارة الهيئة بما لا يجاوز خمسين ألف جنيه،يسدد وفق ًا لطرق السداد المقررة قانون ًا.
 وفى حالة قيام مانع لدى العضو القائم بالإدارة التنفيذية يحول دون مباشرة أعماله،يجوز لمجلس إدارة الشركة أن يكلف مؤقت ًا أحد وسطاء التأمين أو إعادة التأمين،بحسب الأحوال،من المقيدين بسجلات الهيئة بتولى مهام القائم بالإدارة التنفيذية لحين تعيين آخر مكانه أو زوال المانع،شريطة أن تتوافر لديه ذات الشروط والمعايير التي تصدر عن مجلس إدارة الهيئة.$q884$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5440,7 +5443,7 @@ WITH ins_art_law155_142 AS (
 -٣ عدم الالتزام بالقواعد والمعايير المهنية اللازمة لمزاولة المهنة والتي يصدر بها قرار عن مجلس إدارة الهيئة.
 -٤ إذا ثبت أنه قام بأعمال مخالفة للقوانين أو اللوائح المتعلقة بمهنته أو تنطوي على غش أو خطأ جسيم. وفي الحالات الثلاث الأخيرة يجب إجراء تحقيق من خلال الهيئة.$q886$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5454,7 +5457,7 @@ WITH ins_art_law155_143 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 143, $q887$الفصل الثامن: المهن التأمينية$q887$, $q888$لا يجوز لشركات التأمين وإعادة التأمين المسجلة وفق ًا لأحكام هذا القانون أن تقبل عمليات تأمين محلية من وسطاء التأمين ما لم يكونوا مقيدين في السجل المعد لذلك بالهيئة،كما لا يجوز لها أن تسند أيا من عمليات إعادة التأمين لديها إلا لوسطاء إعادة التأمين المحليين أو وسطاء إعادة التأمين الأجانب المقيمين الذين يعملون باسم ولحساب شركة مرخص لها من الهيئة بذلك وفق ًا لأحكام هذا القانون إلا من المقيدين بالسجل المشار إليه،وعلى شركات التأمين أو إعادة التأمين حال تعاملها مع وسطاء إعادة التأمين الأجانب غير المقيمين أن تلتزم بإدراجهم ضمن قائمة وسطاء إعادة التأمين الصادرة عن الهيئة سنويا وفق ًا للشروط والمعايير الصادرة عن الهيئة.$q888$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5464,7 +5467,7 @@ WITH ins_art_law155_144 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 144, $q889$الفصل الثامن: المهن التأمينية$q889$, $q890$على طالب القيد أو التجديد أن يقدم قبل قيده بالسجل أو عند تجديد هذا القيد وثيقة تأمين مسئولية مهنية يحدد حداها الأدنى والأقصى وف ًقا للضوابط والأحكام الصادرة عن الهيئة. ويستثنى من ذلك أعضاء الجهاز الإنتاجى بشركات التأمين وإعادة التأمين شريطة أن تلتزم شركة التأمين التي يعمل لحسابها بتحمل المسئولية المدنية المقررة عن أخطائهم قبل حملة الوثائق أو المستفيدين منها أو الغير في تأمينات المسئوليات الصادرة عنها طالما تم إثبات الضرر بسبب تلك الفئات بناء على قرار من الهيئة. ويكتفى بالنسبة لوسطاء التأمين أو إعادة التأمين والقائم بأعمال الإدارة التنفيذية لهذه الشركات الذين يعملون باسم ولحساب شركات الوساطة في التأمين أو إعادة التأمين بأن يتم تغطيتهم من خلال وثيقة شاملة عن أعمال تلك الشركات لدى إحدى شركات التأمين المسجلة بالهيئة. ويقصد بالجهاز الإنتاجي لشركات التأمين مجموعة العاملين بقطاع البيع فى هذه الشركات.$q890$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5474,7 +5477,7 @@ WITH ins_art_law155_145 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 145, $q891$الفصل الثامن: المهن التأمينية$q891$, $q892$يحظر على أعضاء مجالس الإدارة والعاملين بشركات التأمين فيما عدا العاملين بالجهاز الإنتاجى مزاولة أعمال الوساطة في التأمين أو إعادة التأمين لحسابهم الخاص. كما يحظر على العاملين بالجهاز الإنتاجى مزاولة أعمال الوساطة في التأمين أو إعادة التأمين لغير الشركة التي يعملون بها. وفي جميع الأحوال،لا يجوز الجمع بين أعمال الوساطة في التأمين والوساطة في إعادة التأمين.$q892$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5485,7 +5488,7 @@ WITH ins_art_law155_146 AS (
   SELECT id, 146, $q893$الفصل الثامن: المهن التأمينية$q893$, $q894$يضع مجلس إدارة الهيئة الشروط والقواعد والضوابط التي تلتزم بها شركات التأمين لعمل المتدربين لديها بصفة مؤقتة بالجهاز الإنتاجى وتسجيلهم بالسجل المعد لهذا الغرض بالهيئة،ويحدد مجلس إدارة الهيئة الرسوم الواجب سدادها بهذا السجل بما لا يجاوز نصف الرسم المقرر بالنسبة لوسطاء التأمين،تسدد وفق ًا لطرق السداد المقررة قانون ًا.
 ) الفصل التاسع ( أحكام ختامية$q894$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5496,7 +5499,7 @@ WITH ins_art_law155_147 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 147, $q895$الفصل الثامن: المهن التأمينية$q895$, $q896$لا يجوز لشركات التأمين أو إعادة التأمين أو أى من منشآت التأمين المرخص لها من الهيئة أن تستعين فى أى من المهن السابقة بغير المقيدين بالسجل المعد لهذا الغرض بالهيئة. ولا يجوز للعاملين بشركات التأمين وإعادة التأمين المشاركة في تأسيس أو إدارة أى من الشركات المقيدة بالهيئة لمزاولة إحدى المهن التأمينية الواردة بهذا الباب، كما يتعين عليهم الإفصاح للهيئة عن أقاربهم حتى الدرجة الثانية حال الدخول في تأسيس أو ملكية أو إدارة أى من تلك الشركات. كما يحظر على العاملين بشركات التأمين أو إعادة التأمين قبول أو التدخل مع أقاربهم حتى الدرجة الثانية فى أى عمليات،أو التوسط أو تقديم خدمات تأمينية تقدم منهم وتكون مرتبطة بأى من المهن أو الأنشطة التأمينية الواردة بأحكام هذا القانون أو مساهمة أقاربهم حتى الدرجة المشار إليها فى شركات تقديم تلك الخدمات.$q896$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5506,7 +5509,7 @@ WITH ins_art_law155_148 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 148, $q897$الفصل الثامن: المهن التأمينية$q897$, $q898$يراعى بالنسبة للسجل المعد لقيد ذوي المهن التأمينية من الأشخاص الطبيعيين إفراد بيان بسجلاتهم يبين مدى مزاولتهم للنشاط من عدمه،وفي الحالة الأخيرة بيان سبب عدم المزاولة. ويعد شرط ًا من شروط قيد أو تجديد قيد أو إعادة قيد أى من المهنيين الطبيعيين بالسجل المعد لذلك بالهيئة الالتزام بقواعد وضوابط التطوير المهني المستمر الصادرة عن الهيئة.$q898$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5516,7 +5519,7 @@ WITH ins_art_law155_149 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 149, $q899$الفصل الثامن: المهن التأمينية$q899$, $q900$تضع الهيئة المعايير والقواعد التي تحول دون تعارض المصالح حال الجمع بين أى من المهن والأنشطة التأمينية الواردة بأحكام هذا القانون،على أن يمتد هذا الحكم إلى الشخص الطبيعي أو الاعتباري.$q900$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5526,7 +5529,7 @@ WITH ins_art_law155_150 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 150, $q901$الفصل الثامن: المهن التأمينية$q901$, $q902$يصدر عن مجلس إدارة الهيئة قواعد ومعايير ممارسة تلك المهن وفق ًا لنوع النشاط أو التصنيف الصادر عن الهيئة.$q902$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5556,7 +5559,7 @@ WITH ins_art_law155_151 AS (
 -١٩ توثيق روابط التعاون والتكامل مع هيئات الإشراف والرقابة على التأمين على المستويين الإقليمي والدولي.
 -٢٠ دعم الدراسات التأمينية والمساهمة فى تمويلها لخدمة سوق التأمين.$q904$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5586,7 +5589,7 @@ WITH ins_art_law155_152 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 152, $q905$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها$q905$, $q906$لا يجوز لأى شخص طبيعي أو اعتباري أن يزاول في جمهورية مصر العربية بالذات أو بالوساطة أى نشاط يتصل بالتأمين أو المهن والأنشطة والخدمات المرتبطة به أيا كان النظام القانونى المنشئ والخاضع له دون الحصول على ترخيص بذلك من الهيئة.$q906$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5596,7 +5599,7 @@ WITH ins_art_law155_153 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 153, $q907$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها$q907$, $q908$يلتزم المخاطبون بأحكام هذا القانون كافة بالمحافظة على السرية التامة لبيانات عملائهم،وعدم إفشاء أى معلومات عنهم أو عن معاملاتهم إلى الغير دون موافقتهم الكتابية المسبقة وفى حدود هذه الموافقة،وذلك باستثناء الحالات التي يلزم فيها تقديم معلومات محددة وفق ًا لما تفرضه القوانين لكل من الهيئة أو الجهات القضائية أو الجهات التأمينية أو شركات التصنيف أو الاستعلام الائتمانى،وعلى شركات التأمين أن تتخذ الإجراءات التي تكفل الالتزام بأحكام هذه المادة.$q908$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5606,7 +5609,7 @@ WITH ins_art_law155_154 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 154, $q909$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها$q909$, $q910$على المخاطبين بأحكام هذا القانون كافة أن يثبتوا فيما يصدر عنهم من الأوراق أو المستندات أو الوثائق الرقمية اسم وشعار الجهة ورقم وتاريخ الترخيص الصادر لها من الهيئة بمزاولة النشاط.$q910$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5624,7 +5627,7 @@ WITH ins_art_law155_155 AS (
 -٢ توافر الملاءة المالية اللازمة لدى طالب التأسيس لدعم أعمال الشركة أو لزيادة رأسمالها إذا دعت الحاجة لذلك.
 -٣ إذا كان الطالب شركة أو مؤسسة مالية أجنبية خاضعة لإشراف ورقابة جهة أجنبية مناظرة مختصة في الدولة التي يقع فيها مقرها الرئيسي،أن توافق تلك السلطة لها على العمل في جمهورية مصر العربية،وأن تطبق مبدأ الرقابة المجمعة.$q912$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5647,7 +5650,7 @@ WITH ins_art_law155_156 AS (
 -٢ مدى مساهمة الشركة فى تلبية احتياجات السوق،سيما من خلال طرح منتجات تأمين جديدة أو التعديل على المنتجات القائمة أو إضافة آليات تسويق غير تقليدية أو التوسع في مناطق جديدة.
 - ٣هيكل الملكية لمؤسسى الشركة وخبراتهم وملاءتهم المالية وفق ًا للضوابط والمعايير التي يضعها مجلس إدارة الهيئة. - ٤عدم اقتصار غرض الشركة على أحد الأنشطة التأمينية أو الخدمات أو المهن بحسب الأحوال،الواردة بأحكام هذا القانون. - ٥عدم نص النظام الأساسي للشركة على وجوب استخدام أسلوب التصويت التراكمي في انتخاب أعضاء مجلس الإدارة.$q914$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5662,7 +5665,7 @@ WITH ins_art_law155_157 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 157, $q915$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q915$, $q916$تصدر الهيئة قرارها بالبت في طلب الترخيص خلال ثلاثين يوما على الأكثر من تاريخ تقديم الأوراق مستوفاة إليها،ويقع باطلا ً كل عقد تأمين يبرم قبل الترخيص ولا يحتج بهذا البطلان قِبل المؤمن لهم والمستفيدين إلا إذا ثبت سوء نيتهم. وفي حالة رفض طلب الترخيص يجب أن يكون القرار مسببا. وفى حالة عدم رد الهيئة خلال المدة المشار إليها بالفقرة الأولى من هذه المادة اعتبر ذلك بمثابة رفض الطلب،ويكون التظلم منه أمام لجنة التظلمات المنصوص عليها بالمادة ) (٢١٤من هذا القانون. ويصدر عن مجلس إدارة الهيئة قرار بقواعد وإجراءات رسوم منح الترخيص بما لا يجاوز الرسوم الواردة بهذا القانون بحسب نوع الشركة وغرضها،تسدد وفق ًا لطرق السداد المقررة قانون ًا. وتضع الهيئة نموذج الترخيص وبيانات التسجيل.$q916$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5673,7 +5676,7 @@ WITH ins_art_law155_158 AS (
   SELECT id, 158, $q917$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q917$, $q918$يشترط لإصدار الترخيص المنصوص عليه فى المادة ) (١٥٧من هذا القانون توافر الشروط التي يضعها مجلس إدارة الهيئة،وعلى الأخص منها: - ١أن يكون طالب الترخيص شركة مساهمة مصرية،وألا يقل رأسمالها المصدر والمدفوع عن الحد الذي يقرره مجلس إدارة الهيئة،وبما لا يقل عن الحد الوارد بأحكام هذا القانون بحسب نوع الشركة وغرضها. - ٢أن يتفق هيكل ملكية الشركة مع ضوابط هيكل ملكية الشركات الخاضعة لأحكام هذا القانون.
 - ٣أن يتوافر فى القائمين على إدارة الشركة الخبرة والكفاءة اللازمة لعملها على النحو الذي ينص عليه هذا القانون وما يصدر به قرار عن مجلس إدارة الهيئة. - ٤أن يتوافر لدى الشركة التجهيزات والبنية التكنولوجية وأنظمة المعلومات اللازمة لمباشرة النشاط وفق ًا للمتطلبات التى تحددها الهيئة. شركة ة ال اطر وإدارة وحوكم ة والمخ ة الداخلي ط الرقاب اءة خط - ٥كف والاستراتيجية والسياسة التى ينوى اتباعها فى تصريف شئونه. - ٦الالتزام ببدء العمل للنشاط خلال ستة أشهر على الأكثر من تاريخ الحصول على الترخيص،ويجوز بموافقة الهيئة مدها لمدة ستة أشهر أخرى،وذلك فى ضوء المبررات التى تقدمها الشركة وتقبلها الهيئة. وتلتزم شركات التأمين وإعادة التأمين،بالإضافة لما تقدم بموافاة الهيئة كالآتى: ) أ ( شهادة من أحد البنوك المسجلة لدى البنك المركزى المصرى تثبت أن الشركة قد أودعت لديه فى جمهورية مصر العربية أموالا ً لا تقل قيمتها عن خمسمائة ألف جنيه عن كل فرع من فروع التأمين التى ترغب الشركة فى مزاولتها، وبحد أقصى ثلاثة ملايين جنيه لجميع هذه الفروع،ولا يجوز للشركة التصرف فى هذه الأموال إلا بموافقة الهيئة. )ب( نماذج الوثائق التى تصدرها الشركة عن كل فرع من فروع التأمين المطلوب الترخيص لها بمزاولته والمزايا والقيود والشروط والأسعار الخاصة بهذه الوثائق. فإذا كان نشاط الشركة مباشرة إحدى العمليات المنصوص عليها فى البند أولا ً من الفقرة الأولى من المادة ) (٢من هذا القانون،فيجب أن يرفق بهذه الوثائق: شهادة من أحد الخبراء الاكتواريين المقيدين فى السجل المعد لذلك بالهيئة بأن أسس أسعار هذه العمليات والمزايا والقيود التى تخولها الوثائق سليمة وصالحة للتنفيذ. جدول يحدد قيمة الاسترداد أو التخفيض،ويجب أن ينص على هذا الجدول فى كل وثيقة من الوثائق المذكورة. ترتيبات إعادة التأمين وطبيعتها. أية مستندات أخرى يحددها مجلس إدارة الهيئة للترخيص لها بمزاولة النشاط.$q918$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5685,7 +5688,7 @@ WITH ins_art_law155_159 AS (
   SELECT id, 159, $q919$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q919$, $q920$يتم تسجيل الشركات المرخص لها من الهيئة وفروعها الجغرافية ومنافذ تسويق وتوزيع وثائقها فى سجل خاص يعد لهذا الغرض بالهيئة،ويكون هذا التسجيل بعد أداء رسم للهيئة يحدده مجلس إدارتها،يسدد وفق ًا لطرق السداد المقررة قانون ًا، بما لا يجاوز القيم التالية،ووفق ًا لما يصدر عنه من معايير: شركات التأمين أيا كان نوع أو صيغة مزاولة النشاط: مائتان وخمسون ألف جنيه عن المركز الرئيسي. خمسون ألف جنيه عن كل فرع. عشرة آلاف جنيه عن كل منفذ تسويق أو توزيع دائم لوثائق التأمين. شركات التأمين الطبي المتخصصة طويلة وقصيرة الأجل: مائة ألف جنيه عن المركز الرئيسي. خمسة وعشرون ألف جنيه عن كل فرع. خمسة آلاف جنيه عن كل منفذ تسويق أو توزيع دائم لوثائق التأمين. شركات إدارة برامج الرعاية الصحية: خمسون ألف جنيه عن المركز الرئيسي. خمسة وعشرون ألف جنيه عن كل فرع. خمسة آلاف جنيه عن كل منفذ تسويق أو توزيع. شركات التأمين متناهى الصغر: عشرون ألف جنيه عن المركز الرئيسي. عشرة آلاف جنيه عن كل فرع. خمسة آلاف جنيه عن كل منفذ تسويق أو توزيع وثائق. الشركات التي تزاول أيا من المهن التأمينية: خمسون ألف جنيه عن المركز الرئيسي. عشرة آلاف جنيه عن كل فرع. خمسة آلاف جنيه عن كل منفذ.
 وفي جميع الأحوال،يتعين الحصول على موافقة الهيئة قبل بدء إنشاء كل فرع جغرافي أو منفذ توزيع دائم لوثائق التأمين وقبل الافتتاح للتعامل،على أن يكتفى بالإخطار للمراكز المؤقتة،وذلك كله وفق ًا لما يصدر عن مجلس إدارة الهيئة من معايير.$q920$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5696,7 +5699,7 @@ WITH ins_art_law155_160 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 160, $q921$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q921$, $q922$يجوز لشركات التأمين أن تفتح فروعا أو تؤسس شركات لها في الخارج،وذلك وفق ًا للشروط والقواعد والإجراءات التي يصدر بها قرار من مجلس إدارة الهيئة.$q922$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5706,7 +5709,7 @@ WITH ins_art_law155_161 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 161, $q923$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q923$, $q924$على الشركة أن تخطر الهيئة بكل تعديل أو تغيير يطرأ على بيانات طلب التسجيل والترخيص بالمزاولة أو الوثائق والمستندات المرافقة له وذلك خلال ثلاثين يوما من تاريخ إجراء هذا التعديل أو التغيير،ويقدم الإخطار بالشروط والأوضاع التي يقررها مجلس إدارة الهيئة،ويكون مصحوبا بالوثائق والمستندات الخاصة بالتعديل أو التغيير. ولا يجوز أن يعمل بهذه التعديلات أو التغييرات إلا بعد اعتمادها من الهيئة. وتصدر الهيئة قرارها بشأن تلك التعديلات خلال ثلاثين يوما من تاريخ استيفاء الشركة للمستندات والبيانات المطلوبة. وتنشر التعديلات المتعلقة ببيانات الترخيص على الموقع الإلكتروني للشركة وكذا الموقع الإلكتروني للهيئة. شركات التأمين وشركات إعادة التأمين$q924$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5717,7 +5720,7 @@ WITH ins_art_law155_162 AS (
   SELECT id, 162, $q925$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q925$, $q926$يحدد مجلس إدارة الهيئة الحد الأدنى لرأس المال المصدر والمدفوع بالكامل لشركات التأمين وإعادة التأمين بما لا يقل عن المبالغ الآتية: ٢٥٠مليون جنيه نقدا،أو ما يعادلها بالعملات الأجنبية الحرة التي يقبلها البنك المركزى المصرى بالنسبة لشركة تأمينات الأشخاص وعمليات تكوين الأموال. ٢٥٠مليون جنيه نقدا،أو ما يعادلها بالعملات الأجنبية الحرة التي يقبلها البنك المركزى المصرى بالنسبة لشركة تأمينات الممتلكات والمسئوليات،على أن يزاد رأس المال بقيمة ٥٠مليون جنيه نقدا أو ما يعادلها بالعملات الأجنبية الحرة التي يقبلها البنك المركزى المصرى فى حالة ممارسة أي من فروع البترول،أو الطيران،أو الطاقة.
 مليار جنيه نقدا أو ما يعادلها بالعملات الأجنبية الحرة التي يقبلها البنك المركزي المصرى بالنسبة لشركة إعادة التأمين. ولا يجوز أن تجمع شركة التأمين بين مزاولة أى من فروع التأمين الواردة في البند أولا ً من الفقرة الأولى من المادة ) (٢من هذا القانون ومزاولة أى من الفروع الواردة بالبند ثانيا من ذات المادة. شركات التأمين متناهى الصغر$q926$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5728,7 +5731,7 @@ WITH ins_art_law155_163 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 163, $q927$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q927$, $q928$تختص الهيئة بالترخيص بتأسيس شركات يقتصر غرضها الوحيد على مزاولة التأمين متناهى الصغر ولها أن تجمع بين فروع التأمين الواردة بالبند أولا ً أو ثانيا من المادة ) (٢من هذا القانون. ويكون تأسيس تلك الشركات وقيدها والترخيص لها بمزاولة النشاط وفق ًا للشروط والقواعد والإجراءات الواردة بأحكام هذا القانون وما يصدر عن الهيئة من قرارات تنفيذ ًا له. ويحدد مجلس إدارة الهيئة الحد الأدنى لرأس المال المصدر والمدفوع بالكامل لتلك الشركات بما لا يقل عن ثلاثين مليون جنيه أو ما يعادلها بالعملات الأجنبية الحرة التي يقبلها البنك المركزى المصرى. ويجوز للهيئة الترخيص لشركات التأمين بمزاولة نشاط التأمين متناهى الصغر بما يتفق وفروع التأمين،المرخص لها بمزاولتها. قواعد التملك رءوس أموال شركات التأمين وإعادة التأمين$q928$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5738,7 +5741,7 @@ WITH ins_art_law155_164 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 164, $q929$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q929$, $q930$على كل شخص طبيعي أو اعتبارى وأطرافه المرتبطة يتملك ما يزيد على )(٪٥ وأقل من ) (٪١٠من أسهم رأس المال المصدر أو من حقوق التصويت لأى شركة تأمين أو إعادة تأمين أن يخطر الهيئة بذلك خلال خمسة عشر يوما على الأكثر من تاريخ إتمام التملك طبق ًا للنموذج الذي تعده الهيئة لهذا الغرض.$q930$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5748,7 +5751,7 @@ WITH ins_art_law155_165 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 165, $q931$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q931$, $q932$لا يجوز لأى شخص طبيعي أو اعتبارى وأطرافه المرتبطة أن يتملك بشكل مباشر أو غير مباشر الأسهم أو حقوق التصويت فى شركات التأمين وإعادة التأمين على نحو يؤدى إلى استحواذه أو تجاوزه لأى من النسب الواردة أدناه،وكذلك عند كل زيادة على النسبة المصرح بها إلا بعد الحصول على موافقة مسبقة من مجلس إدارة الهيئة. عشرة بالمائة من رأس المال المصدر أو حقوق التصويت. ربع رأس المال المصدر أو حقوق التصويت. ثلث رأس المال المصدر أو حقوق التصويت. نصف رأس المال المصدر أو حقوق التصويت. ثلثا رأس المال المصدر أو حقوق التصويت. ثلاثة أرباع رأس المال المصدر أو حقوق التصويت. تسعون بالمائة من رأس المال المصدر أو حقوق التصويت. وفى حالة مخالفة ذلك،توقف حقوق التصويت وتوزيعات الأرباح الخاصة بالأسهم الزائدة على النسبة المصرح بها،اعتبارا من تاريخ تملكها. ويتعين على المخالف التصرف فى النسبة الزائدة خلال ستة أشهر من تاريخ استحواذه عليها،وإلا كان للهيئة الأمر بتعيين إحدى شركات السمسرة لتتولى إجراءات بيع الأسهم المخالفة،وتئول حصيلة البيع للمساهم بعد خصم المصروفات، ويجوز مد المهلة لمدة أخرى مماثلة بقرار من مجلس إدارة الهيئة. ويصدر بتحديد قواعد الإفصاح للتعرف على المالك المستفيد لتلك الأسهم، وضوابط التصرف فى الأسهم الزائدة قرار من مجلس إدارة الهيئة.$q932$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5758,7 +5761,7 @@ WITH ins_art_law155_166 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 166, $q933$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q933$, $q934$إذا تملك شخص وأطرافه المرتبطة بالميراث أو الوصية ) (٪١٠فأكثر من رأسمال الشركة المصدر أو من حقوق التصويت ولم يطلب استمرار تملكه طبق ًا لحكم المادة ) (١٦٧من هذا القانون،فلا يكون له الحق فى التصويت بالنسبة التي تجاوز العشرة في المائة،ويتعين عليه أن يوفق أوضاعه طبق ًا للشروط والإجراءات التي تضعها الهيئة خلال مدة لا تجاوز سنتين من تاريخ أيلولة هذه الزيادة إليه،ويجوز للهيئة مدها لفترة مماثلة حال تعثر بيع الأسهم. ويسرى عليه حال عدم توفيق أوضاعه خلال هذه المدة حكم الفقرة الثالثة من المادة ) (١٦٥من هذا القانون.$q934$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5768,7 +5771,7 @@ WITH ins_art_law155_167 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 167, $q935$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q935$, $q936$يجب أن يقدم طلب الموافقة على تملك نسبة ) (٪١٠أو ما يزيد على تلك النسبة من رأس المال المصدر للشركة أو من حقوق التصويت إلى الهيئة،قبل موعد إتمام التملك بستين يوما على الأقل،وذلك على النموذج المعتمد من الهيئة ويرفق بالطلب تقرير يبين ملاءته المالية وسبب الرغبة في تملك الأسهم والأهداف التي يرمى مقدم الطلب إلى تحقيقها منه وخططه فى إدارة الشركة والسياسة التي ينوي اتباعها في تصريف شئونها ونسبة مساهماته وأطرافه المرتبطة فى أى شركة أو منشأة أخرى. فإذا كان التملك بطريق الميراث أو الوصية أو نتيجة لتخصيص أسهم مطروحة في اكتتاب عام،يتعين تقديم طلب استمرار التملك خلال ثلاثين يوما من تاريخ علم الطالب بما آل إليه بطريق الميراث أو الوصية أو الاكتتاب العام. ويتم النشر عن الطلب المنصوص عليه فى الفقرتين الأولى والثانية من هذه المادة على الموقع الإلكترونى الذى تخصصه الهيئة لهذا الغرض وذلك خلال ثلاثين يوما من تاريخ تقديمه على النموذج الذي تعده الهيئة لهذا الغرض. ولكل ذى مصلحة أن يتقدم إلى الهيئة باعتراض مسبب على الطلب خلال خمسة عشر يوما من تاريخ النشر.$q936$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5781,7 +5784,7 @@ WITH ins_art_law155_168 AS (
 -٤ ألا يترتب على قبول الطلب الحد من المنافسة بسوق التأمين أو اضطراب العمل بها.
 - ٥إذا كان الطالب شركة تأمين أجنبية أو مؤسسة مالية أجنبية يتعين أن تكون خاضعة لإشراف ورقابة جهة فى الدولة التى يقع بها مقرها الرئيسي،وتلتزم بموافاة الهيئة بشهادة من تلك الجهة تفيد سلامة موقفها الرقابي قبل تقديم الطلب. - ٦ألا يؤثر التملك سلبا على إدارة الشركة أو يضر بمصالح حملة الوثائق أو المستفيدين منها أو مصالح المساهمين الآخرين،وذلك فى ضوء الخطط والسياسة التي ينوى اتباعها. - ٧ألا يكون قد سبق الحكم عليه أو على أحد مؤسسي الشركة أو مديريها أو أحد أعضاء مجلس الإدارة خلال خمس السنوات السابقة على تقديم طلب التأسيس، بعقوبة جناية أو بعقوبة جنحة فى جريمة ماسة بالشرف أو الأمانة أو بعقوبة سالبة للحرية فى إحدى الجرائم المنصوص عليها فى قوانين الشركات أو التجارة أو القوانين المنظمة للأنشطة المالية غير المصرفية لأسباب تتعلق بنشاط الشركة،أو حكم بإشهار إفلاسه ما لم يكن قد رد إليه اعتباره.$q938$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5795,7 +5798,7 @@ WITH ins_art_law155_169 AS (
   SELECT id, 169, $q939$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q939$, $q940$يخطر صاحب الشأن بقرار قبول أو رفض الطلب المشار إليه في المادة )(١٦٧ من هذا القانون خلال ستين يوما من تاريخ تقديمه،بكتاب موصى عليه مصحوب بعلم الوصول أو بأية وسيلة أخرى. وتكون الموافقة سارية لمدة ستة أشهر من تاريخ إبلاغ طالب التملك بها، وإلا اعتبرت كأن لم تكن،ويجوز لمجلس إدارة الهيئة مد هذه المهلة لفترة مماثلة. وفى حالة صدور قرار برفض استمرار تملك الطالب للنسبة التي آلت إليه بطريق الميراث أو الوصية أو نتيجة لتخصيص أسهم مطروحة في اكتتاب عام أو بأي وسيلة أخرى،تتم مطالبته من الهيئة بالتصرف فيها خلال سنتين من تاريخ إخطاره بقرار الرفض إذا كان التملك بالميراث أو الوصية وخلال ثلاثة أشهر إذا كان التملك عن طريق الاكتتاب العام. ويجوز للهيئة مد هذه المهلة لمدة أخرى مماثلة،ويسرى في شأنه حال عدم تصرفه فيها خلال هاتين المدتين حكم الفقرة الثالثة من المادة ) (١٦٥من هذا القانون.
 ) الفصل الثالث ( الرقابة والإشراف شركات التأمين وإعادة التأمين إدارة وحوكمة الشركات$q940$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5806,7 +5809,7 @@ WITH ins_art_law155_170 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 170, $q941$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q941$, $q942$تلتزم الشركات التى تباشر نشاط التأمين أو إعادة التأمين بالقواعد والضوابط والمعايير التي يضعها مجلس إدارة الهيئة،والتي يجب أن تتضمن على الأخص ما يلى: - ١الضوابط الواجب توافرها فى نظم عمل الرقابة الداخلية والائتمان وإدارة المخاطر. - ٢معايير الملاءة المالية. - ٣ضوابط ومعايير حساب الاضمحلال والمخصصات للعمليات المشكوك في تحصيلها. - ٤الضوابط والإمكانيات الواجب توافرها فى نظم معلومات وشبكة اتصالات الشركة ووسائل حمايتها وتأمينها. - ٥ضوابط فتح ونقل وغلق فروع الشركة. - ٦ضوابط مكافحة غسل الأموال وتمويل الإرهاب،بعد التنسيق مع الجهات المعنية ذات الصلة. - ٧التقارير الدورية والإحصاءات التي يجب أن تقدمها الشركة للهيئة وتوقيتاتها.$q942$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5816,7 +5819,7 @@ WITH ins_art_law155_171 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 171, $q943$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q943$, $q944$تلتزم الشركة بوضع لائحة داخلية تتضمن نظام العمل بالشركة،وآليات إدارة المخاطر والملاءة المالية،والتعامل مع شكاوى العملاء،مع إخطار الهيئة بصورة من اللائحة خلال أسبوع من تاريخ إصدارها. وتلتزم الشركة بتغيير أحكام لائحتها الداخلية بما يتفق مع أي تعديل في القانون أو القواعد والضوابط التي يضعها مجلس إدارة الهيئة،وبإخطار الهيئة بذلك خلال أسبوع من تاريخ نفاذ التعديل.$q944$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5826,7 +5829,7 @@ WITH ins_art_law155_172 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 172, $q945$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q945$, $q946$يصدر مجلس إدارة الهيئة قواعد حوكمة شركات التأمين وإعادة التأمين بما فيها تشكيل مجلس إدارتها،ومدته. ويجب أن تتوافر في أعضاء مجلس الإدارة شروط الخبرة والكفاءة وحسن السمعة عند التعيين وطوال مدة عضويتهم بالمجلس. كما يشترط بالنسبة للقائمين على الإدارة التنفيذية المسئولين عن أي من الأعمال والوظائف الفنية بالشركة،سيما منها إدارات الاكتتاب والتعويضات وإعادة التأمين والاستثمار والمالية ومكافحة غسل الأموال وتمويل الإرهاب،أن يكونوا من ذوى الخبرة في مجال التأمين وإعادة التأمين والاستثمار والمالية ومتطلبات مكافحة غسل الأموال وتمويل الإرهاب،بحسب الأحوال،وذلك كله وفق ًا للشروط والمعايير الصادرة عن مجلس إدارة الهيئة. وتلتزم الشركات الخاضعة لأحكام هذا الفصل أيا كان سند تأسيسها أو القانون الذي تأسست وفق ًا لأحكامه بإخطار رئيس مجلس إدارة الهيئة بترشيح أو بتجديد ترشيح أعضاء مجلس الإدارة والقائمين بالإدارة التنفيذية وجميع البيانات المتعلقة بهم قبل العرض على الجمعية العامة للشركة لمراجعتها،ويتم الإخطار على النموذج الذي تضعه الهيئة وخلال المواعيد التي يحددها مجلس إدارة الهيئة. وفي جميع الأحوال،لا يمارس أى ممن تقدم أعماله إلا بعد الحصول على موافقة الهيئة،وتكون موافقة الهيئة لمدة ثلاث سنوات قابلة للتجديد بالنسبة للمديرين التنفيذيين المشار إليهم بهذه المادة.$q946$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5837,7 +5840,7 @@ WITH ins_art_law155_173 AS (
   SELECT id, 173, $q947$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q947$, $q948$على الشركة أن تخطر الهيئة بموعد ومكان انعقاد الجمعية العامة وجدول أعمالها قبل موعد الانعقاد بثلاثين يوما،على أن يرفق بالإخطار جميع المستندات التي تقدم للمساهمين أو من في حكمهم عن أعمال الشركة. وتلتزم الشركة بإدراج ما ترى الهيئة عرضه كبند من بنود جدول أعمال الجمعية العامة العادية للشركة،وعلى رئيس الجمعية تلاوة ملخص لتقرير الهيئة في حالة عدم حضور ممثل عن الهيئة. وعليها كذلك أن تقدم إلى الهيئة صورة من محضر اجتماع الجمعية العامة في موعد أقصاه ثلاثون يوما من تاريخ انعقاد الجمعية لاعتماده.
 تنظيم ممارسة النشاط$q948$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5849,7 +5852,7 @@ WITH ins_art_law155_174 AS (
   SELECT id, 174, $q949$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q949$, $q950$تلتزم الشركة بتكوين المخصصات الفنية اللازمة لمقابلة التزاماتها قبل حملة الوثائق والمستفيدين منها من خلال تقرير يعده خبير اكتوارى مسجل بالهيئة، وذلك على الوجه الآتي: ً أولا -بالنسبة لتأمينات الأشخاص وعمليات تكوين الأموال: - ١الاحتياطى الحسابي،يتمثل فى الفرق بين القيمة الحالية لمبلغ التأمين المتوقع الذي تلتزم الشركة بسداده إلى المؤمن له من ناحية والقيمة الحالية للأقساط المستقبلية التي يتعين سدادها للشركة من ناحية أخرى وخلال فترة سريان الوثيقة وسداد المؤمن له للأقساط المستحقة عليه أولا ً بأول. ويتم تقدير الاحتياطى الحسابي آخر المدة بمعرفة الخبير الاكتواري لمقابلة التزامات الشركة قِبل حملة الوثائق فى نهاية السنة المالية وفق ًا للأسس الفنية التي يعتمدها مجلس إدارة الهيئة. - ٢مخصص المطالبات تحت التسوية بقيمة المطالبات التى لم يتم تسويتها حتى تاريخ إعداد القوائم المالية. - ٣مخصص مطالبات عن الحوادث التي وقعت ولم يبلغ عنها حتى تاريخ إعداد القوائم المالية بالنسبة لبعض أنواع تأمينات الأشخاص وعمليات تكوين الأموال وذلك وفق ًا لما تحدده الهيئة. ويتعين أن تكون هذه المخصصات كافية لمقابلة حقوق حملة الوثائق،وإذا ما رأت الهيئة خلال فحص هذه المخصصات عدم كفايتها،يتعين على الشركة اتخاذ الإجراءات اللازمة لاستكمالها وفق ًا للقواعد التي يحددها مجلس إدارة الهيئة في هذا الشأن. وعلى الشركة المنصوص عليها فى هذا البند أن تقدر قيمة التعهدات القائمة على الشركة لفرعى تأمينات الأشخاص وعمليات تكوين الأموال اللذين تزاولهما مرة على الأقل سنويا بواسطة أحد الخبراء الاكتواريين. ويتناول هذا التقدير جميع عمليات التأمين التي أبرمتها الشركة في جمهورية مصر العربية وفى الخارج كل على حدة.
 ويجب إجراء هذا التقدير كلما أرادت الشركة تحديد نسب الأرباح التي توزع على المساهمين أو حملة الوثائق. ويجوز للهيئة إذا رأت ضرورة لذلك بعد موافقة مجلس إدارتها،أن تطلب إجراء هذا التقدير فى أى وقت قبل انقضاء المدة المشار إليها. ويحدد مجلس إدارة الهيئة البيانات التى يجب أن يشتمل عليها تقرير الخبير الاكتوارى وكذا الإجراءات الواجب اتخاذها في هذا الشأن. ثانيا -بالنسبة لتأمينات الممتلكات والمسئوليات: - ١مخصص الأخطار السارية: يتم تكوينه لمقابلة التزامات الشركة عن عمليات التأمين المصدرة من جملة اكتتابات الشركة وما زالت سارية بعد انتهاء السنة المالية. - ٢مخصص التعويضات تحت التسوية عن الحوادث التى تم الإبلاغ عنها حتى تاريخ إعداد القوائم المالية. - ٣مخصص لمقابلة الحوادث التي وقعت ولم يبلغ عنها حتى تاريخ إعداد القوائم المالية. - ٤مخصص للتقلبات العكسية،هو ما يقابل أخطار التقلبات فى التعويضات المستقبلية التي قد تهدد استقرار الشركة ويتم تجنيبه فى السنوات التى تنخفض فيها معدلات الخسائر الفعلية عن المقدرة لمواجهة مخاطر ارتفاع معدلات الخسائر في السنوات التالية،ويصدر قرار من مجلس إدارة الهيئة بأسس تكوين واستخدام ذلك المخصص والحالات التي يستخدم فيها بالنسبة لكل فرع من فروع تأمينات الممتلكات والمسئوليات. وفي جميع الأحوال،يتم اعتماد تلك المخصصات من خبير اكتوارى للشركة يتم اختياره من بين المقيدين بالسجل المعد لذلك بالهيئة وفق ًا للمعايير والضوابط الصادرة عن مجلس إدارة الهيئة،وفى حالة إذا ما لم يعبر تقرير الخبير الاكتوارى عن حقيقة الوضع المالي للشركة فإن للهيئة أن تطلب إعادة الفحص المنصوص عليه بعاليه بمعرفة خبير اكتوارى آخر على نفقة الشركة.$q950$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5860,7 +5863,7 @@ WITH ins_art_law155_175 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 175, $q951$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q951$, $q952$على كل شركة تأمين وشركة إعادة تأمين أن تخصص فى جمهورية مصر العربية أموالا ً تعادل قيمتها قيمة المخصصات الفنية المنصوص عليها فى المادة )(١٧٤ من هذا القانون،وذلك عن العمليات التى تكتتب فيها فى جمهورية مصر العربية، وذلك وفق ًا للضوابط والقواعد الصادرة عن مجلس إدارة الهيئة فى هذا الشأن. ولا يجوز الحجز على هذه الأموال إلا بعد الرجوع على الأموال الأخرى للشركة. ويصدر قرار عن مجلس إدارة الهيئة بتحديد قواعد وضوابط ونسب استثمار هذه الأموال وكذلك طرق تقييمها،وتتقيد الشركة فى سياستها الاستثمارية بتلك القواعد والضوابط والنسب التى تصدر عن مجلس إدارة الهيئة. وعلى كل شركة أن تقدم إلى الهيئة بيانات عن أموالها المخصصة فى المواعيد التى يصدرها مجلس إدارة الهيئة. وللهيئة أن تتخذ ما تراه مناسبا فى أى وقت للتحقق من قيام الشركة بتنفيذ أحكام هذه المادة. وعلى الشركة أن تخطر الهيئة بكل التصرفات أو الأحكام النهائية التى ترد على الأموال الواجب تخصيصها والتى من شأنها إنشاء حق من الحقوق العينية العقارية أو نقله أو تغييره أو زواله وذلك قبل شهرها بطريق التسجيل أو القيد.$q952$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5870,7 +5873,7 @@ WITH ins_art_law155_176 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 176, $q953$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q953$, $q954$يحظر على شركات التأمين أن تتولى التأمين لديها على مقراتها أو فروعها أو منافذها.$q954$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5880,7 +5883,7 @@ WITH ins_art_law155_177 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 177, $q955$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q955$, $q956$لا يجوز للشركة الخاضعة لأحكام هذا القانون المساهمة،بشكل مباشر أو من خلال أحد الأطراف المرتبطة بها،فى رأسمال شركة تأمين أخرى تزاول نفس نوع نشاطها فى مصر.$q956$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5890,7 +5893,7 @@ WITH ins_art_law155_178 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 178, $q957$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q957$, $q958$يكون لحملة الوثائق وللمستفيدين منها التى تبرمها الشركة وتنفذها فى جمهورية مصر العربية امتياز على الأموال المخصصة طبق ًا للمادتين ) (١٧٥، ١٧٤من هذا القانون يأتى فى المرتبة بعد الامتياز المقرر فى الفقرة )أ( من المادة )(١١٤١ من القانون المدنى،وتؤشر الجهة المختصة بالشهر والتوثيق،بناء على طلب الهيئة، بهذا الامتياز على هامش كل تسجيل أو قيد خاص بهذه الأموال على أن تخطر الهيئة بكل تأشير يتم.$q958$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5901,7 +5904,7 @@ WITH ins_art_law155_179 AS (
   SELECT id, 179, $q959$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q959$, $q960$على كل شركة تأمين أن تمسك السجلات الآتية لكل فرع من فروع التأمين:
 -۱ سجل إصدار الوثائق. - ٢سجل التعديلات على الوثائق. - ٣سجل التعويضات. - ٤سجل شكاوى العملاء. - ٥سجل الوسطاء. - ٦سجل الاتفاقيات. - ٧سجل الاستثمارات بما يشمله من أموال مخصصة وحرة. أما شركة إعادة التأمين فيكون لديها السجلات المشار إليها بالبنود ) (٧، ٦، ٥، ٣ من هذه المادة. وتحدد الهيئة الحد الأدنى من البيانات الواجب قيدها فى تلك السجلات. ويجوز لمجلس إدارة الهيئة أن يضيف سجلات أخرى.$q960$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5912,7 +5915,7 @@ WITH ins_art_law155_180 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 180, $q961$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q961$, $q962$على الشركة أن تمسك حسابات خاصة لكل فرع من فروع التأمين على حدة. ولمجلس إدارة الهيئة أن يكلف الشركة علاوة على ذلك بإمساك حساب خاص لنوع واحد أو أكثر من عمليات التأمين التى تدخل تحت فرع واحد. إعادة التأمين$q962$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5922,7 +5925,7 @@ WITH ins_art_law155_181 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 181, $q963$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q963$, $q964$يضع مجلس إدارة الهيئة المعايير والضوابط اللازمة لممارسة نشاط إعادة التأمين بالسوق المصرية. التقارير المالية والرقابية$q964$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5933,7 +5936,7 @@ WITH ins_art_law155_182 AS (
   SELECT id, 182, $q965$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q965$, $q966$تتولى الهيئة الإشراف والرقابة على شركات التأمين وإعادة التأمين وفق ًا لأساليب تقييم وإدارة المخاطر وقواعد الملاءة المالية الواردة بأحكام هذا القانون وما يصدر عن مجلس إدارة الهيئة من قرارات وبما يتفق وطبيعة نشاط كل منها.
 ويلتزم الكيان بتقديم التقارير التى تطلبها الهيئة عن هيكل الملكية والإدارة وكفاية رأس المال وسياسات إدارة المخاطر والعمليات التى يقوم بها الكيان مع جهات خارجية والضمانات المقدمة على مستوى الكيان والمسئوليات القانونية المترتبة عليها وآليات الرقابة الداخلية وعمليات إدارة المخاطر.$q966$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5944,7 +5947,7 @@ WITH ins_art_law155_183 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 183, $q967$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q967$, $q968$تلتزم الشركة بأن تحتفظ فى كل وقت بالمجموعة الدفترية التى تمكن من إعداد قوائمها المالية وفق ًا لمعايير المحاسبة المصرية،كما تلتزم الشركة بالاحتفاظ بالسجلات والمستندات والمكاتبات والوسائط الإلكترونية بما يتفق مع القوانين واللوائح السارية. ويتعين على الشركة إعداد القوائم المالية وفق ًا لمعايير المحاسبة المصرية، ويصدر مجلس إدارة الهيئة مواعيد إعدادها وعرضها،مرفق ًا بها تقرير مراقب الحسابات على الجمعية العامة للشركة وغيرها من قواعد إعداد القوائم المالية.$q968$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5954,7 +5957,7 @@ WITH ins_art_law155_184 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 184, $q969$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q969$, $q970$يتولى مراجعة حسابات الشركة مراقب حسابات أو أكثر من بين المقيدين بالسجل المعد لهذا الغرض بالهيئة وفق ًا لمعايير المراجعة المصرية. ويلتزم مراقب الحسابات بأن يفصح ضمن تقريره المعد بشأن مراجعة حسابات الشركة عن الآتى: مدى كفاية المخصصات وفق ًا لسياسة تكوين المخصصات المعتمدة من مجلس إدارة الشركة،مع الالتزام بالمعايير الصادرة عن الهيئة فى هذا الشأن،وذلك فيما عدا المخصصات التى يجب أن تعتمد من الخبير الاكتوارى. إذا ما كانت هناك أية مخالفات للقانون أو التعليمات الرقابية. مدى كفاية نظم الرقابة الداخلية.$q970$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5964,7 +5967,7 @@ WITH ins_art_law155_185 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 185, $q971$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q971$, $q972$لا يجوز لمراقب الحسابات أن يتولى مراجعة أكثر من شركتى تأمين،وبما لا يجاوز ست سنوات مالية متصلة لكل شركة على حدة من تاريخ تعيينه أول مرة. ويجب على الشركة أن تضع تحت تصرف المراقب جميع السجلات والمستندات التى يراها ضرورية للقيام بوظيفته. ولرئيس مجلس إدارة الهيئة إذا لزم الأمر أن يعهد إلى مراقب حسابات آخر بمهمة محددة وتتحمل الشركة أتعابه.$q972$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5974,7 +5977,7 @@ WITH ins_art_law155_186 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 186, $q973$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q973$, $q974$على الشركة أن تقدم للهيئة كل سنة مالية البيانات والحسابات اللازمة، وذلك فى الموعد الذى يحدده مجلس إدارة الهيئة،وعلى الأخص منها: ) أ ( ملخص اتفاقيات إعادة التأمين. )ب( بيان بأموال الشركة المخصصة الواجب الاحتفاظ بها فى جمهورية مصر العربية وفق ًا لأحكام هذا القانون مؤيد بالمستندات التى تطلبها الهيئة. وتعد هذه البيانات طبق ًا للنماذج التى تصدرها الهيئة وتشمل جميع العمليات التى تقوم بها الشركة فى جمهورية مصر العربية وفى الخارج كل على حدة. ويجب أن تكون هذه البيانات التى تقدم طبق ًا لأحكام هذا القانون موقعة من الممثل القانونى للشركة ومن مديرها المالى. ويجب أن يرفق بهذه البيانات تقرير عن أعمال الشركة فى جمهورية مصر العربية عن تلك السنة.$q974$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5984,7 +5987,7 @@ WITH ins_art_law155_187 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 187, $q975$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q975$, $q976$على الشركة إخطار الهيئة بالقوائم المالية السنوية وتقرير مراقب الحسابات قبل شهر من التاريخ المحدد لانعقاد الجمعية العامة للشركة،وللهيئة فحص القوائم والتقارير المشار إليها وإبلاغ الشركة بملاحظاتها،حال وجودها،وطلب إعادة النظر فيها بما يتفق ونتائج الفحص،فإذا لم تستجب الشركة لذلك التزمت بعرضها على الجمعية العامة ونشر القوائم المالية وتقرير مراقب الحسابات بإحدى الصحف الرسمية واسعة الانتشار،وعلى كل من الموقع الإلكترونى للشركة والهيئة أن يرفق بهما ملاحظات الهيئة والتعديلات التى طلبتها. وتلتزم تلك الشركات بنشر ملخص القوائم المالية السنوية والإيضاحات المتممة لها وتقرير مراقب الحسابات بشأنها على الموقع الإلكترونى للشركة وكذا الموقع الإلكترونى الذى تخصصه الهيئة للنشر وفق ًا للنموذج الذى تعده الهيئة لهذا الغرض.$q976$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5995,7 +5998,7 @@ WITH ins_art_law155_188 AS (
   SELECT id, 188, $q977$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q977$, $q978$تعد من التكاليف واجبة الخصم عند تحديد صافى الدخل الخاضع للضريبة وفق ًا لأحكام قانون الضريبة على الدخل الديون التى يقرر مجلس إدارة الشركة إعدامها وتزيد على المخصصات المشار إليها بالمادة ) (١٧٤من هذا القانون،وذلك بعد اتخاذ الإجراءات الجادة لاستيفائها وفق ًا للضوابط والإجراءات التى يضعها مجلس إدارة الهيئة،على أن يصدر بها تقرير من مراقب الحسابات.
 فحص أعمال الشركات$q978$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6006,7 +6009,7 @@ WITH ins_art_law155_189 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 189, $q979$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q979$, $q980$تتولى الهيئة إجراء فحص دورى لشركة التأمين وإعادة التأمين للتأكد من سلامة المركز المالى ومراعاة أحكام القانون والأسس الفنية لمزاولة عمليات التأمين وإعادة التأمين. ويجوز للهيئة أن تفحص أعمال الشركة فحصا شاملا ً أو جزئيا إذا قام لديها من الأسباب ما يحملها على الاعتقاد بأن حقوق حملة الوثائق معرضة للضياع أو أن الشركة معرضة لعدم القدرة على الوفاء بالتزاماتها أو أن ممارستها قد ثبت إضرارها بسوق التأمين أو أنها خالفت أحكام هذا القانون. كما يجوز إجراء هذا الفحص إذا طلبه عدد من المساهمين يمثل عشرة بالمائة من رأس المال المصدر والمدفوع على الأقل للشركة أو عدد لا يقل عن خمسمائة من حملة وثائق تأمينات الأشخاص وعمليات تكوين الأموال يكون قد مضى على إصدارها مدة لا تقل عن ثلاث سنوات. وعلى الشركة أن تقدم للهيئة أية معلومات أو بيانات أو مستندات تطلبها أثناء قيامها بهذا الفحص. ويتم الفحص وفق ًا للأوضاع والإجراءات التى يحددها مجلس إدارة الهيئة. التأمين الطبى المتخصص طويل وقصير الأجل وما يرتبط بهما من خدمات$q980$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6016,7 +6019,7 @@ WITH ins_art_law155_190 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 190, $q981$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q981$, $q982$تتولى الهيئة الإشراف والرقابة على كل من شركات التأمين الطبى المتخصصة طويل وقصير الأجل وشركات إدارة برامج الرعاية الصحية وفق ًا لأساليب تقييم وإدارة المخاطر وقواعد الملاءة المالية والسيولة الصادرة عن مجلس إدارة الهيئة وبما يتفق وطبيعة نشاط كل منها. ويصدر مجلس إدارة الهيئة القواعد والضوابط والإجراءات المنظمة لقواعد الفحص واختبارات الملاءة المالية وكذا النماذج والعقود الواجب اعتمادها من الهيئة قبل العمل بها.$q982$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6026,7 +6029,7 @@ WITH ins_art_law155_191 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 191, $q983$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q983$, $q984$فيما لم يرد به نص خاص،تخضع شركات التأمين الطبى المتخصصة طويل وقصير الأجل الواردة فى هذا الباب لذات الأحكام المقررة بالنسبة لشركات التأمين المرخص لها بالعمل فى الفروع الواردة بالمادة ) (٢من هذا القانون،وبما لا يخل بطبيعة الأنشطة التى تزاولها تلك الشركات. التأمين التكافلى وإعادة التأمين التكافلي$q984$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6036,7 +6039,7 @@ WITH ins_art_law155_192 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 192, $q985$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q985$, $q986$تلتزم الشركة التى ترغب فى الترخيص لها بمزاولة التأمين التكافلى أو إعادة التأمين التكافلى فى مصر بالعمل وفق ًا للقواعد والمعايير والضوابط الرقابية التى يضعها مجلس إدارة الهيئة. وتلتزم تلك الشركات بإسناد أعمالها إلى شركات إعادة تأمين تكافلى،وفى حالة عدم توفر طاقة استيعابية كافية لدى تلك الشركات أو عدم وجود تغطية للخطر المراد إعادة تأمينه يجوز لشركة التأمين التكافلى بعد اعتماد الهيئة التعامل مع شركات إعادة تأمين تقليدية،وفى هذه الحالة تخضع اتفاقيات إعادة التأمين لموافقة لجنة الرقابة الشرعية المنصوص عليها فى المادة ) (١٩٣من هذا القانون.$q986$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6046,7 +6049,7 @@ WITH ins_art_law155_193 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 193, $q987$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q987$, $q988$تلتزم شركة التأمين التكافلى أو إعادة التأمين التكافلى بتشكيل لجنة تسمى "لجنة الرقابة الشرعية" من ثلاثة أعضاء على الأقل من بين المقيدين بالسجل المعد لهذا الغرض بالهيئة يتم تعيينهم لمدة ثلاث سنوات قابلة للتجديد. ويصدر قرار من مجلس إدارة الهيئة بتحديد شروط وقواعد القيد وإعادة القيد والشطب بالسجل المشار إليه،كما يحدد القرار بعد موافقة الأزهر الشريف متطلبات تشكيل هذه اللجان. وتكون مهام تلك اللجنة مراقبة جميع معاملات الشركة والإشراف عليها وإبداء الرأى فى مدى توافقها مع أحكام الشريعة الإسلامية ومبادئها ومراقبة الفصل التام بين حساب المساهمين وحساب المشتركين،فضلا ً عن مراعاة أحكام الشريعة ومبادئها فى التوظيفات المالية بالنسبة للمشتركين والمساهمين على حد سواء.$q988$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6056,7 +6059,7 @@ WITH ins_art_law155_194 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 194, $q989$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q989$, $q990$تلتزم شركة التأمين التكافلى التى تعمل بنموذج المضاربة بما يلى: - ١توزيع الفائض التأمينى على المشتركين بما لا يقل عن ) (٪٥٠وذلك وفق ًا لآليات التوزيع الواردة بالنظام الأساسى للشركة بعد أخذ رأى لجنة الرقابة الشرعية. - ٢تجنيب الفائض التأمينى الخاص بالمشتركين فى حساب خاص،ويراعى فيه توزيع الجزء الذى لم تتمكن الشركة من توزيعه على المشتركين فى أوجه الخير أو التبرع الذى تحدده الشركة وفق ًا للضوابط والقواعد التى يصدربها قرار عن مجلس إدارة الهيئة. - ٣مراعاة الإعلان المسبق بمنتجات تلك الشركات عن أسس ومعايير التكافل وأبرزها نسب توزيعات الفائض وآلياته على المشتركين. - ٤عدم الإخلال بالمخصصات الفنية الواجب على الشركة الاحتفاظ بها وفق ًا لأحكام المادة ) (١٧٤من هذا القانون،وعلى الشركة تكوين احتياطى لتغطية عجز حساب التكافل.$q990$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6066,7 +6069,7 @@ WITH ins_art_law155_195 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 195, $q991$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q991$, $q992$فى حالة وجود عجز فى حساب التكافل يتعين على مساهمى الشركة تقديم قرض حسن لهذا الحساب،ويعتبر الالتزام بتقديم القرض المشار إليه التزاما شاملا ً حده الأقصى ) (٪٥٠من مجموع حقوق المساهمين فى الشركة،ويكون استرداد هذا القرض من الفائض أو الفوائض التى قد تتحقق فى الفترات اللاحقة،وفى حالة عدم تقديم المساهمين لهذا القرض خلال ثلاثين يوما من تاريخ إنذار الشركة بمعرفة الهيئة يتم العرض على مجلس إدارة الهيئة لاتخاذ أى من التدابير الواردة بأحكام المادة )(٢٠١ من هذا القانون.$q992$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6076,7 +6079,7 @@ WITH ins_art_law155_196 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 196, $q993$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q993$, $q994$مع مراعاة ما هو وارد بنص المادة ) (١٩٤من هذا القانون،تتولى الشركة إدارة حساب التكافل وأعمال الاستثمار المرتبطة بالاشتراكات على أساس نموذج الوكالة أو المضاربة أو كليهما معا،وذلك وفق ًا لما يحدده النظام الأساسى للشركة وما تضعه الهيئة من ضوابط فى هذا الخصوص.$q994$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6086,7 +6089,7 @@ WITH ins_art_law155_197 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 197, $q995$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q995$, $q996$لا يجوز تحويل وثائق التأمين التكافلى إلا إلى شركة تأمين تكافلى أخرى تمارس نفس نوع وفروع التأمين التكافلى. ولا يجوز دمج شركة التأمين التكافلى إلا بشركة تأمين تكافلى أخرى تمارس نوع التأمين ذاته. ويجوز لكل من شركات التأمين التجارى تعديل نظامها الأساسى للعمل وفق ًا لصيغة التأمين التكافلى،كما يجوز لشركات التأمين التكافلى تعديل نظامها الأساسى للعمل وفق ًا لصيغة التأمين التجارى،على أن تقدم طلبا بذلك إلى الهيئة حسب النموذج الذى تعتمده،على أن يتضمن خطة توضح الإجراءات التى ستتبعها الشركة الراغبة فى التعديل لتوفيق أوضاعها وفق ًا للضوابط والإجراءات الصادرة عن مجلس إدارة الهيئة،بشرط ألا تتجاوز فترة الخطة مدة سنتين من تاريخ موافقة الهيئة عليها وتكون قابلة للتمديد لمدة أخرى بقرار من الهيئة إذا اقتضت الضرورة ذلك. وفيما عدا ما تقدم من نصوص فى هذا الفصل،تخضع شركة التأمين التكافلى وإعادة التأمين التكافلى لسائر الأحكام الواردة فى هذا القانون بشأن شركة التأمين وإعادة التأمين وذلك فى كل ما لم يرد بشأنه نص خاص. ) الفصل الرابع ( صندوق ضمان حملة الوثائق$q996$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6097,7 +6100,7 @@ WITH ins_art_law155_198 AS (
   SELECT id, 198, $q997$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q997$, $q998$صندوق ضمان حملة الوثائق والمستفيدين منها،شخص اعتبارى من أشخاص القانون الخاص له ميزانية مستقلة ويخضع لإشراف الهيئة،ومقره فى مدينة القاهرة، ويهدف إلى تعويض حملة الوثائق والمستفيدين منها نتيجة لعدم قدرة الشركة على الوفاء بالتزاماتها. ولرئيس مجلس الوزراء بعد أخذ رأى الهيئة تعديل النظام الأساسى للصندوق الصادر قبل العمل بأحكام هذا القانون.
 ) الفصل الخامس ( التحول الرقمى بقطاع التأمين$q998$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6108,7 +6111,7 @@ WITH ins_art_law155_199 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 199, $q999$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q999$, $q1000$يجوز لشركات التأمين المقيدة بسجلات الهيئة أن تصدر بعض وثائق التأمين النمطية التى يصدر بتحديدها قرار من مجلس إدارة الهيئة،وذلك إلكترونيا من خلال نظم معلومات الشركات وإتاحة طباعة الوثيقة بواسطة المؤمن له مباشرة أو تسويقها وتوزيعها بواسطة إحدى الجهات التى يحددها مجلس إدارة الهيئة. وعلى الشركة الحصول على موافقة مسبقة من الهيئة بذلك،وأن تلتزم بالضوابط التى تصدر عن الهيئة بشأنها. كما يضع مجلس إدارة الهيئة اشتراطات وضوابط تراخيص السماح لتلك الشركات بإصدار الوثائق إلكترونيا وتراخيص إنشاء المواقع الإلكترونية والاستفادة من خدمات الحوسبة السحابية أو تقديم أى من الخدمات الإلكترونية.$q1000$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6118,7 +6121,7 @@ WITH ins_art_law155_200 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 200, $q1001$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1001$, $q1002$مع عدم الإخلال بحكم المادة ) (٦٧من هذا القانون،يجب على جميع الأشخاص الاعتبارية المخاطبة بأحكام هذا القانون أن تنشئ لها موقعا إلكترونيا مرخصا من الهيئة يحتوى على الإفصاح والشفافية الكافية للمتعاملين معها عن أحكامها،وخاصة الغرض من إنشائها ونوع وصيغة التأمين الذى تزاوله وأهم القرارات الصادرة عن إدارتها وذلك وفق ًا للضوابط التى يضعها مجلس إدارة الهيئة. ) الفصل السادس ( الإجراءات والتدابير الرقابية$q1002$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6129,7 +6132,7 @@ WITH ins_art_law155_201 AS (
   SELECT id, 201, $q1003$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1003$, $q1004$يجوز لمجلس إدارة الهيئة تحقيق ًا لاستقرار السوق،أو حماية لحقوق المتعاملين مع الشركة من حملة الوثائق والمستفيدين منها،أو فى حالة تعرض الشركة لمشكلات مالية تؤثر على مركزها المالى،إلزام الشركة بتعزيز ملاءتها المالية وفق ًا لجدول زمنى محدد،وعلى الشركة الالتزام بقرار مجلس إدارة الهيئة الصادر فى هذا الخصوص وإلا جاز لمجلس إدارة الهيئة اتخاذ تدبير أو أكثر من التدابير الآتية: - ١دعوة مجلس إدارة الشركة إلى الانعقاد للنظر فى أمر المخالفات المنسوبة إلى الشركة واتخاذ اللازم نحو إزالتها ويحضر اجتماع مجلس الإدارة فى هذه الحالة ممثل أو أكثر عن الهيئة.
 - ٢تعيين عضو مراقب فى مجلس إدارة الشركة للمدة التى يحددها مجلس إدارة الهيئة ويكون له المشاركة فى مناقشات المجلس وإبداء الرأى فيما يعرض من موضوعات دون أن يكون له صوت معدود. - ٣تجنيب الفائض القابل للتوزيع على المساهمين أو جزء منه لدعم المركز المالى للشركة. - ٤إلزام الشركة بإعادة هيكلة نشاط أو أكثر من أنشطتها. - ٥تقييد قبولها عمليات جديدة أو تجديدها عمليات قائمة أو كليهما معا لمدة محددة بالنسبة لكل أو بعض فروع التأمين المرخص لها بمزاولتها. - ٦تنحية واحد أو أكثر من القائمين على الإدارة التنفيذية بالشركة. - ٧إلزام الشركة بزيادة رأسمالها المدفوع بالقدر الذى تراه الهيئة لتدعيم قدرتها على الوفاء بالتزاماتها. - ٨عزل عضو أو أكثر من أعضاء مجلس الإدارة وتعيين مفوض لإدارة الشركة بصفة مؤقتة لحين تعيين مجلس إدارة جديد بالأداة المقررة قانون ًا. - ٩تحويل وثائقها بما لها من حقوق وما عليها من التزامات لشركة تأمين أخرى. - ١٠إدماج الشركة فى شركة تأمين أخرى. - ١١إلغاء ترخيص الشركة المتعثرة. ) الفصل السابع ( إنهاء النشاط تحويل الوثائق ووقف العمل وإلغاء الترخيص تحويل الوثائق$q1004$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6141,7 +6144,7 @@ WITH ins_art_law155_202 AS (
   SELECT id, 202, $q1005$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1005$, $q1006$يجب على الشركة إذا رأت تحويل وثائقها مع الحقوق والالتزامات المترتبة عليها عن كل أو بعض العمليات التى تزاولها إلى شركة أخرى أو أكثر تزاول فرعا أو فروع التأمين ذاتها،أن تقدم طلبا إلى الهيئة بالشروط والأوضاع التى يقررها مجلس إدارة الهيئة.
 ويقدم طلب التحويل إلى الهيئة مرفق ًا به جميع الوثائق والمستندات الخاصة باتفاق التحويل للموافقة عليه من حيث المبدأ،وتتولى الهيئة نشر الطلب على نفقة الشركة فى صحيفة يومية واسعة الانتشار وعلى كل من الموقع الإلكترونى للشركات ذات الصلة وكذا الموقع الإلكترونى للهيئة،وذلك خلال ثلاثين يوما من تاريخ تقديمه على النموذج الذى تعده الهيئة لهذا الغرض وفق ًا للإجراءات التى يحددها مجلس إدارة الهيئة. ويجب أن يتضمن هذا الطلب دعوة حملة الوثائق والمستفيدين منها وغيرهم من أصحاب الشأن إلى تقديم ملاحظاتهم على التحويل إلى الهيئة فى ميعاد غايته ثلاثة أشهر من تاريخ النشر،على أن يبين فى الطلب الملاحظات والأسباب التى استند إليها. ويصدر قرار عن مجلس إدارة الهيئة بتحويل وثائق الشركة مع الالتزامات المترتبة عليها،مع مراعاة مصلحة أصحاب الحقوق،وعلى الأخص حملة الوثائق التى أبرمتها الشركة،والمستفيدون منها،والدائنون. وينشر هذا القرار على الموقع الإلكترونى للشركات المعنية وكذا الموقع الإلكترونى الذى تخصصه الهيئة لهذا الغرض،ويحتج به قبل المؤمن لهم والمستفيدين من الوثائق التى أبرمتها الشركة وكذلك قبل دائنيها. وفى هذه الحالة تنتقل أموال الشركة إلى الشركة التى حولت إليها الوثائق،وذلك مع مراعاة الأحكام المتعلقة بنقل الملكية والنزول عن الأموال. ويسرى حكم هذه المادة على حالتى دمج وتقسيم الشركات. وقف العمل$q1006$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6152,7 +6155,7 @@ WITH ins_art_law155_203 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 203, $q1007$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1007$, $q1008$على كل شركة مرخص لها وفق ًا لأحكام هذا القانون إذا قررت وقف عملياتها فى فرع أو أكثر من فروع التأمين وترغب فى تحرير أموالها كلها أو بعضها أن تقدم إلى الهيئة طلبا بذلك،ويكون تقديم هذا الطلب والبت فيه وفق ًا للقواعد والإجراءات التى يصدرها مجلس إدارة الهيئة. إلغاء الترخيص$q1008$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6165,7 +6168,7 @@ WITH ins_art_law155_204 AS (
 - ٢إذا دأبت الشركة على مخالفة أحكام هذا القانون أو القرارات المنفذة لها. - ٣إذا ثبت للهيئة أن الشركة غير قادرة على الوفاء بالتزاماتها. - ٤إذا ثبت للهيئة أن الشركة تهمل باستمرار فى تنفيذ المطالبات المستحقة التى تقدم إليها أو تتكرر منها المنازعة دون وجه حق فى مطالبات جدية. - ٥إذا نقص رأس المال المدفوع عن الحد الأدنى المقرر فى المادة )(١٦٢ من هذا القانون ولم تقم الشركة باستكماله رغم مطالبتها بذلك. - ٦إذا لم تحتفظ الشركة فى جمهورية مصر العربية بالأموال الواجب تخصيصها طبق ًا لحكم المادة ) (١٧٥من هذا القانون أو إذا لم تقم باستكمالها خلال سنة من تاريخ مطالبتها بذلك. - ٧إذا تكرر امتناع الشركة عن تقديم دفاترها ومستنداتها للمراجعة أو الفحص الذى تقوم به الهيئة أو مراقبو الحسابات أو رفضت إعطاء الكشوف والبيانات الواجب تقديمها طبق ًا للقانون رغم مطالبتها كتابة أكثر من مرة على مدى ثلاثة أشهر. - ٨إذا صدر قرار بالموافقة على تحويل وثائق الشركة مع الالتزامات المترتبة عليها إلى شركة أخرى عن كل العمليات التى زاولتها فى جمهورية مصر العربية طبق ًا لحكم المادة ) (٢٠٢من هذا القانون. - ٩إذا توقفت الشركة عن مزاولة نشاطها فى جمهورية مصر العربية وحررت أموالها طبق ًا للمادة ) (٢٠٣من هذا القانون. - ١٠إذا صدر حكم بإشهار إفلاس الشركة. - ١١إذا خالفت الشركة شرط ًا من شروط الترخيص لها بمزاولة النشاط ولم تقم بتصحيح المخالفة على الرغم من مطالبتها بذلك خلال فترة يحددها مجلس إدارة الهيئة. ولا يصدر قرار إلغاء الترخيص بمزاولة النشاط إلا بعد إخطار الشركة بكتاب مسجل مصحوبا بعلم الوصول لتقدم أوجه دفاعها كتابة خلال ثلاثين يوما من تاريخ الإخطار،ويتم إلغاء الترخيص بمزاولة النشاط كليا أو جزئيا بقرار من مجلس إدارة الهيئة وينشر على الموقع الإلكترونى الذى تخصصه الهيئة لهذا الغرض. ولا ينسحب أثر إلغاء الترخيص بمزاولة النشاط جزئيا إلا إلى العمليات المنصوص عليها فى القرار الصادر به.
 وفى جميع الأحوال،لا يجوز للشركة التى صدر فى شأنها قرار إلغاء الترخيص بمزاولة النشاط كليا أن تتصرف فى أموالها والضمانات المقدمة منها إلا بعد اتباع الإجراءات الصادرة عن مجلس إدارة الهيئة نفاذ ًا لأحكام المادة ) (٢٠٣من هذا القانون، ويترتب على القرار الصادر بإلغاء الترخيص بمزاولة النشاط وقف الشركة عن مباشرة النشاط فى فروع التأمين المنصوص عليها فيه. ويجوز لرئيس مجلس إدارة الهيئة أن يسمح للشركة بمباشرة العمليات القائمة وقت إلغاء الترخيص بمزاولة النشاط بالشروط التى يعينها لذلك،كما يجوز له أن يقرر تصفية أعمال الشركة. وتجرى التصفية طبقا للقواعد التى يقررها مجلس إدارة الهيئة بما يضمن الوفاء بالتزامات الشركة وذلك تحت إشراف لجنة من ثلاثة أعضاء يعينهم رئيس المجلس. ) الفصل الثامن ( أحكام ختامية$q1010$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6178,7 +6181,7 @@ WITH ins_art_law155_205 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 205, $q1011$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1011$, $q1012$لرئيس الهيئة وقف أى نشاط خاضع لأحكام هذا القانون إذا تمت مزاولته دون ترخيص،ويجوز أن يتضمن قرار الوقف غلق المكان الذى تتم مزاولة النشاط فيه بالطريق الإدارى.$q1012$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6188,7 +6191,7 @@ WITH ins_art_law155_206 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 206, $q1013$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1013$, $q1014$لا يجوز للأشخاص الطبيعيين والاعتباريين التعاقد على أى عمليات تأمين مباشرة تتعلق بممتلكاتهم أو بمسئولياتهم داخل جمهورية مصر العربية إلا لدى شركات تأمين خاضعة لأحكام هذا القانون. ومع ذلك يجوز للهيئة فى الحالات التى لا يتسنى إبرامها بالداخل،الترخيص بإجراء التأمين لدى غير هذه الشركات،وذلك وفق ًا للقواعد التى يضعها مجلس إدارة الهيئة.$q1014$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6198,7 +6201,7 @@ WITH ins_art_law155_207 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 207, $q1015$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1015$, $q1016$تصدر الهيئة القواعد التى تلزم أعضاء مجلس الإدارة وجميع العاملين بأى من الجهات الخاضعة لأحكام هذا القانون بالإفصاح عن أى بيانات أو معلومات تتعارض وطبيعة أعمالهم،وخاصة العلاقات المرتبطة بالجهات أو المهن أو الخدمات التأمينية الأخرى بحسب الأحوال. ويحظر على رئيس الهيئة ونائبيه ومجلس إدارتها والعاملين بها أن يشتركوا فى تأسيس أو إدارة أو تقديم استشارة فنية إلى أى من الخاضعين لأحكام هذا القانون.$q1016$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6208,7 +6211,7 @@ WITH ins_art_law155_208 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 208, $q1017$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1017$, $q1018$تؤدى شركات التأمين وشركات إدارة برامج الرعاية الصحية رسما سنويا للهيئة بما لا يجاوز ثلاثة أمثال الحد الأدنى لرءوس أموالها المنصوص عليها فى هذا القانون، مقابل مراجعة أسس تسعير منتجاتها التأمينية للتأكد من توافقها مع المعايير الفنية والاكتوارية المعمول بها،وجمع وترتيب وتصنيف البيانات والمعلومات وتحليلها وإتاحتها لتنمية النشاط،وفحص ما يرد تجاه الجهات المرخص لها وحملة الوثائق ومستفيدى برامج الرعاية الصحية وفق ًا لأحكام هذا القانون. ويحدد مجلس إدارة الهيئة الرسم المشار إليه بما لا يجاوز النسب التالى بيانها من جملة الأقساط المباشرة التى تستحق للشركة على حملة الوثائق عن السنة المالية المنقضية،وذلك على النحو التالى: - ١اثنان ونصف فى الألف بالنسبة لعمليات التأمين المنصوص عليها فى البند أولا ً من المادة ) (٢من هذا القانون. - ٢ستة فى الألف بالنسبة لعمليات التأمين المنصوص عليها فى البند ثانيا من المادة ) (٢من هذا القانون. - ٣أربعة فى الألف بالنسبة لشركات التأمين الطبى المتخصصة. - ٤اثنان ونصف فى الألف من مقابل إدارة برامج الرعاية الصحية بالنسبة لشركات إدارة الرعاية الصحية وذلك عن جميع تعاقداتها. ويسدد الرسم المشار إليه وفق ًا لطرق السداد المقررة قانون ًا،ولا يجوز لتلك الجهات اقتضاء هذا الرسم من حملة الوثائق أو من المؤمن لهم أو المشتركين،بحسب الأحوال،بما يجاوز الفئات المشار إليها بتلك المادة. وتلتزم تلك الجهات بسداد هذه الرسوم خلال ثلاثين يوما من تاريخ اعتماد قوائمها المالية أو انقضاء أربعة أشهر من تاريخ انتهاء السنة المالية،وفى حالة التأخير فى السداد تستحق للهيئة غرامة تأخير تحسب على أساس سعر الخصم المعلن من البنك المركزى المصرى فى اليوم التالى لانقضاء الأشهر الأربعة المشار إليها.$q1018$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6218,7 +6221,7 @@ WITH ins_art_law155_209 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 209, $q1019$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1019$, $q1020$تلتزم الجهات الخاضعة لأحكام هذا القانون بإبلاغ الهيئة بكل ما يصدر من شروط ونماذج وثائق التأمين لكل فروع التأمين،وكذلك كل تعديل يطرأ عليها، ولا يجوز أن يعمل بهذه الشروط والنماذج إلا بعد اعتمادها من الهيئة. كما تلتزم شركات تأمينات الأشخاص وتكوين الأموال بإبلاغ الهيئة بالأسعار والتقرير الاكتوارى والأسس الفنية المستخدمة فى حساباته لمراجعتها،ويعتبر انقضاء ثلاثين يوما على إبلاغ الهيئة،بعد استيفاء جميع المستندات دون ممانعتها بمثابة قرار بالاعتماد. وتقوم الهيئة بمراجعة شروط الوثائق وأسس التسعير المعمول بها لدى جميع الشركات بصفة دورية فى ضوء الممارسات الفعلية بما يضمن توافر الشروط الخاصة بالسعر العادل،وتلتزم الشركات بالتعديلات التى تراها الهيئة فى هذا الشأن.$q1020$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6228,7 +6231,7 @@ WITH ins_art_law155_210 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 210, $q1021$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1021$, $q1022$لا يجوز نشر أى بيان من البيانات الواجب تقديمها وفق ًا لأحكام هذا القانون إلا إذا كانت مطابقة للبيانات التى قدمت للهيئة. ويجوز نشر مستخرجات من هذه البيانات مطابقة تماما لمشتملات البيانات الأصلية المقدمة.$q1022$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6238,7 +6241,7 @@ WITH ins_art_law155_211 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 211, $q1023$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1023$, $q1024$يجوز للهيئة السماح لكل ذى مصلحة بالاطلاع على الأوراق والبيانات التى تقدم طبق ًا للقانون،أو الحصول على صور أو شهادات أو مستخرجات منها أو من القرارات الصادرة من الهيئة أو من السجلات المنصوص عليها فى هذا القانون عدا الأسس الفنية لأسعار عمليات التأمين،وذلك بعد سداد الرسم المقرر. ويجب على شركات التأمين أن تطلع حاملى وثائقها على البيانات المتعلقة بوثائقهم أو أن تسلمهم نسخة منها،بناء على طلبهم،وذلك بعد سداد الرسم المقرر. ويحدد الجدول المرفق بهذا القانون قيمة الرسوم التى تؤدى طبق ًا لهذه المادة، وتسدد وفق ًا لطرق السداد المقررة قانون ًا.$q1024$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6248,7 +6251,7 @@ WITH ins_art_law155_212 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 212, $q1025$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1025$, $q1026$لشركات التأمين وإعادة التأمين الحق فى فتح حسابات بالنقد الأجنبى بالخارج لمقابلة التزاماتها المستحقة عليها فى الخارج. ولمجلس إدارة الهيئة أن يصدر قرارات بالقواعد التى يراها ملائمة لذلك.$q1026$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6258,7 +6261,7 @@ WITH ins_art_law155_213 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 213, $q1027$الباب الثاني: شركات قطاع التأمين  ،والخدمات المرتبطة بها  ،والرقابة عليها — الفصل الثاني: التأسيس والترخيص ونقل الملكية$q1027$, $q1028$يعتبر جميع الأشخاص الطبيعيين والاعتباريين المسجلين بالسجلات المعدة بالهيئة وفق ًا للقوانين القائمة وقت العمل بهذا القانون مرخصا لهم فى مزاولة العمل طبق ًا لأحكام هذا القانون،وذلك فى كل ما لم يرد به أحكام خاصة يتعين الالتزام بها.$q1028$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6269,7 +6272,7 @@ WITH ins_art_law155_214 AS (
   SELECT id, 214, $q1029$الباب الثالث: تسوية المنازعات والعقوبات$q1029$, $q1030$تشكل لجنة أو أكثر لنظر التظلمات التى يقدمها أصحاب الشأن من القرارات الإدارية الصادرة تطبيق ًا لأحكام هذا القانون،ويصدر بتشكيل كل لجنة قرار من مجلس إدارة الهيئة،وتكون برئاسة أحد نواب رئيس مجلس الدولة وعضوية اثنين من مستشارى مجلس الدولة يختارهما رئيس المجلس،وممثل عن الهيئة يختاره رئيسها،وعضو من ذوى الخبرة يختاره مجلس إدارة الهيئة،ويكون للمتظلم الحضور أمام اللجنة بنفسه أو من يمثله. ويكون التظلم من القرار أمام هذه اللجنة خلال ثلاثين يوما من تاريخ صدور القرار أو انتهاء الأجل الخاص بصدوره،على أن تصدر اللجنة قرارها فى التظلم فى ميعاد لا يجاوز ثلاثين يوما من تاريخ استيفاء المستندات والبيانات المطلوبة، ويكون قرارها نهائيا ونافذ ًا وملزما لأطرافه. ولا تقبل الدعوى التى ترفع إلى المحكمة المختصة إلا بعد اللجوء إلى اللجنة المشار إليها والبت فى التظلم.
 ويترتب على تقديم التظلم إلى اللجنة وقف المدد المقررة قانون ًا لسقوط أو تقادم الحقوق أو لرفع الدعوى،وذلك حتى انقضاء ميعاد البت فى التظلم. ويشمل قرار تشكيل اللجنة اختصاصاتها ومكافآت أعضائها وإجراءات النظر فى التظلم والبت فيه ومواعيد تلك الإجراءات. ويلتزم المتظلم بسداد رسم للتظلم يصدر بتحديد ضوابطه قرار من رئيس مجلس إدارة الهيئة بما لا يجاوز مبلغ عشرين ألف جنيه،ويرد هذا الرسم إلى المتظلم حال إلغاء القرار خلال ثلاثين يوما على الأكثر من تاريخ صدور الإلغاء. ) الفصل الثاني ( العقوبات$q1030$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6280,7 +6283,7 @@ WITH ins_art_law155_215 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 215, $q1031$الباب الثالث: تسوية المنازعات والعقوبات$q1031$, $q1032$مع عدم الإخلال بأى عقوبة أشد منصوص عليها فى أى قانون آخر،يعاقب بالحبس وبغرامة لا تقل عن خمسين ألف جنيه ولا تزيد على خمسمائة ألف جنيه أو ما حققه المخالف من نفع مؤثم أيهما أكبر،أو بإحدى هاتين العقوبتين: - ١كل من زاول نشاط ًا من أنشطة التأمين أو إعادة التأمين أو أيا من المهن أو الأنشطة المرتبطة بها بغير ترخيص من الهيئة أو القيد فى السجل المعد لذلك أو بالمخالفة لأحكام هذا القانون. - ٢كل من باشر عملا ً من أعمال الصناديق التأمينية الخاصة قبل تسجيله بالسجل المعد لذلك بالهيئة أو بعد شطبه من السجل. - ٣كل من أقر أو أخفى متعمدا بقصد الغش فى البيانات أو المحاضر أو فى المستندات التى تقدم إلى الهيئة أو التى تصل إلى علم الجمهور. - ٤كل من تعمد مخالفة المعايير أو القواعد المهنية الصادرة عن مجلس إدارة الهيئة،ومن بينها معايير الخبرة الاكتوارية. - ٥كل مسئول بشركة تأمين أو إعادة تأمين تعمد عدم تنفيذ الالتزامات الواردة بوثائق التأمين. وفى جميع الأحوال،تضبط المبالغ محل الجريمة ويحكم بمصادرتها،فإن لم تضبط حكم بغرامة إضافية تعادل قيمتها.$q1032$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6291,7 +6294,7 @@ WITH ins_art_law155_216 AS (
   SELECT id, 216, $q1033$الباب الثالث: تسوية المنازعات والعقوبات$q1033$, $q1034$يعاقب بغرامة لا تقل عن خمسين ألف جنيه ولا تجاوز خمسمائة ألف جنيه كل من: - ١تعمد عرقلة أعمال موظفى الهيئة فى الإشراف والرقابة. - ٢مثل فى جمهورية مصر العربية هيئات أو شركات تأمين أو إعادة تأمين مصرية أو أجنبية أو توسط لديها دون ترخيص بذلك من الهيئة. - ٣امتنع عن تقديم السجلات والمستندات لمندوبى الهيئة الذين لهم حق الاطلاع عليها.
 -٤ تأخر دون مبرر تقبله الهيئة فى تقديم البيانات أو التقارير الواجب تقديمها فى المواعيد المحددة بهذا القانون أو القرارات الصادرة عن الهيئة تنفيذ ًا له. ويحكم فى البندين ) (٤، ٣من هذه المادة فضلا ً عن الغرامة،بإلزام المحكوم عليه بتقديم السجلات أو المستندات أو البيانات. وفى حالة العود،يعاقب على مخالفة البنود السابقة بالحبس مدة لا تقل عن ثلاثة أشهر وتضاعف الغرامة بحديها الأدنى والأقصى المنصوص عليها فى الفقرة الأولى من هذه المادة،أو بإحدى هاتين العقوبتين.$q1034$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6302,7 +6305,7 @@ WITH ins_art_law155_217 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 217, $q1035$الباب الثالث: تسوية المنازعات والعقوبات$q1035$, $q1036$يعاقب بغرامة لا تقل عن مليون جنيه ولا تزيد على مليونى جنيه أو ما حققه المخالف من نفع مؤثم أيهما أكبر كل من أفشى سرا اتصل به أو اطلع عليه بحكم عمله تطبيق ًا لأحكام هذا القانون. ويعاقب بذات العقوبة: - ١كل عضو من أعضاء مجلس إدارة أحد الصناديق الخاصة أو المديرين أو الموظفين بها امتنع دون وجه حق عن تسليم الأموال والمستندات والسجلات إلى السلطة المختصة بذلك. - ٢كل عضو من أعضاء مجلس إدارة أحد الصناديق الخاصة امتنع،دون وجه حق،عن صرف الالتزامات المستحقة للأعضاء أو المستفيدين وفق ًا لأحكام النظام الأساسى للصندوق أو إذا حصل لنفسه أو لأى من الأعضاء على مزية أو مكافأة من الصندوق بالمخالفة لأحكام النظام الأساسى،وتقضى المحكمة برد قيمة ما حصل عليه من الصندوق. - ٣كل من خالف أحكام المادتين ) / ۱۰۱، ٩٠فقرة ثالثة( من هذا القانون.$q1036$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6312,7 +6315,7 @@ WITH ins_art_law155_218 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 218, $q1037$الباب الثالث: تسوية المنازعات والعقوبات$q1037$, $q1038$يعاقب كل من يخالف الشروط أو النماذج المعتمدة من الهيئة وفق ًا لأحكام المادة )(٢٠٩ من هذا القانون،وكذا كل من يخالف الأسعار فى حالة تأمينات الأشخاص،بغرامة لا تقل عن مائة ألف جنيه ولا تجاوز عشرين مليون جنيه أو ما حققه من نفع مؤثم، أيهما أكبر،للواقعة موضوع المخالفة. وتضاعف العقوبة بحديها فى حالة العود.$q1038$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6322,7 +6325,7 @@ WITH ins_art_law155_219 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 219, $q1039$الباب الثالث: تسوية المنازعات والعقوبات$q1039$, $q1040$مع عدم الإخلال بأية عقوبة أشد منصوص عليها فى أى قانون آخر،يعاقب بغرامة لا تقل عن خمسين ألف جنيه ولا تجاوز مليون جنيه كل من خالف أحكام المواد ) /٤٦، ٤٣فقرة أخيرة (١٤٧، ۱۳۹، ٤٩، ٤٧،من هذا القانون. ويعاقب بغرامة لا تقل عن عشرة آلاف جنيه ولا تزيد على خمسين ألف جنيه كل من خالف حكم المادة ) (٤٢من هذا القانون. كما يعاقب بغرامة لا تقل عن ألف جنيه ولا تزيد على خمسة آلاف جنيه كل من خالف حكم المادة ) (٥١من هذا القانون.$q1040$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6332,7 +6335,7 @@ WITH ins_art_law155_220 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 220, $q1041$الباب الثالث: تسوية المنازعات والعقوبات$q1041$, $q1042$مع عدم الإخلال بأية عقوبة أشد منصوص عليها فى أى قانون آخر يعاقب بالحبس مدة لا تقل عن سنتين وبغرامة لا تقل عن عشرين ألف جنيه ولا تزيد على مليون جنيه أو ضعف ما حققه من نفع،أو بإحدى هاتين العقوبتين،كل من حقق نفعا لنفسه أو زوجه أو أولاده نتيجة لإثباته فى تقاريره وقائع غير صحيحة عن عمد، أو أخل بقواعد ومعايير الممارسة المهنية إخلالا ً متعمدا أو جسيما،أو تعمد إغفال وقائع تؤثر تأثيرا جوهريا فى نتائج هذه التقارير. وتكون العقوبة الحبس والغرامة التى لا تقل عن عشرة آلاف جنيه ولا تزيد على خمسمائة ألف جنيه أو ضعف ما حققه من نفع،أو بإحدى هاتين العقوبتين إذا ارتكبت الأفعال المنصوص عليها بالفقرة الأولى من هذه المادة بناء على إهمال.$q1042$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6342,7 +6345,7 @@ WITH ins_art_law155_221 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 221, $q1043$الباب الثالث: تسوية المنازعات والعقوبات$q1043$, $q1044$يعاقب بغرامة قدرها ألفا جنيه عن كل يوم من أيام تأخير شركة التأمين فى تسليم القوائم المالية وفق ًا للقواعد الواردة بهذا القانون وما يصدر عن الهيئة من قرارات بشأنها. كما يعاقب بغرامة خمسمائة جنيه عن كل يوم من أيام تأخير صناديق التأمين الخاصة أو غيرها من الجهات الخاضعة لأحكام هذا القانون فى تسليم القوائم المالية وفق ًا للقواعد الواردة بهذا القانون وما يصدر عن الهيئة من قرارات بشأنها.$q1044$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6352,7 +6355,7 @@ WITH ins_art_law155_222 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 222, $q1045$الباب الثالث: تسوية المنازعات والعقوبات$q1045$, $q1046$يعاقب المسئول عن الإدارة الفعلية للشركة،بالعقوبات المقررة عن الأفعال التى ترتكب بالمخالفة لأحكام هذا القانون،متى ثبت علمه بها وكانت المخالفة قد وقعت بسبب إخلاله بواجباته الوظيفية. ويكون الشخص الاعتبارى مسئولا ً بالتضامن معه عن الوفاء بما يحكم به من عقوبات مالية وتعويضات إذا كانت الجريمة قد ارتكبت من أحد العاملين به باسمه نيابة عنه.$q1046$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6362,7 +6365,7 @@ WITH ins_art_law155_223 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 223, $q1047$الباب الثالث: تسوية المنازعات والعقوبات$q1047$, $q1048$يجوز فضلا ً عن العقوبات المقررة للجرائم المنصوص عليها فى المواد السابقة، الحكم على من قضى عليه بإحدى هذه العقوبات،بالحرمان من مزاولة النشاط الذى وقعت الجريمة بمناسبته،وذلك لمدة لا تزيد على ثلاث سنوات،ويكون الحكم بذلك وجوبيا فى حالة العود.$q1048$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6376,7 +6379,7 @@ WITH ins_art_law155_224 AS (
 ولمجلس إدارة الهيئة تعديل الرسوم المقررة فى هذا الجدول بما لا يجاوز عشر أمثالها.
 طبعت بالهيئة العامة لشئون المطابع الأميرية رئيس مجلس الإدارة   رقم الإيداع بدار الكتب ٦٥لسنة ٢٠٢٤ ٥٥٩ - ٢٠٢٤/٧/١٥ - ٢٠٢٤/٢٥٠٣٢$q1050$
   FROM laws WHERE law_no = 155 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)

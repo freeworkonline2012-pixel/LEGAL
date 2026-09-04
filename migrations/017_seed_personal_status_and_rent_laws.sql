@@ -51,9 +51,9 @@
 
 BEGIN;
 
-ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
-ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','other'));
+-- قيد laws_category_check أُزيل من هنا (2026-09-04، إصلاح جذرى لعطل تكرار
+-- إعادة تعريفه فى 9 ملفات مختلفة — راجع تعليق migrations/003 الكامل).
+-- مُعرَّف الآن فى migrations/020 فقط.
 
 -- ===== ps_25_1929 : بعض أحكام الأحوال الشخصية (الطلاق، النفقة، الحضانة) =====
 WITH ins_law_ps25 AS (
@@ -168,7 +168,7 @@ ins_art_ps25 AS (
 المادة 25
 على وزير الحقانية تنفيذ هذا القانون ويعمل به من تاريخ نشره في الجريدة الرسمية.$ps25$
   FROM ins_law_ps25
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -311,7 +311,7 @@ ins_art_ps100 AS (
 المادة السابعة
 ينشر هذا القانون فى الجريدة الرسمية، ويعمل به من تاريخ نشر الحكم الصادر من المحكمة الدستورية العليا بعدم دستورية القرار بقانون رقم 44 لسنة 1979.$ps100$
   FROM ins_law_ps100
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -417,7 +417,7 @@ ins_art_ps10 AS (
 المادة 15
 تنشأ بكل محكمة أسرة إدارة خاصة لتنفيذ الأحكام والقرارات الصادرة منها أو من دوائرها الاستئنافية، تزود بعدد كاف من محضرى التنفيذ المؤهلين المدربين الذين يصدر بتحديدهم قرار من رئيس المحكمة. ويتولى الإشراف على هذه الإدارة قاض للتنفيذ تختاره الجمعية العمومية للمحكمة الابتدائية من بين قضاة محكمة الأسرة فى دائرة تلك المحكمة.$ps10$
   FROM ins_law_ps10
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -687,7 +687,7 @@ ins_art_inh77 AS (
 المادة 49
 مع عدم الإخلال بأية عقوبة أشد ينص عليها أى قانون آخر، يعاقب بالحبس مدة لا تقل عن ستة أشهر وبغرامة لا تقل عن عشرين ألف جنيه ولا تجاوز مائة ألف جنيه، أو بإحدى هاتين العقوبتين، كل من امتنع عمدًا عن تسليم أحد الورثة نصيبه الشرعى من الميراث، أو حجب سندًا يؤكد نصيبًا لوارث، أو امتنع عن تسليم ذلك السند حال طلبه من أى من الورثة الشرعيين. وتكون العقوبة فى حالة العود الحبس الذى لا تقل مدته عن سنة. ويجوز الصلح فى الجرائم المنصوص عليها فى هذه المادة فى أى حالة تكون عليها الدعوى ولو بعد صيرورة الحكم باتًا. ولكل من المجنى عليه أو وكيله الخاص، ولورثته أو وكيلهم الخاص، وكذلك للمتهم أو المحكوم عليه أو وكيلهما الخاص، إثبات الصلح فى هذه الجرائم أمام النيابة أو المحكمة بحسب الأحوال. ويترتب على الصلح انقضاء الدعوى الجنائية ولو كانت مرفوعة بطريق الإدعاء المباشر، وتأمر النيابة العامة بوقف تنفيذ العقوبة إذا تم الصلح أثناء تنفيذها، ولا يكون للصلح أثر على حقوق المضرور من الجريمة (معدلة بالقانون رقم 219 لسنة 2017).$inh77$
   FROM ins_law_inh77
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1156,7 +1156,7 @@ ins_art_rent164 AS (
 عبد
 الفتاح السيسى$rent164$
   FROM ins_law_rent164
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
