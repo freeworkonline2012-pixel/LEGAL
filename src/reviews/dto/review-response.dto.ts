@@ -49,6 +49,28 @@ export class ReviewResponseDto {
   @ApiPropertyOptional({ example: null, nullable: true })
   reviewed_at: string | null;
 
+  @ApiProperty({
+    example: 'auto_refused',
+    enum: ['auto_refused', 'random_sample'],
+    description: 'migrations/031: سبب دخول الصف الطابور — رفض تلقائى أم عيّنة عشوائية دورية',
+  })
+  trigger_reason: string;
+
+  @ApiPropertyOptional({ example: null, nullable: true })
+  corrected_answer: string | null;
+
+  @ApiPropertyOptional({ example: null, nullable: true })
+  corrected_law_no: number | null;
+
+  @ApiPropertyOptional({ example: null, nullable: true })
+  corrected_law_year: number | null;
+
+  @ApiPropertyOptional({ example: null, nullable: true })
+  corrected_article_no: number | null;
+
+  @ApiProperty({ example: false })
+  promote_to_golden_set: boolean;
+
   @ApiProperty({ example: '2026-01-01T10:00:00.000Z' })
   created_at: string;
 

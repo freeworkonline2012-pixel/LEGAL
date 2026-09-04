@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
   Query,
   Req,
   UnauthorizedException,
@@ -16,6 +17,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { RequestWithUser } from '../common/interfaces/request-with-user.interface';
 import { ReviewListResponseDto, ReviewResponseDto } from './dto/review-response.dto';
+import { SampleReviewsDto } from './dto/sample-reviews.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewsService } from './reviews.service';
 
@@ -61,5 +63,21 @@ export class ReviewsController {
       throw new UnauthorizedException('update requires authenticated user');
     }
     return this.reviewsService.update(id, user.userId, dto);
+  }
+
+  /**
+   * migrations/031 — Phase 1 من "الخدمة الأولى" (تصور-تقنى-محترف-ثلاث-
+   * خدمات-ذكاء-اصطناعى، القسم 2.3). admin فقط (وليس lawyer) عمداً: هذا
+   * إجراء يُغذّى حجم طابور المراجعة نفسه (قرار تشغيلى/تكلفة مراجعة بشرية)،
+   * لا حسم مراجعة فردية — يبقى قراراً إدارياً صريحاً لا يُترَك لكل محامٍ.
+   */
+  @Post('sample')
+  @Roles('admin')
+  @ApiOkResponse({
+    description:
+      'إدخال عيّنة عشوائية من الإجابات المُجاب عليها فعلاً (غير المرفوضة) لطابور المراجعة (admin)',
+  })
+  sample(@Body() dto: SampleReviewsDto): Promise<{ inserted: number }> {
+    return this.reviewsService.sampleAnswered(dto.count);
   }
 }
