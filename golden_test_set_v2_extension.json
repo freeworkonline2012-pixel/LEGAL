@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "created_at": "2026-09-02",
+    "purpose": "توسيع Golden Test Set من 99 إلى 132 سؤالاً — البند رقم 5 فى خارطة الطريق المرحلة 2 (تقييم 2026-08-26)، وأساس قياس Phase 0 لخدمات الذكاء الاصطناعى الثلاث الجديدة. كل سؤال إيجابى مربوط بمادة حقيقية قرأتها فعلياً من migrations/021_fix_personal_status_and_inheritance_articles.sql (قانون الأحوال الشخصية 25/1929 وقانون المواريث 77/1943) — وهما جزء من 'الدفعة الأولى' المُصلَحة والمنشورة فعلياً على الإنتاج (commit 00a99e6)، لا الدفعة الثانية المُعلَّقة. لم تُستخدَم أى قوانين لا تزال تحمل عطل 'مادة واحدة فقط' غير المُصلَح بعد (مثل جرائم تقنية المعلومات وحماية المستهلك) تجنباً لقياس فجوة بيانات بدل دقة استرجاع.",
+    "methodology": "نفس منهجية golden_test_set_v1.json بالحرف: كل مادة إيجابية بثلاث صياغات (رسمية كاملة/عامية قصيرة/إعادة صياغة بمرادفات). الأسئلة السلبية عن مجالات قانونية غير مُفهرَسة إطلاقاً فى القاعدة حالياً (تحقَّقتُ بحث نصى عن كل مجال قبل استخدامه: قانون المرور، الضريبة على الدخل، قانون العقوبات كقانون مُستقل مُفهرَس (وليس مجرد إشارة عابرة داخل قانون آخر)، وتشريعات دول أخرى).",
+    "total": 38,
+    "positive_count": 33,
+    "negative_count": 5,
+    "positive_by_law": { "25/1929": 15, "77/1943": 18 },
+    "positive_by_phrasing_style": { "full": 11, "short": 11, "paraphrase": 11 },
+    "note": "يُدمَج مع golden_test_set_v1.json (99 سؤال) عبر merge_golden_sets.py لإنتاج golden_test_set_v2.json (137 سؤالاً). لم يُشغَّل بعد ضد الإنتاج الحى — هذه البيئة (الحاوية السحابية) لا تملك خروجاً شبكياً لـ Railway (403 من البروكسي عند المحاولة، تحقَّقت منه اليوم مباشرة)؛ يحتاج تشغيلاً من جهاز المستخدم أو بيئة بها اتصال فعلى."
+  },
+  "items": [
+    { "id": "g100", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 3, "phrasing_style": "full", "expected_behavior": "answer", "question": "ما حكم الطلاق المقترن بعدد لفظاً أو إشارة وفقاً لقانون الأحوال الشخصية رقم 25 لسنة 1929؟" },
+    { "id": "g101", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 3, "phrasing_style": "short", "expected_behavior": "answer", "question": "الطلاق بعدد يقع كام؟" },
+    { "id": "g102", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 3, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "إذا طلّق الزوج زوجته وذكر عدداً معيناً من الطلقات دفعة واحدة، كم طلقة تقع قانوناً؟" },
+
+    { "id": "g103", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 9, "phrasing_style": "full", "expected_behavior": "answer", "question": "هل يؤثر امتناع أحد الزوجين عن حضور مجلس التحكيم على سير عمل الحكمين وفقاً لقانون 25 لسنة 1929؟" },
+    { "id": "g104", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 9, "phrasing_style": "short", "expected_behavior": "answer", "question": "لو الزوج ما حضرش جلسة التحكيم يبقى ايه؟" },
+    { "id": "g105", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 9, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "إذا رفض أحد الطرفين الحضور أمام الحكمين رغم إخطاره بذلك، هل يوقف هذا إجراءات التحكيم؟" },
+
+    { "id": "g106", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 12, "phrasing_style": "full", "expected_behavior": "answer", "question": "متى يجوز للزوجة طلب التطليق بسبب غياب الزوج وفقاً لقانون الأحوال الشخصية 25/1929؟" },
+    { "id": "g107", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 12, "phrasing_style": "short", "expected_behavior": "answer", "question": "جوزي غايب من سنة أقدر اطلب طلاق؟" },
+    { "id": "g108", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 12, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "إذا سافر الزوج وغاب عن زوجته لمدة عام كامل دون عذر مقبول، هل يحق لها اللجوء للقضاء لإنهاء الزواج؟" },
+
+    { "id": "g109", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 14, "phrasing_style": "full", "expected_behavior": "answer", "question": "متى يحق لزوجة المحبوس طلب التطليق للضرر وفقاً لقانون 25 لسنة 1929؟" },
+    { "id": "g110", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 14, "phrasing_style": "short", "expected_behavior": "answer", "question": "جوزي محبوس 3 سنين اقدر اتطلق منه امتى؟" },
+    { "id": "g111", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 14, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "إذا صدر حكم نهائى بسجن الزوج ثلاث سنوات أو أكثر، بعد مرور كم من الوقت يمكن لزوجته طلب التطليق؟" },
+
+    { "id": "g112", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 16, "phrasing_style": "full", "expected_behavior": "answer", "question": "على أى أساس تُقدَّر نفقة الزوجة وفقاً لقانون الأحوال الشخصية 25 لسنة 1929؟" },
+    { "id": "g113", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 16, "phrasing_style": "short", "expected_behavior": "answer", "question": "نفقة الزوجة بتتحسب ازاي؟" },
+    { "id": "g114", "law_no": 25, "law_year": 1929, "category": "personal_status", "expected_article_no": 16, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "هل يُراعى الوضع المادى للزوج (غنى أو فقر) عند تحديد قيمة نفقة زوجته؟" },
+
+    { "id": "g115", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 1, "phrasing_style": "full", "expected_behavior": "answer", "question": "متى يُستحق الإرث وفقاً لقانون المواريث رقم 77 لسنة 1943؟" },
+    { "id": "g116", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 1, "phrasing_style": "short", "expected_behavior": "answer", "question": "الإرث بيستحق امتى؟" },
+    { "id": "g117", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 1, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "ما السبب الذى يترتب عليه ثبوت حق الورثة فى التركة؟" },
+
+    { "id": "g118", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 3, "phrasing_style": "full", "expected_behavior": "answer", "question": "ما الحكم إذا مات شخصان ولم يُعرف أيهما مات أولاً وفقاً لقانون المواريث 77/1943؟" },
+    { "id": "g119", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 3, "phrasing_style": "short", "expected_behavior": "answer", "question": "لو اتنين ماتوا مع بعض مين بيرث التانى؟" },
+    { "id": "g120", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 3, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "فى حالة وفاة قريبين معاً دون معرفة الترتيب الزمنى للوفاة، هل يرث أحدهما من الآخر؟" },
+
+    { "id": "g121", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 6, "phrasing_style": "full", "expected_behavior": "answer", "question": "هل يجوز التوارث بين مسلم وغير مسلم وفقاً لقانون المواريث المصرى 77/1943؟" },
+    { "id": "g122", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 6, "phrasing_style": "short", "expected_behavior": "answer", "question": "المسلم يورث النصرانى؟" },
+    { "id": "g123", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 6, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "هل يمنع اختلاف الدين بين الوارث والمورث حق الإرث؟" },
+
+    { "id": "g124", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 15, "phrasing_style": "full", "expected_behavior": "answer", "question": "ماذا يحدث إذا زادت أنصبة أصحاب الفروض عن قيمة التركة وفقاً لقانون المواريث 77/1943؟" },
+    { "id": "g125", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 15, "phrasing_style": "short", "expected_behavior": "answer", "question": "لو الفروض زادت عن التركة يتوزع ازاي؟" },
+    { "id": "g126", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 15, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "عند تجاوز مجموع الأنصبة الشرعية قيمة التركة الفعلية، كيف يتم التوزيع بين الورثة؟" },
+
+    { "id": "g127", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 23, "phrasing_style": "full", "expected_behavior": "answer", "question": "ما تعريف الحجب فى الميراث وفقاً لقانون 77 لسنة 1943؟" },
+    { "id": "g128", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 23, "phrasing_style": "short", "expected_behavior": "answer", "question": "الحجب فى الميراث يعنى ايه؟" },
+    { "id": "g129", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 23, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "ما المقصود بحرمان أحد الورثة المستحقين من الميراث بسبب وجود وارث آخر أولى منه؟" },
+
+    { "id": "g130", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 24, "phrasing_style": "full", "expected_behavior": "answer", "question": "هل يحجب الوارث الممنوع من الإرث غيره من الورثة وفقاً لقانون المواريث 77/1943؟" },
+    { "id": "g131", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 24, "phrasing_style": "short", "expected_behavior": "answer", "question": "اللى اتحرم من الميراث بيحجب حد؟" },
+    { "id": "g132", "law_no": 77, "law_year": 1943, "category": "personal_status", "expected_article_no": 24, "phrasing_style": "paraphrase", "expected_behavior": "answer", "question": "إذا مُنع شخص من الميراث لسبب من الموانع الشرعية، هل يمنع ذلك غيره من الورثة من نصيبهم؟" },
+
+    { "id": "g133", "law_no": null, "law_year": null, "category": null, "expected_article_no": null, "phrasing_style": "full", "expected_behavior": "refuse", "question": "ما عقوبة القيادة تحت تأثير الكحول وفقاً لقانون المرور المصرى؟" },
+    { "id": "g134", "law_no": null, "law_year": null, "category": null, "expected_article_no": null, "phrasing_style": "full", "expected_behavior": "refuse", "question": "كم تبلغ نسبة الضريبة على الدخل الشخصى فى مصر لعام 2026؟" },
+    { "id": "g135", "law_no": null, "law_year": null, "category": null, "expected_article_no": null, "phrasing_style": "full", "expected_behavior": "refuse", "question": "ما عقوبة جريمة القتل العمد وفقاً لقانون العقوبات المصرى؟" },
+    { "id": "g136", "law_no": null, "law_year": null, "category": null, "expected_article_no": null, "phrasing_style": "full", "expected_behavior": "refuse", "question": "هل يجوز للشركة الأجنبية فتح فرع فى السعودية بدون كفيل محلى؟" },
+    { "id": "g137", "law_no": null, "law_year": null, "category": null, "expected_article_no": null, "phrasing_style": "full", "expected_behavior": "refuse", "question": "ما هى إجراءات تسجيل العلامة التجارية فى الاتحاد الأوروبى؟" }
+  ]
+}
