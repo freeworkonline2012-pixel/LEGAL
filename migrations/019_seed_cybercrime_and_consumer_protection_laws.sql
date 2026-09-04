@@ -63,9 +63,9 @@
 
 BEGIN;
 
-ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
-ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','other'));
+-- قيد laws_category_check أُزيل من هنا (2026-09-04، إصلاح جذرى لعطل تكرار
+-- إعادة تعريفه فى 9 ملفات مختلفة — راجع تعليق migrations/003 الكامل).
+-- مُعرَّف الآن فى migrations/020 فقط.
 
 -- ===== cyber_175_2018 : مكافحة جرائم تقنية المعلومات =====
 WITH ins_law_cyb175 AS (
@@ -385,7 +385,7 @@ ins_art_cyb175 AS (
 المادة (45)
 يُنشر هذا القانون في الجريدة الرسمية، ويُعمل به من اليوم التالي لتاريخ نشره. يُبصم هذا القانون بخاتم الدولة، ويُنفذ كقانون من قوانينها.$cyb175$
   FROM ins_law_cyb175
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1180,7 +1180,7 @@ ins_art_cp181 AS (
 alberonsy.com و lawhub.info كليهما يبتران هذا القانون تحديداً عند نحو
 المادة 60-62 ويفقدان باب العقوبات بالكامل).$cp181$
   FROM ins_law_cp181
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1704,7 +1704,7 @@ ins_art_cp202024 AS (
 النشر (5 أبريل 2024) مباشرة من نص القانون نفسه على alberonsy.com، وليس فقط من نتائج
 البحث الأولية.$cp202024$
   FROM ins_law_cp202024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)

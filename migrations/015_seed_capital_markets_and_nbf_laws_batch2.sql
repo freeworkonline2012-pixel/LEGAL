@@ -31,9 +31,9 @@
 
 BEGIN;
 
-ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
-ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','other'));
+-- قيد laws_category_check أُزيل من هنا (2026-09-04، إصلاح جذرى لعطل تكرار
+-- إعادة تعريفه فى 9 ملفات مختلفة — راجع تعليق migrations/003 الكامل).
+-- مُعرَّف الآن فى migrations/020 فقط.
 
 -- ===== cm_9_2021 : ترخيص عمليات المقاصة والتسوية للعقود الآجلة =====
 WITH ins_law_cm9 AS (
@@ -271,7 +271,7 @@ ins_art_cm9 AS (
 ة، ويُعمل به من اليوم التالي لتاريخ نشره بالوقائع 
 المصرية.$cm9$
   FROM ins_law_cm9
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1293,7 +1293,7 @@ I - score
 المتممة بيان تفصيلي بمخصصات 
 التمويلات المشكوك في تحصيلها.$nbf101$
   FROM ins_law_nbf101
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2101,7 +2101,7 @@ ins_art_dc7 AS (
 رئيس مجلس إدارة الهيئة العامة للرقابة المالية
 د/ محمد فريد صالح$dc7$
   FROM ins_law_dc7
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2161,7 +2161,7 @@ ins_art_dc6 AS (
 هامش 1: هو أي تمويل جديد يمنح للعميل قبل الانتهاء من مدة السداد الأصلية لذات النوع من التمويل القائم، وبما يُحقق للعميل الاستعاضة كلياً أو جزئياً لما تم سداده مسبقاً في حساب التمويل القائم، من خلال تقديم تمويل جديد له تحت أي مسمى سواء بذات القيمة المُسددة أو غيرها.
 هامش 2: تتمثل الأطراف المرتبطة للعميل في: الأب والأم/ الزوج أو الزوجة/ الأبناء/ الأشقاء/ الأنسباء وأزواجهم.$dc6$
   FROM ins_law_dc6
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2286,7 +2286,7 @@ ins_art_ar131 AS (
 رئيس مجلس إدارة الهيئة العامة للرقابة المالية
 د. محمد فريد صالح$ar131$
   FROM ins_law_ar131
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2428,7 +2428,7 @@ ins_art_fc2 AS (
 رئيس مجلس إدارة الهيئة العامة للرقابة المالية
 د. محمد عمران$fc2$
   FROM ins_law_fc2
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)

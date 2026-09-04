@@ -35,9 +35,9 @@
 
 BEGIN;
 
-ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
-ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','other'));
+-- قيد laws_category_check أُزيل من هنا (2026-09-04، إصلاح جذرى لعطل تكرار
+-- إعادة تعريفه فى 9 ملفات مختلفة — راجع تعليق migrations/003 الكامل).
+-- مُعرَّف الآن فى migrations/020 فقط.
 
 -- ===== cm_law_95_1992 : قانون سوق رأس المال =====
 WITH ins_law_cm95 AS (
@@ -1708,7 +1708,7 @@ ins_art_cm95 AS (
 ويصدر بنموذ النظام األساسي لالتحاد قرار من مجلس إدارة الهيئة العامة لسوق المال.
 42$cm95$
   FROM ins_law_cm95
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9489,7 +9489,7 @@ ins_art_cm135 AS (
 *مضافة بقرار وزير االستثمار 40 لسنة 2018
 176$cm135$
   FROM ins_law_cm135
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15847,7 +15847,7 @@ ins_art_cm145 AS (
 فور حدوثها.
 9$cm145$
   FROM ins_law_cm145
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16326,7 +16326,7 @@ ins_art_cm61 AS (
 والقيد المركزي، ويعمل به اعتباار من تاريخ نشره بالوقائع المصرية.
 9$cm61$
   FROM ins_law_cm61
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16668,7 +16668,7 @@ ins_art_nbf61 AS (
 الهيئة العامة للرقابة المالية
 د/ محمد فريد صالح$nbf61$
   FROM ins_law_nbf61
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16810,7 +16810,7 @@ ins_art_nbf160 AS (
 رقم الإيداع بدار الكتب ٢٦٨ لسنة ٢٠٢٣
 ٢٥١٨٥ / ٢٠٢٣ - ٢٤/٨/٢٠٢٣ - ٧٠٩$nbf160$
   FROM ins_law_nbf160
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17020,7 +17020,7 @@ ins_art_ft268 AS (
 الهيئة العامة للرقابة المالية
 د/ محمد فريد صالح$ft268$
   FROM ins_law_ft268
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17816,7 +17816,7 @@ ins_art_reer1 AS (
 *معدلة بقرار رئيس مجلس الوزراء رقم 465 لسنة 2005.
 16$reer1$
   FROM ins_law_reer1
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)

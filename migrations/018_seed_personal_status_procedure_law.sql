@@ -17,9 +17,9 @@
 
 BEGIN;
 
-ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
-ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','other'));
+-- قيد laws_category_check أُزيل من هنا (2026-09-04، إصلاح جذرى لعطل تكرار
+-- إعادة تعريفه فى 9 ملفات مختلفة — راجع تعليق migrations/003 الكامل).
+-- مُعرَّف الآن فى migrations/020 فقط.
 
 -- ===== ps_1_2000 : تنظيم إجراءات التقاضى فى مسائل الأحوال الشخصية =====
 WITH ins_law_ps1 AS (
@@ -427,7 +427,7 @@ ins_art_ps1 AS (
 مع عدم الإخلال بأية عقوبة أشد ينص عليها قانون العقوبات أو أي قانون آخر يعاقب بالحبس الذي لا تقل مدته عن ستة أشهر كل من توصل إلى الحصول على أية مبالغ من بنك ناصر الاجتماعي نفاذا لحكم أو لأمر صدر استنادا إلى أحكام هذا القانون بناء على إجراءات أو أدلة صورية أو مصطنعة مع علمه بذلك.
 وتكون العقوبة الحبس الذي لا تزيد مدته على سنتين، لكل من تحصل من بنك ناصر الاجتماعي على مبالغ غير مستحقة له مع علمه بذلك مع إلزامه بردها.$ps1$
   FROM ins_law_ps1
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id, law_id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)

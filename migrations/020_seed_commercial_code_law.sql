@@ -45,6 +45,18 @@
 
 BEGIN;
 
+-- المُعرِّف الوحيد الآن لقيد laws_category_check فى كل المستودع (إصلاح جذرى
+-- 2026-09-04 — راجع تعليق migrations/003 الكامل للقصة: كان هذا القيد
+-- يُعاد تعريفه بنسخة مستقلة فى 9 ملفات مختلفة (003/007/012/014/015/017/
+-- 018/019/020)، وبما أن run-migration.js يعيد تشغيل كل الملفات من الصفر فى
+-- كل نشر (بلا جدول تتبع migrations مُطبَّقة)، أى نسخة أقدم تفشل حتماً بمجرد
+-- نجاح نسخة أحدث أضافت فئة جديدة (حدث فعلياً مرتين: 'aml_cft' فى 2026-08-27،
+-- ثم 'commercial' هنا فى 2026-09-02 — الأخيرة عطّلت الإنتاج فعلياً يومين
+-- كاملين لأن النسخ الثمانية الأقدم لم تُحدَّث). الحل الجذرى: نسخة واحدة فقط،
+-- هنا، فى آخر ملف يحتاجها زمنياً.
+--
+-- ⚠️ لأى مطوّر/جلسة مستقبلية تضيف فئة laws جديدة: عدِّل القائمة أدناه فقط —
+-- لا تُنشئ نسخة DROP+ADD جديدة فى ملف migration آخر مهما كان السبب.
 ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
 ALTER TABLE laws ADD CONSTRAINT laws_category_check
   CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','commercial','other'));
@@ -61,7 +73,7 @@ WITH ins_art_law17_1999_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 1, $cc4$الباب الأول: التجارة بوجه عام$cc4$, $cc5$تسري أحكام هذا القانون على الأعمال التجارية , وعلى كل شخص طبيعي أو إعتباري تثبت له صفة التاجر.$cc5$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -72,7 +84,7 @@ WITH ins_art_law17_1999_2 AS (
   SELECT id, 2, $cc6$الباب الأول: التجارة بوجه عام$cc6$, $cc7$1- تسري على المواد التجارية أحكام الإتفاق بين المتعاقدين, فإذا لم يوجد هذا الإتفاق , سرت نصوص هذا القانون أو غيره من القوانين المتعلقة بالمواد التجارية, ثم قواعد العرف التجاري والعادات التجارية, فإذا لم يوجد عرف تجاري أو عادة تجارية وجب تطبيق أحكام القانون المدني.
 2- لا يجوز تطبيق الإتفاقات بين المتعاقدين , أو قواعد العرف التجاري أو العادات التجارية متى تعارضت مع النظام العام في مصر.$cc7$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -83,7 +95,7 @@ WITH ins_art_law17_1999_3 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 3, $cc8$الباب الأول: التجارة بوجه عام$cc8$, $cc9$إذا كان العقد تجاريا بالنسبة الى أحد طرفيه , فلا تسري أحكام القانون التجاري إلا على إلتزامات هذا الطرف وحده, وتسري على إلتزامات الطرف الآخر أحكام القانون المدني ما لم ينص القانون على غير ذلك.$cc9$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -96,7 +108,7 @@ WITH ins_art_law17_1999_4 AS (
 (ب) إستئجار المنقولات بقصد تأجيرها وكذلك تأجير هذه المنقولات.
 (ج) تأسيس الشركات التجارية.$cc11$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -125,7 +137,7 @@ WITH ins_art_law17_1999_5 AS (
 (س) أعمال الفنادق والمطاعم والمقاهي والتمثيل والسينما والسيرك وغير ذلك من الملاهي العامة.
 (ع) توزيع المياه أو الغاز أو الكهرباء وغيرها من مصادر الطاقة.$cc13$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -157,7 +169,7 @@ WITH ins_art_law17_1999_6 AS (
 (هـ) عمليات الشحن أو التفريغ.
 (و) استخدام الملاحين أو الطيارين أو غيرهم من العاملين في السفن أو الطائرات.$cc15$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -173,7 +185,7 @@ WITH ins_art_law17_1999_7 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 7, $cc16$الباب الأول: التجارة بوجه عام — الفصل الأول: الأعمال التجارية$cc16$, $cc17$يكون عملا تجاريا كل عمل يمكن قياسه على الأعمال المذكورة في المواد السابقة لتشابهه في الصفات والغايات.$cc17$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -184,7 +196,7 @@ WITH ins_art_law17_1999_8 AS (
   SELECT id, 8, $cc18$الباب الأول: التجارة بوجه عام — الفصل الأول: الأعمال التجارية$cc18$, $cc19$1- الأعمال التي يقوم بها التاجر لشئون تتعلق بتجارته تعد أعمالا تجارية.
 2- كل عمل يقوم به التاجر يعد متعلقا بتجارته ما لم يثبت غير ذلك.$cc19$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -195,7 +207,7 @@ WITH ins_art_law17_1999_9 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 9, $cc20$الباب الأول: التجارة بوجه عام — الفصل الأول: الأعمال التجارية$cc20$, $cc21$لا يعد عملا تجاريا بيع الزارع منتجات الأرض التي يزرعها سواء كان مالكا لها أو مجرد منتفع بها.$cc21$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -207,7 +219,7 @@ WITH ins_art_law17_1999_10 AS (
 1- كل من يزاول على وجه الإحتراف باسمه ولحسابه عملا تجاريا.
 2- كل شركة تتخذ أحد الأشكال المنصوص عليها في القوانين المتعلقة بالشركات أيا كان الغرض الذي أنشئت الشركة من أجله.$cc23$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -223,7 +235,7 @@ WITH ins_art_law17_1999_11 AS (
 2- لا يجوز لمن نقل سنه عن ثماني عشرة سنة أن يزاول التجارة في مصر ولو كان قانون الدولة التي ينتمي إليها بجنسيته يعتبر راشدا في هذه السن أو يجيز له الاتجار.
 3- تكون للقاصر المأذون له في الإتجار الأهلية الكاملة للقيام بجميع التصرفات القانونية التي تقتضيها تجارته.$cc25$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -240,7 +252,7 @@ WITH ins_art_law17_1999_12 AS (
 3- إذا طرأت أسباب جدية يخشى معها سوء إدارة النائب المأذون له في الإستمرار في تجارة الصغير أو المحجور عليه جاز للمحكمة أن تسحب الإذن أو أن تقيده وذلك دون إخلال بالحقوق التي اكتسبها الغير حسن النية.
 4- كل أمر يصدر من المحكمة في شأن الاستمرار في تجارة الصغير أو المحجور عليه أو سحب الإذن أو تقييده أو تصفية التجارة, يجب قيده في السجل التجاري ونشره في صحيفة السجل.$cc27$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -253,7 +265,7 @@ WITH ins_art_law17_1999_13 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 13, $cc28$الباب الأول: التجارة بوجه عام — الفصل الثاني: التاجر$cc28$, $cc29$إذا أمرت المحكمة بالاستمرار في تجارة الصغير أو المحجور عليه, فلا يلتزم إلا في حدود أمواله المستثمرة في هذه التجارة, ويجوز شهر إفلاسه على ألا يشمل الإفلاس الأموال غير المستثمرة في التجارة, وفي هذه الحالة لا يترتب على الإفلاس أثر بالنسبة الى شخص الصغير أو المحجور عليه.$cc29$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -265,7 +277,7 @@ WITH ins_art_law17_1999_14 AS (
 2- يفترض في الزوجة الأجنبية التي تحترف التجارة أنها تزاولها بإذن زوجها , فإذا كان القانون الواجب التطبيق يجيز للزوج الإعتراض على إحتراف زوجته التجارة أو سحب إذنه السابق وجب قيد الإعتراض أو سحب الإذن في السجل التجاري ونشره في صحيفة السجل , ولا يكون للإعتراض أو سحب الإذن أثر إلا من تاريخ إتمام هذا النشر.
 3- لا يؤثر الإعتراض أو سحب الإذن في الحقوق التي اكتسبها الغير حسن النية.$cc31$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -280,7 +292,7 @@ WITH ins_art_law17_1999_15 AS (
 3- يجوز للغير في حالة إهمال شهر المشارطة المالية بين الزوجين أن يثبت أن الزواج قد تم وفقا لنظام مالي أكثر ملائمة لمصلحته من نظام انفصال الأموال.
 4- لا يحتج على الغير بالحكم الصادر خارج مصر القاضي بانفصال الأموال بين الزوجين إلا من تاريخ قيده في السجل التجاري ونشر ملخصه في صحيفة هذا السجل.$cc33$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -294,7 +306,7 @@ WITH ins_art_law17_1999_16 AS (
   SELECT id, 16, $cc34$الباب الأول: التجارة بوجه عام — الفصل الثاني: التاجر$cc34$, $cc35$1- لا تسري أحكام القانون التجاري على أرباب الحرف الصغيرة.
 2- يعد من أرباب الحرف الصغيرة كل من يزاول حرفة ذات نفقات زهيدة , للحصول على مقدار من الدخل يؤمن معاشه اليومي.$cc35$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -305,7 +317,7 @@ WITH ins_art_law17_1999_17 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 17, $cc36$الباب الأول: التجارة بوجه عام — الفصل الثاني: التاجر$cc36$, $cc37$إذا زاول التجارة أحد الأشخاص المحظور عليهم الإتجار بمقتضى قوانين أو لوائح أو أنظمة خاصة اعتبر تاجرا وسرت عليه أحكام القانون التجاري.$cc37$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -315,7 +327,7 @@ WITH ins_art_law17_1999_18 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 18, $cc38$الباب الأول: التجارة بوجه عام — الفصل الثاني: التاجر$cc38$, $cc39$تثبت صفة التاجر لكل من احترف التجارة باسم مستعار أو مستترا وراء شخص آخر فضلا عن ثبوتها للشخص الظاهر.$cc39$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -325,7 +337,7 @@ WITH ins_art_law17_1999_19 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 19, $cc40$الباب الأول: التجارة بوجه عام — الفصل الثاني: التاجر$cc40$, $cc41$تفترض صفة التاجر فيمن ينتحلها عنها بالإعلان في الصحف أو في منشورات أو في الإذاعة أو التلفزيون أو بأية وسيلة أخرى , ويجوز نفي هذه القرينة بإثبات أن من انتحل الصفة المذكورة لم يزاول التجارة فعلا.$cc41$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -335,7 +347,7 @@ WITH ins_art_law17_1999_20 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 20, $cc42$الباب الأول: التجارة بوجه عام — الفصل الثاني: التاجر$cc42$, $cc43$لا تثبت صفة التاجر للدولة وغيرها من أشخاص القانون العام. ومع ذلك تسري أحكام هذا القانون على الأعمال التجارية التي تزاولها إلا ما يستثنى بنص خاص.$cc43$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -345,7 +357,7 @@ WITH ins_art_law17_1999_21 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 21, $cc44$الباب الأول: التجارة بوجه عام — الفصل الثالث: الدفاتر التجارية$cc44$, $cc45$على كل تاجر يجاوز رأس ماله المستثمر في التجارة عشرين ألف جنيه أن يمسك الدفاتر التي تستلزمها طبيعة تجارته وأهميتها وعلى وجه الخصوص دفتري اليومية والجرد بطريقة تكفل بيان مركزه المالي وماله من حقوق وما عليه من ديون متعلقة بالتجارة.$cc45$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -357,7 +369,7 @@ WITH ins_art_law17_1999_22 AS (
 2- للتاجر أن يستعمل دفاتر يومية مساعدة لإثبات تفصيلات الأنواع المختلفة من العمليات التجارية.
 وفي هذه الحالة يكتفى بقيد إجمالي لهذه العمليات في دفتر اليومية في فترات منتظمة. فإذا لم يتبع هذا الإجراء اعتبر كل دفتر مساعد دفترا أصليا.$cc47$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -370,7 +382,7 @@ WITH ins_art_law17_1999_23 AS (
   SELECT id, 23, $cc48$الباب الأول: التجارة بوجه عام — الفصل الثالث: الدفاتر التجارية$cc48$, $cc49$1- يقيد في دفتر الجرد تفصيل البضاعة الموجودة لدى التاجر في آخر سنته المالية أو بيان إجمالي عنها إذا كانت تفصيلاتها واردة بدفاتر أو قوائم مستقلة. وفي هذه الحالة تعتبر تلك الدفاتر أو القوائم جزءا متمما لدفتر الجرد الأصلي.
 2- تقيد في دفتر الجرد صورة من الميزانية السنوية وحساب الأرباح والخسائر.$cc49$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -381,7 +393,7 @@ WITH ins_art_law17_1999_24 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 24, $cc50$الباب الأول: التجارة بوجه عام — الفصل الثالث: الدفاتر التجارية$cc50$, $cc51$على التاجر أن يحتفظ بصورة من المراسلات والبرقيات وغيرها من الوثائق التي يرسلها أو يتسلمها لشئون تتعلق بتجارته. ويكون الحفظ بطريقة منتظمة تسهل معها المراجعة.$cc51$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -395,7 +407,7 @@ WITH ins_art_law17_1999_25 AS (
 4- على التاجر أو ورثته في حالة وقف نشاط المتجر تقديم دفتري اليومية والجرد الى مكتب السجل التجاري للتأشير عليهما بما يفيد قفلهما.
 5- يجوز بقرار من الوزير المختص وضع أحكام خاصة بتنظيم الدفاتر التجارية التي تستعملها البنوك أو الشركات التي يعينها القرار.$cc53$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -410,7 +422,7 @@ WITH ins_art_law17_1999_26 AS (
   SELECT id, 26, $cc54$الباب الأول: التجارة بوجه عام — الفصل الثالث: الدفاتر التجارية$cc54$, $cc55$1- يجب على التاجر أو ورثته الاحتفاظ بالدفاتر التجارية والوثائق المؤيدة للقيود الواردة بها مدة خمس سنوات تبدأ من تاريخ التأشير على الدفتر بانتهائه أو قفله.
 2- وعليهم أيضا حفظ صور المراسلات والبرقيات وغيرها مدة خمس سنوات من تاريخ إرسالها أو تسلمها . ويجوز لهم الإحتفاظ للمدة المذكورة بالصور المصغرة (ميكروفيلم) بدلا من الأصل, ويكون لتلك الصور حجية الأصل في الإثبات إذا روعى في إعدادها وحفظها واسترجاعها القواعد والضوابط التي يصدر بها قرار من وزير العدل.$cc55$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -421,7 +433,7 @@ WITH ins_art_law17_1999_27 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 27, $cc56$الباب الأول: التجارة بوجه عام — الفصل الثالث: الدفاتر التجارية$cc56$, $cc57$القيود التي تدون في الدفاتر التجارية من قبل مستخدمي التاجر المأذونين في ذلك, تعتبر في حكم القيود التي يدونها التاجر بنفسه , ويفترض فيها أنها دونت بعلمه إلا إذا أقام الدليل على خلاف ذلك.$cc57$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -434,7 +446,7 @@ WITH ins_art_law17_1999_28 AS (
 3- تسلم الدفاتر في حالة الإفلاس أو الصلح الواقي منه للمحكمة أو لأمين التفليسة أو لمراقب الصلح.
 4- إذا امتنع التاجر دون عذر مقبول عن تقديم دفاتره للإطلاع عليها جاز للمحكمة اعتبار ذلك قرينة على صحة الوقائع المطلوب إثباتها من الدفاتر.$cc59$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -447,7 +459,7 @@ WITH ins_art_law17_1999_29 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 29, $cc60$الباب الأول: التجارة بوجه عام — الفصل الثالث: الدفاتر التجارية$cc60$, $cc61$يعاقب على مخالفة الأحكام المنصوص عليها في هذا الفصل أو في القرارات التي تصدر تنفيذا لها, بغرامة لا تقل عن مائة جنيه ولا تزيد على ألف جنيه.$cc61$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -458,7 +470,7 @@ WITH ins_art_law17_1999_30 AS (
   SELECT id, 30, $cc62$الباب الأول: التجارة بوجه عام — الفصل الرابع: السجل التجاري$cc62$, $cc63$1- يعد في الجهة الإدارية المختصة سجل تقيد فيه أسماء التجار أفرادا كانوا أم شركات.
 2- تسري فيما يتعلق بتعيين الخاضعين لواجب القيد في السجل التجاري ومواعيد القيد والبيانات اللازم قيدها وشطب القيد والجزاءات المقررة على مخالفة هذه الأحكام , القوانين والقرارات الخاصة بذلك.$cc63$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -469,7 +481,7 @@ WITH ins_art_law17_1999_31 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 31, $cc64$الباب الأول: التجارة بوجه عام — الفصل الرابع: السجل التجاري$cc64$, $cc65$على كل من قيد بالسجل التجاري أن يبين على واجهة محله وفي جميع المراسلات والمطبوعات المتعلقة بتجارته اسمه التجاري ومكتب السجل التجاري المقيد به ورقم القيد.$cc65$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -482,7 +494,7 @@ WITH ins_art_law17_1999_32 AS (
 (أ) أحكام شهر الإفلاس إذا حكم برد الاعتبار.
 (ب) أحكام الحجر إذا حكم برفعه.$cc67$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -497,7 +509,7 @@ WITH ins_art_law17_1999_33 AS (
 2- لا يجوز الإحتجاج على الغير بأي بيان واجب القيد في السجل التجاري ولم يتم قيده إلا إذا ثبت علم الغير بمضمون البيان.
 3- لا يجوز للتاجر أن يتمسك بعدم قيده في السجل التجاري للتحلل من الإلتزامات التي يفرضها عليه القانون أو التي تنشأ عن معاملاته مع الغير بصفته تاجرا.$cc69$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -511,7 +523,7 @@ WITH ins_art_law17_1999_34 AS (
 2- يجوز أن يتضمن المتجر عناصر معنوية أخرى كالاسم التجاري والسمة التجارية والعلامات التجارية وبراءات الإختراع والرسوم والنماذج الصناعية والحق في الإيجار وحقوق الملكية الأدبية والفنية وحق المعرفة وترخيص الاستغلال والصناعة.
 3- ويجوز أن يتضمن المتجر البضائع والأثاث والآلات والأجهزة والمعدات وغيرها من المهمات اللازمة لاستغلال المحل التجاري.$cc71$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -523,7 +535,7 @@ WITH ins_art_law17_1999_35 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 35, $cc72$الباب الأول: التجارة بوجه عام — الفصل الخامس: المتجر$cc72$, $cc73$إذا لم يبين المتعاقدان العناصر التي يتألف منها المتجر محل العقد اشتمل المتجر- فضلا عن الاتصال بالعملاء والسمعة التجارية- على كل عنصر معنوي أو مادي يكون لازما لاستغلال المتجر على الوجه الذي قصده المتعاقدان.$cc73$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -533,7 +545,7 @@ WITH ins_art_law17_1999_36 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 36, $cc74$الباب الأول: التجارة بوجه عام — الفصل الخامس: المتجر$cc74$, $cc75$إذا كان التاجر مالكا للعقار الذي يزاول فيه التجارة , فلا يكون هذا العقار عنصرا في متجره.$cc75$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -551,7 +563,7 @@ WITH ins_art_law17_1999_37 AS (
 (هـ) الاتفاقات بشأن العقود والتعهدات المتصلة بالمتجر.
 (و) الاتفاقات المتعلقة باحتفاظ البائع بحق الفسخ أو بحق الإمتياز.$cc77$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -570,7 +582,7 @@ WITH ins_art_law17_1999_38 AS (
   SELECT id, 38, $cc78$الباب الأول: التجارة بوجه عام — الفصل الخامس: المتجر$cc78$, $cc79$1- لا تنتقل ملكية المتجر فيما بين المتعاقدين أو بالنسبة الى الغير إلا من تاريخ قيد التصرف في السجل الخاص بذلك ونشر ملخصة في صحيفة السجل التجاري.
 2- إذا اشتمل المتجر على عناصر خاضعة لنظام خاص للشهر أو التسجيل فلا يقوم شهر التصرف في المتجر في صحيفة السجل التجاري مقام الشهر أو التسجيل الخاص إلا إذا نص القانون على غير ذلك.$cc79$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -581,7 +593,7 @@ WITH ins_art_law17_1999_39 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 39, $cc80$الباب الأول: التجارة بوجه عام — الفصل الخامس: المتجر$cc80$, $cc81$لا يحل من آلت إليه ملكية المتجر محل المتصرف في الحقوق والتعهدات الناشئة عن العقود المتصلة بالمتجر إلا إذا اتفق على غير ذلك.$cc81$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -591,7 +603,7 @@ WITH ins_art_law17_1999_40 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 40, $cc82$الباب الأول: التجارة بوجه عام — الفصل الخامس: المتجر$cc82$, $cc83$تبقى ذمة المتصرف مشغولة بالديون المتصلة بالمتجر والتي يكون تاريخ إنشائها سابقا على شهر التصرف إلا إذا أبرأه الدائنون منها.$cc83$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -601,7 +613,7 @@ WITH ins_art_law17_1999_41 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 41, $cc84$الباب الأول: التجارة بوجه عام — الفصل الخامس: المتجر$cc84$, $cc85$استثناء من الأحكام المنصوص عليها في باب الإفلاس يجوز لبائع المتجر الذي لم يستوف الثمن بكامله الإحتجاج على جماعة الدائنين في تفليسة المشتري بحقه في الفسخ واسترداد المتجر أو بحقه في الإمتياز إذا كان قد احتفظ بهذا الحق أو ذاك في عقد البيع وذكر صراحة في الملخص الذي شهر ولا يقع الفسخ أو الإمتياز إلا على العناصر التي شملها.$cc85$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -612,7 +624,7 @@ WITH ins_art_law17_1999_42 AS (
   SELECT id, 42, $cc86$الباب الأول: التجارة بوجه عام — الفصل الخامس: المتجر$cc86$, $cc87$1- لا يجوز لمن تصرف في المتجر بنقل ملكيته الى الغير أو بتأجير استغلاله أن يزاول نشاطا مماثلا لنشاط المتجر بكيفية يترتب عليها ضرر لمن آلت إليه الملكية أو الإستغلال إلا إذا أتفق على خلاف ذلك.
 2- يسرى هذا الحظر لمدة عشر سنوات من تاريخ شهر التصرف ما لم يتفق على مدة أقل.$cc87$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -624,7 +636,7 @@ WITH ins_art_law17_1999_43 AS (
   SELECT id, 43, $cc88$الباب الأول: التجارة بوجه عام — الفصل الخامس: المتجر$cc88$, $cc89$1- مع مراعاة الأحكام المنصوص عليها في هذا الفصل تسري في شأن بيع المتجر ورهنه وتأجير إستغلاله القوانين والقرارات الخاصة بذلك.
 2- كما تسرى في شأن الأسماء التجارية والسمات التجارية والعلامات التجارية والرسوم والنماذج الصناعية وبراءات الإختراع وغير ذلك من عناصر الملكية الصناعية أو الملكية الأدبية القوانين والقرارات الخاصة بذلك.$cc89$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -636,7 +648,7 @@ WITH ins_art_law17_1999_44 AS (
   SELECT id, 44, $cc90$الباب الأول: التجارة بوجه عام — الفصل السادس: سوق الأوراق المالية$cc90$, $cc91$1- تعتبر سوق الأوراق المالية شخصا اعتباريا.
 2- مع مراعاة أحكام هذا الفصل تسرى على إنشاء السوق ونظامه الداخلي القوانين والقرارات المنظمة لذلك.$cc91$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -648,7 +660,7 @@ WITH ins_art_law17_1999_45 AS (
   SELECT id, 45, $cc92$الباب الأول: التجارة بوجه عام — الفصل السادس: سوق الأوراق المالية$cc92$, $cc93$1- لا يجوز التعامل في سوق الأوراق المالية بالنسبة الى الصكوك المدرجة بجداول أسعارها إلا بوساطة سمسار مقبول للعمل بها وإلا كان التصرف باطلا.
 2- ولا يجوز للسمسار إجراء عمليات في السوق لحساب عملائه إلا إذا كان مفوضا في إجرائها من العميل بموجب تفويض خاص مكتوب. فإذا أجرى السمسار العملية دون هذا التفويض جاز للعميل قبولها أو رفضها.$cc93$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -659,7 +671,7 @@ WITH ins_art_law17_1999_46 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 46, $cc94$الباب الأول: التجارة بوجه عام — الفصل السادس: سوق الأوراق المالية$cc94$, $cc95$تكون العمليات المضافة الى أجل صحيحة ولو قصد المتعاقدون منها أن تؤول الى مجرد التزام بدفع فروق الأسعار بشرط أن تعقد العملية في سوق الأوراق المالية وأن تتعلق بصكوك مدرجة في جداول أسعار هذا السوق ويصدر بتنظيم هذه العمليات قرار من الوزير المختص.$cc95$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -670,7 +682,7 @@ WITH ins_art_law17_1999_47 AS (
   SELECT id, 47, $cc96$الباب الثاني: الإلتزامات والعقود التجارية$cc96$, $cc97$1- يكون الملتزمون معا بدين تجاري متضامنين في هذا الدين ما لم ينص القانون أو الاتفاق على غير ذلك.
 2- ويسرى هذا الحكم في حالة تعدد الكفلاء في الدين التجاري.$cc97$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -682,7 +694,7 @@ WITH ins_art_law17_1999_48 AS (
   SELECT id, 48, $cc98$الباب الثاني: الإلتزامات والعقود التجارية$cc98$, $cc99$1- لا تعتبر كفالة الدين التجاري عملا تجاريا إلا إذا نص القانون على ذلك أو كان الكفيل بنكا أو كان تاجرا وله مصلحة في الدين المكفول.
 2- لا يجوز في الكفالة التجارية أن يطلب الكفيل – ولو كان غير متضامن – تجريد المدين ما لم يتفق على غير ذلك.$cc99$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -693,7 +705,7 @@ WITH ins_art_law17_1999_49 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 49, $cc100$الباب الثاني: الإلتزامات والعقود التجارية$cc100$, $cc101$اذا قام التاجر لحساب الغير بأعمال أو خدمات تدخل في نشاطه التجاري افترض انه قام بها مقابل عوض ما لم يثبت عكس ذلك، ويعد العوض طبقا للعرف، فإذا لم يوجد عرف قدر قدر القاضي العوض.$cc101$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -706,7 +718,7 @@ WITH ins_art_law17_1999_50 AS (
 3- يحسب العائد وفقا للسعر الذي يتعامل به البنك المركزي، ما لم يتفق على مقابل اقل.
 4- يؤدي العائد في نهاية كل سنة إذا كان الدين مؤجلا لاكثر من سنة وفي يوم الاستحقاق إذا كان لاجل سنة أو اقل ما لم يتفق أو يجر العرف على غير ذلك.$cc103$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -719,7 +731,7 @@ WITH ins_art_law17_1999_51 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 51, $cc104$الباب الثاني: الإلتزامات والعقود التجارية$cc104$, $cc105$الطلبات والتفويضات الصادرة من التاجر في شئون تتعلق بنشاطه التجاري لا تنقضي بوفاته، ومع ذلك يجوز لورثته إلغاؤها إذا قرروا عدم الاستمرار في التجارة، وفي هذه الحالة لا يستحق عليهم أي تعويض إذا أخطروا المتعاقد مع المورث برغبتهم في الإلغاء في ميعاد مناسب.$cc105$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -729,7 +741,7 @@ WITH ins_art_law17_1999_52 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 52, $cc106$الباب الثاني: الإلتزامات والعقود التجارية$cc106$, $cc107$لا يجوز بسبب الاستغلال أو الغبن أن يطلب التاجر إبطال العقود التي يبرمها لشئون تتعلق بأعماله التجارية أو إنقاص الالتزامات التي تترتب عليه بمقتضاها.$cc107$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -740,7 +752,7 @@ WITH ins_art_law17_1999_53 AS (
   SELECT id, 53, $cc108$الباب الثاني: الإلتزامات والعقود التجارية$cc108$, $cc109$1- إذا كان محل الالتزام التجاري تسليم شئ خلال موسم معين او فصل من فصول السنة وجب الرجوع الى العرف السائد في مكان التسليم لتعيين الوقت الذي يجب ان يتم فيه. فإذا لم يوجد عرف وجب ان يتم التسليم في وقت مناسب قبل نهاية الموسم او الفصل.
 2- يعتبر العرف السائد في مكان التسليم فيما يتعلق بكيفية قياس البضائع او وزنها او عدها او كيلها متمما للعقد ما لم يتفق على غير ذلك.$cc109$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -751,7 +763,7 @@ WITH ins_art_law17_1999_54 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 54, $cc110$الباب الثاني: الإلتزامات والعقود التجارية$cc110$, $cc111$إذا كان محل الالتزام التجاري أداء عمل وجب أن يبذل فيه المدين عناية التاجر العادي.$cc111$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -761,7 +773,7 @@ WITH ins_art_law17_1999_55 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 55, $cc112$الباب الثاني: الإلتزامات والعقود التجارية$cc112$, $cc113$إذا عين للبدء في التنفيذ اجل معين وانقضى هذا الأجل دون أن يبدأ المدين التنفيذ، فلا يجوز له بعد ذلك إجبار الدائن على قبوله.$cc113$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -771,7 +783,7 @@ WITH ins_art_law17_1999_56 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 56, $cc114$الباب الثاني: الإلتزامات والعقود التجارية$cc114$, $cc115$إذا احتفظ أحد المتعاقدين بحق فسخ العقد خلال مدة معينة فقيامه بتنفيذها خلال سريانها ما يفرضه عليه العقد من التزامات أو قبوله قيام المتعاقد الآخر بتنفيذ التزاماته يسقط عنه حق الفسخ.$cc115$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -781,7 +793,7 @@ WITH ins_art_law17_1999_57 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 57, $cc116$الباب الثاني: الإلتزامات والعقود التجارية$cc116$, $cc117$لا تجوز المطالبة بوفاء الالتزامات التجارية إلا في ساعات العمل التي يحددها القانون أو اللوائح أو التي يجرى عليها العرف.$cc117$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -791,7 +803,7 @@ WITH ins_art_law17_1999_58 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 58, $cc118$الباب الثاني: الإلتزامات والعقود التجارية$cc118$, $cc119$يكون إعذار المدين أو إخطاره في المواد التجارية بإنذار رسمي او بكتاب مسجل مصحوب بعلم الوصول، ويجوز في أحوال الاستعجال أن يكون الاعذار أو الإخطار ببرقية أو تلكس أو فاكس أو غير ذلك من وسائل الاتصال السريعة.$cc119$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -801,7 +813,7 @@ WITH ins_art_law17_1999_59 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 59, $cc120$الباب الثاني: الإلتزامات والعقود التجارية$cc120$, $cc121$لا يجوز للمحكمة منح المدين بالتزام تجاري مهلة للوفاء به أو تقسيطه إلا عند الضرورة وبشرط عدم إلحاق ضرر جسيم بالدائن.$cc121$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -811,7 +823,7 @@ WITH ins_art_law17_1999_60 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 60, $cc122$الباب الثاني: الإلتزامات والعقود التجارية$cc122$, $cc123$لا يجبر الدائن على قبول مبلغ التعويض المتفق عليه بدلا من التنفيذ الا اذا اتفق على خلاف ذلك.$cc123$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -822,7 +834,7 @@ WITH ins_art_law17_1999_61 AS (
   SELECT id, 61, $cc124$الباب الثاني: الإلتزامات والعقود التجارية$cc124$, $cc125$1- الوفاء بدين تجاري لمن يحوز سند الدين مؤشرا عليه بالتخالص أو لمن يحمل مخالصة من الدائن أو من نائبه يبرئ ذمة المدين إلا إذا اثبت الدائن أن المدين لم يقم بالتحري الكافي للتحقق من صحة الوفاء.
 2- وجود سند الدين في حيازة المدين قرينة على براءة ذمته من الدين ما لم يثبت خلاف ذلك.$cc125$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -833,7 +845,7 @@ WITH ins_art_law17_1999_62 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 62, $cc126$الباب الثاني: الإلتزامات والعقود التجارية$cc126$, $cc127$في المواد التجارية يجوز للدائن أن يطلب دفع الدين بشيك إذا جاوز مقدار الدين مائة ألف جنيه.$cc127$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -844,7 +856,7 @@ WITH ins_art_law17_1999_63 AS (
   SELECT id, 63, $cc128$الباب الثاني: الإلتزامات والعقود التجارية$cc128$, $cc129$1- إذا كان الدين مؤجلا وكان المدين مأذونا في الوفاء به قبل حلول الأجل فليس عند استعمال هذا الحق أن يخصم جزءا من الدين إلا بموافقة الدائن ما لم يوجد نص في القانون أو عرف يقضي بغير ذلك.
 2- وإذا كان المدين غير مأذون في الوفاء بالدين قبل حلول الأجل، فله أن يجبر الدائن على قبول هذا الوفاء إذا دفع له العائد المستحق عن الدين حتى انتهاء الأجل أو إبرائه من رده إن كان قد دفع مقدما، ما لم يوجد اتفاق أو عرف أو نص في القانون يقضى بغير ذلك.$cc129$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -855,7 +867,7 @@ WITH ins_art_law17_1999_64 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 64, $cc130$الباب الثاني: الإلتزامات والعقود التجارية$cc130$, $cc131$يستحق العائد عن التأخير في الوفاء بالديون التجارية بمجرد استحقاقها ما لم ينص القانون أو الاتفاق على غير ذلك. ولا يجوز في أية حال أن يكون مجموع العائد الذي يتقاضاه الدائن اكثر من مبلغ الدين الذي احتسب عليه العائد إلا إذا نص القانون أو جرى العرف على غير ذلك.$cc131$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -871,7 +883,7 @@ WITH ins_art_law17_1999_65 AS (
 6- يجوز للمدين أن يمتنع عن الوفاء بالصك إذا لم يرد إليه مؤشرا عليه بالتخالص.
 7- تسري على ضياع الصكوك المشار إليها في هذه المادة الأحكام الخاصة بضياع الأوراق التجارية ما لم ينص القانون على غير ذلك.$cc133$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -888,7 +900,7 @@ WITH ins_art_law17_1999_66 AS (
   SELECT id, 66, $cc134$الباب الثاني: الإلتزامات والعقود التجارية$cc134$, $cc135$1- يعتبر منافسة غير مشروعة كل فعل يخالف العادات والأصول المرعية في المعاملات التجارية، ويدخل في ذلك على وجه الخصوص الاعتداء على علامات الغير أو على اسمه التجاري أو على براءات الاختراع أو على أسراره الصناعية التي يملك حق استثمارها، وتحريض العاملين في متجره على إذاعة أسراره أو ترك العمل عنده وكذلك كل فعل أو ادعاء يكون من شأنه إحداث اللبس في المتجر أو في منتجاته أو في إضعاف الثقة في مالكه أو في القائمين على إدارته أو في منتجاته.
 2- كل منافسة غير مشروعة تلزم فاعلها بتعويض الضرر الناجم عنها.وللمحكمة أن تقضى- فضلا عن التعويض- بإزالة الضرر وبنشر ملخص الحكم على نفقة المحكوم عليه في إحدى الصحف اليومية.$cc135$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -906,7 +918,7 @@ WITH ins_art_law17_1999_67 AS (
 5- تتقادم دعوى المسئولية بمضي ثلاث سنوات من تاريخ علم المضرور بحدوث الضرر وبالشخص المسئول عنه وتسقط هذه الدعوى بانقضاء خمس عشرة سنة من يوم وقوع العمل غير المشروع.
 6- يقع باطلا كل شرط او بيان يكون من شأنه إعفاء المنتج أو الموزع من المسئولية أو تحديدها أو تخفيض مدة تقادمها.$cc137$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -923,7 +935,7 @@ WITH ins_art_law17_1999_68 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 68, $cc138$الباب الثاني: الإلتزامات والعقود التجارية$cc138$, $cc139$تتقادم الدعوى الناشئة عن التزامات التجار قبل بعضهم البعض والمتعلقة بمعاملاتهم التجارية بمضي سبع سنوات من تاريخ حلول ميعاد الوفاء بالالتزام ما لم ينص القانون على خلاف ذلك وكذلك تسقط بمضي عشر سنوات الأحكام النهائية الصادرة في تلك الدعاوى.$cc139$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -935,7 +947,7 @@ WITH ins_art_law17_1999_69 AS (
 2- فيما عدا الحالات التي يوجب فيها القانون الإثبات بالكتابة في المواد التجارية يجوز في هذه المواد إثبات عكس ما اشتمل عليه دليل كتابي أو إثبات ما يجاوز هذا الدليل بكافة الطرق.
 3- تكون الأوراق العرفية في المواد التجارية حجة على الغير في تاريخها ولو لم يكن هذا التاريخ ثابتا، ما لم يشترط القانون ثبوت التاريخ، ويعتبر التاريخ صحيحا حتى يثبت العكس.$cc141$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -951,7 +963,7 @@ WITH ins_art_law17_1999_70 AS (
 (ج) إذا كانت دفاتر كل من الخصمين مطابقة لأحكام القانون وأسفرت المطابقة بينها عن تناقض بياناتها، وجب على المحكمة أن تطلب دليلا اخر.
 (د) إذا اختلفت البيانات الواردة بدفاتر الخصمين وكانت دفاتر أحدهما مطابقة لأحكام القانون ودفاتر الآخر غير مطابقة، فالعبرة بما ورد بالدفاتر المطابقة إلا إذا أقام الخصم الدليل على خلاف ما ورد بها. ويسرى هذا الحكم إذا قدم أحد الخصمين دفاتر مطابقة ولم يقدم الآخر أية دفاتر.$cc143$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -965,7 +977,7 @@ WITH ins_art_law17_1999_71 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 71, $cc144$الباب الثاني: الإلتزامات والعقود التجارية$cc144$, $cc145$يجوز في المواد التجارية الاتفاق على التحكيم قبل قيام النزاع او بعد قيامه مع مراعاة الأحكام المنصوص عليها في القوانين الخاصة.$cc145$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -976,7 +988,7 @@ WITH ins_art_law17_1999_72 AS (
   SELECT id, 72, $cc146$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc146$, $cc147$1- تسرى أحكام هذا الفصل على كل عقد لنقل تكنولوجيا لاستخدامها في جمهورية مصر العربية سواء أكان هذا النقل دوليا يقع عبر الحدود الإقليمية لمصر أم داخليا ولا عبرة في الحالتين لجنسية أطراف الاتفاق أو لمحال إقامتهم.
 2- كما تسرى أحكام هذا الفصل على كل اتفاق لنقل التكنولوجيا يبرم بعقد مستقل أو ضمن عقد آخر.$cc147$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -987,7 +999,7 @@ WITH ins_art_law17_1999_73 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 73, $cc148$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc148$, $cc149$عقد نقل التكنولوجيا اتفاق يتعهد بمقتضاه (مورد التكنولوجيا) بأن ينقل بمقابل معلومات فنية إلى (مستورد التكنولوجيا) لاستخدامها في طريقة فنية خاصة لانتاج سلعة معينة أو تطويرها أو لتركيب أو تشغيل آلات أو أجهزة لتقديم خدمات ولا يعتبر نقلا لتكنولوجيا مجرد بيع أو شراء أو تأجير أو استئجار السلع. ولا بيع العلامات التجارية أو الأسماء التجارية أو الترخيص باستعمالها إلا إذا ورد ذلك كجزء من عقد نقل تكنولوجيا، أو كان مرتبطا به.$cc149$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -999,7 +1011,7 @@ WITH ins_art_law17_1999_74 AS (
 2- ويجب أن يشتمل العقد على بيان عناصر المعرفة وتوابعها التي تنتقل إلى مستورد التكنولوجيا.
 ويجوز أن يرد هذا البيان مصحوبا بدراسات الجدوى والتعليمات والتصميمات والرسومات الهندسية والخرائط والصور وبرامج الحاسب الآلي وغيرها من الوثائق الموضحة للمعرفة ترفق بالعقد وتعتبر جزءا منه.$cc151$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1018,7 +1030,7 @@ WITH ins_art_law17_1999_75 AS (
 (و) شراء المواد الخام أو الآلات والمعدات والأجهزة أو قطع الغيار لتشغيل لتكنولوجيا من المورد وحده أو من المنشآت التي يعينها دون غيرها.
 (ز) قصر بيع الإنتاج أو التوكيل أو بيعه على المورد أو الأشخاص الذين يعينهم. وذلك كله ما لم يكن أي من هذه الشروط قد وردت في عقد نقل التكنولوجيا بقصد حماية مصلحة مستهلكي المنتج، أو رعاية مصلحة جدية ومشروعة لمورد التكنولوجيا.$cc153$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1038,7 +1050,7 @@ WITH ins_art_law17_1999_76 AS (
 (ب) الدعاوى القضائية وغيرها من العقبات التي قد تعوق استخدام الحقوق المتصلة بالتكنولوجيا لا سيما ما يتعلق منها ببراءات الاختراع.
 (ج) أحكام القانون المحلي بشأن التصريح بتصدير التكنولوجيا.$cc155$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1052,7 +1064,7 @@ WITH ins_art_law17_1999_77 AS (
   SELECT id, 77, $cc156$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc156$, $cc157$1- يلتزم المورد بأن يقدم للمستورد المعلومات والبيانات وغيرها من الوثائق الفنية اللازمة لاستيعاب التكنولوجيا، وكذلك ما يطلبه المستورد من الخدمات الفنية اللازمة لتشغيل التكنولوجيا وعلى وجه الخصوص الخبرة والتدريب.
 2- كما يلتزم المورد بأن يعلم المستورد بالتحسينات التي قد يدخلها على التكنولوجيا خلال مدة سريان العقد وان ينقل هذه التحسينات إلى المستورد إذا طلب منه ذلك.$cc157$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1063,7 +1075,7 @@ WITH ins_art_law17_1999_78 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 78, $cc158$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc158$, $cc159$يلتزم المورد- طوال مدة سريان العقد- بأن يقدم للمستورد بناء على طلبه قطع الغيار التي ينتجها وتحتاجها الآلات أو الأجهزة التي تستعمل في تشغيل منشآته وإذا كان المورد لا ينتج هذه القطع في منشآته، وجب أن يعلم المستورد بمصادر الحصول عليها.$cc159$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1073,7 +1085,7 @@ WITH ins_art_law17_1999_79 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 79, $cc160$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc160$, $cc161$يلتزم المستورد بأن يستخدم في تشغيل التكنولوجيا عاملين على قدر من الدراية الفنية وان يستعين كلما لزم الأمر بخبراء فنيين، على أن يكون اختيار هؤلاء العاملين او الخبراء من المصريين المقيمين في مصر أو في الخارج كلما كان ذلك متاحا.$cc161$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1083,7 +1095,7 @@ WITH ins_art_law17_1999_80 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 80, $cc162$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc162$, $cc163$يلتزم المستورد بأن يطلع على أحكام التشريعات الوطنية المتعلقة باستيراد التكنولوجيا.$cc163$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1093,7 +1105,7 @@ WITH ins_art_law17_1999_81 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 81, $cc164$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc164$, $cc165$لا يجوز للمستورد النزول للغير عن التكنولوجيا التي حصل عليها إلا بموافقة موردها.$cc165$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1105,7 +1117,7 @@ WITH ins_art_law17_1999_82 AS (
 2- يجوز أن يكون المقابل مبلغا إجماليا يؤدى دفعة واحدة أو على دفعات متعددة، كما يجوز أن يكون المقابل نصيبا من رأس المال المستثمر في تشغيل التكنولوجيا أو نصيبا من عائد هذا التشغيل.
 3- ويجوز أن يكون المقابل كمية معينة من السلعة التي تستخدم التكنولوجيا في إنتاجها أو مادة أولية ينتجها المستورد ويتعهد المستورد بتصديرها إلى المورد.$cc167$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1118,7 +1130,7 @@ WITH ins_art_law17_1999_83 AS (
   SELECT id, 83, $cc168$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc168$, $cc169$1- يلتزم المستورد بالمحافظة على سرية التكنولوجيا التي يحصل عليها وعلى سرية التحسينات التي تدخل عليها، ويسأل عن تعويض الضرر الذي ينشأ عن إفشاء هذه السرية سواء وقع ذلك في مرحلة التفاوض على إبرام العقد أو بعد ذلك.
 2- وكذلك يلتزم المورد بالمحافظة على سرية التحسينات التي يدخلها المستورد وينقلها إليه بموجب شرط في العقد، ويسأل المورد عن تعويض الضرر الذي ينشأ عن إفشاء هذه السرية.$cc169$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1129,7 +1141,7 @@ WITH ins_art_law17_1999_84 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 84, $cc170$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc170$, $cc171$يجوز الاتفاق على أن يكون لمستورد التكنولوجيا وحده حق استخدامها والاتجار في الإنتاج وبشرط أن يحدد هذا الحق بمنطقة جغرافية معينة وبمدة محددة يتفق عليها الطرفان.$cc171$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1140,7 +1152,7 @@ WITH ins_art_law17_1999_85 AS (
   SELECT id, 85, $cc172$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc172$, $cc173$1- يضمن المورد مطابقة التكنولوجيا والوثائق المرفقة بها للشروط المبينة في العقد، كما يضمن إنتاج السلعة أو أداء الخدمات التي اتفق عليها بالمواصفات المبينة في العقد، ما لم يتفق كتابة على خلاف ذلك.
 2- يسأل كل من المورد والمستورد بغير تضامن بينهما عما يلحق الأشخاص والأموال من ضرر ناشئ عن استخدام التكنولوجيا أو عن السلعة الناتجة عن تطبيقها.$cc173$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1151,7 +1163,7 @@ WITH ins_art_law17_1999_86 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 86, $cc174$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc174$, $cc175$يجوز لكل من طرفي عقد نقل التكنولوجيا بعد انقضاء خمس سنوات من تاريخ العقد أن يطلب إنهاء أو إعادة النظر في شروطه بتعديلها بما يلائم الظروف الاقتصادية العامة القائمة ويجوز تكرار تقديم هذا الطلب كلما انقضت خمس سنوات ما لم يتفق على مدة أخرى.$cc175$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1162,7 +1174,7 @@ WITH ins_art_law17_1999_87 AS (
   SELECT id, 87, $cc176$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الأول: نقل التكنولوجيا$cc176$, $cc177$1- تختص المحاكم المصرية بالفصل في المنازعات التي تنشأ عن عقد نقل التكنولوجيا المشار إليه في المادة (72) من هذا القانون، ويجوز الاتفاق على تسوية النزاع وديا أو بطريق تحكيم يجرى في مصر وفقا لأحكام القانون المصري.
 2- وفي جميع الأحوال يكون الفصل في موضوع النزاع بموجب أحكام القانون المصري وكل اتفاق على خلاف ذلك يقع باطلا.$cc177$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1175,7 +1187,7 @@ WITH ins_art_law17_1999_88 AS (
 وكذلك لا تسرى تلك الأحكام إلا إذا كان البدل المقابل للمبيع نقدا أو كان نقدا للمبيع نقدا او كان نقدا وعينا وكانت قيمة الجزء العيني أدنى من الجزء النقدي.
 2- تسري على البيوع التجارية الدولية أحكام الاتفاقيات الدولية بشأن هذه البيوع والنافذة في مصر وكذلك الأعراف السائدة في التجارة الدولية والتفسيرات التي أعدتها المنظمات الدولية للمصطلحات المستعملة في تلك التجارة الدولية والتفسيرات التي أعدتها المنظمات الدولية للمصطلحات المستعملة في تلك التجارة إذا أحال إليها العقد.$cc179$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1188,7 +1200,7 @@ WITH ins_art_law17_1999_89 AS (
   SELECT id, 89, $cc180$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc180$, $cc181$1- إذا لم يحدد المتعاقدان الثمن انعقد البيع بالسعر الذي يجرى عليه التعامل بينهما فإذا لم يكن بينهما تعامل سابق فبالسعر المتداول في السوق.
 2- إذا اتفق على أن يكون البيع بسعر السوق أو إذا وجب الأخذ بهذا السعر وفقا للفقرة السابقة فالعبرة بمتوسط سعر السوق في الزمان والمكان اللذين تم فيهما العقد إلا إذا قضى الاتفاق أو جرى عرف التجارة على غير ذلك أو تبين من الظروف وجوب اعتماد سعر آخر. وإذا تعدد سعر السوق فالعبرة بالسعر الوسط.$cc181$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1199,7 +1211,7 @@ WITH ins_art_law17_1999_90 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 90, $cc182$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc182$, $cc183$يجوز تفويض الغير في تحديد ثمن المبيع. فإذا لم يقم بالتحديد في الميعاد المحدد له او في الميعاد المناسب عند عدم التحديد، وجب اعتماد السعر المتداول في السوق في الزمان والمكان اللذين تم فيهما العقد ما لم يتبين من الظروف أو من عرف التجارة وجوب اعتماد سعر آخر.$cc183$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1209,7 +1221,7 @@ WITH ins_art_law17_1999_91 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 91, $cc184$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc184$, $cc185$إذا كان الثمن مقدرا على أساس الوزن فالعبرة بالوزن الصافي إلا إذا اتفق أو جرى العرف على غير ذلك.$cc185$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1220,7 +1232,7 @@ WITH ins_art_law17_1999_92 AS (
   SELECT id, 92, $cc186$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc186$, $cc187$1- إذا اتفق على أن يكون للمشتري تحديد شكل المبيع أو حجمه أو غير ذلك من الأوصاف المميزة له، وجب أن يقوم بهذا التحديد في الميعاد المتفق عليه أو في ميعاد مناسب عند عدم الاتفاق على ميعاد معين وإلا جاز للبائع أن يطلب الفسخ والتعويض.
 2- وللبائع بعد انقضاء الميعاد المشار إليه في الفقرة السابقة تحديد أوصاف المبيع وفقا لحاجات المشتري التي يمكنه العلم بها. ويكون هذا التحديد نهائيا إذا لم يعترض عليه المشتري خلال خمسة عشر يوما من تاريخ إخطاره به.$cc187$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1232,7 +1244,7 @@ WITH ins_art_law17_1999_93 AS (
   SELECT id, 93, $cc188$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc188$, $cc189$1- إذا لم يحدد ميعاد للتسليم. وجب أن يتم التسليم بمجرد إبرام العقد ما لم تستلزم طبيعة المبيع أو يقضى العرف بتحديد ميعاد آخر.
 2- فإذا اتفق على أن يكون للمشتري تحديد ميعاد التسليم التزم البائع بالتسليم في الميعاد الذي يحدده المشتري مع مراعاة المدة التي تستلزمها طبيعة المبيع لإعداده للتسليم.$cc189$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1245,7 +1257,7 @@ WITH ins_art_law17_1999_94 AS (
 2- المصاريف التي يقتضيها تسليم المبيع في غير المكان المعين لتنفيذ البيع تكون على المشترى إلا إذا اتفق أو نص القانون على غير ذلك.
 3- إذا خالف البائع دون ضرورة ملجئة تعليمات المشتري بشأن النقل كان مسئولا عما يلحق المبيع من ضرر بسبب هذه المخالفة.$cc191$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1257,7 +1269,7 @@ WITH ins_art_law17_1999_95 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 95, $cc192$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc192$, $cc193$لا يعتد عند تسليم المبيع بما يطرأ عليه من نقص أو تلف يقضى العرف بالتسامح فيه.$cc193$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1268,7 +1280,7 @@ WITH ins_art_law17_1999_96 AS (
   SELECT id, 96, $cc194$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc194$, $cc195$إذا لم يقم البائع بتسليم المبيع في الميعاد المحدد في العقد. فللمشتري أن يخطره بالتنفيذ خلال مدة مناسبة يحددها، فإذا لم يسلم البائع المبيع خلال تلك المدة، جاز للمشتري أن يحصل على شئ مماثل للمبيع على حساب البائع وان يطالبه بالفرق بين الثمن المتفق عليه وما دفعه بحسن نية للحصول على ذلك الشيء.
 وإذا كان للمبيع سعر معلوم في السوق جاز للمشتري- وان لم يشتر فعلا شيئا مماثلا له- أن يطالب البائع بالفرق بين الثمن المتفق عليه وسعر السوق في اليوم المحدد للتسليم، وللمشتري بدلا من ذلك أن يخطر البائع بأن عدم التسليم خلال المدة المعينة من الإخطار يترتب عليه اعتبار العقد مفسوخا، وله في هذه الحالة أن يطلب التعويض إن كان له مقتضى.$cc195$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1279,7 +1291,7 @@ WITH ins_art_law17_1999_97 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 97, $cc196$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc196$, $cc197$إذا اتفق على تسليم المبيع على دفعات جاز للمشتري أن يطلب الفسخ إذا لم يقم البائع بتسليم إحدى الدفعات في الميعاد المتفق عليه، ولا يسرى الفسخ على الدفعات التي تم تسليمها إلا إذا ترتب على تبعيض المبيع ضرر جسيم للمشتري.$cc197$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1289,7 +1301,7 @@ WITH ins_art_law17_1999_98 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 98, $cc198$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc198$, $cc199$إذا لم يدفع الثمن في الميعاد المتفق عليه جاز للبائع بعد اعذار المشتري أن يعيد بيع البضاعة للغير فإذا بيعت بحسن نية بثمن اقل من الثمن المتفق عليه كان من حق البائع مطالبة المشتري بالفرق. وإذا كان للبضاعة سعر معلوم في السوق فللبائع- وان لم يقم بإعادة البيع فعلا- أن يطالب المشتري بالفرق بين الثمن المتفق عليه وسعر البضاعة في السوق في اليوم المعين لدفع الثمن.$cc199$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1300,7 +1312,7 @@ WITH ins_art_law17_1999_99 AS (
   SELECT id, 99, $cc200$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc200$, $cc201$1- يجوز للمشتري الذي دفع الثمن بكامله أن يطلب من البائع إعطاءه قائمة مذكورا فيها أن الثمن قد دفع.
 2- إذا قبل المشتري صراحة أو ضمنا قائمة البضاعة التي تسلمها من البائع فليس له بعد ذلك الاعتراض على البيانات التي وردت بها. ويعتبر قبولا ضمنيا عدم اعتراض المشتري على القائمة خلال عشرة أيام من تاريخ تسلمها.$cc201$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1312,7 +1324,7 @@ WITH ins_art_law17_1999_100 AS (
   SELECT id, 100, $cc202$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc202$, $cc203$1- إذا رفض المشتري تسلم المبيع جاز للبائع بعد إثبات حالة المبيع أن يطلب بأمر على عريضة من القاضي المختص الإذن في بيعه بعد انقضاء مدة يحددها ويخطر بها المشتري، كما يحدد القاضي كيفية إجراء البيع، ويجوز له أن يأمر ببيع الاشياء القابلة لتلف سريع دون تحديد مهلة أو إخطار.
 2- على البائع إيداع حصيلة المبيع خزانة المحكمة حتى يسوى النزاع بينه وبين المشتري إذا كان المشتري قد دفع الثمن بكامله.$cc203$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1327,7 +1339,7 @@ WITH ins_art_law17_1999_101 AS (
 4- وفي جميع الأحوال تسقط الدعوى بانقضاء ستة اشهر من تاريخ التسليم الفعلي.
 5- ويجوز الاتفاق على تعديل المواعيد المنصوص عليها في هذه المادة، كما يجوز اعفاء المشتري من مراعاتها.$cc205$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1343,7 +1355,7 @@ WITH ins_art_law17_1999_102 AS (
 2- لا تقبل دعوى البائع باسترداد الزيادة بعد انقضاء ستين يوما من تاريخ تسليم المبيع للمشتري تسليما فعليا.
 3- يجوز الاتفاق على تعديل المواعيد المنصوص عليها في هذه المادة، كما يجوز إعفاء البائع من مراعاتها.$cc207$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1357,7 +1369,7 @@ WITH ins_art_law17_1999_103 AS (
 2- لا يلتزم خلفاء المشتري بمراعاة الشرط المشار إليه في الفقرة السابقة إلا إذا علموا به أو كان في مقدورهم العلم به.
 الفرع الثاني أحكام خاصة ببعض أنواع البيوع التجارية$cc209$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1370,7 +1382,7 @@ WITH ins_art_law17_1999_104 AS (
   SELECT id, 104, $cc210$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc210$, $cc211$تسرى أحكام هذا الفرع إذا كان عقد البيع تجاريا بالنسبة إلى طرفيه أو إلى أحدهما فقط.
 1- البيع بالتقسيط$cc211$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1383,7 +1395,7 @@ WITH ins_art_law17_1999_105 AS (
 2- وفي حالة الحكم بفسخ البيع يجب أن يرد البائع الأقساط التي قبضها بعد استنزال ما يعادل أجرة الانتفاع بالمبيع بالإضافة إلى تعويض عن التلف الذي لحقه بسبب الاستعمال غير العادي، ويقع باطلا كل اتفاق على تحميل المشترى التزامات التزامات اشد من ذلك.
 3- الاتفاق على حلول الثمن بأكمله عند عدم دفع أحد الأقساط في ميعاد استحقاقه لا يكون نافذا إلا إذا تخلف المشتري عن دفع قسطين متتاليين على الأقل.$cc213$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1396,7 +1408,7 @@ WITH ins_art_law17_1999_106 AS (
   SELECT id, 106, $cc214$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc214$, $cc215$1- إذا احتفظ البائع بملكية المبيع حتى أداء أقساط الثمن بأكملها اكتسب المشتري هذه الملكية بأداء القسط الأخير، ويتحمل المشتري تبعة هلاك المبيع من وقت تسليمه إليه.
 2- مع عدم الإخلال بالأحكام المنصوص عليها في باب الإفلاس لا يكون شرط الاحتفاظ بالملكية نافذا على الغير إلا إذا كان الشرط مدونا في ورقة ذات تاريخ ثابت وسابق على حق الغير أو على إجراءات التنفيذ التي يتخذها الدائنون على المبيع.$cc215$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1412,7 +1424,7 @@ WITH ins_art_law17_1999_107 AS (
 وتأمر النيابة العامة بوقف تنفيذ العقوبة إذا تم الصلح أثناء تنفيذها ولو بعد صيرورة الحكم باتا.
 ٣- البيع بطريق التصفية أو المزايدة العلنية$cc217$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1428,7 +1440,7 @@ WITH ins_art_law17_1999_108 AS (
   SELECT id, 108, $cc218$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc218$, $cc219$1- يجب على التاجر أن يعلن عن ثمن السلع المعروضة للبيع في التصفية مقترنا به بيان عن الثمن الفعلي الذي كانت به هذه السلع تباع خلال الشهر السابق على التصفية.
 2- يعتبر في حكم التصفية الموسمية كل إجراء من شأنه عن الإعلان عن بيع السلع بأسعار مخفضة.$cc219$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1444,7 +1456,7 @@ WITH ins_art_law17_1999_109 AS (
 (د) تصفية السلع التي يصيبها عيب بسبب حريق أو تسرب مياه أو غير ذلك من الأسباب.
 (ه) حالة التصفية الموسمية، على أن تتم خلال أسبوعين على الأكثر.$cc221$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1460,7 +1472,7 @@ WITH ins_art_law17_1999_110 AS (
   SELECT id, 110, $cc222$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc222$, $cc223$1- لا يجوز بيع السلع المستعملة بالمزايدة العلنية إلا بواسطة خبير مثمن مقيد في السجل الخاص.
 2- يقصد بالبيع بالمزايدة العلنة كل بيع اختياري يجوز لكل شخص حضوره ولو اشترط لحضور المزايدة دفع مقابل أو اقتصر الحضور على طائفة معينة من الأشخاص.$cc223$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1473,7 +1485,7 @@ WITH ins_art_law17_1999_111 AS (
 2- إذا لم يدفع المشتري الباقي من الثمن أو إذا لم يحضر لتسلم المبيع في الميعاد المشار إليه في الفقرة السابقة وجب إعادة البيع على مسئوليته بطريق المزايدة العلنية أيضا ولا تقبل المزايدة منه.
 3- إذا رست المزايدة الثانية بثمن اقل من الثمن في المزايدة الأولى التزم المشتري المتخلف عن الدفع بالفرق، وإذا رست المزايدة الثانية بثمن اكبر، فالزيادة لطالب البيع.$cc225$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1487,7 +1499,7 @@ WITH ins_art_law17_1999_112 AS (
 (أ) إذا اقتصرت المزايدة على السلعة على شخص واحد.
 (ب) إذا لم تصل نتيجة المزايدة إلى الثمن الأساسي.$cc227$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1499,7 +1511,7 @@ WITH ins_art_law17_1999_113 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 113, $cc228$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc228$, $cc229$لا يجوز لطالب البيع او للخبير المثمن الاشتراك بنفسه أو بوساطة غيره في المزايدة على السلع المعروضة للبيع.$cc229$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1510,7 +1522,7 @@ WITH ins_art_law17_1999_114 AS (
   SELECT id, 114, $cc230$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc230$, $cc231$للخبير المثمن حق امتياز بسبب ما يستحقه من اجر أو عمولة على ثمن السلع التي يتولى بيعها بالمزايدة العلنية.
 ٣- عقد التوريد$cc231$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1521,7 +1533,7 @@ WITH ins_art_law17_1999_115 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 115, $cc232$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc232$, $cc233$إذا اتفق على حد أدنى وحد أقصى للكمية التي يلتزم المورد بتوريدها جاز لطالب التوريد تعيين الكمية التي تلزمه بشرط أن تقع بين الحدين وان يخطر بها المورد بميعاد مناسب، وإذا اتفق على الحد الأدنى وحده، كان لطالب التوريد تعيين الكمية التي تلزمه بشرط أن لا تقل عن الحد الأدنى المتفق عليه، وان يخطر بها المورد بميعاد مناسب.$cc233$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1533,7 +1545,7 @@ WITH ins_art_law17_1999_116 AS (
 2- وإذا اتفق على أن يكون لطالب التوريد تحديد اجل التوريد وجب أن يخطر المورد بميعاد مناسب بالأجل الذي يحدده.
 3- وإذا لم يتفق على اجل التوريد جاز لكل من الطرفين إنهاء العقد في أي وقت بشرط إخطار الطرف الآخر بميعاد مناسب.$cc235$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1545,7 +1557,7 @@ WITH ins_art_law17_1999_117 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 117, $cc236$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc236$, $cc237$إذا تخلف أحد الطرفين عن تنفيذ التزاماته بشأن أحد التوريدات الدورية فلا يجوز للطرف الآخر فسخ العقد إلا إذا كان من شأن التخلف عن التنفيذ إحداث ضرر جسيم له أو إضعاف الثقة في مقدرة الطرف الذي تخلف عن التنفيذ على الاستمرار في تنفيذ التوريدات اللاحقة بصورة منتظمة.$cc237$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1555,7 +1567,7 @@ WITH ins_art_law17_1999_118 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 118, $cc238$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثاني: البيع التجاري$cc238$, $cc239$لا يجوز الاتفاق على منع طالب التوريد من التعاقد مع غير المورد على شراء بضائع أو الحصول بمقابل على خدمات مماثلة للبضائع أو الخدمات محل عقد التوريد إلا لمدة لا تجاوز خمس سنوات من تاريخ العقد، وذلك أيا كانت الميزات التي كان يقررها المورد لطالب التوريد، وكل اتفاق على مدة أطول يخفض إلى خمس سنوات، ولا يجوز تجديد المدة إلا بعد انتهائها ولمرة واحدة وباتفاق صريح.$cc239$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1565,7 +1577,7 @@ WITH ins_art_law17_1999_119 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 119, $cc240$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثالث: الرهن التجاري$cc240$, $cc241$مع مراعاة الأحكام التي تنظم أنواعا خاصة من الرهن التجاري تسرى أحكام هذا الأصل على كل رهن يتقرر على مال منقول ضمانا لدين يعتبر تجاريا بالنسبة إلى المدين.$cc241$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1579,7 +1591,7 @@ WITH ins_art_law17_1999_120 AS (
 (ب) إذا تسلم صكا يمثل الشيء المرهون ويعطي حائزه دون غيره حق تسلمه.
 3- تنتقل حيازة الحقوق الثابتة بتسليم الصكوك الثابتة فيها، وإذا كان الصك مودعا عند الغير اعتبر تسليم إيصال الإيداع بمثابة تسليم الصك ذاته بشرط أن يكون الصك معينا في الإيصال تعيينا نافيا للجهالة وان يرضى المودع عنده بحيازة الصك لحساب الدائن المرتهن، وفي هذه الحالة يعتبر المودع عنده قد تخلى عن كل حق له في حبس الصك لحسابه لسبب سابق على الرهن ما لم يكن قد احتفظ بهذا الحق عند قبوله حيازة الصك لحساب الدائن المرتهن.$cc243$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1595,7 +1607,7 @@ WITH ins_art_law17_1999_121 AS (
 2- ويتم رهن الحقوق الثابتة في الصكوك لامر بتظهير يذكر فيه انه للرهن أو أية عبارة أخرى تفيد ذلك.
 3- ويكون الرهن المشار إليه في الفقرتين السابقتين نافذا في حق المدين دون حاجة إلى إعلانه بالرهن أو قبوله.$cc245$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1608,7 +1620,7 @@ WITH ins_art_law17_1999_122 AS (
   SELECT id, 122, $cc246$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثالث: الرهن التجاري$cc246$, $cc247$1- مع مراعاة الأحكام المنصوص عليها في المادة السابقة لا يشترط لنفاذ الرهن التجاري في حق الغير أن يكون مكتوبا أو أن تكون الورقة التي يدون فيها الرهن ثابتة التاريخ.
 2- ويجوز إثبات الرهن التجاري فيما بين المتعاقدين وبالنسبة إلى الغير بكافة طرق الإثبات أيا كانت قيمة الدين المضمون بالرهن.$cc247$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1619,7 +1631,7 @@ WITH ins_art_law17_1999_123 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 123, $cc248$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثالث: الرهن التجاري$cc248$, $cc249$على الدائن المرتهن أن يسلم المدين- إذا طلب منه ذلك- إيصالا يبين فيه ماهية الشيء المرهون ونوعه ومقداره وغير ذلك من الصفات المميزة له.$cc249$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1630,7 +1642,7 @@ WITH ins_art_law17_1999_124 AS (
   SELECT id, 124, $cc250$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثالث: الرهن التجاري$cc250$, $cc251$1- إذا ترتب الرهن على مال مثلى بقى الرهن قائما ولو استبدل بالشيء المرهون شئ آخر من نوعه.
 2- وإذا كان الشيء المرهون من الأموال غير المثلية جاز للمدين أن يستبدل به غيره بشرط أن يكون متفقا على ذلك في عقد الرهن وان يقبل الدائن المرتهن البدل.$cc251$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1641,7 +1653,7 @@ WITH ins_art_law17_1999_125 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 125, $cc252$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثالث: الرهن التجاري$cc252$, $cc253$على الدائن المرتهن أن يقوم بجميع التدابير والإجراءات اللازمة للمحافظة على الشيء المرهون وصيانته، وعليه أن يستوفي لحساب المدين الحقوق المتصلة بالشيء كقبض قيمته وتوابعه على أن يخصم ما يقبضه من المبلغ المضمون بالرهن ولو لم يكن قد حل اجله، ويكون الخصم أولا من قيمة ما أنفقه في المحافظة على الشئ وصيانته من المصاريف ثم من العوائد ثم من اصل الدين ما لم يتفق على غير ذلك.$cc253$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1654,7 +1666,7 @@ WITH ins_art_law17_1999_126 AS (
 3- يجري البيع في الزمان والمكان الذين عينهما القاضي وبالمزايدة العلنية إلا إذا أمر القاضي باتباع طريقة أخرى وإذا كان الشيء المرهون متداولا في سوق الأوراق المالية أمر القاضي ببيعه في هذه السوق بمعرفة أحد السماسرة المقبولين للعمل بها.
 4- يستوفي الدائن المرتهن دينه بطريق الأولوية من اصل وعائد ومصاريف من الثمن الناتج من البيع.$cc255$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1667,7 +1679,7 @@ WITH ins_art_law17_1999_127 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 127, $cc256$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثالث: الرهن التجاري$cc256$, $cc257$إذا تقرر الرهن على عدة أموال، كان من حق الدائن المرتهن تعيين المال الذي يجري عليه البيع ما لم يتفق على غير ذلك أو كان من شأنه إلحاق ضرر بالمدين. وفي جميع الأحوال لا يجوز أن يشمل البيع إلا ما يكفي للوفاء بحق الدائن المرتهن.$cc257$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1678,7 +1690,7 @@ WITH ins_art_law17_1999_128 AS (
   SELECT id, 128, $cc258$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثالث: الرهن التجاري$cc258$, $cc259$1- إذا نقص سعر الشيء المرهون في السوق بحيث اصبح غير كاف لضمان الدين جاز للدائن المرتهن أن يعين للمدين ميعادا مناسبا لتكملة الضمان، فإذا رفض المدين ذلك أو انقضى الميعاد المحدد دون أن يقوم بتكملة الضمان جاز للدائن المرتهن أن ينفذ على الشيء المرهون باتباع الإجراءات المنصوص عليها في المادة (126) من هذا القانون وينتقل الرهن إلى الثمن الناتج من البيع.
 2- وإذا كان الشيء المرهون معرضا للهلاك أو التلف أو كانت صيانته تستلزم نفقات باهظة ولم يشأ المدين تقديم شئ آخر بدله، جاز لكل من الدائن المرتهن والمدين أن يطلب بأمر على عريضة من القاضي المختص الترخيص له في بيعه فورا بأية طريقة يعينها القاضي وينتقل الرهن إلى الثمن الناتج من البيع.$cc259$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1689,7 +1701,7 @@ WITH ins_art_law17_1999_129 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 129, $cc260$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الثالث: الرهن التجاري$cc260$, $cc261$يكون باطلا كل اتفاق يبرم وقت تقرير الرهن أو بعد تقريره يعطى الدائن المرتهن في حالة عدم استيفاء الدين عند حلول أجله الحق في تملك الشيء المرهون أو في بيعه دون مراعاة الإجراءات المنصوص عليها في المادة (126) من هذا القانون.$cc261$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1702,7 +1714,7 @@ WITH ins_art_law17_1999_130 AS (
 3- تراعى في تطبيق أحكام هذا الفصل على إيداع بضائع لم تدفع عنها الضرائب أو الرسوم الجمركية، الأحكام المنصوص عليها في القوانين الخاصة بذلك والقرارات الصادرة بتنفيذها.
 4- لا يعتبر مستودعا عاما خاضعا للأحكام المنصوص عليها في هذا الفصل منشأة الاستيداع التي لا يكون من حقها إصدار صكوك تمثل البضاعة تكون قابلة للتداول.$cc263$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1716,7 +1728,7 @@ WITH ins_art_law17_1999_131 AS (
   SELECT id, 131, $cc264$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الرابع: الإيداع في المستودعات العامة$cc264$, $cc265$1- يجب على من يستثمر مستودعا عاما أن يؤمن عليه ضد أخطار الحريق لدى إحدى شركات التأمين ويشمل هذا التأمين البضائع الموجودة بالمستودع لحساب الغير.
 2- ومع ذلك لا يشمل التأمين البضائع المودعة أحد المستودعات العامة الموجودة في ميناء بحري أو ميناء جوي إذا كانت البضاعة مشمولة أيضا بتأمين بحري أو جوي ضد أخطار الحريق فإذا وقع الحادث خلال سريان التأمين البحري أو الجوي كان هذا التأمين وحده هو الواجب تطبيقه لتسوية التعويضات، ولا تصير البضاعة مشمولة بالتأمين على المستودع إلا بعد انقضاء مدة سريان التأمين البحري أو الجوي أو عدم كفاية هذا التأمين لتغطية الضرر.$cc265$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1728,7 +1740,7 @@ WITH ins_art_law17_1999_132 AS (
   SELECT id, 132, $cc266$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الرابع: الإيداع في المستودعات العامة$cc266$, $cc267$1- يلتزم المودع بأن يقدم إلى المستودع العام بيانات صحيحة عن طبيعة البضاعة المودعة ونوعها ومقدارها وقيمتها.
 2- وللمودع في كل وقت الحق في فحص البضاعة التي سلمت للمستودع لحسابه واخذ عينات منها وتمكين الغير من ذلك.$cc267$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1740,7 +1752,7 @@ WITH ins_art_law17_1999_133 AS (
   SELECT id, 133, $cc268$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الرابع: الإيداع في المستودعات العامة$cc268$, $cc269$1- يكون مستثمر المستودع مسئولا عن حفظ البضاعة المودعة وصيانتها بما لا يجاوز قيمتها التي قدرها المودع.
 2- ولا يسأل مستثمر المستودع عما يلحق بالبضاعة من هلاك أو تلف أو نقص إذا نشأ ذلك عن قوة قاهرة أو طبيعة البضاعة أو عيب ذاتي فيها أو في كيفية تعبئتها أو حزمها.$cc269$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1751,7 +1763,7 @@ WITH ins_art_law17_1999_134 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 134, $cc270$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الرابع: الإيداع في المستودعات العامة$cc270$, $cc271$لمستثمر المستودع أن يطلب من القاضي المختص بالمحكمة التي يقع في دائرتها المستودع، إصدار أمر على عريضة ببيع البضاعة المودعة إذا كانت مهددة بتلف سريع ويعين القاضي كيفية إجراء البيع والتصرف في الثمن.$cc271$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1763,7 +1775,7 @@ WITH ins_art_law17_1999_135 AS (
 2- ويجوز لمستثمر المستودع أن يقدم قروضا للمودع برهن البضاعة المودعة لديه وله ان يتعامل بصك الرهن الذي يمثلها.
 3- لا يجوز رهن البضائع المودعة في المستودعات العامة او التنفيذ عليها وفاء للدين المرهون إلا باتباع الأحكام المنصوص عليها في شأن الرهن التجاري.$cc273$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1778,7 +1790,7 @@ WITH ins_art_law17_1999_136 AS (
 3- للمودع تجزئة البضاعة إلى مجموعات متعددة والحصول على إيصال إيداع وصك رهن عن كل مجموعة منها.
 4- يحتفظ المستودع بصورة طبق الأصل من إيصال الإيداع وصك الرهن.$cc275$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1792,7 +1804,7 @@ WITH ins_art_law17_1999_137 AS (
   SELECT id, 137, $cc276$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الرابع: الإيداع في المستودعات العامة$cc276$, $cc277$1- إذا كانت البضاعة المودعة والمسلم عنها إيصال إيداع وصك رهن من الاشياء المثلية جاز للمودع أن يستبدل بها بضاعة أخرى من نوعها وصفتها إذا كان منصوصا على ذلك في إيصال الإيداع وصك الرهن، وفي هذه الحالة تنتقل جميع حقوق حامل الإيصال أو الصك وامتيازاته إلى البضاعة الجديدة.
 2- يجوز أن يصدر إيصال الإيداع وصك الرهن عن كمية من البضاعة المثلية سائبة في كمية اكبر.$cc277$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1805,7 +1817,7 @@ WITH ins_art_law17_1999_138 AS (
 2- إذا كان إيصال الإيداع أو صك الرهن لامر المودع جاز له أن يتنازل بالتظهير عنهما متصلين أو منفصلين.
 3- يجوز لمن ظهر له إيصال إيداع أو صك رهن أن يطلب قيد التظهير الذي حصل له مع بيان موطنه في دفاتر المستودع.$cc279$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1819,7 +1831,7 @@ WITH ins_art_law17_1999_139 AS (
 2- وإذا ظهر صك الرهن منفصلا عن إيصال الإيداع وجب أن يشمل التظهير بالإضافة إلى البيانات المنصوص عليها في الفقرة السابقة على بيان بمبلغ الدين المضمون بالرهن من اصل وعائد وتاريخ استحقاقه واسم الدائن ومهنته وموطنه، وعلى المظهر إليه الأول أن يبادر إلى طلب قيد تظهير صك الرهن وبيانات هذا التظهير في دفاتر المستودع والتأشير بذلك على صك الرهن.
 3- على المظهر إليه الأول عند تظهير صك الرهن أن يطلب قيد تظهير صك الرهن والبيانات المتعلقة بالتظهير في دفاتر المستودع والتأشير بذلك على صك الرهن.$cc281$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1833,7 +1845,7 @@ WITH ins_art_law17_1999_140 AS (
 2- ولحامل إيصال الإيداع دون صك الرهن حق سحب البضاعة المودعة بشرط أن يدفع الدين المضمون بالرهن إذا كان مستحق الأداء فإذا لم يكن الدين مستحق الأداء، جاز له سحب البضاعة قبل حلول ميعاد استحقاق الدين إذا أودع المستودع مبلغا كافيا لتغطية الدين وعوائده حتى حلول الأجل. ويسرى هذا الحكم إذا استحق الدين ولم يتقدم حامل صك الرهن لقبضه.
 3- ويجوز أن يقتصر السحب على جزء من البضاعة بعد إيداع مبلغ يتناسب مع هذا الجزء.$cc283$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1845,7 +1857,7 @@ WITH ins_art_law17_1999_141 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 141, $cc284$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الرابع: الإيداع في المستودعات العامة$cc284$, $cc285$إذا لم يدفع الدين المضمون بالرهن في ميعاد الاستحقاق جاز لحامل صك الرهن منفصلا عن إيصال الإيداع أن يطلب بيع البضاعة المرهونة باتباع الإجراءات المنصوص عليها في شأن الرهن التجاري.$cc285$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1858,7 +1870,7 @@ WITH ins_art_law17_1999_142 AS (
 (ب) مصاريف بيع البضاعة وإيداعها وغير ذلك من مصاريف الحفظ.
 2- إذا لم يكن حامل إيصال الإيداع حاضرا وقت بيع البضاعة أودع المبلغ الزائد على ما يستحقه حامل صك الرهن خزانة المحكمة الجزئية التي يقع في دائرتها المستودع.$cc287$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1873,7 +1885,7 @@ WITH ins_art_law17_1999_143 AS (
 2- يكون الرجوع على المظهرين خلال خمسة عشر يوما من تاريخ بيع البضاعة وإلا سقط حق الحامل في الرجوع.
 3- وفي جميع الأحوال يسقط حق حامل صك الرهن في الرجوع على المظهرين إذا لم يباشر إجراءات التنفيذ على البضاعة المرهونة خلال ثلاثين يوما من تاريخ استحقاق الدين.$cc289$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1885,7 +1897,7 @@ WITH ins_art_law17_1999_144 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 144, $cc290$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الرابع: الإيداع في المستودعات العامة$cc290$, $cc291$إذا وقع حادث للبضاعة كان لحامل إيصال الإيداع أو صك الرهن على مبلغ التأمين الذي يستحق عند وقوع هذا الحادث جميع الحقوق المقررة له على البضاعة.$cc291$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1896,7 +1908,7 @@ WITH ins_art_law17_1999_145 AS (
   SELECT id, 145, $cc292$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الرابع: الإيداع في المستودعات العامة$cc292$, $cc293$1- لمن ضاع أو تلف منه إيصال الإيداع أن يطلب من القاضي المختص بالمحكمة التي يقع في دائرتها المستودع إصدار أمر على عريضة بتسليمه صورة من الإيصال الضائع أو التالف بشرط أن يثبت ملكيته له مع تقديم كفيل، وتبرأ ذمة هذا الكفيل بانقضاء ستة اشهر من تاريخ تقديم الكفالة دون أن يتقدم أحد بطلب استرداد البضاعة المبيعة.
 2- لمن ضاع منه صك الرهن أن يطلب من القاضي المختص بالمحكمة التي يقع في دائرتها المستودع إصدار أمر على عريضة بوفاء الدين المضمون بالرهن عند حلول اجله بشرط أن يثبت ملكيته للصك الضائع، وان يقدم كفيلا. فإذا لم يقم المدين بتنفيذ الأمر الذي صدر لمن صدر هذا الأمر لصالحه أن ينفذ على البضاعة المرهونة باتباع الإجراءات المنصوص عليها بشأن الرهن التجاري، وذلك بشرط أن يكون التظهير الأول الذي حصل على الصك قد قيد في دفاتر المستودع وفقا لأحكام الفقرة الثانية من المادة (139) من هذا القانون وتبرأ ذمة الكفيل بانقضاء ستة اشهر من تاريخ استحقاق الدين دون أن يتخذ من صدر الأمر لصالحه إجراءات التنفيذ على البضاعة.$cc293$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1908,7 +1920,7 @@ WITH ins_art_law17_1999_146 AS (
   SELECT id, 146, $cc294$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الرابع: الإيداع في المستودعات العامة$cc294$, $cc295$1- إذا لم يسترد المودع البضاعة عند انتهاء عقد الإيداع جاز لمستثمر المستودع طلب بيعها باتباع الإجراءات المنصوص عليها في شأن الرهن التجاري ويستوفى من حصيلة البيع المبالغ المستحقة له ويسلم الباقي إلى المودع أو يودعه خزانة المحكمة المختصة.
 2- يسرى الحكم المنصوص عليه في الفقرة السابقة إذا كان عقد الإيداع غير محدد المدة وانقضت سنة دون أن يطلب المودع استرداد البضاعة أو يبدى رغبته في استمرار عقد الإيداع.$cc295$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1921,7 +1933,7 @@ WITH ins_art_law17_1999_147 AS (
 2- للمحكمة أن تأمر في حالة الحكم بالإدانة بإغلاق المستودع وإيداع البضائع الموجودة فيه بأحد المستودعات المرخص بها، وذلك على نفقة المحكوم عليه وعلى ذمة تسليمها لاصحابها أو التصرف فيها لحسابهم وفقا للأحكام الواردة في هذا الفصل.
 وتأمر المحكمة بنشر الحكم شاملا ببيان موقع المستودع الجديد في صحيفة يومية على نفقة المحكوم عليه.$cc297$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1933,7 +1945,7 @@ WITH ins_art_law17_1999_148 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 148, $cc298$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc298$, $cc299$تطبق أحكام الوكالة التجارية إذا كان الوكيل محترفا إجراء المعاملات التجارية لحساب الغير.$cc299$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1944,7 +1956,7 @@ WITH ins_art_law17_1999_149 AS (
   SELECT id, 149, $cc300$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc300$, $cc301$1- إذا أعطيت الوكالة التجارية مطلقة فلا تنصرف إلا إلى المعاملات التجارية.
 2- وإذا أعطيت الوكالة التجارية مخصصة بمعاملة تجارية معينة جاز للوكيل القيام بجميع الأعمال اللازمة لإجراء هذه المعاملة دون حاجة إلى إذن من الموكل.$cc301$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1958,7 +1970,7 @@ WITH ins_art_law17_1999_150 AS (
 3- في غير الحالتين المشار إليهما في الفقرة السابقة لا يستحق الوكيل أجرا وانما يستحق تعويضا عن الجهد الذي بذله طبقا لما يقضى به العرف التجاري.
 4- استثناء من أحكام الفقرة الثانية من المادة (709) من القانون المدني إذا اتفق على اجر الوكيل التجاري فلا يخضع هذا الأجر لتقدير القاضي.$cc303$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1972,7 +1984,7 @@ WITH ins_art_law17_1999_151 AS (
   SELECT id, 151, $cc304$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc304$, $cc305$1- على الوكيل اتباع تعليمات الموكل، فإذا خالفها دون مسوغ مقبول جاز للموكل رفض الصفقة.
 2- وإذا لم توجد تعليمات من الموكل بشأن الصفقة فعلى الوكيل تأخير إبرامها وطلب التعليمات من الموكل إلا إذا كان تأخير الصفقة يلحق الضرر بالموكل او كان الوكيل مفوضا في العمل بغير تعليمات منه.$cc305$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1983,7 +1995,7 @@ WITH ins_art_law17_1999_152 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 152, $cc306$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc306$, $cc307$إذا كانت البضائع أو الاشياء التي يحوزها الوكيل لحساب الموكل مهددة بتلف سريع أو بهبوط في القيمة ولم تصله تعليمات من الموكل بشأنها في ميعاد مناسب فللوكيل أن يطلب من القاضي المختص بالمحكمة التي يوجد في دائرتها مركز أعماله إصدار أمر على عريضة ببيعها بالكيفية التي يعينها القاضي.$cc307$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1993,7 +2005,7 @@ WITH ins_art_law17_1999_153 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 153, $cc308$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc308$, $cc309$للوكيل أن يمتنع عن إجراء العمل المعهود به إليه إذا كان إجراؤه يتطلب مصاريف غير عادية ولم يرسلها إليه الموكل، إلا إذا اتفق أو جرى التعامل السابق بين الطرفين على أن يؤدي الوكيل هذه المصاريف.$cc309$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2003,7 +2015,7 @@ WITH ins_art_law17_1999_154 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 154, $cc310$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc310$, $cc311$إذا رفض الوكيل إجراء الصفقة المعهود بها إليه، وجب عليه إخطار الموكل بذلك فورا، وفي هذه الحالة يجب على الوكيل المحافظة على البضائع وغيرها من الاشياء التي يحوزها لحساب الموكل حتى تصله تعليماته بشأنها. فإذا لم تصل التعليمات في ميعاد مناسب جاز للوكيل أن يطلب من القاضي المختص بالمحكمة التي يوجد في دائرتها مركز أعماله إصدار أمر على عريضة بإيداع البضائع أو الاشياء عند أمين يعينه القاضي.$cc311$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2014,7 +2026,7 @@ WITH ins_art_law17_1999_155 AS (
   SELECT id, 155, $cc312$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc312$, $cc313$1- الوكيل مسئول عن هلاك أو تلف البضائع والأشياء التي يحوزها لحساب الموكل إلا إذا نتج ذلك عن سبب لا يد للوكيل أو لتابعيه فيه أو عن عيب ذاتي في البضاعة أو الشيء.
 2- لا يلتزم الوكيل بالتأمين على الاشياء التي يحوزها لحساب الموكل إلا إذا طلب الموكل منه ذلك أو كان إجراء التأمين مما يقضى به العرف أو تستلزمه طبيعة الشيء.$cc313$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2029,7 +2041,7 @@ WITH ins_art_law17_1999_156 AS (
 (ج) إذا كانت الصفقة تتعلق بسلعة لها سعر محدد في السوق واشتراها الوكيل أو باعها بهذا السعر.
 2- لا يستحق الوكيل في الحالات المذكورة في الفقرة السابقة أجرا نظير الوكالة.$cc315$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2043,7 +2055,7 @@ WITH ins_art_law17_1999_157 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 157, $cc316$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc316$, $cc317$يجوز للغير الذي يتعامل مع الوكيل أن يطلب الاطلاع على عقد الوكالة وعلى المراسلات وغيرها من الوثائق المثبتة أو المقيدة لسلطة الوكيل. ولا يجوز الاحتجاج على الغير بالقيود الواردة على سلطة الوكيل إلا إذا ثبت علم الغير بها وقت التعاقد.$cc317$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2054,7 +2066,7 @@ WITH ins_art_law17_1999_158 AS (
   SELECT id, 158, $cc318$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc318$, $cc319$1- على الوكيل أن يحيط الموكل علما بالصفقات التي يبرمها لحسابه.
 2- وعلى الوكيل أن يقدم للموكل في الميعاد المتفق عليه أو الذي يجرى عليه العرف أو التعامل السابق حسابا بينهما عن الأعمال التي يجريها لذمته. ويجب أن يكون هذا الحساب مطابقا للحقيقة، فإذا تضمن عن عمد بيانات غير صحيحة، جاز للموكل رفض الصفقات التي تتعلق بها هذه البيانات فضلا عن حقه في المطالبة بالتعويض، ولا يستحق الوكيل أجرا عن الصفقات المذكورة.$cc319$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2067,7 +2079,7 @@ WITH ins_art_law17_1999_159 AS (
 2- يضمن الامتياز اجر الوكيل والمصاريف والمبالغ التي يدفعها عن الموكل أو يقرضها له وغير ذلك من المبالغ التي تستحق للوكيل بسبب الوكالة سواء أنفقت قبل تسليم البضائع أو الاشياء أو أثناء وجودها في حيازة الوكيل.
 3- يتقرر الامتياز دون اعتبار لما إذا كان الدين قد نشأ عن أعمال تتعلق بالبضائع أو الاشياء التي لا تزال في حيازة الوكيل أو ببضائع أو أشياء أخرى سبق إرسالها إليه أو إيداعها عنده أو تسليمها له.$cc321$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2084,7 +2096,7 @@ WITH ins_art_law17_1999_160 AS (
 (د) إذا صدرها وظل حائزا لها بمقتضى سند شحن أو أية وثيقة نقل أخرى.
 2- إذا بيعت البضائع أو الاشياء التي يقع عليها الامتياز وسلمت إلى المشترى انتقل امتياز الوكيل إلى الثمن.$cc323$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2099,7 +2111,7 @@ WITH ins_art_law17_1999_161 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 161, $cc324$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc324$, $cc325$امتياز الوكيل التجاري مقدم على جميع الامتيازات الأخرى ما عدا المصاريف القضائية والضرائب والرسوم المستحقة للدولة.$cc325$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2110,7 +2122,7 @@ WITH ins_art_law17_1999_162 AS (
   SELECT id, 162, $cc326$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc326$, $cc327$1- يتبع في التنفيذ على البضائع والأشياء الموجودة في حيازة الوكيل التجاري إجراءات التنفيذ على الشيء المرهون رهنا تجاريا.
 2- ومع ذلك إذا كان الوكيل مكلفا ببيع البضائع أو الاشياء التي في حيازته جاز له التنفيذ عليها ببيعها دون حاجة إلى اتباع الإجراءات المشار إليها في الفقرة السابقة إلا إذا تعذر عليه تنفيذ تعليمات الموكل في شأن البيع.$cc327$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2121,7 +2133,7 @@ WITH ins_art_law17_1999_163 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 163, $cc328$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc328$, $cc329$يجوز لكل من طرفي عقد الوكالة التجارية إنهاء العقد في كل وقت، ولا يستحق التعويض إلا إذا وقع إنهاء العقد دن إخطار سابق أو في وقت غير مناسب. وإذا كان العقد معين المدة وجب أن يستند إنهاؤه إلى سبب جدي ومقبول وإلا استحق التعويض.$cc329$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2131,7 +2143,7 @@ WITH ins_art_law17_1999_164 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 164, $cc330$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc330$, $cc331$إذا لم يكن للموكل موطن معلوم في مصر اعتبر موطن وكيله موطنا له وتجوز مقاضاته وتبليغه بالأوراق القضائية الرسمية فيه، وذلك فيما يتعلق بالأعمال التي يجريها الوكيل لحساب موكله.$cc331$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2143,7 +2155,7 @@ WITH ins_art_law17_1999_165 AS (
 الفرع الثاني بعض أنواع الوكالة التجارية
 1- الوكالة بالعمولة$cc333$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2156,7 +2168,7 @@ WITH ins_art_law17_1999_166 AS (
   SELECT id, 166, $cc334$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc334$, $cc335$1- الوكالة بالعمولة عقد يتعهد بمقتضاه الوكيل بأن يجرى باسمه تصرفا قانونيا لحساب الموكل.
 2- وتسرى على الوكالة بالعمولة بالإضافة إلى الأحكام العامة بشأن الوكالة التجارية الأحكام المنصوص عليها في المواد التالية.$cc335$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2168,7 +2180,7 @@ WITH ins_art_law17_1999_167 AS (
   SELECT id, 167, $cc336$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc336$, $cc337$1- إذا باع الوكيل بالعمولة بأقل من الثمن الذي حدده الموكل أو اشترى بأعلى منه وجب على الموكل إن أراد رفض الصفقة أن يخطر الوكيل بذلك في اقرب وقت من علمه بها وإلا اعتبر قابلا للثمن.
 2- ولا يجوز للموكل رفض الصفقة إذا قبل الوكيل بالعمولة تحمل فرق الثمن.$cc337$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2180,7 +2192,7 @@ WITH ins_art_law17_1999_168 AS (
   SELECT id, 168, $cc338$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc338$, $cc339$1- إذا اشترى الوكيل بالعمولة لحساب الموكل بضاعة مخالفة للنوع أو الصنف الذي طلبه الموكل فلا يلزم بقبولها.
 2- وإذا اشترى الوكيل بضاعة مطابقة للبضاعة المطلوبة ولكن بكمية اكبر فلا يلزم الموكل إلا بقبول الكمية التي طلبها. أما إذا كانت الكمية اقل يكون للموكل الخيار بين قبولها أو رفضها.$cc339$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2191,7 +2203,7 @@ WITH ins_art_law17_1999_169 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 169, $cc340$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc340$, $cc341$إذا تعاقد الوكيل بالعمولة بشروط افضل من الشروط التي حددها الموكل، عادت المنفعة إلى الموكل، وعلى الوكيل أن يقدم حسابه على أساس الشروط الحقيقة التي تمت الصفقة بمقتضاها.$cc341$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2202,7 +2214,7 @@ WITH ins_art_law17_1999_170 AS (
   SELECT id, 170, $cc342$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc342$, $cc343$1- إذا منح الوكيل بالعمولة المكلف بالبيع المشتري أجلا للوفاء بالثمن أو قسطه عليه بغير إذن من الموكل، جاز للموكل أن يطالب الوكيل بأداء الثمن بأجمعه فورا، وفي هذه الحالة يجوز للوكيل بالعمولة أن يحتفظ بفرق الثمن إذا تمت الصفقة بثمن أعلى.
 2- ومع ذلك، يجوز للوكيل بالعمولة أن يمنح الأجل أو يقسط الثمن بغير إذن من الموكل إذا كان العرف التجاري في الجهة التي تم فيها البيع يقضى بذلك إلا إذا كانت تعليمات الموكل الصريحة تلزمه بالبيع بثمن معجل.$cc343$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2213,7 +2225,7 @@ WITH ins_art_law17_1999_171 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 171, $cc344$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc344$, $cc345$إذا قضت تعليمات الموكل بالبيع بثمن مؤجل وباع الوكيل بالعمولة بثمن معجل، فلا يجوز للموكل أن يطالبه بأداء الثمن إلا عند حلول الأجل الذي عينه وفي هذه الحالة يلتزم الوكيل بالعمولة بأداء الثمن على أساس البيع المؤجل.$cc345$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2224,7 +2236,7 @@ WITH ins_art_law17_1999_172 AS (
   SELECT id, 172, $cc346$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc346$, $cc347$1- لا يجوز للوكيل بالعمولة تغيير العلامات التجارية الموضوعة على البضائع التي يتسلمها من الموكل أو لحسابه إلا إذا تم ذلك في حدود القانون وكان مأذونا في ذلك صراحة.
 2- وإذا كان الوكيل بالعمولة حائزا لجملة بضائع من جنس واحد ومرسلة اليه من موكلين مختلفين وجب ان يضع على كل بضاعة منها بيانا مميزا لها.$cc347$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2236,7 +2248,7 @@ WITH ins_art_law17_1999_173 AS (
   SELECT id, 173, $cc348$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc348$, $cc349$1- يجوز للوكيل بالعمولة أن يصرح باسم الموكل الذي يتعاقد لحسابه وإلا إذا طلب منه الموكل عدم الإفضاء باسمه. ولا يترتب على الإفضاء باسم الموكل تغيير في طبيعة الوكالة ما دام الوكيل يبرم العقد باسمه.
 2- على الوكيل بالعمولة الإفضاء إلى الموكل باسم الغير الذي تعاقد معه إذا طلب الموكل منه ذلك فإذا امتنع الوكيل بالعمولة عن الإفضاء باسم الغير دون مسوغ مقبول جاز اعتباره ضامنا تنفيذ الصفقة.$cc349$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2248,7 +2260,7 @@ WITH ins_art_law17_1999_174 AS (
   SELECT id, 174, $cc350$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc350$, $cc351$1- يلتزم الوكيل بالعمولة مباشرة قبل الغير الذي تعاقد معه، كما يلتزم هذا الغير مباشرة قبل الوكيل بالعمولة.
 2- ليس للغير الذي تعاقد مع الوكيل بالعمولة الرجوع على الموكل ولا للموكل الرجوع على الغير بدعوى مباشرة ما لم ينص القانون على غير ذلك.$cc351$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2260,7 +2272,7 @@ WITH ins_art_law17_1999_175 AS (
   SELECT id, 175, $cc352$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc352$, $cc353$1- إذا أفلس الوكيل بالعمولة المكلف بالبيع قبل قبض الثمن من المشترى، جاز للموكل أن يطالب المشتري مباشرة بأداء الثمن إليه.
 2- وإذا أفلس الوكيل بالعمولة المكلف بالشراء قبل تسلم المبيع، جاز للموكل أن يطالب البائع مباشرة بتسليم المبيع إليه.$cc353$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2273,7 +2285,7 @@ WITH ins_art_law17_1999_176 AS (
 2- يستحق الوكيل بالعمولة الضامن أجرا خاصا تحدده المحكمة عند عدم وجود اتفاق أو عرف في شأنه.
 ٣- وكالة العقود$cc355$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2285,7 +2297,7 @@ WITH ins_art_law17_1999_177 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 177, $cc356$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc356$, $cc357$وكالة العقود عقد يلتزم بموجبه شخص بأن يتولى على وجه الاستمرار وفي منطقة نشاط معينة، الترويج والتفاوض وإبرام الصفقات باسم الموكل ولحسابه مقابل اجر، ويجوز أن تشمل مهمته تنفيذها باسم الموكل ولحسابه.$cc357$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2295,7 +2307,7 @@ WITH ins_art_law17_1999_178 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 178, $cc358$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc358$, $cc359$يتولى وكيل العقود ممارسة أعمال الوكالة وادارة نشاطه التجاري بشأنها على وجه الاستقلال ويتحمل وحده المصروفات اللازمة لادارة نشاطه.$cc359$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2305,7 +2317,7 @@ WITH ins_art_law17_1999_179 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 179, $cc360$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc360$, $cc361$لا يجوز للموكل أن يستعين بأكثر من وكيل عقود واحد في ذات المنطقة ولذات الفرع من النشاط، كما لا يجوز لوكيل العقود أن يكون وكيلا لاكثر من منشأة تمارس ذات النشاط وفي ذات المنطقة، وذلك كله ما لم يتفق الطرفان صراحة على غير ذلك.$cc361$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2315,7 +2327,7 @@ WITH ins_art_law17_1999_180 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 180, $cc362$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc362$, $cc363$يجب أن يثبت عقد وكالة العقود بالكتابة، وان يبين فيه بوجه خاص حدود الوكالة واجر الوكيل ومنطقة نشاطه ومدة العقد اذا كان محدد المدة.$cc363$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2325,7 +2337,7 @@ WITH ins_art_law17_1999_181 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 181, $cc364$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc364$, $cc365$إذا اشترط في العقد أن يقيم وكيل العقود مباني للعرض أو مخازن للسلع أو منشأت للصيانة أو الإصلاح فلا يجوز أن تقل مدة العقد عن خمس سنوات.$cc365$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2336,7 +2348,7 @@ WITH ins_art_law17_1999_182 AS (
   SELECT id, 182, $cc366$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc366$, $cc367$1- لا يجوز لوكيل العقود أن يقبض حقوق الموكل، إلا إذا أعطى له الموكل هذا الحق وفي هذه الحالة لا يجوز للوكيل أن يمنح تخفيضا أو أجلا دون ترخيص خاص.
 2- ويجوز لوكيل العقود أن يتلقى الطلبات المتعلقة بتنفيذ العقود التي تبرم عن طريقه، ويعتبر ممثلا لموكله في الدعاوى المتعلقة بهذه العقود والتي تقام منه أو عليه في منطقة نشاط الوكيل.$cc367$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2348,7 +2360,7 @@ WITH ins_art_law17_1999_183 AS (
   SELECT id, 183, $cc368$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc368$, $cc369$1- يلتزم الموكل بأداء الأجر المتفق عليه للوكيل.
 2- ويجوز أن يكون هذا الأجر نسبة مئوية من قيمة الصفقة. وتحتسب هذه النسبة على أساس سعر البيع إلى العملاء ما لم يتفق على غير ذلك.$cc369$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2359,7 +2371,7 @@ WITH ins_art_law17_1999_184 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 184, $cc370$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc370$, $cc371$إذا كانت وكالة العقود مقصورة على وكيل واحد في منطقة معينة استحق وكيل العقود الأجر عن الصفقات التي يبرمها الموكل مباشرة أو بوساطة غيره في هذه المنطقة ولو لم تبرم هذه الصفقات بسعي هذا الوكيل، ما لم يتفق الطرفان صراحة على غير ذلك.$cc371$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2369,7 +2381,7 @@ WITH ins_art_law17_1999_185 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 185, $cc372$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc372$, $cc373$على الموكل أن يقدم للوكيل جميع المعلومات اللازمة لتنفيذ الوكالة. وان يزوده بوجه خاص- بمواصفات السلع والنماذج والرسوم والعلامات وغير ذلك من البيانات التي تعينه على ترويج السلع موضوع الوكالة وتسويقها.$cc373$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2379,7 +2391,7 @@ WITH ins_art_law17_1999_186 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 186, $cc374$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc374$, $cc375$يلتزم وكيل العقود بالمحافظة على حقوق الموكل، وله اتخاذ جميع الإجراءات التحفظية اللازمة للمحافظة على هذه الحقوق، وعليه أن يزود موكله بالبيانات الخاصة بحالة السوق في منطقة نشاطه.$cc375$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2389,7 +2401,7 @@ WITH ins_art_law17_1999_187 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 187, $cc376$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc376$, $cc377$لا يجوز لوكيل العقود أن يذيع أسرار الموكل التي تصل إلى علمه بمناسبة تنفيذ الوكالة ولو كان ذلك بعد انتهاء العلاقة العقدية.$cc377$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2400,7 +2412,7 @@ WITH ins_art_law17_1999_188 AS (
   SELECT id, 188, $cc378$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc378$, $cc379$1- تنعقد وكالة العقود لمصلحة الطرفين المشتركة فإذا كان العقد غير محدد المدة فلا يجوز للموكل إنهاؤه دون خطأ من الوكيل وإلا كان ملزما بتعويضه عن الضرر الذي لحقه من جراء عزله. ويبطل كل اتفاق يخالف ذلك.
 2- كما يلتزم الوكيل بتعويض الموكل عن الضرر الذي أصابه إذا نزل عن الوكالة في وقت غير مناسب وبغير عذر مقبول.$cc379$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2415,7 +2427,7 @@ WITH ins_art_law17_1999_189 AS (
 (ب) أن يكون نشاط الوكيل قد أدى إلى نجاح ظاهر في ترويج السلعة أو زيادة عدد العملاء.
 3- ويراعى في تقدير التعويض مقدار ما لحق الوكيل من ضرر وما أفاده الموكل من جهوده في ترويج السلعة وزيادة العملاء.$cc381$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2430,7 +2442,7 @@ WITH ins_art_law17_1999_190 AS (
   SELECT id, 190, $cc382$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc382$, $cc383$1- تسقط دعوى التعويض المشار إليها في المادة السابقة بمضي تسعين يوما من وقت انتهاء العقد.
 2- وتسقط جميع الدعاوى الأخرى الناشئة عن عقد وكالة العقود بانقضاء سنتين على انتهاء العلاقة العقدية.$cc383$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2441,7 +2453,7 @@ WITH ins_art_law17_1999_191 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 191, $cc384$الباب الثاني: الإلتزامات والعقود التجارية — الفصل الخامس: الوكالة التجارية$cc384$, $cc385$استثناء من قواعد الاختصاص الواردة في قانون المرافعات تختص بنظر جميع المنازعات النائية عن عقد وكالة العقود المحكمة التي يقع في دائرتها محل تنفيذ العقد.$cc385$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2451,7 +2463,7 @@ WITH ins_art_law17_1999_192 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 192, $cc386$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc386$, $cc387$السمسرة عقد يتعهد بمقتضاه السمسار لشخص عن البحث عن طرف ثان لإبرام عقد معين والتوسط في إبرامه.$cc387$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2461,7 +2473,7 @@ WITH ins_art_law17_1999_193 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 193, $cc388$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc388$, $cc389$إذا لم يعين اجر السمسار في القانون او في الاتفاق وجب تعيينه وفقا لما يقضى به العرف، فإذا لم يوجد عرف قدره القاضي تبعا لما بذله السمسار من جهد وما استغرقه من وقت في القيام بالعمل المكلف به.$cc389$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2474,7 +2486,7 @@ WITH ins_art_law17_1999_194 AS (
 3- إذا كان العقد معلقا على شرط واقف فلا يستحق السمسار اجره إلا إذا تحقق الشرط.
 4- إذا كان أحد آثار العقد يتوقف على إتمام إجراء قانوني معين كالتسجيل في بيع العقار أو القيد في الرهن الرسمي استحق السمسار اجره بمجرد إبرام العقد الابتدائي.$cc391$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2487,7 +2499,7 @@ WITH ins_art_law17_1999_195 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 195, $cc392$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc392$, $cc393$إذا فسخ العقد الذي توسط السمسار في إبرامه جاز له المطالبة بأجره أو الاحتفاظ بالأجر إذا كان قد قبضه إلا إذا ثبت الغش أو الخطأ الجسيم في جانبه.$cc393$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2497,7 +2509,7 @@ WITH ins_art_law17_1999_196 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 196, $cc394$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc394$, $cc395$يجوز للمحكمة أن تخفض اجر السمسار إذا كان غير متناسب مع الجهد الذي بذله إلا إذا دفع الأجر المتفق عليه بعد إبرام العقد الذي توسط السمسار في إبرامه.$cc395$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2507,7 +2519,7 @@ WITH ins_art_law17_1999_197 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 197, $cc396$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc396$, $cc397$إذا توسط السمسار في إبرام صفقة ممنوعة قانونا فلا يستحق عنها أجرا.$cc397$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2518,7 +2530,7 @@ WITH ins_art_law17_1999_198 AS (
   SELECT id, 198, $cc398$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc398$, $cc399$1- لا يستحق السمسار الأجر إلا ممن فوضه من طرفي العقد في السعي إلى إبرامه.
 2- وإذا صدر التفويض من الطرفين كان كل منهما مسئولا قبل السمسار بغير تضامن بينهما عن دفع الأجر المستحق عليه ولو اتفقا فيما بينهما على أن يتحمل أحدهما الأجر بأكمله.$cc399$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2529,7 +2541,7 @@ WITH ins_art_law17_1999_199 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 199, $cc400$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc400$, $cc401$لا يجوز للسمسار استرداد المصاريف التي أنفقها في تنفيذ العمل المكلف به إلا إذا اتفق على ذلك، وفي هذه الحالة يستحق السمسار المصاريف ولو لم يبرم العقد.$cc401$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2539,7 +2551,7 @@ WITH ins_art_law17_1999_200 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 200, $cc402$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc402$, $cc403$على السمسار ولو لم يكن مفوضا إلا من أحد طرفي العقد أن يعرض الصفقة على الطرفين بأمانة وان يوقفهما على جميع الظروف التي يعلمها عن الصفقة، ويكون السمسار مسئولا قبلهما عما يصدر منه من غش أو خطأ جسيم.$cc403$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2549,7 +2561,7 @@ WITH ins_art_law17_1999_201 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 201, $cc404$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc404$, $cc405$لا يجوز للسمسار أن يقيم نفسه طرفا في العقد الذي يتوسط في إبرامه إلا إذا أجازه المتعاقد في ذلك، وفي هذه الحالة لا يستحق السمسار أي اجر.$cc405$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2559,7 +2571,7 @@ WITH ins_art_law17_1999_202 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 202, $cc406$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc406$, $cc407$يسأل السمسار عن تعويض الضرر الناجم عن هلاك أو فقدان ما يتسلمه من مستندات أو أوراق أو أشياء متعلقة بالعقد الذي يتوسط في إبرامه إلا إذا اثبت القوة القاهرة.$cc407$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2569,7 +2581,7 @@ WITH ins_art_law17_1999_203 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 203, $cc408$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc408$, $cc409$لا يضمن السمسار يسر طرفي العقد الذي يتوسط في إبرامه، ولا يسأل عن تنفيذ العقد أو عن قيمة أو صنف البضائع المتعلقة به إلا إذا ثبت الغش أو الخطأ الجسيم في جانبه.$cc409$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2581,7 +2593,7 @@ WITH ins_art_law17_1999_204 AS (
 2- وإذا رخص للسمسار في إقامة نائب عنه دون أن يعين له شخص النائب، فلا يكون السمسار مسئولا إلا عن خطئه في اختيار نائبه أو عن خطئه فيما أصدره له من تعليمات.
 3- وفي جميع الأحوال يجوز لمن فوض السمسار ولنائب السمسار أن يرجع كل منهما مباشرة على الآخر.$cc411$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2595,7 +2607,7 @@ WITH ins_art_law17_1999_205 AS (
 2- وإذا فوض أشخاص متعددون سمسارا واحدا في عمل مشترك كانوا بينهم مسئولين بالتضامن قبله عما يستحقه تنفيذا لهذا التفويض ما لم يتفق على غير ذلك.
 3- وإذا تم العقد بتدخل عدة سماسرة ولم يعين لكل منهم اجر مستقل استحق كل منهم نصيبا في الأجر المشترك بنسبة ما بذله من جهد في إبرام العقد.$cc413$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2608,7 +2620,7 @@ WITH ins_art_law17_1999_206 AS (
   SELECT id, 206, $cc414$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc414$, $cc415$1- على السمسار أن يقيد في دفاتره جميع المعاملات التي تبرم بسعيه وان يحفظ الوثائق المتعلقة بها وان يعطى من كل ذلك صورا طبق الأصل لمن يطلبها من المتعاقدين. وتسرى على هذه الدفاتر أحكام الدفاتر التجارية.
 2- في البيع بالعينة يجب على السمسار الاحتفاظ بالعينة ما لم تكن قابلة للتلف إلى أن يقبل المشتري البضاعة دون تحفظ أو تسرى جميع المنازعات بشأنها.$cc415$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2619,7 +2631,7 @@ WITH ins_art_law17_1999_207 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 207, $cc416$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السادس: السمسرة$cc416$, $cc417$تسرى على السمسرة في سوق الأوراق المالية الأحكام المنصوص عليها في القوانين الخاصة بذلك.$cc417$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2629,7 +2641,7 @@ WITH ins_art_law17_1999_208 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 208, $cc418$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc418$, $cc419$عقد النقل اتفاق يلتزم بمقتضاه الناقل بأن يقوم بوسائله الخاصة بنقل شخص أو شئ إلى مكان معين مقابل أجرة.$cc419$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2640,7 +2652,7 @@ WITH ins_art_law17_1999_209 AS (
   SELECT id, 209, $cc420$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc420$, $cc421$1- فيما عدا النقل البحري تسرى الأحكام المنصوص عليها في هذا الفصل على جميع أنواع النقل أيا كانت صفة الناقل ما لم ينص القانون على غير ذلك.
 2- كما تسرى تلك الأحكام على النقل ولو اقترنت به عمليات من طبيعة أخرى ما لم تكن هذه العمليات هي الغرض الرئيسي من التعاقد.$cc421$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2653,7 +2665,7 @@ WITH ins_art_law17_1999_210 AS (
 2- تسلم الناقل الشيء محل النقل يعد قبولا منه للإيجاب الصادر من المرسل.
 3- كما يعتبر صعود الراكب إلى وسيلة النقل قبولا للإيجاب الصادر من الناقل إلا إذا ثبت أن نية الراكب لم تتجه إلى إبرام عقد النقل.$cc423$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2666,7 +2678,7 @@ WITH ins_art_law17_1999_211 AS (
   SELECT id, 211, $cc424$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc424$, $cc425$1- إذا كان للناقل اكثر من أنموذج واحد للعقود التي يبرمها، انعقد النقل بمقتضى الأنموذج الذي يتضمن الشروط العامة، ما لم يتفق على اتباع أنموذج آخر يشتمل على شروط خاصة.
 2- وإذا اتفق على اتباع أنموذج خاص فلا يجوز تجزئة الشروط التي يشتمل عليها.$cc425$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2677,7 +2689,7 @@ WITH ins_art_law17_1999_212 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 212, $cc426$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc426$, $cc427$إذا كان الناقل محتكرا نوعا من النقل أو استثمار خطوط نقل معينة، التزم بقبول كل ما يقدم إليه من طلبات النقل إلا إذا كان الطلب مخالفا للشروط المقررة للنقل او تعذر على الناقل تنفيذه لاسباب لا شأن له ولا لتابعيه في إحداثها.$cc427$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2689,7 +2701,7 @@ WITH ins_art_law17_1999_213 AS (
 2- ويعتبر تابعا كل شخص يستخدمه الناقل في تنفيذ الالتزامات المترتبة على عقد النقل.
 3- ويقع باطلا كل شرط يقضى بإعفاء الناقل من المسئولية عن أفعال تابعيه.$cc429$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2702,7 +2714,7 @@ WITH ins_art_law17_1999_214 AS (
   SELECT id, 214, $cc430$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc430$, $cc431$1- لا يعتبر من القوة القاهرة في عقود النقل انفجار وسائل النقل أو احتراقها أو خروجها عن القضبان التي تسير عليها أو تصادمها أو غير ذلك من الحوادث التي ترجع إلى الأدوات أو الآلات التي يستعملها الناقل في تنفيذ النقل ولو ثبت انه اتخذ الحيطة لضمان صلاحيتها للعمل ولمنع ما تحدثه من ضرر.
 2- وكذلك لا يعتبر من القوة القاهرة الحوادث التي ترجع إلى وفاة تابعي الناقل فجأة أو إصابتهم بضعف بدني أو عقلي أثناء العمل ولو ثبت أن الناقل اتخذ الحيطة لضمان لياقتهم البدنية والعقلية.$cc431$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2713,7 +2725,7 @@ WITH ins_art_law17_1999_215 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 215, $cc432$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc432$, $cc433$لا يسأل الناقل عن تعويض الضرر الناشئ عن تعطيل النقل أو الانحراف عن الطريق المعين له بسبب الاضطرار إلى تقديم المساعدة لأي شخص مريض أو مصاب أو في خطر.$cc433$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2725,7 +2737,7 @@ WITH ins_art_law17_1999_216 AS (
 2- ويقصد بالخطأ الجسيم كل فعل أو امتناع يقع من الناقل أو من تابعيه برعونة مقرونة بإدراك لما قد ينجم عنها من ضرر.
 الفرع الأول نقل الاشياء$cc435$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2738,7 +2750,7 @@ WITH ins_art_law17_1999_217 AS (
   SELECT id, 217, $cc436$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc436$, $cc437$1- على المرسل أن يقدم للناقل بيانات عن اسم المرسل إليه وعنوانه والمكان المطلوب الإرسال إليه ونوع الاشياء محل النقل ووزنها وحجمها وكيفية حزمها وعدد الطرود التي تشملها وغير ذلك من البيانات التي قد يطلبها الناقل أو يقررها القانون لتعيين ذاتية الشيء.
 2- يسأل المرسل عن الضرر الذي ينجم عن عدم صحة البيانات التي يقدمها أو عدم كفايتها.$cc437$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2757,7 +2769,7 @@ WITH ins_art_law17_1999_218 AS (
 (ز) الشروط الخاصة بالشحن أو التفريغ أو نوع العربات التي تستخدم في النقل والطريق الذي يجب اتباعه وتحديد المسئولية وغير ذلك من الشروط الخاصة التي قد يتضمنها اتفاق النقل.
 2- وللمرسل أن يطلب من الناقل تسليمه نسخة من وثيقة النقل موقعه منه.$cc439$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2776,7 +2788,7 @@ WITH ins_art_law17_1999_219 AS (
   SELECT id, 219, $cc440$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc440$, $cc441$إذا لم تحرر وثقة نقل جاز للمرسل أن يطلب إعطاءه إيصالا موقعا من الناقل بتسلم الشيء محل النقل.
 ويجب أن يكون الإيصال مؤرخا ومشتملا على البيانات الكافية لتعيين ذاتية الشيء واجرة النقل.$cc441$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2787,7 +2799,7 @@ WITH ins_art_law17_1999_220 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 220, $cc442$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc442$, $cc443$يجوز أن تحرر وثيقة النقل باسم اشخص معين أو لأمره أو للحامل. وتتداول الوثيقة طبقا لقواعد حوالة الحق المنصوص عليها في القانون المدني إذا كانت اسمية وبالتظهير إذا كانت للأمر وبالمناولة إذا كانت للحامل.$cc443$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2797,7 +2809,7 @@ WITH ins_art_law17_1999_221 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 221, $cc444$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc444$, $cc445$وثيقة النقل حجة فيما ورد بها من بيانات، وعلى من يدعى ما يخالف هذه البيانات إثبات ذلك.$cc445$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2807,7 +2819,7 @@ WITH ins_art_law17_1999_222 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 222, $cc446$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc446$, $cc447$لا تثبت للمرسل إليه الحقوق الناشئة عن عقد النقل ولا يتحمل الالتزامات الناتجة عنه إلا إذا قبل هذه الحقوق والالتزامات صراحة أو ضمنا. ويعتبر قبولا ضمنيا على وجه الخصوص تسلم المرسل إليه وثيقة النقل أو الشيء محل النقل أو المطالبة بالنقل أو بإصدار تعليمات بشأنه.$cc447$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2819,7 +2831,7 @@ WITH ins_art_law17_1999_223 AS (
 2- وإذا اقتضى النقل استعدادا خاصا من جانب الناقل وجب على المرسل إخطاره بذلك قبل تسليم الشيء إليه بوقت كاف.
 3- يكون تسليم الشيء محل النقل في محل الناقل المعين بعقد النقل ما لم يتفق على غير ذلك.$cc449$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2834,7 +2846,7 @@ WITH ins_art_law17_1999_224 AS (
 ومع ذلك يكون الناقل مسئولا عن هذه الأضرار إذا قبل النقل مع علمه بالعيب، ويكون الناقل عالما بالعيب إذا كان ظاهرا أو كان مما لا يخفي على الناقل العادي.
 3- ولا يجوز للناقل أن ينفي مسئوليته عن هلاك أو تلف أحد الاشياء التي قام بنقلها بإثبات أن الضرر نشأ عن عيب في تغليف شئ آخر أو في تعبئته أو حزمه، ويقع باطلا كل اتفاق على خلاف ذلك.$cc451$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2849,7 +2861,7 @@ WITH ins_art_law17_1999_225 AS (
 2- وإذا اقتضى الفحص فض الأغلفة أو الأوعية وجب إخطار المرسل لحضور الفحص فإذا لم يحضر في الميعاد المعين لذلك، جاز للناقل إجراء الفحص بغير حضوره وللناقل الرجوع على المرسل أو المرسل إليه بمصاريف الفحص.
 3- وإذا تبين من الفحص أن حالة الشيء لا تسمح بنقله دون ضرر، جاز للناقل رفض النقل أو تنفيذه بعد اخذ إقرار من المرسل بعلمه بحالة الشيء ورضائه بالنقل، ويجب إثبات حالة الشيء واقرار المرسل في وثيقة النقل.$cc453$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2861,7 +2873,7 @@ WITH ins_art_law17_1999_226 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 226, $cc454$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc454$, $cc455$تسلم الناقل الاشياء المطلوب نقلها نقلها دون تحفظ يفيد انه تسلمها بحالة جيدة ومطابقة للبيانات المذكورة في وثيقة النقل فإذا ادعى ذلك عكس ذلك فعليه الإثبات.$cc455$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2873,7 +2885,7 @@ WITH ins_art_law17_1999_227 AS (
 2- وإذا اتفق على أن يقوم المرسل بالشحن فلا يسأل عنه الناقل، ومع ذلك إذا قبل الناقل تنفيذ النقل دون تحفظ فيفترض أن الشحن قد تم وفقا للأصول الصحيحة حتى يقيم الناقل الدليل على عكس ذلك.
 3- إذا طلب المرسل أن يكون الشحن على وسيلة نقل بمواصفات معينة، فلا يكون الناقل مسئولا عما ينجم عن استعمالها من ضرر.$cc457$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2886,7 +2898,7 @@ WITH ins_art_law17_1999_228 AS (
   SELECT id, 228, $cc458$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc458$, $cc459$1- على الناقل أن يتبع الطريق المتفق عليه فإذا لم يتفق على طريق معين وجب اتباع افضل الطرق.
 2- ومع ذلك يجوز للناقل أن يغير الطريق المتفق عليه إذا وجدت ضرورة تلجئه إلى ذلك. وفي هذه الحالة لا يسأل الناقل عن التأخير أو غيره من الأضرار التي تنجم عن تغيير الطريق إلا إذا ثبت الغش أو الخطأ الجسيم في جانبه أو في جانب تابعيه وللناقل أيضا الحق في المطالبة بالمصروفات الإضافية الناشئة عن ذلك.$cc459$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2898,7 +2910,7 @@ WITH ins_art_law17_1999_229 AS (
   SELECT id, 229, $cc460$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc460$, $cc461$1- يضمن الناقل سلامة الشيء أثناء تنفيذ عقد النقل.
 2- إذا اقتضت المحافظة على الشيء أثناء الطريق إعادة الحزم أو إصلاح الأغلفة أو زيادتها أو تخفيضها أو غير ذلك من التدابير الضرورية، وجب على الناقل القيام بها واداء ما تستلزمه من مصاريف على أن يرجع بها على المرسل أو المرسل إليه ما لم يكن ذلك راجعا إلى خطأ الناقل. ومع ذلك لا يلتزم الناقل بالقيام بالتدابير غير المعتادة في النقل كرش النبات بالماء أو إطعام الحيوان أو سقيه أو تقديم الخدمات الطبية له ما لم يتفق على غير ذلك.$cc461$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2910,7 +2922,7 @@ WITH ins_art_law17_1999_230 AS (
   SELECT id, 230, $cc462$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc462$, $cc463$1- يلتزم الناقل بتفريغ الشيء محل النقل عند وصوله ما لم ينص القانون أو يتفق على غير ذلك وفي هذه الحالة الأخيرة لا يسأل الناقل عن الضرر الذي يقع بسبب التفريغ.
 2- وفي جميع الأحوال يتحمل الناقل مصاريف التفريغ ما لم يتفق أو يجرى العرف على غير ذلك.$cc463$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2924,7 +2936,7 @@ WITH ins_art_law17_1999_231 AS (
 وللناقل بعد انقضاء هذا الميعاد أن ينقل الشيء إلى محل المرسل إليه مقابل أجرة إضافية.
 3- وللمرسل إليه طلب فحص الشيء قبل تسلمه فإذا امتنع الناقل عن تمكينه من ذلك جاز له رفض تسلم الشيء.$cc465$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2939,7 +2951,7 @@ WITH ins_art_law17_1999_232 AS (
 2- ينتقل الحق في إصدار التعليمات المتعلقة بالشيء محل النقل إلى المرسل إليه بمجرد تسليمه وثيقة النقل. ويجب في هذه الحالة أيضا تقديم الوثيقة إلى الناقل ليدون فيها التعليمات الجديدة موقعا عليها من المرسل إليه وإلا جاز للناقل الامتناع عن تنفيذها.
 3- ولا يجوز إصدار تعليمات جديدة تتعلق بالشيء محل النقل بعد وصوله وطلب المرسل إليه تسلمه أو إخطاره بالحضور لتسلمه.$cc467$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2951,7 +2963,7 @@ WITH ins_art_law17_1999_233 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 233, $cc468$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc468$, $cc469$على الناقل تنفيذ التعليمات الصادرة إليه ممن له الحق في إصدارها طبقا لأحكام المادة (232) من هذا القانون إلا إذا كانت تخالف شروط النقل أو تعذر على الناقل تنفيذها أو كان من شأن تنفيذها اضطراب حركة النقل أو كانت قيمة الشيء محل النقل لا تكفي لتغطية المصاريف التي يتحملها الناقل بسبب تنفيذها، وفي هذه الأحوال يجب على الناقل أن يخطر من أصدر التعليمات الجديدة بامتناعه عن تنفيذها وسبب هذا الامتناع، ويكون الناقل مسئولا إذا امتنع عن التنفيذ دون مسوغ.$cc469$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2962,7 +2974,7 @@ WITH ins_art_law17_1999_234 AS (
   SELECT id, 234, $cc470$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc470$, $cc471$1- إذا توقف النقل أثناء تنفيذه أو لم يحضر المرسل إليه لتسلم الشيء أو حضر وامتنع عن تسلمه أو عن دفع أجرة النقل والمصاريف المستحقة عليه وجب على الناقل أن يبادر إلى إخطار المرسل بذلك مع طلب تعليماته. واستثناء من أحكام المادة (232) من هذا القانون يلتزم الناقل بتنفيذ التعليمات التي تصله من المرسل ولو تعذر على المرسل تقديم نسخة وثيقة النقل التي تسلمها من الناقل.
 2- وإذا لم تصل تعليمات المرسل خلال ميعاد مناسب جاز للناقل أن يطلب من القاضي المختص تعيين خبير أو اكثر لاثبات حالة الشيء والإذن له في إيداعه عند أمين لحساب المرسل وعلى مسئوليته أو بيعه بالكيفية التي يعينها إذا كان الشيء معرضا للهلاك أو التلف أو هبوط القيمة أو كانت صيانته تتطلب مصاريف باهظة، وإيداع الثمن خزانة المحكمة لحساب ذوي الشأن.$cc471$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2974,7 +2986,7 @@ WITH ins_art_law17_1999_235 AS (
   SELECT id, 235, $cc472$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc472$, $cc473$1- يلتزم المرسل بدفع أجرة النقل وغيرها من المصاريف المستحقة للناقل ما لم يتفق على أن يتحملها المرسل إليه.
 2- وإذا اتفق على أن يتحمل المرسل إليه أجرة النقل أو غيرها من المصاريف كان كل من المرسل والمرسل إليه مسئولين عن دفعها بالتضامن قبل الناقل.$cc473$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2985,7 +2997,7 @@ WITH ins_art_law17_1999_236 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 236, $cc474$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc474$, $cc475$لا يستحق الناقل أجرة نقل ما يهلك بقوة قاهرة من الاشياء التي يقوم بنقلها.$cc475$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2997,7 +3009,7 @@ WITH ins_art_law17_1999_237 AS (
 2- وإذا حالت القوة القاهرة دون مواصلة النقل، فلا يستحق الناقل أجرة إلا أجرة ما تم من النقل.
 3- وفي جميع الأحوال يجوز للناقل المطالبة بمصاريف الشحن والتفريغ وغيرها من المصاريف الضرورية.$cc477$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3009,7 +3021,7 @@ WITH ins_art_law17_1999_238 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 238, $cc478$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc478$, $cc479$يكون حق المطالبة باسترداد ما دفع اكثر من أجرة النقل المتفق عليها أو المقررة في شروط النقل لمن دفع الأجرة.$cc479$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3020,7 +3032,7 @@ WITH ins_art_law17_1999_239 AS (
   SELECT id, 239, $cc480$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc480$, $cc481$1- للناقل حبس الشيء محل النقل لاستيفاء أجرة النقل والمصاريف وغيرها من المبالغ التي تستحق له بسبب النقل.
 2- وللناقل امتياز على الثمن الناتج من التنفيذ على الشيء محل النقل لاستيفاء جميع المبالغ المستحقة له. ويتبع في هذا التنفيذ إجراءات التنفيذ على الاشياء المرهونة رهنا تجاريا.$cc481$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3032,7 +3044,7 @@ WITH ins_art_law17_1999_240 AS (
   SELECT id, 240, $cc482$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc482$, $cc483$1- يسأل الناقل من وقت تسلمه الشيء محل النقل عن هلاكه كليا أو جزئيا وعن تلفه وعن التأخير في تسليمه.
 2- يكون الشيء محل النقل في حكم الهالك كليا إذا لم يسلمه الناقل أو لم يخطر المرسل إليه بالحضور لتسلمه خلال ثلاثين يوما من انقضاء الميعاد المعين للتسليم أو من انقضاء الميعاد الذي يستغرقه الناقل العادي لو النقل في الظروف نفسها إذا لم يعين ميعاد للتسليم.$cc483$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3043,7 +3055,7 @@ WITH ins_art_law17_1999_241 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 241, $cc484$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc484$, $cc485$لا يسأل الناقل عن هلاك الشيء أو تلفه بعد تسليمه إلى المرسل إليه أو وكيله أو إلى الأمين الذي يعينه القاضي لاستيداع الشيء، إلا إذا ثبت الغش أو الخطأ الجسيم من الناقل أو من تابعيه.$cc485$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3054,7 +3066,7 @@ WITH ins_art_law17_1999_242 AS (
   SELECT id, 242, $cc486$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc486$, $cc487$1- لا يسأل الناقل عما يلحق الشيء عادة بحكم طبيعته من نقص في الوزن أو الحجم أثناء النقل ما لم يثبت أن النقص نشأ عن سبب آخر.
 2- وإذا كانت وثيقة النقل تشمل عدة أشياء مقسمة إلى مجموعات أو طرود حدد النقص المتسامح فيه على أساس وزن كل مجموعة أو كل طرد إذا كان الوزن معينا على وجه الاستقلال في وثيقة النقل أو كان من الممكن تعيينه.$cc487$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3065,7 +3077,7 @@ WITH ins_art_law17_1999_243 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 243, $cc488$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc488$, $cc489$إذا نقل الشيء في حراسة المرسل أو المرسل إليه فلا يسأل الناقل عن هلاكه أو تلفه إلا إذا ثبت الغش أو الخطأ الجسيم منه أو من تابعيه.$cc489$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3076,7 +3088,7 @@ WITH ins_art_law17_1999_244 AS (
   SELECT id, 244, $cc490$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc490$, $cc491$1- لا يجوز للناقل أن ينفي مسئوليته عن هلاك الشيء محل النقل أو تلفه أو التأخير في تسليمه إلا بإثبات القوة القاهرة أو العيب الذاتي في الشيء أو خطا المرسل أو المرسل إليه.
 2- إذا اثبت الناقل أحد الأمور المذكورة في الفقرة السابقة جاز للمدعى نقض هذا الإثبات بإقامة الدليل على أن الضرر لم يحدث بسببه.$cc491$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3088,7 +3100,7 @@ WITH ins_art_law17_1999_245 AS (
   SELECT id, 245, $cc492$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc492$, $cc493$1- يقع باطلا كل شرط يقضى بإعفاء الناقل من المسئولية عن هلاك الشيء كليا أو جزئيا أو تلفه.
 2- ويعد في حكم الإعفاء من المسئولية كل شرط يكون من شأنه إلزام المرسل أو المرسل إليه بدفع كل أو بعض نفقات التأمين ضد مسئولية الناقل، وكذلك كل شرط يقضى بنزول المرسل أو المرسل إليه للناقل عن الحقوق الناشئة عن التأمين على الشيء ضد مخاطر النقل.$cc493$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3103,7 +3115,7 @@ WITH ins_art_law17_1999_246 AS (
 2- ويجب أن يكون شرط الإعفاء من المسئولية أو تحديدها مكتوبا في وثيقة النقل وإلا اعتبر كأن لم يكن. وإذا كان عقد النقل محررا على نماذج مطبوعة، وجب أن يكون الشرط واضحا ومكتوبا بكيفية تسترعي الانتباه وإلا جاز للمحكمة أن تعتبر الشرط كأن لم يكن.
 3- ولا يجوز أن يتمسك الناقل بشرط الإعفاء من المسئولية أو تحديدها إذا ثبت صدور غش أو خطأ جسيم منه أو من تابعيه.$cc495$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3119,7 +3131,7 @@ WITH ins_art_law17_1999_247 AS (
 2- وإذا كانت قيمة الشيء مبينة في وثيقة النقل، جاز للناقل أن ينازع في هذه القيمة وان يثبت بكافة طرق الإثبات القيمة الحقيقية للشيء.
 3- وفيما عدا حالتي الغش والخطأ الجسيم من الناقل أو من تابعيه، لا يسأل الناقل عن هلاك ما عهد إليه بنقله من نقود أو أوراق مالية أو مجوهرات أو تحف أو غير ذلك من الاشياء الثمينة إلا بقدر ما قدمه المرسل بشأنها وقت تسليمها من بيانات كتابية.$cc497$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3133,7 +3145,7 @@ WITH ins_art_law17_1999_248 AS (
 2- ولا يقضى بالتعويض عن التأخير في حالة الهلاك الجزئي إلا بالنسبة إلى الجزء الذي لم يهلك.
 3- وفي جميع الأحوال لا يجوز أن يزيد التعويض الذي يقضى به على ما يستحق في حالة هلاك الشيء كليا.$cc499$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3145,7 +3157,7 @@ WITH ins_art_law17_1999_249 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 249, $cc500$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc500$, $cc501$إذا تلف الشيء أو تأخر وصوله بحيث لم يعد صالحا للغرض منه وثبتت مسئولية الناقل عن التلف أو التأخير، جاز لطالب التعويض أن يتخلى له عن الشيء مقابل الحصول على تعويض يقدر على أساس هلاك الشيء كليا.$cc501$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3157,7 +3169,7 @@ WITH ins_art_law17_1999_250 AS (
 2- فإذا لم يرسل من قبض التعويض تعليماته خلال خمسة عشر يوما من تاريخ تسلمه الإخطار أو أرسل التعليمات ولم يحضر للمعاينة في الميعاد الذي حدده الناقل، أو حضر ورفض استرداد الشيء جاز للناقل التصرف فيه.
 3- وإذا طلب من قبض التعويض استرداد الشيء، وجب أن يرد التعويض الذي قبضه بعد خصم المصاريف ومقابل الضرر الذي حدث بسبب التأخير في تسليم الشيء.$cc503$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3173,7 +3185,7 @@ WITH ins_art_law17_1999_251 AS (
 (ب) إذا ثبت أن الناقل أو تابعيه تعمدوا إخفاء الهلاك الجزئي أو التلف.
 3- يكون إثبات حالة الشيء المشار إليه في الفقرة الأولى من هذه المادة بمعرفة أحد رجال الإدارة أو خبير يعينه القاضي المختص بأمر على عريضة.$cc505$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3189,7 +3201,7 @@ WITH ins_art_law17_1999_252 AS (
 2- (*) وإذا دفع أحد الناقلين المتعاقبين التعويض أو طولب به رسميا كان له الرجوع على الناقلين الآخرين بنسبة ما يستحقه كل منهم من أجرة النقل، وتوزع حصة المعسر منهم على الآخرين بالنسبة ذاتها. ويعفى من الاشتراك في تحمل المسئولية الناقل الذي يثبت أن الضرر لم يقع في الجزء الخاص به من النقل.
 [ملاحظة توثيقية: صححت الفقرة 2 من المادة (252) بالاستدراك المنشور بالجريدة الرسمية- العدد 38 (مكرر) في 1999/9/27.]$cc507$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3201,7 +3213,7 @@ WITH ins_art_law17_1999_253 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 253, $cc508$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc508$, $cc509$يسأل الناقل الأخير قبل الناقلين السابقين عليه عن مطالبة المرسل إليه بالمبالغ المستحقة بسبب النقل، وله حق تحصيلها عنهم بالنيابة واتخاذ الإجراءات القانونية لاستيفائها بما في ذلك استعمال حق الامتياز على الشيء موضوع النقل.$cc509$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3214,7 +3226,7 @@ WITH ins_art_law17_1999_254 AS (
 3- لا يجوز أن يتمسك بالتقادم المنصوص عليه في هذه المادة من صدر منه أو من تابعيه غش أو خطأ جسيم.
 الفرع الثاني نقل الأشخاص$cc511$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3228,7 +3240,7 @@ WITH ins_art_law17_1999_255 AS (
   SELECT id, 255, $cc512$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc512$, $cc513$1- يلتزم الراكب بأداء أجرة النقل في الميعاد المتفق عليه أو المعين في لوائح النقل والذي يقضى به العرف.
 2- وعليه اتباع تعليمات الناقل المتعلقة بالنقل.$cc513$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3240,7 +3252,7 @@ WITH ins_art_law17_1999_256 AS (
   SELECT id, 256, $cc514$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc514$, $cc515$1- إذا حالت القوة القاهرة دون مباشرة النقل أو قامت قبل مباشرته ظروف تجعله خطرا على الأرواح، فلا يلتزم الناقل بأداء تعويض بسبب عدم تنفيذ النقل ولا يستحق أجرة النقل.
 2- وإذا قامت القوة القاهرة أو الخطر على الأرواح أثناء تنفيذ النقل فلا يستحق الناقل الأجرة إلا عن الجزء الذي تم من النقل.$cc515$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3253,7 +3265,7 @@ WITH ins_art_law17_1999_257 AS (
 2- إذا حصل الإخطار وفقا للفقرة السابقة فلا يستحق الناقل أجرة النقل.
 3- إذا عدل الراكب عن مواصلة مباشرته بعد استحقت عليه الأجرة كاملة إلا إذا كان عدوله لضرورة فلا تستحق عليه إلا أجرة الجزء الذي تم من النقل.$cc517$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3265,7 +3277,7 @@ WITH ins_art_law17_1999_258 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 258, $cc518$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc518$, $cc519$مع عدم الإخلال بأحكام المادة (257) من هذا القانون، إذا لم يحضر الراكب في الميعاد المعين للنقل استحقت عليه الأجرة كاملة، وإذا كان قد دفعها جاز له تنفيذ النقل في ميعاد لاحق إلا إذا اتفق أو جرى العرف على غير ذلك.$cc519$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3275,7 +3287,7 @@ WITH ins_art_law17_1999_259 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 259, $cc520$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc520$, $cc521$إذا تعطل النقل بسبب يرجع إلى الناقل أو تابعيه أو الوسائل التي يستعملها في النقل، جاز للراكب اختيار وسيلة نقل أخرى، وفي هذه الحالة يتحمل الناقل مصاريف إيصاله إلى المكان المتفق عليه، وله ان يختار الانتظار حتى تعود حركة النقل، وفي هذه الحالة لا يجوز إلزامه بأداء أية أجرة إضافية مع عدم الإخلال بحق الراكب في التعويض في الحالتين إذا كان مقتض.$cc521$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3285,7 +3297,7 @@ WITH ins_art_law17_1999_260 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 260, $cc522$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc522$, $cc523$يجوز النزول عن بطاقة النقل قبل مباشرته إلا إذا كانت البطاقة باسم الراكب وروعي في إعطائها له اعتبارات شخصية.$cc523$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3296,7 +3308,7 @@ WITH ins_art_law17_1999_261 AS (
   SELECT id, 261, $cc524$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc524$, $cc525$1- إذا اضطر الراكب إلى استعمال مكان في درجة أدنى من الدرجة المبينة في بطاقة النقل جاز له مطالبة الناقل برد الفرق بين أجرتي الدرجتين.
 2- وإذا دفع الراكب أجرة إضافية مقابل مزايا خاصة جاز له المطالبة برد هذه الأجرة إذا لم يهيئ الناقل المزايا التي تقابلها.$cc525$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3307,7 +3319,7 @@ WITH ins_art_law17_1999_262 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 262, $cc526$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc526$, $cc527$للناقل حبس أمتعة الراكب ضمانا لاجرة النقل وغيرها من المبالغ المستحقة بسبب النقل وللناقل امتياز على الثمن الناتج من التنفيذ على هذه الأمتعة لاستيفاء جميع المبالغ المستحقة له بسبب النقل. ويتبع في هذا الشأن إجراءات التنفيذ على الاشياء المرهونة رهنا تجاريا.$cc527$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3318,7 +3330,7 @@ WITH ins_art_law17_1999_263 AS (
   SELECT id, 263, $cc528$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc528$, $cc529$1- يلتزم الناقل بنقل الراكب وأمتعته إلى مكان الوصول في الميعاد المتفق عليه في لوائح النقل أو الذي يقضى به العرف، وعند عدم التعيين يجب تنفيذ النقل في الميعاد الذي يستغرقه الناقل العادي إذا وجد في نفس الظروف.
 2- يجوز للناقل قبل مباشرة النقل أو أثناء الطريق أن يفحص أمتعة الراكب بحضوره- إن أمكن- للتحقق من مطابقتها لشروط النقل.$cc529$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3330,7 +3342,7 @@ WITH ins_art_law17_1999_264 AS (
   SELECT id, 264, $cc530$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc530$, $cc531$1- يضمن الناقل بسلامة الراكب أثناء تنفيذ عقد النقل، ويقع باطلا كل اتفاق يقضى بإعفاء الناقل من هذا الضمان.
 2- يشمل تنفيذ عقد النقل الفترة الواقعة بين شروع الراكب في الصعود إلى وسيلة النقل في مكان القيام ونزوله منها في مكان الوصول، وفي حالة وجود أرصفة معدة لوقوف وسيلة النقل يشمل تنفيذ عقد النقل الفترة الواقعة بين دخول الراكب إلى الرصيف في مكان القيام وخروجه من الرصيف في مكان الوصول، وإذا اقتضى الأمر تغيير وسيلة النقل في الطريق فلا يشمل الضمان فترة انتقال الراكب من وسيلة نقل إلى أخرى في غير حراسة الناقل أو تابعيه.$cc531$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3343,7 +3355,7 @@ WITH ins_art_law17_1999_265 AS (
 (أ) التأخير في الوصول.
 (ب) ما يلحق الراكب أثناء تنفيذ عقد النقل من أضرار بدنية أو غير بدنية.$cc533$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3355,7 +3367,7 @@ WITH ins_art_law17_1999_266 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 266, $cc534$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc534$, $cc535$لا يجوز للناقل أن ينفي مسئوليته عن التأخير أو عن الأضرار البدنية أو غير البدنية التي تلحق الراكب أثناء تنفيذ عقد النقل إلا بإثبات القوة القاهرة أو خطا الراكب.$cc535$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3366,7 +3378,7 @@ WITH ins_art_law17_1999_267 AS (
   SELECT id, 267, $cc536$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc536$, $cc537$1- يقع باطلا كل شرط يقضى بإعفاء الناقل كليا أو جزئيا من المسئولية عما يلحق الراكب من أضرار بدنية.
 2- ويعتبر في حكم الإعفاء من المسئولية كل شرط يكون من شأنه إلزام الراكب بدفع أو بعض نفقات التأمين ضد مسئولية الناقل وكل شرط ينزل بموجبه الراكب للناقل عن حقوقه في التأمين ضد أخطاء الناقل.$cc537$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3379,7 +3391,7 @@ WITH ins_art_law17_1999_268 AS (
 2- ويجب أن يكون شرط الإعفاء من المسئولية أو تحديدها مكتوبا وإلا اعتبر كأن لم يكن، وإذا كان عقد النقل محررا على نماذج مطبوعة وجب أن يكون الشرط واضحا ومكتوبا بكيفية تسترعى الانتباه، وإلا جاز للمحكمة أن تعتبر الشرط كأن لم يكن.
 3- ولا يجوز أن يتمسك الناقل بشرط الإعفاء من المسئولية أو تحديدها إذا ثبت صدور غش أو خطأ جسيم منه أو من تابعيه.$cc539$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3393,7 +3405,7 @@ WITH ins_art_law17_1999_269 AS (
 2- يسأل الراكب عن الضرر الذي يلحق الناقل أو تابعيه أو الغير بسبب الأمتعة أو الحيوانات التي ينقلها معه.
 3- تسرى على نقل الأمتعة التي تسلم للناقل الأحكام الخاصة بنقل الاشياء.$cc541$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3406,7 +3418,7 @@ WITH ins_art_law17_1999_270 AS (
   SELECT id, 270, $cc542$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc542$, $cc543$1- إذا توفى الراكب أو أصيب بمرض أثناء تنفيذ عقد النقل التزم الناقل باتخاذ التدابير اللازمة للمحافظة على أمتعته على أن تسلم إلى ذوي الشأن.
 2- إذا وجد أحد ذوي الشأن عند وقوع الوفاة أو المرض جاز له أن يتدخل لمراقبة التدابير التي يتخذها الناقل وان يطلب منه إقرارا بوجود أمتعة الراكب في حيازته.$cc543$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3417,7 +3429,7 @@ WITH ins_art_law17_1999_271 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 271, $cc544$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc544$, $cc545$يجوز لورثة الراكب وللأشخاص الذين يعولهم تنفيذا لالتزاما بالنفقة، إقامة دعوى المسئولية على الناقل لمطالبته بالتعويض عن الضرر الذي أصاب مورثهم أو عائلهم سواء وقعت الوفاة اثر الحادث مباشرة أو بعد انقضاء فترة زمنية من وقوعه.$cc545$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3430,7 +3442,7 @@ WITH ins_art_law17_1999_272 AS (
 3- لا يجوز أن يتمسك بالتقادم المنصوص عليه في هذه المادة من صدر منه أو من تابعيه غش أو خطأ جسيم.
 الفرع الثالث الوكالة بالعمولة للنقل$cc547$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3444,7 +3456,7 @@ WITH ins_art_law17_1999_273 AS (
   SELECT id, 273, $cc548$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc548$, $cc549$1- الوكالة بالعمولة للنقل عقد يلتزم بمقتضاه الوكيل بأن يبرم باسمه ولحساب موكله عقد لنقل أشياء أو عقد نقل أشخاص وبأن يقوم عن الاقتضاء بالعمليات المرتبطة بهذا النقل.
 2- إذا تولى الوكيل بالعمولة النقل بوسائله الخاصة اعتبر ناقلا وتسرى عليه أحكام عقد النقل.$cc549$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3455,7 +3467,7 @@ WITH ins_art_law17_1999_274 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 274, $cc550$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc550$, $cc551$فيما عدا الأحكام المنصوص عليها في المواد التالية تسرى على الوكالة بالعمولة للنقل الأحكام الخاصة بعقد الوكالة بالعمولة.$cc551$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3465,7 +3477,7 @@ WITH ins_art_law17_1999_275 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 275, $cc552$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc552$, $cc553$يجوز للموكل في كل وقت إلغاء طلب النقل قبل أن يبرم الوكيل عقد النقل بشرط أن يرد الموكل المصاريف التي تحملها الوكيل وان يعوضه عما قام به من عمل.$cc553$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3476,7 +3488,7 @@ WITH ins_art_law17_1999_276 AS (
   SELECT id, 276, $cc554$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc554$, $cc555$1- على الوكيل بالعمولة للنقل تنفيذ تعليمات موكله خاصة ما تعلق منها بميعاد النقل واختيار الناقل والطريق الواجب اتباعه.
 2- ولا يجوز للوكيل بالعمولة للنقل أن يقيد في حساب موكله أجرة نقل أزيد من الأجرة التي اتفق عليها مع الناقل. وكل ما يحصل عليه الوكيل من مزايا من الناقل تعود منفعته إلى الموكل ما لم يتفق في عقد الوكالة بالعمولة أو يقضى العرف بغير ذلك.$cc555$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3487,7 +3499,7 @@ WITH ins_art_law17_1999_277 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 277, $cc556$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc556$, $cc557$يضمن الوكيل بالعمولة للنقل سلامة الراكب أو الشيء موضوع النقل، ويقع باطلا كل اتفاق على غير ذلك.$cc557$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3498,7 +3510,7 @@ WITH ins_art_law17_1999_278 AS (
   SELECT id, 278, $cc558$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc558$, $cc559$1- يسأل الوكيل بالعمولة للنقل من وقت تسلمه الشيء موضوع النقل عن هلاكه كليا أو جزئيا أو عن تلفه أو التأخير في تسليمه، ولا يجوز أن ينفى هذه المسئولية إلا بإثبات القوة القاهرة أو العيب الذاتي في الشيء أو خطأ الموكل أو المرسل إليه.
 2- وفي نقل الأشخاص يسأل الوكيل من أضرار بدنية أو غير بدنية، ولا يجوز أن ينفى هذه المسئولية إلا بإثبات القوة القاهرة أو خطأ الراكب.$cc559$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3512,7 +3524,7 @@ WITH ins_art_law17_1999_279 AS (
 (ب) كل شرط يقضى بإعفائه من المسئولية عما يلحق الراكب من أضرار بدنية.
 2- ويعد في حكم الإعفاء من المسئولية كل شرط يكون من شأنه إلزام المرسل أو المرسل إليه في نقل الاشياء أو الراكب في نقل الأشخاص بدفع كل أو بعض نفقات التأمين ضد مسئولية الوكيل بالعمولة للنقل وكل شرط ينزل بموجبه المرسل أو المرسل إليه أو الراكب للوكيل بالعمولة عن الحقوق الناشئة عن التأمين الذي أبرمه ضد مخاطر النقل.$cc561$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3529,7 +3541,7 @@ WITH ins_art_law17_1999_280 AS (
 (ج) إعفاءه كليا أو جزئيا من المسئولية عن التأخير.
 2- يجب أن يكون شرط الإعفاء من المسئولية أو تحديدها مكتوبا وإلا اعتبر كأن لم يكن، وإذا كان عقد الوكالة بالعمولة للنقل محررا على نماذج مطبوعة وجب أن يكون الشرط واضحا ومكتوبا بكيفية تسترعى الانتباه وإلا جاز للمحكمة أن تعتبره كأن لم يكن.$cc563$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3543,7 +3555,7 @@ WITH ins_art_law17_1999_281 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 281, $cc564$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc564$, $cc565$لكل من الموكل والناقل رجوع مباشر على الآخر للمطالبة بالحقوق الناشئة عن عقد العمل، وكذلك لكل من الراكب أو المرسل إليه والناقل رجوع مباشر على الآخر للمطالبة بالحقوق المذكورة، وفي جميع الأحوال يجب إدخال الوكيل بالعمولة للنقل في الدعوى.$cc565$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3553,7 +3565,7 @@ WITH ins_art_law17_1999_282 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 282, $cc566$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc566$, $cc567$إذا دفع الوكيل بالعمولة أجرة النقل للناقل حل محله فيما له من حقوق.$cc567$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3564,7 +3576,7 @@ WITH ins_art_law17_1999_283 AS (
   SELECT id, 283, $cc568$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc568$, $cc569$تسرى على تقادم الدعاوى الناشئة عن عقد الوكالة بالعمولة للنقل الأحكام المنصوص عليها في المادتين (254، 272) من هذا القانون.
 الفرع الرابع أحكام خاصة للنقل الجوي$cc569$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3576,7 +3588,7 @@ WITH ins_art_law17_1999_284 AS (
   SELECT id, 284, $cc570$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc570$, $cc571$1- يقصد بالنقل الجوي في هذا الفرع نقل الأشخاص أو الأمتعة أو البضائع بالطائرات بهدف تحقيق الربح.
 2- ويقصد بلفظ الأمتعة الاشياء التي يجوز للمسافر حملها معه في الطائرة وتسلم للناقل لتكون في حراسته أثناء السفر، ولا يشمل هذا اللفظ الاشياء الصغيرة والشخصية التي تبقى في حراسة الراكب أثناء السفر.$cc571$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3589,7 +3601,7 @@ WITH ins_art_law17_1999_285 AS (
 2- وتسرى على النقل الجوي الداخلي أحكام هذا الفرع والأحكام الخاصة المنصوص عليها في المواد التالية.
 3- يكون النقل الجوي داخليا إذا كانت النقطتان المعينتان باتفاق المتعاقدين للقيام والوصول واقعتين في مصر ولو كانت الطائرة تواصل رحلتها بعد مغادرة نقطة الوصول إلى ما وراء الحدود الإقليمية المصرية.$cc573$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3602,7 +3614,7 @@ WITH ins_art_law17_1999_286 AS (
   SELECT id, 286, $cc574$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc574$, $cc575$1- يجب أن تتضمن وثيقة النقل الجوي بيانا يفيد بأن النقل يقع وفقا لأحكام المسئولية المحدودة المنصوص علياه في المادة (292) من هذا القانون، وإلا امتنع على الناقل التمسك بهذه الأحكام.
 2- على الناقل الجوي التحقق من استيفاء المسافرين على الطائرة والبضائع المشحونة عليها أو التي يحتفظ المسافرون بحيازتها أثناء السفر للشروط اللازمة للصعود على الطائرة كما يقررها القانون ولوائح النقل.$cc575$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3613,7 +3625,7 @@ WITH ins_art_law17_1999_287 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 287, $cc576$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc576$, $cc577$يسأل الناقل الجوي عن الضرر الذي يحدث في حالة وفاة الراكب أو إصابته بجروح أو بأي ضرر بدني آخر إذا وقع الحادث الذي أدى إلى الضرر أثناء وجود الراكب في حراسة الناقل أو تابعيه داخل مطار القيام أو في الطائرة أو داخل مطار الوصول أو في أي مطار أو مكان آخر تهبط فيه الطائرة اختيارا أو اضطرارا.$cc577$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3625,7 +3637,7 @@ WITH ins_art_law17_1999_288 AS (
 2- يشمل النقل الجوي الفترة التي تكون فيها الأمتعة أو البضائع في حراسة الناقل أو تابعيه داخل مطار القيام أو أثناء الطيران أو داخل مطار الوصول أو في أي مطار أو مكان آخر تهبط فيه الطائرة اختيارا أو اضطرارا.
 3- لا يشمل النقل الجوي الفترة التي تكون فيها الأمتعة أو البضائع محل نقل بري أو بحري أو نهري يقع خارج المطار إلا إذا كان هذا النقل لازما لشحن الأمتعة أو البضائع أو لتسليمها أو لنقلها من طائرة إلى أخرى تنفيذا لعقد النقل الجوي.$cc579$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3638,7 +3650,7 @@ WITH ins_art_law17_1999_289 AS (
   SELECT id, 289, $cc580$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc580$, $cc581$1- يسأل الناقل الجوي عن الضرر الذي يترتب على التأخير في وصول الراكب أو الأمتعة أو البضائع.
 2- تعتبر في حكم الهالكة الأمتعة أو البضائع التي لا يسلمها الناقل للمرسل أليه أو يخطره بالحضور لتسلمها خلال ثلاثين يوما من تاريخ انقضاء الميعاد للتسليم، وفي حالة عدم التعيين من تاريخ انقضاء الميعاد الذي يستغرقه الناقل الجوي العادي في النقل إذا وجد في نفس الظروف.$cc581$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3650,7 +3662,7 @@ WITH ins_art_law17_1999_290 AS (
   SELECT id, 290, $cc582$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc582$, $cc583$1- لا يجوز للناقل الجوي نفي مسئوليته إلا بإثبات القوة القاهرة أو العيب الذاتي في الشيء أو خطا المرسل أو المرسل إليه أو الراكب.
 2- إذا اثبت الناقل أحد الأمور المذكورة في الفقرة السابقة جاز للمدعى نفي هذا الإثبات بإقامة الدليل على أن الضرر لم يحدث بسبب هذا الأمر أو انه لم يكن السبب الوحيد في إحداث الضرر، وفي هذه الحالة الأخيرة يخفض التعويض بنسبة الضرر الذي ينسب إلى الأمر الذي أثبته الناقل الجوي.$cc583$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3661,7 +3673,7 @@ WITH ins_art_law17_1999_291 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 291, $cc584$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc584$, $cc585$لا يسأل الناقل الجوي عن الاشياء الصغيرة أو الشخصية التي تبقى في حراسة المسافر أثناء السفر إلا إذا اثبت المسافر صدور خطأ من الناقل أو من تابعيه.$cc585$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3674,7 +3686,7 @@ WITH ins_art_law17_1999_292 AS (
 3- وبالنسبة إلى الاشياء الصغيرة أو الشخصية التي تبقى في حراسة المسافر أثناء السفر لا يجاوز التعويض الذي يحكم به لكل مسافر عن تلك الاشياء خمسمائة جنيه.
 4- ولا يجوز للناقل الجوي التمسك بتحديد المسئولية المنصوص عليها في هذه المادة إذا ثبت أن الضرر نجم عن فعل أو امتناع من الناقل أو من تابعيه أو من وكلائه أثناء تأدية وظائفهم بقصد إحداث الضرر أو برعونة مقرونة بإدراك احتمال وقوع الضرر.$cc587$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3689,7 +3701,7 @@ WITH ins_art_law17_1999_293 AS (
 2- ولا يجوز لتابع الناقل أو وكيله التمسك بتحديد مسئوليته إذا ثبت أن الضرر نجم عن فعل أو امتناع منه أثناء تأدية وظيفته بقصد إحداث الضرر أو برعونة مقرونة بإدراك احتمال وقوع الضرر.
 3- ولا يجوز أن يريد مجموع ما يريد أن يحصل عليه طالب التعويض من الناقل وتابعيه ووكلائه عن الحدود المنصوص عليها في المادة (292) من هذا القانون.$cc589$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3702,7 +3714,7 @@ WITH ins_art_law17_1999_294 AS (
   SELECT id, 294, $cc590$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc590$, $cc591$1- يقع باطلا كل شرط يقضى بإعفاء الناقل الجوي من المسئولية أو بتحديدها اقل من الحدود المنصوص عليها في المادة (292) من هذا القانون.
 2- ويعتبر في حكم الإعفاء من المسئولية كل شرط يكون من شأنه إلزام المسافر أو المرسل إليه بدفع كل أو بعض نفقات التأمين ضد مسئولية الناقل الجوي وكل شرط ينزل بموجبه المسافر أو المرسل إليه للناقل عن حقوقه في التأمين ضد أخطار النقل.$cc591$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3713,7 +3725,7 @@ WITH ins_art_law17_1999_295 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 295, $cc592$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc592$, $cc593$تسلم الأمتعة أو البضائع دون تحفظ يسقط الحق في الرجوع على الناقل بسبب الهلاك الجزئي او التلف ما لم يثبت المسافر أو المرسل إليه حالة الأمتعة أو البضائع ويقيم الدعوى خلال تسعين يوما من تاريخ التسليم، وتسرى في هذا الشأن الأحكام المنصوص عليها في الفقرتين الثانية والثالثة من المادة (251) من هذا القانون.$cc593$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3726,7 +3738,7 @@ WITH ins_art_law17_1999_296 AS (
 3- تتقادم بمضي سنة كل دعوى أخرى تنشأ عن عقد النقل الجوي. وتسرى هذه المدة من الميعاد المعين لوصول الطائرة، وفي حالة عدم التعيين تسرى من الميعاد الذي يستغرقه الناقل الجوي العادي إذا وجد في نفس الظروف.
 4- لا يجوز أن يتمسك بالتقادم المنصوص عليه في الفقرات الثلاث السابقة من هذه المادة من صدر منه أو من وكلائه أو من تابعيه غش أو خطأ جسيم.$cc595$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3740,7 +3752,7 @@ WITH ins_art_law17_1999_297 AS (
   SELECT id, 297, $cc596$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc596$, $cc597$1- إذا اتفق على أن يكون النقل بالمجان فلا يكون الناقل الجوي مسئولا إلا إذا اثبت طالب التعويض أن الضرر نشأ عن خطأ صدر من الناقل أو من أحد تابعيه أو من وكلائه وفي هذه الحالة أيضا يجوز للناقل الجوي أو لتابعيه أو لوكيله التمسك بتحديد المسئولية وفقا للمادة 292 من هذا القانون.
 2- يكون النقل مجانيا إذا كان بدون أجرة ولم يكن الناقل محترفا النقل. فإذا كان الناقل محترفا اعتبر النقل غير مجاني ولو كان بغير أجرة.$cc597$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3751,7 +3763,7 @@ WITH ins_art_law17_1999_298 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 298, $cc598$الباب الثاني: الإلتزامات والعقود التجارية — الفصل السابع: النقل$cc598$, $cc599$تكون مسئولية الناقل الجوي في الحدود المنصوص عليها في المادة 292 من هذا القانون أيا كان الأساس القانون الذي تقوم عليه دعوى المسئولية وأيا كانت صفة الخصوم فيها أو عددهم أو مقدار ما يطلبون من تعويضات.$cc599$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3764,7 +3776,7 @@ WITH ins_art_law17_1999_299 AS (
 3- وله أثناء الطيران أن يقرر عند الاقتضاء إلقاء الأشياء المشحونة في الطائرة أو بعضها أو وقودها، على أن يخطر بذلك من يستثمر الطائرة في اقرب وقت. وعليه أن يبدأ بإلقاء الأشياء قليلة القيمة كلما كان ذلك مستطاعا.
 4- ويكون الناقل مسئولا عن هلاك الاشياء التي يقرر قائد الطائرة إلقاءها لسلامة الطائرة.$cc601$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3778,7 +3790,7 @@ WITH ins_art_law17_1999_300 AS (
   SELECT id, 300, $cc602$الباب الثالث: عمليات البنوك$cc602$, $cc603$مع مراعاة ما تقرره الفقرة الثالثة من المادة (361) من هذا القانون، تسرى أحكام هذا الباب على العمليات التي تعقدها البنوك مع عملائها تجارا كانوا أو غير تجار وأيا كانت طبيعة هذه العمليات.
 1- وديعة النقود$cc603$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3789,7 +3801,7 @@ WITH ins_art_law17_1999_301 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 301, $cc604$الباب الثالث: عمليات البنوك$cc604$, $cc605$وديعة النقود عقد يخول البنك ملكية النقود المودعة والتصرف فيها بما يتفق ونشاطه مع التزامه برد مثلها للمودع طبقا لشروط العقد.$cc605$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3799,7 +3811,7 @@ WITH ins_art_law17_1999_302 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 302, $cc606$الباب الثالث: عمليات البنوك$cc606$, $cc607$يفتح البنك للمودع حسابا تقيد فيه جميع العمليات التي تتم بين البنك والمودع او بين البنك والغير لحساب المودع.$cc607$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3810,7 +3822,7 @@ WITH ins_art_law17_1999_303 AS (
   SELECT id, 303, $cc608$الباب الثالث: عمليات البنوك$cc608$, $cc609$1- لا يترتب على عقد وديعة النقود حق للمودع في سحب مبالغ من حساب الوديعة إذا لم يكن رصيد هذا الحساب دائنا.
 2- إذا أجرى البنك عمليات لحساب المودع ترتب عليها أن صار رصيد حساب الوديعة مدينا وجب على البنك إخطار المودع فورا لتسوية مركزه.$cc609$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3822,7 +3834,7 @@ WITH ins_art_law17_1999_304 AS (
   SELECT id, 304, $cc610$الباب الثالث: عمليات البنوك$cc610$, $cc611$1- يرسل البنك بيانا بالحساب إلى المودع مرة على الأقل كل سنة إلا إذا قضى الاتفاق أو العرف بإرسال البيان اكثر من مرة خلال السنة. ويجب أن يتضمن البيان صورة من الحساب بعد آخر قطع له ومقدار الرصيد المرحل.
 2- لا يقبل أي طلب لتصحيح الحساب ولو كان مبنيا على غلط أو سهو أو تكرار وذلك فيما يتعلق بالقيود التي مضى عليها اكثر من ثلاث سنوات ما لم يخطر المودع البنك خلال هذه المدة بعدم تسلمه بيانا بحسابه وفقا للأوضاع المذكورة في الفقرة السابقة.$cc611$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3834,7 +3846,7 @@ WITH ins_art_law17_1999_305 AS (
   SELECT id, 305, $cc612$الباب الثالث: عمليات البنوك$cc612$, $cc613$1- ترد الوديعة بمجرد الطلب ما لم يتفق على غير ذلك. وللمودع حق التصرف في رصيده الدائن أو في جزء منه، ما لم يعلق استعمال هذا الحق على إخطار سابق أو على حلول الأجل.
 2- اذا توفى المودع تستمر الوديعة قائمة وفقا لشروط العقد ما لم يطلب الورثة استردادها قبل حلول اجلها.$cc613$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3845,7 +3857,7 @@ WITH ins_art_law17_1999_306 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 306, $cc614$الباب الثالث: عمليات البنوك$cc614$, $cc615$يكون التعامل في فرع البنك الذي فتح فيه الحساب ما لم يتفق على غير ذلك.$cc615$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3855,7 +3867,7 @@ WITH ins_art_law17_1999_307 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 307, $cc616$الباب الثالث: عمليات البنوك$cc616$, $cc617$إذا تعددت حسابات المودع في بنك واحد أو في فروعه اعتبر كل حساب منها مستقلا عن الحسابات الأخرى.$cc617$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3869,7 +3881,7 @@ WITH ins_art_law17_1999_308 AS (
 4- إذا وقع حجز على رصيد أحد أصحاب الحساب المشترك سرى الحجز على حصة المحجوز عليه من رصيد الحساب يوم إبلاغ البنك بالحجز. وعلى البنك وقف السحب من الحساب المشترك بما يساوى الحصة المحجوز عليها وإخطار أصحابه أو من يمثلهم بالحجز خلال مدة لا تجاوز خمسة أيام.
 5- إذا توفى أحد أصحاب الحساب المشترك أو فقد الأهلية القانونية وجب على الباقين إخطار البنك بذلك وبرغبتهم في استمرار الحساب وذلك خلال مدة لا تجاوز عشرة أيام من تاريخ الوفاء أو فقدان الأهلية، وعلى البنك وقف السحب من الحساب المشترك حتى يتم تحديد الورثة أو تعيين القيم على من فقد أهليته القانونية.$cc619$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3885,7 +3897,7 @@ WITH ins_art_law17_1999_309 AS (
 2- يجوز إصدار دفتر توفير باسم القاصر، ويكون للقاصر ولكل شخص آخر حق الإيداع في هذا الدفتر، ولا يكون للقاصر حق السحب منه إلا وفقا للأحكام المنصوص عليها في القانون.
 ٣- وديعة الصكوك$cc621$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3897,7 +3909,7 @@ WITH ins_art_law17_1999_310 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 310, $cc622$الباب الثالث: عمليات البنوك$cc622$, $cc623$لا يجوز للبنك أن يستعمل الحقوق الناشئة عن الصكوك المودعة لديه ما لم يتفق على غير ذلك.$cc623$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3908,7 +3920,7 @@ WITH ins_art_law17_1999_311 AS (
   SELECT id, 311, $cc624$الباب الثالث: عمليات البنوك$cc624$, $cc625$1- على البنك أن يبذل في المحافظة على الصكوك المودعة لديه عناية المودع بأجر. ولا يجوز الاتفاق على غير ذلك.
 2- ولا يجوز للبنك ن يتخلى عن حيازة الصكوك المودعة إلا بسبب يستلزم ذلك.$cc625$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3920,7 +3932,7 @@ WITH ins_art_law17_1999_312 AS (
   SELECT id, 312, $cc626$الباب الثالث: عمليات البنوك$cc626$, $cc627$1- يلتزم البنك بقبض عائد الصك أو أرباحه وقيمته إذا استحق أو استهلك أو كذلك كل مبلغ آخر يستحق بسبب الصك ما لم يتفق على غير ذلك. وتقيد تلك المبالغ في حساب المودع.
 2- وعلى البنك القيام بكل عملية لازمة للمحافظة على الحقوق المتصلة بالصك التي يتقرر منحها له دون مقابل، كتقديمه للاستبدال أو لوضع الأختام أو لإضافة قسائم أرباح جديدة إليه.$cc627$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3931,7 +3943,7 @@ WITH ins_art_law17_1999_313 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 313, $cc628$الباب الثالث: عمليات البنوك$cc628$, $cc629$على البنك أن يخطر المودع بكل أمر أو حق يتعلق بالصك ويستلزم الحصول على موافقته أو يتوقف على اختياره. فإذا لم تصل تعليمات المودع في الوقت المناسب وجب على البنك أن يتصرف في الحق بما يعود بالنفع على المودع. ويتحمل المودع المصاريف فضلا عن العمولة العادية.$cc629$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3942,7 +3954,7 @@ WITH ins_art_law17_1999_314 AS (
   SELECT id, 314, $cc630$الباب الثالث: عمليات البنوك$cc630$, $cc631$1- يلتزم البنك برد الصكوك المودعة بمجرد أن يطلب منه ذلك مع مراعاة الوقت الذي يقتضيه إعداد الصكوك للرد.
 2- يكون الرد في المكان الذي تم فيه الإيداع، ويلتزم البنك برد الصكوك بذاتها ما لم يتفق أو يقضى القانون برد صكوك جنسها أو صكوك أخرى.$cc631$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3955,7 +3967,7 @@ WITH ins_art_law17_1999_315 AS (
 2- إذا ادعى شخص استحقاق الصك المودع وجب على البنك إخطار المودع مباشرة والامتناع عن رد الصك إليه حتى تنتهي النزاع بشأنه رضاء أو قضاء، وعلى مدعى استحقاق الصك إقامة دعواه خلال ثلاثين يوما من تاريخ الادعاء وإلا اعتبر الادعاء كأن لم يكن.
 ٣- تأجير الخزائن$cc633$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3967,7 +3979,7 @@ WITH ins_art_law17_1999_316 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 316, $cc634$الباب الثالث: عمليات البنوك$cc634$, $cc635$تأجير الخزائن عقد يتعهد بمقتضاه بنك مقابل أجرة بوضع خزانة معينة تحت تصرف المستأجر للانتفاع بها مدة محددة.$cc635$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3979,7 +3991,7 @@ WITH ins_art_law17_1999_317 AS (
 2- يبقى المفتاح الذي يسلم للمستأجر ملكا للبنك ويجب رده إليه عند انتهاء الإجارة.
 3- ولا يجوز للبنك أن يأذن لغير المستأجر أو وكيله الخاص في استعمال الخزانة.$cc637$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3993,7 +4005,7 @@ WITH ins_art_law17_1999_318 AS (
 2- ولا يجوز للمستأجر أن يضع في الخزانة أشياء تهدد سلامتها أو سلامة المكان الذي توجد به.
 3- إذا صارت الخزانة مهددة بخطر أو تبين أنها تحتوي على أشياء خطرة وجب على البنك أن يخطر المستأجر فورا بالحضور لافراغها أو لسحب الاشياء الخطرة منها، فإذا لم يحضر المستأجر في الميعاد المعين، جاز للبنك أن يطلب من القاضي المختص إصدار أمر على عريضة بالإذن له في فتح الخزانة وافراغها أو سحب الاشياء الخطرة منها وذلك بحضور من يعينه القاضي لذلك، ويحرر محضر بالواقعة يذكر فيه محتويات الخزانة، وإذا كان الخطر حالا، جاز للبنك وعلى مسئوليته فتح الخزانة وافراغها أو سحب الأشياء الخطرة منها دون إخطار أو أذن من القاضي.$cc639$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4007,7 +4019,7 @@ WITH ins_art_law17_1999_319 AS (
 2- وإذا لم يحضر المستأجر في الميعاد المحدد، جاز للبنك أن يطلب من القاضي المختص إصدار أمر على عريضة بالإذن له في فتح الخزانة وافراغ محتوياتها بحضور من يعينه لذلك.
 ويحرر محضر بالواقعة تذكر فيه محتويات الخزانة، وللقاضي أن يأمر بإيداع المحتويات عند البنك أو عند أمين يعينه لذلك.$cc641$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4019,7 +4031,7 @@ WITH ins_art_law17_1999_320 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 320, $cc642$الباب الثالث: عمليات البنوك$cc642$, $cc643$للبنك حق حبس محتويات الخزانة، وله حق امتياز على الثمن الناتج عن بيعها لاستيفاء الأجرة و المصاريف المستحقة له.$cc643$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4033,7 +4045,7 @@ WITH ins_art_law17_1999_321 AS (
 4- وإذا كان الحجز تنفيذيا التزم البنك بفتح الخزانة وافراغ محتوياتها بحضور الحاجز أو من يندبه القاضي لذلك، ويخطر المستأجر بالميعاد الذي حدد لفتح الخزانة وتجرد محتوياتها وتسلم إلى البنك أو إلى أمين قاضي التنفيذ حتى يتم بيعها وفقا للأحكام المنصوص عليها في قانون المرافعات المدنية والتجارية.
 5- وإذا كان بالخزانة أوراق أو وثائق لا يشملها البيع وجب تسليمها إلى المستأجر فإذا لم يكن حاضرا وقت فتح الخزانة وجب تسليمها إلى البنك لحفظها حتى يطلبها المستأجر أو ورثته وإذا لم يتقدم المستأجر أو ورثته لاستلام الأوراق أو الوثائق المشار إليها خلال خمس سنوات يكون للبنك الحق في عرض الأمر على قاضي الأمور الوقتية ليقرر بشأنها ما يراه.$cc645$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4047,7 +4059,7 @@ WITH ins_art_law17_1999_322 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 322, $cc646$الباب الثالث: عمليات البنوك$cc646$, $cc647$يكون إخطار مستأجر الخزانة صحيحا إذا وجه إليه في آخر موطن عينه للبنك.$cc647$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4058,7 +4070,7 @@ WITH ins_art_law17_1999_323 AS (
   SELECT id, 323, $cc648$الباب الثالث: عمليات البنوك$cc648$, $cc649$فيما عدا الحالات المنصوص عليها في القانون، لا يجوز للبنك فتح الخزانة أو إفراغ محتوياتها إلا بإذن من المستأجر أو بحضوره أو تنفيذا لحكم أو أمر صادر من القاضي المختص أو من النيابة العامة.
 رهن الأوراق المالية$cc649$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4069,7 +4081,7 @@ WITH ins_art_law17_1999_324 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 324, $cc650$الباب الثالث: عمليات البنوك$cc650$, $cc651$تسرى على رهن الأوراق المالية قواعد الرهن التجاري والأحكام التالية.$cc651$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4080,7 +4092,7 @@ WITH ins_art_law17_1999_325 AS (
   SELECT id, 325, $cc652$الباب الثالث: عمليات البنوك$cc652$, $cc653$1- إذا كان الدائن المرتهن حائزا للأوراق المرهونة لسبب آخر سابق على الرهن فإنه يعتبر حائزا لها بوصفه دائنا مرتهنا بمجرد إنشاء الرهن.
 2- يعتبر الغير الذي عينه المتعاقدان لحيازة الأوراق المرهونة انه تنازل عن كل حق له في حبسها لسبب سابق على الرهن ما لم يكن قد احتفظ بهذا الحق عند قبوله حيازة الأوراق المرهونة لحساب الدائن المرتهن.$cc653$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4091,7 +4103,7 @@ WITH ins_art_law17_1999_326 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 326, $cc654$الباب الثالث: عمليات البنوك$cc654$, $cc655$إذا كانت الأوراق المرهونة مقدما من غير المدين فلا يلتزم مالكها بوفاء الدين المضمون بالرهن إلا بوصفه كفيلا عينيا.$cc655$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4101,7 +4113,7 @@ WITH ins_art_law17_1999_327 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 327, $cc656$الباب الثالث: عمليات البنوك$cc656$, $cc657$إذا لم تكن القيمة الكاملة للورقة المالية المرهونة قد دفعت وقت تقديمها للرهن وجب على المدين- إذا طولب بالجزء غير المدفوع- أن يقدم إلى الدائن المرتهن النقود اللازمة للوفاء بهذا الجزء قبل ميعاد استحقاقه بيومين على الأقل وإلا جاز للدائن المرتهن أن يطلب بيع الورقة باتباع الإجراءات المنصوص عليها في المادة (126) من هذا القانون ثم يدفع من الثمن الناتج من البيع الجزء غير المدفوع من قيمة الورقة وينتقل الرهن إلى الباقي من الثمن.$cc657$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4112,7 +4124,7 @@ WITH ins_art_law17_1999_328 AS (
   SELECT id, 328, $cc658$الباب الثالث: عمليات البنوك$cc658$, $cc659$يبقى امتياز الدائن المرتهن قائما بمرتبته فيما بين المتعاقدين وبالنسبة إلى الغير على عائد الورقة المرهونة وملحقاتها وعلى قيمتها عند استهلاكها وعلى الأوراق التي تستبدل بها.
 النقل المصرفي$cc659$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4128,7 +4140,7 @@ WITH ins_art_law17_1999_329 AS (
 2- ينظم الاتفاق بين البنك والآمر بالنقل شروط إصدار الأمر. ومع ذلك لا يجوز أن يكون أمر النقل لحامله.
 3- يجوز الاتفاق على أن يتقدم المستفيد بنفسه بأمر النقل إلى البنك بدلا من تبليغه إليه من الآمر بالنقل.$cc661$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4143,7 +4155,7 @@ WITH ins_art_law17_1999_330 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 330, $cc662$الباب الثالث: عمليات البنوك$cc662$, $cc663$إذا تم النقل المصرفي بين فرعين للبنك أو بين بنكين مختلفين وجب تقديم أي اعتراض صادر من الغير بشأن هذا النقل إلى الفرع أو البنك الذي يوجد به حساب المستفيد.$cc663$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4153,7 +4165,7 @@ WITH ins_art_law17_1999_331 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 331, $cc664$الباب الثالث: عمليات البنوك$cc664$, $cc665$يجوز أن يرد أمر النقل على مبالغ مقيدة فعلا في حساب الآمر بالنقل أو على مبالغ يتفق مع البنك على قيدها في حسابه خلال مدة معينة.$cc665$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4164,7 +4176,7 @@ WITH ins_art_law17_1999_332 AS (
   SELECT id, 332, $cc666$الباب الثالث: عمليات البنوك$cc666$, $cc667$1- يتملك المستفيد القيمة محل النقل المصرفي من وقت قيدها في الجانب الدائن في حسابه من حسابه ويجوز للآمر الرجوع في أمر النقل إلى أن يتم هذا القيد.
 2- وإذا اتفق على أن يتقدم المستفيد بنفسه بأمر النقل إلى البنك، فلا يجوز للآمر الرجوع في الأمر، وذلك مع مراعاة ما تقضى به المادة 337 من هذا القانون.$cc667$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4175,7 +4187,7 @@ WITH ins_art_law17_1999_333 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 333, $cc668$الباب الثالث: عمليات البنوك$cc668$, $cc669$يبقى الدين الذي صدر له أمر النقل وفاء له قائما بتأميناته وملحقاته إلى أن تقيد القيمة فعلا في الجانب الدائن من حساب المستفيد.$cc669$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4185,7 +4197,7 @@ WITH ins_art_law17_1999_334 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 334, $cc670$الباب الثالث: عمليات البنوك$cc670$, $cc671$يجوز الاتفاق على إرجاء تنفيذ أوامر النقل الصادرة من نوع الأمر أو المقدمة من المستفيد مباشرة إلى آخر اليوم لتنفيذها مع غيرها من الأوامر التي من نوعها والصادرة في ذات اليوم.$cc671$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4197,7 +4209,7 @@ WITH ins_art_law17_1999_335 AS (
 2- وإذا كان أمر النقل مقدما مباشرة من المستفيد قيد البنك لحسابه المقابل الناقص ما لم يرفض المستفيد ذلك. وعلى البنك أن يؤشر على أمر النقل بقيد المقابل الناقص أو بالرفض الصادر من المستفيد.
 3- ويبقى للأمر بالنقل حق التصرف في المقابل الناقص إذا رفض البنك تنفيذ الأمر أو رفض المستفيد قيد المقابل الناقص لحسابه.$cc673$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4209,7 +4221,7 @@ WITH ins_art_law17_1999_336 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 336, $cc674$الباب الثالث: عمليات البنوك$cc674$, $cc675$إذا لم ينفذ البنك أمر النقل في أول يوم عمل تال ليوم تقديمه اعتبر الأمر في حدود المقدار الذي لم ينفذ كأن لم يكن ويجب رده إلى من قدمه مقابل إيصال. وإذا اتفق على مدة أطول من ذلك وجب أن يضاف أمر النقل الذي لم ينفذ إلى الأوامر التي تقدم في الأيام التالية خلال تلك المدة.$cc675$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4221,7 +4233,7 @@ WITH ins_art_law17_1999_337 AS (
 2- ولا يحول شهر إفلاس الآمر دون تنفيذ أوامر النقل التي أصدرها إذا قدمت إلى البنك قبل تاريخ صدور الحكم بشهر الإفلاس.
 الاعتماد العادي$cc677$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4234,7 +4246,7 @@ WITH ins_art_law17_1999_338 AS (
   SELECT id, 338, $cc678$الباب الثالث: عمليات البنوك$cc678$, $cc679$1- الاعتماد العادي عقد يضع البنك بمقتضاه تحت تصرف المستفيد وسائل دفع مبلغ في حدود مبلغ معين.
 2- يفتح الاعتماد لمدة معينة أو غير معينة.$cc679$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4246,7 +4258,7 @@ WITH ins_art_law17_1999_339 AS (
   SELECT id, 339, $cc680$الباب الثالث: عمليات البنوك$cc680$, $cc681$1- إذا فتح الاعتماد لمدة غير معينة جاز للبنك إلغاؤه في كل وقت، بشرط إخطار المستفيد قبل الميعاد الذي يعينه البنك للإلغاء بعشرة أيام على الأقل ما لم يتم الاتفاق على غير ذلك.
 2- وفي جميع الأحوال يعتبر الاعتماد المفتوح لمدة غير معينة ملغيا بانقضاء ستة اشهر من تاريخ إخطار المستفيد بفتحه دون أن يستعمله.$cc681$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4258,7 +4270,7 @@ WITH ins_art_law17_1999_340 AS (
   SELECT id, 340, $cc682$الباب الثالث: عمليات البنوك$cc682$, $cc683$إذا فتح الاعتماد لمدة معينة فلا يجوز للبنك إلغاؤه قبل انقضاء هذه المدة إلا في حالة وفاة المستفيد أو الحجر عليه أو توقفه عن الدفع أو لو لم يصدر حكم بشهر إفلاسه أو صدور خطأ جسيم منه في استعمال الاعتماد.
 الاعتماد المستندي$cc683$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4271,7 +4283,7 @@ WITH ins_art_law17_1999_341 AS (
 2- عقد الاعتماد المستندي مستقل عن العقد الذي فتح الاعتماد بسببه، ويبقى البنك أجنبيا عن هذا العقد.
 3- تسرى فيما لم يرد في شأنه نص خاص في هذا الفرع القواعد الواردة بالأعراف الموحدة للاعتمادات المستندية الصادرة من غرفة التجارة الدولية.$cc685$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4283,7 +4295,7 @@ WITH ins_art_law17_1999_342 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 342, $cc686$الباب الثالث: عمليات البنوك$cc686$, $cc687$يلتزم البنك الذي فتح الاعتماد بتنفيذ شروط الوفاء والقبول والخصم المتفق عليها في عقد فتح الاعتماد إذا كانت المستندات مطابقة لشروط فتح الاعتماد.$cc687$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4294,7 +4306,7 @@ WITH ins_art_law17_1999_343 AS (
   SELECT id, 343, $cc688$الباب الثالث: عمليات البنوك$cc688$, $cc689$1- يجوز أن يكون الاعتماد المستندي قابلا للإلغاء أو باتا غير قابل للإلغاء.
 2- ويكون الاعتماد غير قابل للإلغاء إلا إذا اتفق صراحة على قابليته للإلغاء.$cc689$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4305,7 +4317,7 @@ WITH ins_art_law17_1999_344 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 344, $cc690$الباب الثالث: عمليات البنوك$cc690$, $cc691$لا يترتب على الاعتماد المستندي القابل للإلغاء أي التزام على البنك قبل المستفيد، ويجوز للبنك في كل وقت تعديله أو إلغاؤه من تلقاء نفسه أو بناء على طلب الآمر دون حاجة إلى إخطار المستفيد ما لم يكن قد تم التنفيذ.$cc691$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4316,7 +4328,7 @@ WITH ins_art_law17_1999_345 AS (
   SELECT id, 345, $cc692$الباب الثالث: عمليات البنوك$cc692$, $cc693$1- يكون التزام البنك في حالة الاعتماد المستندي البات قطعيا ومباشرا قبل المستفيد وكل حامل حسن النية للصك الذي سحب تنفيذا للعقد الذي فتح الاعتماد بسببه.
 2- ولا يجوز إلغاء الاعتماد المستندي البات أو تعديله إلا باتفاق جميع ذوى الشأن فيه.$cc693$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4328,7 +4340,7 @@ WITH ins_art_law17_1999_346 AS (
   SELECT id, 346, $cc694$الباب الثالث: عمليات البنوك$cc694$, $cc695$1- يجوز تأييد الاعتماد المستندي البات من بنك آخر يلتزم بدوره بصورة قطعية ومباشرة قبل المستفيد.
 2- لا يعتبر مجرد الإخطار بفتح الاعتماد المستندي البات المرسل إلى المستفيد عن طريق بنك آخر من هذا البنك تأييدا للاعتماد.$cc695$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4340,7 +4352,7 @@ WITH ins_art_law17_1999_347 AS (
   SELECT id, 347, $cc696$الباب الثالث: عمليات البنوك$cc696$, $cc697$1- على البنك أن يتحقق من مطابقة المستندات لتعليمات الآمر بفتح الاعتماد.
 2- وإذا رفض البنك المستندات وجب أن يخطر الآمر فورا بالرفض مبينا أسبابه.$cc697$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4352,7 +4364,7 @@ WITH ins_art_law17_1999_348 AS (
   SELECT id, 348, $cc698$الباب الثالث: عمليات البنوك$cc698$, $cc699$1- لا مسئولية على البنك إذا كانت المستندات في ظاهرها مطابقة للتعليمات التي تلقاها من الآمر.
 2- ولا يتحمل البنك أي التزام يتعلق بالبضاعة التي فتح الاعتماد بسببها.$cc699$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4363,7 +4375,7 @@ WITH ins_art_law17_1999_349 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 349, $cc700$الباب الثالث: عمليات البنوك$cc700$, $cc701$لا يجوز تحويل الاعتماد المستندي ولا تجزئته إلا إذا كان البنك الذي فتحه مأذونا في تحويله كله أو بعضه إلى شخص أو إلى جملة أشخاص غير المستفيد الأول بناء على تعليمات صادرة من هذا المستفيد، ولا يتم التحويل إلا إذا وافق عليه البنك ولا يجوز التحويل إلا مرة واحدة ما لم يتفق على غير ذلك.$cc701$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4374,7 +4386,7 @@ WITH ins_art_law17_1999_350 AS (
   SELECT id, 350, $cc702$الباب الثالث: عمليات البنوك$cc702$, $cc703$إذا لم يدفع الآمر إلى البنك قيمة المستندات المطابقة لشروط فتح الاعتماد خلال ستة اشهر من تاريخ تبليغه بوصول تلك المستندات، جاز للبنك التنفيذ على البضاعة باتباع إجراءات التنفيذ على الاشياء المرهونة رهنا تجاريا.
 8- الخصم$cc703$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4386,7 +4398,7 @@ WITH ins_art_law17_1999_351 AS (
   SELECT id, 351, $cc704$الباب الثالث: عمليات البنوك$cc704$, $cc705$1- الخصم اتفاق يتعهد البنك بمقتضاه بأن يدفع مقدما قيمة صك قابل للتداول إلى المستفيد في الصك مقابل نقل ملكيته إلى البنك مع التزام المستفيد برد القيمة الاسمية إلى البنك إذا لم يدفعها المدين الأصلي.
 2- يخصم البنك مما يدفعه للمستفيد من الخصم نسبة من مبلغ الصك فضلا عن العمولة إن كانت مشروطة.$cc705$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4397,7 +4409,7 @@ WITH ins_art_law17_1999_352 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 352, $cc706$الباب الثالث: عمليات البنوك$cc706$, $cc707$تحسب النسبة على أساس المدة من تاريخ الخصم حتى تاريخ استحقاق الصك أو على أساس مدة اكثر من ذلك بالنسبة إلى عمليات الرهن وغيرها من العمليات التي تتضمن تعهد المستفيد برد ما قبضه قبل حلول اجل الصك.$cc707$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4407,7 +4419,7 @@ WITH ins_art_law17_1999_353 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 353, $cc708$الباب الثالث: عمليات البنوك$cc708$, $cc709$يلتزم المستفيد بأن يرد إلى البنك القيمة الاسمية للصك الذي لم يدفع.$cc709$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4419,7 +4431,7 @@ WITH ins_art_law17_1999_354 AS (
 2- وللبنك فضلا عن ذلك قبل المستفيد حق مستقل في استرداد المبالغ التي دفعها دون استنزال ما خصمه البنك من نسبة وما قبضه من عمولة، ويكون للبنك استعمال هذا الحق في حدود الصكوك غير المدفوعة أيا كان سبب الامتناع عن دفعها.
 9- خطاب الضمان$cc711$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4432,7 +4444,7 @@ WITH ins_art_law17_1999_355 AS (
   SELECT id, 355, $cc712$الباب الثالث: عمليات البنوك$cc712$, $cc713$1- خطاب الضمان تعهد مكتوب يصدر من البنك بناء على طلب شخص (يسمى الآمر) بدفع مبلغ معين أو قابل للتعيين لشخص آخر (يسمى المستفيد)، إذا طلب منه ذلك خلال المدة المعينة في الخطاب ودون اعتداد بأية معارضة.
 2- تسرى فيما لم يرد بشأنه نص أو عرف في هذا الفرع القواعد والعادات السائدة في المعاملات الدولية بشأن خطاب الضمان.$cc713$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4443,7 +4455,7 @@ WITH ins_art_law17_1999_356 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 356, $cc714$الباب الثالث: عمليات البنوك$cc714$, $cc715$يجوز للبنك أن يطلب تأمينا مقابل إصدار خطاب الضمان، ويكون هذا التأمين نقدا أو صكوكا أو بضائع أو تنازلا من الآمر عن حقه قبل المستفيد.$cc715$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4453,7 +4465,7 @@ WITH ins_art_law17_1999_357 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 357, $cc716$الباب الثالث: عمليات البنوك$cc716$, $cc717$لا يجوز للمستفيد التنازل عن حقه الوارد بخطاب الضمان إلا بموافقة البنك، وبشرط أن يكون البنك مأذونا من قبل الآمر بإعطاء هذه الموافقة.$cc717$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4463,7 +4475,7 @@ WITH ins_art_law17_1999_358 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 358, $cc718$الباب الثالث: عمليات البنوك$cc718$, $cc719$لا يجوز للبنك أن يمتنع عن الوفاء للمستفيد لسبب يرجع إلى علاقة البنك بالأمر أو إلى علاقة الأمر بالمستفيد.$cc719$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4474,7 +4486,7 @@ WITH ins_art_law17_1999_359 AS (
   SELECT id, 359, $cc720$الباب الثالث: عمليات البنوك$cc720$, $cc721$1- تبرأ ذمة البنك قبل المستفيد إذا لم يصله طلب من المستفيد خلال مدة سريان خطاب الضمان بالدفع إلا إذا اتفق صراحة على تجديد تلك المدة تلقائيا أو وافق البنك على مدها.
 2- يلتزم البنك بأن يرد للآمر في نهاية مدة سريان خطاب الضمان ما قدمه من تأمين للحصول على هذا الخطاب.$cc721$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4486,7 +4498,7 @@ WITH ins_art_law17_1999_360 AS (
   SELECT id, 360, $cc722$الباب الثالث: عمليات البنوك$cc722$, $cc723$إذا دفع البنك للمستفيد المبلغ المتفق عليه في خطاب الضمان جاز له الرجوع على الآمر بمقدار المبلغ المدفوع وعائده من تاريخ دفعه.
 10- الحساب الجاري$cc723$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4500,7 +4512,7 @@ WITH ins_art_law17_1999_361 AS (
 3- تسرى أحكام هذا الفرع على كل حساب جار ولو لم يكن أحد الطرفين بنكا.
 4- تسرى الأحكام المنصوص عليها في المادة (308) من هذا القانون على الحساب الجاري المشترك المفتوح لدى البنك.$cc725$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4514,7 +4526,7 @@ WITH ins_art_law17_1999_362 AS (
   SELECT id, 362, $cc726$الباب الثالث: عمليات البنوك$cc726$, $cc727$1- لا تقبل المفردات المقيدة في الحساب الجاري التجزئة قبل قفل الحساب واستخراج الرصيد.
 2- ولا تجوز المقاصة بين مفرد في الحساب ومفرد آخر في نفس الحساب.$cc727$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4525,7 +4537,7 @@ WITH ins_art_law17_1999_363 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 363, $cc728$الباب الثالث: عمليات البنوك$cc728$, $cc729$قيد الدين في الحساب الجاري لا يحول دون استعمال الحقوق المتعلقة بالعملية المنشئة لهذا الدين.$cc729$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4535,7 +4547,7 @@ WITH ins_art_law17_1999_364 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 364, $cc730$الباب الثالث: عمليات البنوك$cc730$, $cc731$إذا انقضى القيد في الحساب الجاري أو خفض مقداره لاحق لدخوله الحساب وجب إلغاء قيده أو تخفيضه وتعديل الحساب تبعا لذلك.$cc731$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4545,7 +4557,7 @@ WITH ins_art_law17_1999_365 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 365, $cc732$الباب الثالث: عمليات البنوك$cc732$, $cc733$يجوز وقف الحساب موقتا أثناء سيره لبيان مركز كل من الطرفين وذلك في المواعيد التي يتفق عليها الطرفان أو يحددها القانون ويكون لكل طرف أن يتصرف في رصيده الدائن الذي قد يظهر عند الوقف المؤقت في أي وقت ما لم يتفق على غير ذلك.$cc733$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4556,7 +4568,7 @@ WITH ins_art_law17_1999_366 AS (
   SELECT id, 366, $cc734$الباب الثالث: عمليات البنوك$cc734$, $cc735$1- لا تنتج المدفوعات في الحساب الجاري عائدا إلا إذا اتفق على غير ذلك ويحسب العائد وفقا للسعر الذي يتعامل به البنك المركزي وقت استحقاقه ما لم يتفق على مقابل اقل.
 2- لا يجوز حساب عائد على العوائد إلا إذا كان الحساب الجاري بين بنك وشخص آخر.$cc735$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4568,7 +4580,7 @@ WITH ins_art_law17_1999_367 AS (
   SELECT id, 367, $cc736$الباب الثالث: عمليات البنوك$cc736$, $cc737$1- تقيد في الحساب الجاري جميع الديون الناشئة عن علاقات الأعمال التي تتم بين طرفي الحساب ما لم تكن هذه الديون مصحوبة بتأمينات قانونية أو اتفاقية.
 2- ومع ذلك يجوز قيد الديون المصحوبة بتأمينات اتفاقية سواء أكانت تلك التأمينات مقررة من المدين أم من الغير في الحساب الجاري إذا اتفق جميع ذوى الشأن على ذلك، وفي هذه الحالة ينتقل التأمين لضمان رصيد الحساب الجاري عند قفله بمقدار الدين المضمون دون اعتبار لما يطرأ على الحساب أثناء تشغيله من تغييرات إلا إذا اتفق على غير ذلك ولا يحتج على الغير بانتقال التأمين إلى رصيد الحساب إلا من تاريخ شهره إذا كان القانون يستلزم هذا الشهر.$cc737$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4580,7 +4592,7 @@ WITH ins_art_law17_1999_368 AS (
   SELECT id, 368, $cc738$الباب الثالث: عمليات البنوك$cc738$, $cc739$1- إذا تضمنت مفردات الحساب ديونا نقدية مقومة بعملات مختلفة، أو أشياء قيمة جاز للطرفين أن يتفقا على إدخالها في الحساب بشرط أن تقيد في أقسام مستقلة يراعى التماثل في المدفوعات التي تتضمنها وان يصرح الطرفان ببقاء الحساب رغم تعدد أقسامه محتفظا بوحدته.
 2- ويجب أن تكون أرصدة الأقسام المستقلة قابلة للتحويل فيما بينها بحيث يمكن في الوقت الذي حدده الطرفان لقفل الحساب أو عند قفله على الأكثر إجراء المقاصة بينها لاستخراج رصيد واحد.$cc739$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4593,7 +4605,7 @@ WITH ins_art_law17_1999_369 AS (
 2- وإذا لم تحدد مدة للحساب الجاري جاز قفله في كل وقت بإرادة أي من الطرفين مع مراعاة مواعيد الإخطار المتفق عليها أو التي يجرى عليها العرف.
 3- وفي جميع الأحوال يقفل الحساب الجاري بوفاة أحد طرفيه أو شهر إفلاسه أو إعساره أو الحجر عليه.$cc741$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4605,7 +4617,7 @@ WITH ins_art_law17_1999_370 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 370, $cc742$الباب الثالث: عمليات البنوك$cc742$, $cc743$يستخرج رصيد الحساب الجاري عند قفله، ويكون دين الرصيد حالا ما لم يتفق على غير ذلك أو كان بعض العمليات الواجب قيدها في الحساب لا يزال جاريا وكان من شأن قيدها تعديل مقدار الرصيد، وفي هذه الحالة يكون دين الرصيد حالا من اليوم التالي لآخر قيد تستلزمه تلك العمليات.$cc743$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4615,7 +4627,7 @@ WITH ins_art_law17_1999_371 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 371, $cc744$الباب الثالث: عمليات البنوك$cc744$, $cc745$إذا كان الحساب الجاري مفتوحا بين بنك وطرف آخر اعتبر الحساب مقطوعا في نهاية السنة المالية للبنك ولا يعتبر هذا القطع قفلا للحساب وانما يظل مفتوحا ويرحل رصيده إلى نفس الحساب الذي يستأنف حركته في اليوم التالي لقطعه.$cc745$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4625,7 +4637,7 @@ WITH ins_art_law17_1999_372 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 372, $cc746$الباب الثالث: عمليات البنوك$cc746$, $cc747$تسرى القواعد العامة على تقادم دين الرصيد وعائده ويحسب العائد على دين الرصيد من تاريخ قفل الحساب ما لم يتفق على غير ذلك.$cc747$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4635,7 +4647,7 @@ WITH ins_art_law17_1999_373 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 373, $cc748$الباب الثالث: عمليات البنوك$cc748$, $cc749$يجوز لدائن أحد طرفي الحساب توقيع الحجز أثناء سير الحساب على الرصيد الدائن لمدينه وقت توقيع الحجز وفي هذه الحالة يجرى الطرف المفتوح لديه الحساب ميزانا مؤقتا للحساب للكشف عن مركز المحجوز عليه وقت توقيع الحجز.$cc749$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4645,7 +4657,7 @@ WITH ins_art_law17_1999_374 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 374, $cc750$الباب الثالث: عمليات البنوك$cc750$, $cc751$إذا أفلس أحد طرفي الحساب الجاري فلا يجوز الاحتجاج على جماعة الدائنين في تفليسته بأي رهن تقرر على أمواله بعد التاريخ الذي عينته المحكمة للوقوف عن الدفع لضمان دين الرصيد المحتمل، وذلك في حدود الرصيد المدين وقت تقرير الرهن، ويجوز الاحتجاج بالرهن فيما يتعلق بالفرق- ان وجد- بين مقدار هذا الرصيد ومقدار الرصيد الذي يظهر وقت قفل الحساب إلا اذا ثبت علم الدائن وقت تقرير الرهن بتوقف المدين عن الدفع.$cc751$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4656,7 +4668,7 @@ WITH ins_art_law17_1999_375 AS (
   SELECT id, 375, $cc752$الباب الثالث: عمليات البنوك$cc752$, $cc753$1- اذا قيدت حصيلة خصم ورقة تجارية في الحساب الجاري ولم تدفع قيمتها في ميعاد الاستحقاق جاز لمن خصم الورقة، ولو بعد شهر إفلاس من قدمها للخصم، إلغاء القيد بإجراء قيد عكسي.
 2- لا يجوز إجراء القيد العكسي إلا فيما يتعلق بالأوراق التجارية التي لم تدفع قيمتها في مواعيد استحقاقها، ويقع باطلا كل اتفاق على غير ذلك.$cc753$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4668,7 +4680,7 @@ WITH ins_art_law17_1999_376 AS (
   SELECT id, 376, $cc754$الباب الثالث: عمليات البنوك$cc754$, $cc755$1- لا تقبل الدعوى بتصحيح الحساب الجاري ولو كان الطلب مبنيا على غلط أو سهو أو تكرار القيود، وذلك فيما يتعلق بالقيود التي مضى عليها اكثر من ثلاث سنوات، إلا إذا حصل خلال هذه المدة إخطار من أحد طرفي الحساب إلى الآخر بتمسكه بتصحيح الحساب أو إذا لم يثبت في حالة الحساب مع البنك أن العميل لم يتلق من البنك خلال المدة المذكورة أي بيان بحسابه.
 2- وفي جميع الأحوال تسقط الدعوى بانقضاء خمس سنوات من اليوم الذي ينشأ فيه الحق في تصحيح الحساب.$cc755$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4679,7 +4691,7 @@ WITH ins_art_law17_1999_377 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 377, $cc756$الباب الثالث: عمليات البنوك$cc756$, $cc757$إذا كان الحساب الجاري مفتوحا لدى بنك فلا يجوز للبنك إعطاء بيانات أو معلومات عن رقم الحساب أو حركته أو رصيده إلا لصاحب الحساب أو وكيله الخاص أو لورثته أو الموصى لهم بعد وفاته أو وفقا لأحكام القانون رقم 205 لسنة 1990 في شأن سرية الحسابات.$cc757$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4689,7 +4701,7 @@ WITH ins_art_law17_1999_378 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 378, $cc758$الباب الرابع: الأوراق التجارية$cc758$, $cc759$تسرى أحكام هذا الباب على الكمبيالات والسندات لامر والشيكات وغيرها من الأوراق التجارية الأخرى أيا كانت صفة ذوي الشأن فيها أو طبيعة الأعمال التي أنشئت من اجلها.$cc759$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4707,7 +4719,7 @@ WITH ins_art_law17_1999_379 AS (
 (ز) تاريخ ومكان إصدار الكمبيالة.
 (ح) توقيع من اصدر الكمبيالة (الساحب) على نحو مقروء.$cc761$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4728,7 +4740,7 @@ WITH ins_art_law17_1999_380 AS (
 (ب) وإذا خلت من بيان مكان الوفاء اعتبر المكان المبين بجانب اسم المسحوب عليه مكانا للوفاء وموطنا للمسحوب عليه في نفس الوقت.
 (ج) وإذا خلت من بيان مكان الإصدار اعتبرت صادرة في المكان المبين بجانب توقيع الساحب.$cc763$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4743,7 +4755,7 @@ WITH ins_art_law17_1999_381 AS (
 2- ويجوز سحبها على الساحب.
 3- ويجوز سحبها لحساب شخص آخر.$cc765$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4755,7 +4767,7 @@ WITH ins_art_law17_1999_382 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 382, $cc766$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc766$, $cc767$يجوز أن تكون الكمبيالة مستحقة الوفاء في موطن شخص من الغير سواء في الجهة التي بها موطن المسحوب عليه أو في أية جهة أخرى.$cc767$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4768,7 +4780,7 @@ WITH ins_art_law17_1999_383 AS (
 3- ويجب بيان العائد في الكمبيالة، فإذا خلت منه اعتبر الشرط كأن لم يكن.
 4- ويحسب العائد من تاريخ إصدار الكمبيالة ما لم يتفق على تاريخ آخر.$cc769$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4782,7 +4794,7 @@ WITH ins_art_law17_1999_384 AS (
   SELECT id, 384, $cc770$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc770$, $cc771$1- إذا كتب مبلغ الكمبيالة بالحروف والأرقام معا، فالعبرة عند الاختلاف بالمكتوب بالحروف.
 2- وإذا كتب المبلغ عدة مرات بالحروف أو بالأرقام فالعبرة عند الاختلاف بأقلها مبلغا.$cc771$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4793,7 +4805,7 @@ WITH ins_art_law17_1999_385 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 385, $cc772$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc772$, $cc773$تكون التزامات ناقصي الأهلية الذين ليسوا تجارا وعديمي الأهلية الناشئة عن توقيعاتهم على الكمبيالة كساحبين أو قابلين أو ضامنين احتياطيين أو بأية صفة أخرى باطلة بالنسبة إليهم فقط.$cc773$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4803,7 +4815,7 @@ WITH ins_art_law17_1999_386 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 386, $cc774$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc774$, $cc775$إذا حصلت الكمبيالة توقيعات أشخاص ليست لهم أهلية الالتزام بها أو توقيعات مزورة أو لأشخاص وهميين أو توقيعات غير ملزمة لاسباب أخرى لاصحابها أو لمن وقعت الكمبيالة بأسمائهم، فإن التزامات غيرهم من الموقعين عليها تبقى مع ذلك صحيحة.$cc775$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4814,7 +4826,7 @@ WITH ins_art_law17_1999_387 AS (
   SELECT id, 387, $cc776$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc776$, $cc777$1- يخضع شكل الالتزامات بموجب الكمبيالة لقانون الدولة التي صدرت فيها.
 2- ومع ذلك إذا كان الالتزام غير صحيح شكلا بموجب القانون المشار إليه في الفقرة في صحة الالتزامات اللاحقة التي تنشأ بموجب الكمبيالة في مصر.$cc777$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4826,7 +4838,7 @@ WITH ins_art_law17_1999_388 AS (
   SELECT id, 388, $cc778$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc778$, $cc779$1- يرجع في تحديد أهلية الملتزم بموجب الكمبيالة إلى قانون الدولة التي ينتمي إليها بجنسيته.
 2- وإذا كان القانون الواجب التطبيق يعتبر الملتزم بموجب الكمبيالة ناقص الأهلية فإن التزامه يبقى صحيحا إذا وضع توقيعه على الكمبيالة في دولة يعتبره قانونها كامل الأهلية.$cc779$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4838,7 +4850,7 @@ WITH ins_art_law17_1999_389 AS (
   SELECT id, 389, $cc780$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc780$, $cc781$1- من يوقع كمبيالة نيابة عن آخر بغير تفويض منه يلتزم شخصيا بموجب الكمبيالة فإذا أوفاها آلت إليه الحقوق التي كانت تؤول إلى من ادعى النيابة عنه.
 2- ويسرى هذا الحكم على النائب إذا جاوز حدود سلطته.$cc781$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4851,7 +4863,7 @@ WITH ins_art_law17_1999_390 AS (
 2- ويجوز له أن يشترط إعفاءه من ضمان القبول، وكل شرط بإعفائه من ضمان الوفاء يعتبر كأن لم يكن.
 ٢- التظهير$cc783$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4865,7 +4877,7 @@ WITH ins_art_law17_1999_391 AS (
 2- لا يجوز تداول الكمبيالة التي يضع فيها الساحب عبارة "ليست للأمر" أو أية عبارة أخرى تفيد هذا المعنى إلا باتباع إجراءات حوالة الحق المنصوص عليها في القانون المدني مع ما يترتب عليها من آثار.
 3- يجوز التظهير إلى المسحوب عليه سواء قبل الكمبيالة او لم يقبلها، كما يجوز التظهير إلى الساحب أو أي ملتزم آخر، ويجوز لجميع هؤلاء تظهير الكمبيالة من جديد.$cc785$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4879,7 +4891,7 @@ WITH ins_art_law17_1999_392 AS (
 2- ويكون التظهير الجزئي باطلا.
 3- ويعتبر التظهير "لحامله" تظهيرا على بياض.$cc787$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4892,7 +4904,7 @@ WITH ins_art_law17_1999_393 AS (
   SELECT id, 393, $cc788$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc788$, $cc789$1- يكتب التظهير على الكمبيالة نفسها أو على ورقة متصلة بها "وصلة" ويوقعه المظهر.
 2- ويجوز ألا يذكر في التظهير اسم المظهر إليه كما يجوز أن يقتصر على توقيع المظهر (التظهير على بياض) ويشترط لصحة التظهير في هذه الحالة الأخيرة أن يكتب على ظهر الكمبيالة أو على الوصلة.$cc789$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4907,7 +4919,7 @@ WITH ins_art_law17_1999_394 AS (
 (ب) أن يظهر الكمبيالة من جديد على بياض أو إلى شخص آخر.
 (ج) أن يسلم الكمبيالة إلى شخص آخر دون أن يملا البياض ولو يظهرها.$cc791$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4922,7 +4934,7 @@ WITH ins_art_law17_1999_395 AS (
   SELECT id, 395, $cc792$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc792$, $cc793$1- يضمن المظهر قبول الكمبيالة ووفاءها ما لم يشترط غير ذلك.
 2- ويجوز له حظر تظهيرها من جديد، وفي هذه الحالة لا يكون ملزما بالضمان قبل من تؤول إليه الكمبيالة بتظهير لاحق.$cc793$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4934,7 +4946,7 @@ WITH ins_art_law17_1999_396 AS (
   SELECT id, 396, $cc794$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc794$, $cc795$1- يعتبر حائز الكمبيالة حاملها الشرعي إذا اثبت انه صاحب الحق فيها بسلسلة من تظهيرات غير منقطعة ولو كان آخرها تظهيرا على بياض، وتعتبر التظهيرات المشطوبة في هذا الشأن كأن لم تكن، وإذا أعقب التظهير على بياض تظهير آخر اعتبر الموقع على هذا التظهير انه هو الذي آل إليه الحق في الكمبيالة بالتظهير على بياض.
 2- إذا فقد شخص حيازة الكمبيالة فلا يلزم الحامل بالتخلي عنها إذا اثبت حقه فيها طبقا للفقرة السابقة إلا إذا كان قد حصل عليها بسوء نية أو ارتكب في سبيل الحصول عليها خطأ جسيم.$cc795$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4945,7 +4957,7 @@ WITH ins_art_law17_1999_397 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 397, $cc796$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc796$, $cc797$مع عدم الإخلال بأحكام المادة (385) من هذا القانون ليس لمن أقيمت عليه دعوى بكمبيالة أن يحتج على حاملها بالدفوع المبنية على علاقاته الشخصية بساحبها أو بحامليها السابقين ما لم يكن قصد الحامل وقت حصوله عليها الإضرار بالمدين.$cc797$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4957,7 +4969,7 @@ WITH ins_art_law17_1999_398 AS (
 2- وليس للملتزمين في هذه الحالة الاحتجاج على الحامل إلا بالدفوع التي يجوز الاحتجاج بها على المظهر.
 3- لا تنقضي الوكالة التي يتضمنها التظهير بوفاة الموكل أو الحجر عليه.$cc799$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4970,7 +4982,7 @@ WITH ins_art_law17_1999_399 AS (
   SELECT id, 399, $cc800$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc800$, $cc801$1- إذا اشتمل التظهير على عبارة "القيمة للضمان" أو "القيمة للرهن" أو أي بيان آخر يفيد الرهن جاز للحامل استعمال جميع الحقوق الناشئة عن الكمبيالة، ومع ذلك إذا ظهر الكمبيالة اعتبر التظهير حاصلا على سبيل التوكيل.
 2- وليس للملتزمين بالكمبيالة الاحتجاج على الحامل بالدفوع المبنية على علاقاتهم الشخصية بالمظهر ما لم يكن قصد الحامل وقت حصوله على الكمبيالة الإضرار بالمدين، وتكون حماية الحامل في هذا الشأن في حدود دينه المضمون بالرهن.$cc801$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4983,7 +4995,7 @@ WITH ins_art_law17_1999_400 AS (
 2- يفترض في التظهير الخالي من التاريخ انه حصل قبل انقضاء الميعاد المحدد لعمل الاحتجاج ما لم يثبت غير ذلك.
 3- مقابل الوفاء$cc803$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4995,7 +5007,7 @@ WITH ins_art_law17_1999_401 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 401, $cc804$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc804$, $cc805$على ساحب الكمبيالة أو من سحبت لحسابه أن يوجد لدى المسحوب عليه مقابل وفائها ويسأل الساحب لحساب غيره قبل مظهري الكمبيالة وحاملها دون غيرهم عن إيجاد مقابل الوفاء.$cc805$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5005,7 +5017,7 @@ WITH ins_art_law17_1999_402 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 402, $cc806$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc806$, $cc807$يعتبر مقابل الوفاء موجودا إذا كان المسحوب عليه مدينا للساحب أو للآمر بالسحب في ميعاد استحقاق الكمبيالة بمبلغ من النقود مستحق الأداء ومساو بالأقل لمبلغ الكمبيالة.$cc807$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5016,7 +5028,7 @@ WITH ins_art_law17_1999_403 AS (
   SELECT id, 403, $cc808$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc808$, $cc809$1- يعتبر قبول الكمبيالة قرينة على وجود مقابل الوفاء لدى القابل، ولا يجوز نقض هذه القرينة في علاقة المسحوب عليه بالحامل.
 2- وعلى الساحب وحده أن يثبت في حالة الإنكار سواء حصل قبول الكمبيالة أم لم يحصل أن المسحوب عليه كان لديه مقابل الوفاء في ميعاد الاستحقاق فإذا لم يثبت ذلك كان ضامنا للوفاء ولو عمل الاحتجاج بعد الميعاد المحدد قانونا، فإذا اثبت الساحب وجود المقابل واستمرار وجوده حتى الميعاد الذي يجب فيه عمل الاحتجاج برئت ذمته بمقدار هذا المقابل ما لم يكن قد استعمل في مصلحته.$cc809$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5028,7 +5040,7 @@ WITH ins_art_law17_1999_404 AS (
   SELECT id, 404, $cc810$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc810$, $cc811$1- تنتقل ملكية مقابل الوفاء بحكم القانون إلى حملة الكمبيالة المتعاقبين.
 2- وإذا كان مقابل الوفاء اقل من قيمة الكمبيالة كان للحامل على هذا المقابل الناقص جميع الحقوق المقررة له على المقابل بالكامل، ويسرى هذا الحكم إذا كان مقابل الوفاء دينا متنازعا عليه او غير حال عند استحقاق الكمبيالة.$cc811$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5039,7 +5051,7 @@ WITH ins_art_law17_1999_405 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 405, $cc812$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc812$, $cc813$على الساحب، ولو عمل الاحتجاج بعد الميعاد المحدد له قانونا، أن يسلم حامل الكمبيالة المستندات اللازمة للحصول على مقابل الوفاء، الموجود على وجه صحيح لدى المسحوب عليه.$cc813$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5049,7 +5061,7 @@ WITH ins_art_law17_1999_406 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 406, $cc814$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc814$, $cc815$إذا أفلس الساحب ولو قبل حلول ميعاد استحقاق الكمبيالة فللحامل دون غيره من دائني الساحب استيفاء حقه من مقابل الوفاء الموجود على وجه صحيح لدى المسحوب عليه.$cc815$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5060,7 +5072,7 @@ WITH ins_art_law17_1999_407 AS (
   SELECT id, 407, $cc816$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc816$, $cc817$1- إذا أفلس المسحوب عليه وكان مقابل الوفاء دينا في ذمته للساحب دخل هذا الدين في موجودات التفليسة.
 2- أما إذا كان للساحب لدى المسحوب عليه بضائع أو أوراق تجارية أو أوراق مالية أو غير ذلك من الأموال التي يجوز استردادها طبقا لاحكام الإفلاس وكانت هذه الأموال مخصصة صراحة أو ضمنا لوفاء الكمبيالة فللحامل الأولوية في استيفاء حقه في قيمتها.$cc817$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5075,7 +5087,7 @@ WITH ins_art_law17_1999_408 AS (
 4- أما الكمبيالات التي تشتمل على شرط عدم القبول فتأتي في المرتبة الأخيرة.
 ٤- القبول$cc819$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5089,7 +5101,7 @@ WITH ins_art_law17_1999_409 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 409, $cc820$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc820$, $cc821$يجوز لحامل الكمبيالة ولكل حائز لها حتى ميعاد الاستحقاق تقديمها إلى المسحوب عليه في موطنه لقبولها.$cc821$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5102,7 +5114,7 @@ WITH ins_art_law17_1999_410 AS (
 3- وللساحب أن يشترط أيضا عدم تقديم الكمبيالة للقبول قبل ميعاد معين.
 4- ولكل مظهر أن يشترط تقديم الكمبيالة للقبول في ميعاد يحدده أو بغير تحديد ميعاد، ما لم يكن الساحب قد اشترط عدم تقديمها للقبول.$cc823$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5117,7 +5129,7 @@ WITH ins_art_law17_1999_411 AS (
 2- وللساحب تقصير هذا الميعاد أو إطالته.
 3- ولكل مظهر تقصير هذا الميعاد.$cc825$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5130,7 +5142,7 @@ WITH ins_art_law17_1999_412 AS (
   SELECT id, 412, $cc826$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc826$, $cc827$1- يجوز للمسحوب عليه أن يطلب تقديم الكمبيالة للقبول مرة ثانية في اليوم التالي للتقديم الأول، ولا يقبل من ذوى المصلحة الادعاء بأن هذا الطلب قد رفض إلا إذا ذكر في الاحتجاج.
 2- ولا يلزم حامل الكمبيالة المقدمة للقبول بالتخلي عنها للمسحوب عليه.$cc827$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5143,7 +5155,7 @@ WITH ins_art_law17_1999_413 AS (
 2- ويعتبر قبولا مجرد وضع المسحوب عليه توقيعه على صدر الكمبيالة.
 3- فإذا كانت الكمبيالة مستحقة الوفاء بعد مدة معينة من الاطلاع عليها أو كانت واجبة التقديم للقبول في مدة معينة بناء على شرط خاص، وجب بيان تاريخ القبول باليوم الذي وقع فيه إلا إذا أوجب الحامل بيان تاريخ القبول بيوم تقديم الكمبيالة، فإذا خلا القبول من التاريخ جاز للحامل- حفاظا على حقوقه في الرجوع على المظهرين وعلى الساحب- إثبات عدم وجود التاريخ باحتجاج يعمل في وقت يكون فيه مجديا.$cc829$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5156,7 +5168,7 @@ WITH ins_art_law17_1999_414 AS (
   SELECT id, 414, $cc830$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc830$, $cc831$1- يجب ان يكون القبول غير معلق على شرط، ومع ذلك يجوز للمسحوب عليه قصره على جزء من مبلغ الكمبيالة.
 2- وكل تعديل آخر لبيانات الكمبيالة يقع في صيغة القبول يعتبر رفضا للقبول، ومع ذلك يبقى القابل ملزما بما تضمنته صيغة قبوله.$cc831$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5168,7 +5180,7 @@ WITH ins_art_law17_1999_415 AS (
   SELECT id, 415, $cc832$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc832$, $cc833$1- اذا عين الساحب في الكمبيالة محلا للوفاء غير موطن المسحوب عليه دون ان يعين اسم الشخص الذي يجب الوفاء عنده جاز للمسحوب عليه تعيينه عند القبول، فإذا لم يعينه اعتبر المسحوب عليه القابل ملزما بالدفع في مكان الوفاء.
 2- واذا كانت الكمبيالة مستحقة الوفاء في موطن المسحوب عليه جاز له عند القبول ان يعين عنوانا في نفس الجهة التي بها موطنه ليقع فيه الوفاء.$cc833$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5180,7 +5192,7 @@ WITH ins_art_law17_1999_416 AS (
   SELECT id, 416, $cc834$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc834$, $cc835$1- اذا قبل المسحوب عليه الكمبيالة صار ملزما بوفاء قيمتها في ميعاد استحقاقها.
 2- *وفي حالة عدم الوفاء يكون للحامل ولو كان الساحب نفسه مطالبة المسحوب عليه القابل بدعوى ناشئة مباشرة عن الكمبيالة بكل ما تجوز المطالبة به بموجب المادتين 443، 444 من هذا القانون.$cc835$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5194,7 +5206,7 @@ WITH ins_art_law17_1999_417 AS (
 [ملاحظة توثيقية: صححت الفقرة 2 من المادة (416) بالاستدراك المنشور بالجريدة الرسمية- العدد 38 (مكرر) في 1999/9/27.]
 5- الضمان الاحتياطي$cc837$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5208,7 +5220,7 @@ WITH ins_art_law17_1999_418 AS (
   SELECT id, 418, $cc838$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc838$, $cc839$1- يجوز ضمان وفاء مبلغ الكمبيالة كله او بعضه من ضامن احتياطي.
 2- ويكون هذا الضمان من اي شخص ولو كان ممن وقعوا الكمبيالة.$cc839$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5222,7 +5234,7 @@ WITH ins_art_law17_1999_419 AS (
 3- ويستفاد هذا الضمان من مجرد توقيع الضامن على صدر الكمبيالة ما لم يكن هذا التوقيع صادرا من المسحوب عليه او من الساحب.
 4- يذكر في الضمان اسم المضمون، والا اعتبر الضمان حاصلا للساحب.$cc841$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5238,7 +5250,7 @@ WITH ins_art_law17_1999_420 AS (
 3- وإذا أوفى الضامن الاحتياطي الكمبيالة آلت إليه الحقوق الناشئة عنها قبل كل ملتزم بمقتضى كمبيالة تجاه المضمون.
 6- الاستحقاق$cc843$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5256,7 +5268,7 @@ WITH ins_art_law17_1999_421 AS (
 (د) في تاريخ معين.
 2- الكمبيالات المشتملة على مواعيد استحقاق غير المذكورة في الفقرة السابقة او على مواعيد استحقاق متعاقبة تكون باطلة.$cc845$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5272,7 +5284,7 @@ WITH ins_art_law17_1999_422 AS (
   SELECT id, 422, $cc846$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc846$, $cc847$1- الكمبيالة المستحقة الوفاء لدى الاطلاع تكون واجبة الوفاء بمجرد تقديمها، ويجب أن تقدم للوفاء خلال سنة من تاريخ إصدارها، وللساحب تقصير هذا الميعاد او إطالته وللمظهرين تقصيره.
 2- للساحب أن يشترط عدم تقديم الكمبيالة المستحقة الوفاء لدى الاطلاع قبل انقضاء اجل معين، وفي هذه الحالة يحسب ميعاد التقديم ابتداء من حلول هذا الاجل.$cc847$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5284,7 +5296,7 @@ WITH ins_art_law17_1999_423 AS (
   SELECT id, 423, $cc848$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc848$, $cc849$1- يبدأ ميعاد استحقاق الكمبيالة الواجبة الوفاء بعد مدة من الاطلاع من تاريخ القبول او من تاريخ الاحتجاج.
 2- فإذا لم يعمل الاحتجاج اعتبر القبول غير المؤرخ حاصلا بالنسبة إلى القابل في اليوم الاخير من الميعاد المقرر لتقديم الكمبيالة للقبول.$cc849$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5298,7 +5310,7 @@ WITH ins_art_law17_1999_424 AS (
 3- وإذا كان الاستحقاق في أول الشهر أو في منتصفه أو في آخره كان المقصود اليوم الأول أو الخامس عشر أو الأخير من الشهر.
 4- وتعني عبارة "نصف شهر" خمسة عشر يوما.$cc851$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5315,7 +5327,7 @@ WITH ins_art_law17_1999_425 AS (
 4- ولا تسرى هذه الأحكام إذا اتضح من شروط الكمبيالة أو بياناتها اتجاه القصد إلى اتباع أحكام أخرى.
 7- الوفاء$cc853$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5330,7 +5342,7 @@ WITH ins_art_law17_1999_426 AS (
   SELECT id, 426, $cc854$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc854$, $cc855$1- على حامل الكمبيالة المستحقة الوفاء في تاريخ معين أو بعد مدة معينة من تاريخ إصدارها أو من تاريخ الاطلاع عليها أن يقدمها للوفاء في يوم استحقاقها أو في أحد يومي العمل التاليين لهذا اليوم.
 2- يعتبر تقديم الكمبيالة إلى إحدى غرف المقاصة المعترف بها قانونا في حكم تقديمها للوفاء.$cc855$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5344,7 +5356,7 @@ WITH ins_art_law17_1999_427 AS (
 3- وإذا كان الوفاء جزئيا جاز للمسحوب عليه أن يطلب إثباته على الكمبيالة وإعطاءه مخالصة به.
 4- وتبرأ ذمة الساحب والمظهرين وغيرهم من الملتزمين في الكمبيالة بقدر ما يدفع من قيمتها، وعلى حاملها عمل الاحتجاج عن القدر غير المدفوع.$cc857$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5359,7 +5371,7 @@ WITH ins_art_law17_1999_428 AS (
 2- وإذا أوفى المسحوب عليه قبل ميعاد الاستحقاق تحمل تبعة ذلك.
 3- وفاء الكمبيالة في ميعاد الاستحقاق دون معارضة صحيحة يبرئ ذمة الموفى إلا إذا وقع منه غش أو خطأ جسيم، وعليه أن يستوثق من انتظام تسلسل التظهيرات ولكنه غير ملزم بالتحقق من صحة توقيعات المظهرين.$cc859$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5372,7 +5384,7 @@ WITH ins_art_law17_1999_429 AS (
   SELECT id, 429, $cc860$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc860$, $cc861$1- إذا عين الساحب مبلغ الكمبيالة بعملة أجنبية يلزم أن تكون من العملات المعلن لها أسعار صرف محليا، وجب الوفاء بهذه الكمبيالة في مصر إلا إذا نص في الكمبيالة على جواز الوفاء بقيمتها بالعملة الوطنية حسب سعر البيع أو الإقفال أو التحويلات لدى البنك المركزي المصري أو حسب سعر البنكنوت إذا لم يعلن البنك المركزي سعر تحويلات لعملة الكمبيالة، وذلك في يوم الاستحقاق فإذا لم يتم الوفاء في هذا اليوم كان لحاملها الخيار بين المطالبة بمبلغ الكمبيالة مقوما بالعملة الوطنية حسب السعر المشار إليه يوم الاستحقاق أو يوم الوفاء.
 2- إذا عين مبلغ الكمبيالة بعملة تحمل تسمية مشتركة وتختلف قيمتها في بلد الإصدار عن قيمتها في بلد الوفاء افترض أن المقصود عملة بلد الوفاء.$cc861$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5385,7 +5397,7 @@ WITH ins_art_law17_1999_430 AS (
 2- يسلم قلم كتاب المحكمة المودع وثيقة يذكر فيها إيداع المبلغ ومقداره وتاريخ إصدار الكمبيالة وتاريخ الاستحقاق واسم من حررت من الأصل لمصلحته.
 3- فإذا طالب الحامل المدين بالوفاء وجب على المدين تسليم وثيقة الإيداع إليه مقابل تسليم الكمبيالة منه مؤشرا عليها بوقوع الوفاء بموجب وثيقة الإيداع، وللحامل قبض المبلغ من قلم كتاب المحكمة بموجب هذه الوثيقة، فإذا لم يسلم المدين وثيقة الإيداع إلى الحامل وجب عليه وفاء قيمة الكمبيالة له.$cc863$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5398,7 +5410,7 @@ WITH ins_art_law17_1999_431 AS (
   SELECT id, 431, $cc864$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc864$, $cc865$لا يقبل الاعتراض على وفاء الكمبيالة إلا في حالة ضياعها أو إفلاس حاملها أو الحجر عليه.
 فإذا وقع الاعتراض على الوفاء لأحد هذه الأسباب وجب على المدين إيداع قيمة الكمبيالة خزانة المحكمة على ذمة من يثبت له الحق فيها، ولا تبرأ ذمته من الدين إلا بهذا الإيداع.$cc865$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5410,7 +5422,7 @@ WITH ins_art_law17_1999_432 AS (
   SELECT id, 432, $cc866$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc866$, $cc867$إذا ضاعت كمبيالة غير مقبولة محررة من عدة نسخ، جاز لحاملها أن يطلب الوفاء بمقتضى إحدى النسخ الأخرى.
 فإذا كانت النسخة الضائعة هي التي تحمل صيغة القبول، وجب على الحامل حتى يتمكن من مطالبة المسحوب عليه بالوفاء بمقتضى نسخة أخرى، أن يحصل على أمر من قاضي الأمور المستعجلة الكائن بدائرته موطن المسحوب عليه، وأن يقدم كفيلا يضمن للمسحوب عليه ما عساه يلحقه من ضرر بسبب عدم تقديم النسخة الضائعة.$cc867$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5421,7 +5433,7 @@ WITH ins_art_law17_1999_433 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 433, $cc868$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc868$, $cc869$من ضاع منه أصل الكمبيالة، سواء أكانت مقبولة أم غير مقبولة، ولم يكن في مقدوره الحصول على نسخة أخرى منها، جاز له أن يطالب بوفائها أو بتجديدها بمقتضى نسخة أخرى، بناء على أمر يصدره قاضي الأمور المستعجلة الكائن بدائرته موطن المسحوب عليه، وذلك بعد إثبات ملكيته للكمبيالة الضائعة وتقديم كفيل على النحو المتقدم.$cc869$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5431,7 +5443,7 @@ WITH ins_art_law17_1999_434 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 434, $cc870$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc870$, $cc871$إذا امتنع المسحوب عليه عن وفاء الكمبيالة الضائعة، وجب إثبات هذا الامتناع بالاحتجاج في الميعاد المحدد في المادة (440)، ويجب إخطار الساحب والمظهرين بذلك.$cc871$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5441,7 +5453,7 @@ WITH ins_art_law17_1999_435 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 435, $cc872$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc872$, $cc873$لمن ضاعت منه الكمبيالة أن يحصل على نسخة منها من أحد المظهرين، ويلزم هذا المظهر بأن يظهر له النسخة التي حصل عليها من المظهر إليه مباشرة، وهكذا حتى يصل الأمر إلى الساحب، ولا يجوز لمن ضاعت منه الكمبيالة أن يطالب بوفائها بمقتضى هذه النسخة إلا بأمر من القضاء وبعد تقديم كفيل، وتكون نفقات الحصول على النسخة الجديدة وإجراءات إثبات الملكية على عاتق من ضاعت منه الكمبيالة.$cc873$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5451,7 +5463,7 @@ WITH ins_art_law17_1999_436 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 436, $cc874$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc874$, $cc875$يبرأ المدين إذا وفى قيمة الكمبيالة بمقتضى الأمر الصادر من القضاء في الأحوال المتقدمة.$cc875$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5462,7 +5474,7 @@ WITH ins_art_law17_1999_437 AS (
   SELECT id, 437, $cc876$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc876$, $cc877$تنقضي كفالة الكفيل المنصوص عليها في الفقرة الثانية من المادة (432) بمضي ثلاث سنوات دون مطالبة.
 8- الرجوع$cc877$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5478,7 +5490,7 @@ WITH ins_art_law17_1999_438 AS (
 ج- إذا أفلس ساحب كمبيالة اشترط فيها عدم تقديمها للقبول.
 ولكل ضامن بالكمبيالة، إذا رجع عليه الحامل قبل حلول الأجل في الحالتين المنصوص عليهما في البندين (ب) و(ج) من الفقرة السابقة، أن يتقدم إلى القاضي المختص الكائن موطنه بدائرته خلال ثلاثة أيام يطلب منحه أجلا للوفاء.$cc879$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5500,7 +5512,7 @@ WITH ins_art_law17_1999_439 AS (
 وإذا أشهر إفلاس المسحوب عليه، سواء أكان قابلا للكمبيالة أم لم يكن، أو أشهر إفلاس الساحب في كمبيالة اشترط فيها عدم تقديمها للقبول، فإن حكم إشهار الإفلاس يكفي لأن يتمسك الحامل بحقه في الرجوع.
 [ملاحظة توثيقية: صححت الفقرة المشار إليها بعلامة (*) من المادة (439) بالاستدراك المنشور بالجريدة الرسمية- العدد 38 (مكرر) في 1999/9/27.]$cc881$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5522,7 +5534,7 @@ WITH ins_art_law17_1999_440 AS (
 5- يجوز أن يقع الإخطار بأية طريقة، ولو بمجرد إعادة الكمبيالة، ويقع عبء إثبات حصول الإخطار في الميعاد المحدد على من كان ملزما به، ويعتبر الميعاد محفوظا إذا سلمت الرسالة التي تتضمن الإخطار إلى مكتب البريد قبل انقضائه.
 ولا يترتب على عدم مراعاة الميعاد المشار إليه سقوط الحق في الرجوع، وإنما يكون المقصر مسئولا، إذا اقتضى الحال، عن التعويض عن الضرر الناشئ عن إهماله على ألا تجاوز قيمة التعويض قيمة الكمبيالة.$cc883$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5540,7 +5552,7 @@ WITH ins_art_law17_1999_441 AS (
 3- إذا كتب الساحب شرط الرجوع بلا مصاريف، سرت آثاره على كل الموقعين، أما إذا كتبه أحد المظهرين أو الضامنين الاحتياطيين، سرت آثاره عليه وحده.
 4- وإذا كان الساحب هو الذي وضع الشرط وعمل الحامل احتجاجا رغم ذلك تحمل وحده المصاريف، أما إذا كان الشرط صادرا من مظهر أو ضامن احتياطي جاز الرجوع على جميع الموقعين الآخرين بمصاريف الاحتجاج إن عمل.$cc885$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5556,7 +5568,7 @@ WITH ins_art_law17_1999_442 AS (
 3- ويثبت هذا الحق لكل موقع على الكمبيالة إذا دفع قيمتها.
 4- الدعوى المقامة على أحد الملتزمين لا تحول دون الرجوع على الباقين ولو كانوا لاحقين للملتزم الذي وجهت إليه الدعوى ابتداء.$cc887$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5573,7 +5585,7 @@ WITH ins_art_law17_1999_443 AS (
 (ج) مصاريف الاحتجاج والاخطارات والدمغة وغيرها.
 (د) في أحوال الرجوع قبل ميعاد استحقاق الكمبيالة يجب أن يستنزل من قيمتها ما يساوي سعر الخصم الرسمي في تاريخ الرجوع بالمكان الذي يقع فيه موطن الحامل.$cc889$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5590,7 +5602,7 @@ WITH ins_art_law17_1999_444 AS (
 (ب) عائد هذا المبلغ محسوبا من يوم الوفاء وفقا للسعر الذي يتعامل به البنك المركزي.
 (ج) المصاريف التي تحملها.$cc891$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5604,7 +5616,7 @@ WITH ins_art_law17_1999_445 AS (
   SELECT id, 445, $cc892$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc892$, $cc893$1- لكل ملتزم طولب بكمبيالة على وجه الرجوع أو كان مستهدفا للمطالبة بها أن يطلب في حالة قيامه بالوفاء تسليم الكمبيالة إليه ومعها الاحتجاج ومخالصة بما وفاه.
 2- ولكل مظهر أوفى الكمبيالة أن يشطب تظهيره والتظهيرات اللاحقة له.$cc893$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5615,7 +5627,7 @@ WITH ins_art_law17_1999_446 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 446, $cc894$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc894$, $cc895$في حالة الرجوع بعد قبول جزئي يجوز لمن أوفى القدر غير المقبول من قيمة الكمبيالة أن يطلب إثبات هذا الوفاء على الكمبيالة وتسليمه مخالصة به، ويجب على الحامل فضلا عن ذلك أن يسلمه صورة طبق الأصل من الكمبيالة موقعا عليها منه وان يسلمه الاحتجاج تمكينا له من استعمال حقه في الرجوع على غيره.$cc895$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5631,7 +5643,7 @@ WITH ins_art_law17_1999_447 AS (
 3- وإذا لم تقدم الكمبيالة للقبول في الميعاد الذي اشترطه الساحب سقطت حقوق الحامل في الرجوع بسبب عدم القبول وعدم الوفاء على السواء الا اذا تبين من عبارة الشرط أن الساحب لم يقصد منه سوى إعفاء نفسه من ضمان القبول وحده.
 4- إذا كان المظهر هو الذي اشترط في التظهير ميعادا لتقديم الكمبيالة للقبول، فله وحده الإفادة من هذا الشرط.$cc897$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5652,7 +5664,7 @@ WITH ins_art_law17_1999_448 AS (
 5- إذا كانت الكمبيالة مستحقة الوفاء لدى الاطلاع أو بعد مدة معينة من الاطلاع سرى ميعاد الثلاثين يوما من التاريخ الذي اخطر فيه الحامل من ظهر له الكمبيالة بالقوة القاهرة ولو وقع هذا التاريخ قبل انتهاء مواعيد تقديم الكمبيالة. وتزاد مدة الاطلاع على ميعاد الثلاثين يوما إذا كانت الكمبيالة مستحقة الوفاء بعد مدة معينة من الاطلاع عليها.
 6- لا يعتبر من القوة القاهرة الأمور المتصلة بشخص حامل الكمبيالة أو بمن كلفه بتقديمها أو بعمل الاحتجاج.$cc899$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5668,7 +5680,7 @@ WITH ins_art_law17_1999_449 AS (
   SELECT id, 449, $cc900$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc900$, $cc901$يجوز لحامل الكمبيالة المعمول عنها احتجاج عدم الوفاء أن يوقع حجزا تحفظيا بغير كفالة على أموال كل من الساحب أو القابل أو المظهر أو الضامن الاحتياطي أو غيرهم من الملتزمين بالكمبيالة مع مراعاة الأحكام المقررة في قانون المرافعات المدنية والتجارية.
 9- التدخل أولا: أحكام عامة$cc901$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5683,7 +5695,7 @@ WITH ins_art_law17_1999_450 AS (
 4- ويجب على المتدخل أن يخطر من وقع التدخل لمصلحته خلال يومي العمل التاليين وإلا كان مسئولا عند الاقتضاء عن تعويض ما يترتب على إهماله من ضرر بشرط ألا يجاوز التعويض مبلغ الكمبيالة.
 ثانيا: القبول بالتدخل$cc903$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5699,7 +5711,7 @@ WITH ins_art_law17_1999_451 AS (
 2- إذا عين في الكمبيالة من يقبلها أو يوفى قيمتها عند الاقتضاء في مكان وفائها فليس للحامل أن يرجع قبل ميعاد استحقاقها على من صدر هذا التعيين على من صدر عنه من التعيين ولا على الموقعين اللاحقين له إلا إذا قدم الكمبيالة إلى من عين لقبولها أو لوفائها وامتنع هذا الشخص عن قبولها واثبت الحامل هذا الامتناع باحتجاج.
 3- وللحامل في الأحوال الأخرى رفض القبول بالتدخل، فإذا قبله فقد حقوقه في الرجوع قبل ميعاد الاستحقاق من حصل التدخل لمصلحته وعلى الموقعين اللاحقين له.$cc905$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5711,7 +5723,7 @@ WITH ins_art_law17_1999_452 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 452, $cc906$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc906$, $cc907$يذكر القبول بالتدخل على الكمبيالة ويوقعه المتدخل ويبين فيه اسم من حصل التدخل لمصلحته، فإذا خلا القبول بالتدخل من هذا البيان الأخير اعتبر حاصلا لمصلحة الساحب.$cc907$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5723,7 +5735,7 @@ WITH ins_art_law17_1999_453 AS (
 2- يجوز لمن حصل التدخل لمصلحته ولضامنيه على الرغم من حصول القبول بالتدخل أن يلزموا الحامل في مقابل وفاء المبالغ المنصوص عليها في المادة 443 من هذا القانون بتسليم الكمبيالة والاحتجاج وتقديم مخالصة بقبض المبالغ المذكورة.
 ثالثا: الوفاء بالتدخل$cc909$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5737,7 +5749,7 @@ WITH ins_art_law17_1999_454 AS (
 2- ويكون هذا الوفاء بأداء كل المبلغ الذي كان يجب على من حصل التدخل لمصلحته أداؤه.
 3- ويجب أن يقع الوفاء على الأكثر في اليوم الثالث لآخر يوم يجوز فيه عمل احتجاج عدم الوفاء.$cc911$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5750,7 +5762,7 @@ WITH ins_art_law17_1999_455 AS (
   SELECT id, 455, $cc912$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc912$, $cc913$1- إذا كان لمن قبلوا الكمبيالة بالتدخل أو لمن عينوا لوفائها عند الاقتضاء موطن في مكان الوفاء وجب على الحامل تقديم الكمبيالة لهؤلاء الأشخاص جميعا لوفائها وعليه أن يقوم بعمل احتجاج عدم الوفاء إذا لزم الحال في اليوم التالي على الأكثر لآخر يوم يجوز فيه عمل هذا الاحتجاج.
 2- وإذا لم يعمل الاحتجاج في هذا الميعاد برئت ذمة من عين الموفى عند الاقتضاء أو من حصل قبوله الكمبيالة بالتدخل لمصلحته، وكذلك تبرأ ذمة المظهرين اللاحقين لهذا الشخص.$cc913$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5761,7 +5773,7 @@ WITH ins_art_law17_1999_456 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 456, $cc914$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc914$, $cc915$اذا رفض حامل الكمبيالة الوفاء بالتدخل فقد حقه في الرجوع على كل من كانت ذمته تبرأ بهذا الوفاء.$cc915$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5772,7 +5784,7 @@ WITH ins_art_law17_1999_457 AS (
   SELECT id, 457, $cc916$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc916$, $cc917$1- يجب بيان الوفاء بالتدخل بكتابة مخالصة على الكمبيالة يعين فيها من حصل الوفاء لمصلحته، فإذا خلت المخالصة من هذا البيان اعتبر الوفاء بالتدخل حاصلا لمصلحة الساحب.
 2- يجب تسليم الكمبيالة والاحتجاج إن عمل للموفى بالتدخل.$cc917$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5786,7 +5798,7 @@ WITH ins_art_law17_1999_458 AS (
 3- إذا تزاحم عدة أشخاص على الوفاء بالتدخل فضل من يترتب على الوفاء منه إبراء اكبر عدد من الملتزمين. ومن يتدخل للوفاء بالمخالفة لهذه القاعدة مع علمه بذلك يفقد حقه في الرجوع على من كانت ذمته تبرأ ولو روعيت القاعدة.
 10- تعدد النسخ$cc919$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5802,7 +5814,7 @@ WITH ins_art_law17_1999_459 AS (
 3- لكل حامل كمبيالة غير مذكور فيها إنها سحبت من نسخة وحيدة وأن يطلب نسخا منها على نفقته. ويجب عليه تحقيقا لذلك أن يلجأ إلى من ظهرها له من المظهر السابق، وهكذا حتى يرقى إلى الساحب.
 4- وعلى كل مظهر كتابة تظهيره على النسخ الجديدة.$cc921$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5816,7 +5828,7 @@ WITH ins_art_law17_1999_460 AS (
   SELECT id, 460, $cc922$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc922$, $cc923$1- وفاء الكمبيالة بمقتضى إحدى نسخها مبرئ للذمة ولو لم يكن في هذا الوفاء مشروطا فيها أن هذا الوفاء يبطل اثر النسخ الأخرى، ومع ذلك يبقى المسحوب عليه ملتزما بالوفاء بمقتضى كل نسخة وقع عليها بالقبول ولم يسترددها.
 2- المظهر الذي ظهر نسخ الكمبيالة لأشخاص مختلفين وكذلك المظهرون اللاحقون له ملزمون بمقتضى كل النسخ التي تحمل توقيعاتهم ولم يستردوها.$cc923$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5830,7 +5842,7 @@ WITH ins_art_law17_1999_461 AS (
 (ب) وان القبول أو الوفاء لم يحصل بموجب نسخة أخرى.
 11- الصور$cc925$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5845,7 +5857,7 @@ WITH ins_art_law17_1999_462 AS (
 2- يجب أن تكون الصور مطابقة تماما لاصل الكمبيالة وما تحمل من تظهيرات وبيانات أخرى، كما يجب أن يبين فيها الحد الذي ينتهي عنده النسخ من الأصل.
 3- يجوز تظهير الصورة وضمانها احتياطيا بالكيفية التي يجرى بها تظهير أو ضمان الأصل وبالآثار نفسها.$cc927$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5860,7 +5872,7 @@ WITH ins_art_law17_1999_463 AS (
 3- إذا كتب على الأصل عقب التظهير الأخير الحاصل قبل عمل الصورة عبارة "منذ الآن لا يصح التظهير إلا على الصورة" أو أية عبارة اخرى تفيد هذا المعنى، فكل تظهير يكتب على الاصل بعد ذلك يعتبر كأن لم يكن.
 12- التحريف$cc929$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5874,7 +5886,7 @@ WITH ins_art_law17_1999_464 AS (
   SELECT id, 464, $cc930$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc930$, $cc931$إذا وقع تحريف في متن الكمبيالة التزم الموقعون اللاحقون لهذا التحريف بما ورد في المتن المحرف، أما الموقعون السابقون فيلزمون بما ورد في المتن الأصلي.
 13- التقادم$cc931$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5887,7 +5899,7 @@ WITH ins_art_law17_1999_465 AS (
 2- وتتقادم دعاوى الحامل قبل المظهرين وقبل الساحب بمضي سنة من تاريخ الاحتجاج المحرر في الميعاد القانوني أو من تاريخ الاستحقاق إذا اشتملت الكمبيالة على شرط الرجوع بلا مصاريف.
 3- وتتقادم دعاوى المظهرين قبل بعضهم البعض وقبل الساحب بمضي ستة اشهر من اليوم الذي أوفى فيه المظهر الكمبيالة أو من يوم إقامة الدعوى عليه.$cc933$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5900,7 +5912,7 @@ WITH ins_art_law17_1999_466 AS (
   SELECT id, 466, $cc934$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc934$, $cc935$1- إذا أقيمت الدعوى فلا تسرى مدد التقادم المنصوص عليها في المادة السابقة إلا من تاريخ آخر إجراء صحيح في الدعوى.
 2- كما لا يسرى التقادم المذكور إذا صدر حكم بالدين أو أقر به المدين في سند مستقل إقرارا يترتب عليه تجديد الدين.$cc935$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5911,7 +5923,7 @@ WITH ins_art_law17_1999_467 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 467, $cc936$الباب الرابع: الأوراق التجارية — الفصل الأول: الكمبيالة$cc936$, $cc937$لا يكون لانقطاع المدة المقررة لتقادم الدعوى اثر إلا بالنسبة إلى من اتخذ قبله الإجراء القاطع للمدة.$cc937$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5928,7 +5940,7 @@ WITH ins_art_law17_1999_468 AS (
 (و) تاريخ ومكان إنشاء السند.
 (ز) توقيع من أنشأ السند (المحرر).$cc939$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5948,7 +5960,7 @@ WITH ins_art_law17_1999_469 AS (
 (ب) وإذا خلا السند لأمر من بيان مكان الوفاء أو موطن المحرر اعتبر المحرر محل إنشائه مكانا للوفاء به وموطنا لمحرره.
 (ج) وإذا خلا السند لأمر من بيان مكان إنشائه اعتبر منشأ في المكان المبين بجانب اسم المحرر.$cc941$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5970,7 +5982,7 @@ WITH ins_art_law17_1999_470 AS (
 - التحريف.
 - التقادم.$cc943$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5990,7 +6002,7 @@ WITH ins_art_law17_1999_471 AS (
   SELECT id, 471, $cc944$الباب الرابع: الأوراق التجارية — الفصل الثاني: السند لأمر$cc944$, $cc945$1- يلتزم محرر السند لأمر على الوجه الذي يلتزم به قابل الكمبيالة.
 2- يجب تقديم السند لأمر المستحق الوفاء بعد مدة معينة من الاطلاع إلى المحرر في الميعاد المنصوص عليه في المادة 411 من هذا القانون للتأشير عليه بما يفيد الاطلاع عليه، ويجب أن يكون التأشير مؤرخا وموقعا من المحرر. وتبدأ مدة الاطلاع من تاريخ هذا التأشير، وإذا امتنع المحرر عن وضع التأشير وجب إثبات امتناعه باحتجاج ويعتبر تاريخ هذا الاحتجاج بداية لسريان مدة الاطلاع.$cc945$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6001,7 +6013,7 @@ WITH ins_art_law17_1999_472 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 472, $cc946$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc946$, $cc947$في المسائل التي لم ترد بشأنها نصوص خاصة في هذا الفصل تسرى على الشيك أحكام الكمبيالة بالقدر الذي لا تتعارض فيه مع طبيعته.$cc947$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6017,7 +6029,7 @@ WITH ins_art_law17_1999_473 AS (
 (هـ) تاريخ ومكان إصدار الشيك.
 (و) اسم وتوقيع من اصدر الشيك.$cc949$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6035,7 +6047,7 @@ WITH ins_art_law17_1999_474 AS (
 أ) إذا كان الشيك خاليا من بيان مكان الوفاء اعتبر مستحق الوفاء في المكان الذي يوجد به المركز الرئيسي للبنك المسحوب عليه.
 ب) اذا خلا الشيك من بيان مكان إصداره اعتبر انه صدر في موطن الساحب.$cc951$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6047,7 +6059,7 @@ WITH ins_art_law17_1999_475 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 475, $cc952$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc952$, $cc953$الشيك الصادر في مصر والمستحق الوفاء فيها لا يجوز سحبه إلا على بنك، والصك المسحوب في صورة شيك على غير بنك أو المحرر على غير نماذج البنك المسحوب عليه لا يعتبر شيكا.$cc953$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6057,7 +6069,7 @@ WITH ins_art_law17_1999_476 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 476, $cc954$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc954$, $cc955$إذا اختلف مبلغ الشيك المكتوب بالحروف وبالأرقام فالعبرة عند الاختلاف تكون بالمبلغ المكتوب بالحروف.$cc955$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6072,7 +6084,7 @@ WITH ins_art_law17_1999_477 AS (
 3- الشيك الذي لا يذكر فيه اسم المستفيد يعتبر شيكا لحامله.
 4- الشيك المستحق الوفاء في مصر والمشتمل على شرط غير قابل للتداول ولا يدفع إلا للمستفيد الذي تسلمه مقترنا بهذا الشرط.$cc957$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6089,7 +6101,7 @@ WITH ins_art_law17_1999_478 AS (
 2- كما يجوز سحبه لحساب شخص آخر.
 3- ولا يجوز سحبه على ساحبه إلا في حالة سحبه من بنك على أحد فروعه أو من فرع على فرع آخر بشرط إلا يكون الشيك مستحق الوفاء لحامله.$cc959$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6101,7 +6113,7 @@ WITH ins_art_law17_1999_479 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 479, $cc960$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc960$, $cc961$تكون التزامات ناقصي الأهلية الذي ليسوا تجارا وعديمي الأهلية الناشئة عن توقيعاتهم على الشيك كساحبين أو مظهرين أو ضامنين احتياطيين أو بأية صفة أخرى باطلة بالنسبة إليهم فقط.$cc961$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6111,7 +6123,7 @@ WITH ins_art_law17_1999_480 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 480, $cc962$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc962$, $cc963$إذا حمل الشيك توقيعات أشخاص ليست لهم أهلية الالتزام به أو توقيعات مزورة أو لأشخاص وهميين او توقيعات غير ملزمة لاصحابها لاسباب أخرى أو لمن وقع الشيك بأسمائهم، فإن التزامات غيرهم من الموقعين عليه مع ذلك تبقى صحيحة.$cc963$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6122,7 +6134,7 @@ WITH ins_art_law17_1999_481 AS (
   SELECT id, 481, $cc964$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc964$, $cc965$1- يخضع شكل الالتزام بموجب الشيك لقانون الدولة التي صدر فيها.
 2- ومع ذلك إذا كان الالتزام غير صحيح شكلا بموجب القانون المشار إليه في الفقرة السابقة ولكنه صحيح شكلا وفقا لأحكام القانون المصري، فلا يكون لعيبه الشكلي اثر في صحة الالتزامات اللاحقة التي تنشأ بموجب الشيك في مصر.$cc965$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6136,7 +6148,7 @@ WITH ins_art_law17_1999_482 AS (
 3- لا يجوز للمسحوب عليه رفض اعتماد الشيك اذا كان لديه مقابل وفاء يكفى لدفع قيمته.
 4- ويبقى مقابل وفاء الشيك المؤشر عليه بالاعتماد مجمدا لدى المسحوب عليه وتحت مسئوليته لمصلحة الحامل الى حين انتهاء مواعيد تقديم الشيك للوفاء.$cc967$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6149,7 +6161,7 @@ WITH ins_art_law17_1999_483 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 483, $cc968$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc968$, $cc969$يعتبر شرط العائد في الشيك كأن لم يكن.$cc969$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6159,7 +6171,7 @@ WITH ins_art_law17_1999_484 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 484, $cc970$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc970$, $cc971$يجوز بموجب اتفاق خاص بين الساحب والمسحوب عليه النص في الشيك على الوفاء به في مقر بنك آخر.$cc971$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6169,7 +6181,7 @@ WITH ins_art_law17_1999_485 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 485, $cc972$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc972$, $cc973$يضمن الساحب وفاء قيمة الشيك، وكل شرط يعفى به الساحب نفسه من هذا الضمان يعتبر كأن لم يكن.$cc973$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6182,7 +6194,7 @@ WITH ins_art_law17_1999_486 AS (
 3- الشيك المشروط دفعه لشخص مسمى والمكتوب فيه عبارة ليس للأمر أو أية عبارة أخرى بهذا المعنى لا يجوز تداوله إلا باتباع أحكام حوالة الحق المنصوص عليها في القانون المدني مع ما يترتب على هذه الحوالة من آثار.
 4- يجوز تظهير الشيك للساحب أو لأي ملتزم آخر، ويجوز لهؤلاء تظهير الشيك من جديد.$cc975$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6196,7 +6208,7 @@ WITH ins_art_law17_1999_487 AS (
   SELECT id, 487, $cc976$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc976$, $cc977$1- يكون التظهير غير معلق على شرط وكل شرط يعلق عليه التظهير يعتبر كأن لم يكن ويبقى التظهير صحيحا.
 2- يكون التظهير الجزئي باطلا.$cc977$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6207,7 +6219,7 @@ WITH ins_art_law17_1999_488 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 488, $cc978$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc978$, $cc979$يكتب التظهير على الشيك نفسه، ويجوز أن يقتصر على توقيع المظهر "التظهير على بياض" ويشترط لصحة هذا التظهير أن يتم على ظهر الشيك.$cc979$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6221,7 +6233,7 @@ WITH ins_art_law17_1999_489 AS (
 (ب) أن يظهر الشيك من جديد على بياض أو إلى شخص آخر.
 (ج) أن يسلم الشيك إلى شخص آخر دون أن يملا البياض ولو لم يظهره.$cc981$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6236,7 +6248,7 @@ WITH ins_art_law17_1999_490 AS (
   SELECT id, 490, $cc982$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc982$, $cc983$1- يضمن المظهر الوفاء بقيمة الشيك ما لم يتفق على غير ذلك.
 2- يجوز للمظهر حظر تظهير الشيك من جديد. وفي هذه الحالة لا يكون ملزما بالضمان قبل من يؤول إليهم الشيك بتظهير لاحق.$cc983$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6247,7 +6259,7 @@ WITH ins_art_law17_1999_491 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 491, $cc984$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc984$, $cc985$يعتبر حائز الشيك القابل للتظهير انه حامله الشرعي متى كانت التظهيرات الواردة بالشيك غير منقطعة ولو كان آخرها تظهيرا على بياض، والتظهيرات المشطوبة تعتبر في هذا الشأن كأن لم تكن، وإذا اعقب التظهير على بياض تظهير آخر، اعتبر الموقع على هذا التظهير انه هو الذي آل إليه الشيك بالتظهير على بياض.$cc985$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6257,7 +6269,7 @@ WITH ins_art_law17_1999_492 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 492, $cc986$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc986$, $cc987$التظهير المكتوب على شيك لحامله يجعل المظهر مسئولا طبقا لأحكام الرجوع، ولا يترتب على هذا التظهير أن يصير الصك شيكا لآمر.$cc987$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6267,7 +6279,7 @@ WITH ins_art_law17_1999_493 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 493, $cc988$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc988$, $cc989$إذا فقد شخص حيازة شيك للحامل أو قابل للتظهير فلا يلزم من آل إليه هذا الشيك بالتخلي عنه إلا إذا كان قد حصل عليه بسوء نية أو ارتكب في سبيل الحصول عليه خطأ جسيما وبشرط- في حالة الشيك القابل للتظهير- أن يثبت حقه فيه طبقا لأحكام المادة 491 من هذا القانون.$cc989$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6277,7 +6289,7 @@ WITH ins_art_law17_1999_494 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 494, $cc990$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc990$, $cc991$مع عدم الإخلال بأحكام المادة 479 من هذا القانون ليس لمن أقيمت عليه دعوى بموجب شيك أن يحتج على حامله بالدفوع المبنية على علاقاته الشخصية بساحب الشيك أو بحامليه السابقين ما لم يكن الحامل وقت حصوله على الشيك الإضرار بالمدين.$cc991$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6289,7 +6301,7 @@ WITH ins_art_law17_1999_495 AS (
 2- وليس للملتزمين في هذه الحالة الاحتجاج على حامل الشيك إلا بالدفوع التي يجوز الاحتجاج بها على المظهر.
 3- لا تنقضي الوكالة التي يتضمنها التظهير بوفاة الموكل أو الحجر عليه.$cc993$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6304,7 +6316,7 @@ WITH ins_art_law17_1999_496 AS (
 3- لا يجوز تقديم تاريخ التظهير، فإذا حصل عد تزويرا.
 2- مقابل الوفاء$cc995$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6318,7 +6330,7 @@ WITH ins_art_law17_1999_497 AS (
   SELECT id, 497, $cc996$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc996$, $cc997$1- على ساحب الشيك أو من سحب الشيك لحسابه أن يوجد لدى المسحوب عليه مقابل وفاء الشيك، ويسأل الساحب لحساب غيره قبل المظهرين والحامل دون غيرهم عن إيجاد مقابل الوفاء.
 2- ومع مراعاة حكم المادة 503 من هذا القانون يكون مقابل الوفاء موجودا إذا كان للساحب أو للآمر بالسحب لدى المسحوب عليه وقت إصدار الشيك مبلغ من النقود مستحق الأداء مساو بالأقل لمبلغ الشيك وجائز التصرف فيه بموجب شيك طبقا لاتفاق صريح أو ضمني بين الساحب والمسحوب عليه.$cc997$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6329,7 +6341,7 @@ WITH ins_art_law17_1999_498 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 498, $cc998$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc998$, $cc999$على الساحب دون غيره أن يثبت عند الإنكار أن المسحوب عليه كان لديه مقابل الوفاء في وقت إصدار الشيك، فإذا لم يثبت ذلك كان ضامنا وفاء الشيك ولو عمل الاحتجاج أو ما يقوم مقامه بعد الميعاد المحدد قانونا، وإذا اثبت الساحب وجود مقابل الوفاء واستمرار وجوده حتى الميعاد الذي كان يجب فيه عمل الاحتجاج أو ما يقوم مقامه، برئت ذمته بمقدار هذا المقابل ما لم يكن قد استعمل هذا المقابل في مصلحته.$cc999$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6343,7 +6355,7 @@ WITH ins_art_law17_1999_499 AS (
 4- وتبرأ ذمة الساحب أو المظهرين والضامنين الاحتياطيين بقدر المقابل الناقص في حالة الوفاء به والتأشير بذلك على الشيك.
 3- الضمان الاحتياطي$cc1001$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6358,7 +6370,7 @@ WITH ins_art_law17_1999_500 AS (
   SELECT id, 500, $cc1002$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1002$, $cc1003$1- يجوز ضمان الوفاء بقيمة الشيك كلها أو بعضها من ضامن احتياطي.
 2- ويجوز أن يقدم هذا الضمان من الغير عند المسحوب عليه، كما يجوز تقديمه من أحد الموقعين على الشيك.$cc1003$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6372,7 +6384,7 @@ WITH ins_art_law17_1999_501 AS (
 3- ويستفاد الضمان الاحتياطي من مجرد توقيع الضامن على صدر الشيك.
 4- ويذكر في الضمان الاحتياطي اسم المضمون وإلا اعتبر الضمان حاصلا للساحب.$cc1005$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6388,7 +6400,7 @@ WITH ins_art_law17_1999_502 AS (
 3- وإذا أوفى الضامن الاحتياطي قيمة الشيك آلت إليه الحقوق الناشئة عنه قبل المضمون وكل ملتزم بموجب الشيك قبل هذا المضمون.
 4- الوفاء$cc1007$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6402,7 +6414,7 @@ WITH ins_art_law17_1999_503 AS (
   SELECT id, 503, $cc1008$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1008$, $cc1009$1- يكون الشيك مستحق الوفاء بمجرد الإطلاع, وكل بيان يخالف ذلك يعتبر كأن لم يكن.
 2- وإذا قدم الشيك للوفاء قبل اليوم المبين فيه كتاريخ لإصداره وجب وفاؤه في يوم تقديمه وذلك باستثناء الشيكات الحكومية المتعلقة بالمرتبات والمعاشات فلا تدفع قيمتها إلا في التاريخ المبين بها كتاريخ لإصدارها.$cc1009$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6416,7 +6428,7 @@ WITH ins_art_law17_1999_504 AS (
 3- يبدأ سريان الميعاد المذكور في كل من الفقرتين السابقتين من التاريخ المبين في الشيك.
 4- يعتبر تقديم الشيك الى إحدى غرف المقاصة المعترف بها قانونا في حكم تقديمه للوفاء.$cc1011$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6429,7 +6441,7 @@ WITH ins_art_law17_1999_505 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 505, $cc1012$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1012$, $cc1013$إذا سحب الشيك بين مكانين مختلفي التقويم أرجع تاريخ إصداره الى اليوم المقابل في تقويم مكان الوفاء.$cc1013$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6439,7 +6451,7 @@ WITH ins_art_law17_1999_506 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 506, $cc1014$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1014$, $cc1015$إذا كان الشيك مستحق الوفاء في مصر فلا يجوز للبنك المسحوب عليه الإمتناع عن الوفاء به متى كان لديه مقابل وفاء ولو انقضى ميعاد تقديمه.$cc1015$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6450,7 +6462,7 @@ WITH ins_art_law17_1999_507 AS (
   SELECT id, 507, $cc1016$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1016$, $cc1017$1- لا يقبل الإعتراض في وفاء الشيك إلا في حالة ضياعه أو إفلاس حامله أو الحجر عليه.
 2- وإذا حصل الإعتراض على الرغم من هذا الحظر لأسباب أخرى تعين على محكمة الأمور المستعجلة بناء على طلب الحامل أن تقضى أن يشطب الإعتراض ولو في حالة قيام دعوى أصلية.$cc1017$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6461,7 +6473,7 @@ WITH ins_art_law17_1999_508 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 508, $cc1018$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1018$, $cc1019$وفاة الساحب أو فقدانه الأهلية أو إفلاسه بعد إصدار الشيك لا يؤثر في الأحكام التي تترتب على الشيك.$cc1019$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6472,7 +6484,7 @@ WITH ins_art_law17_1999_509 AS (
   SELECT id, 509, $cc1020$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1020$, $cc1021$1- إذا قدمت عدة شيكات في وقت واحد وكان مقابل الوفاء غير كاف لوفائها, وجب مراعاة ترتيب تواريخ إصدارها.
 2- وإذا كانت هذه الشيكات مفصولة من دفتر شيكات واحد وتحمل تاريخ إصدار واحد اعتبر الشيك الأسبق رقما صادرا قبل غيره. وإذا كانت الشيكات مفصولة من دفاتر مختلفة وجب الوفاء أولا بالشيك الأقل مبلغا.$cc1021$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6489,7 +6501,7 @@ WITH ins_art_law17_1999_510 AS (
 5- إذا عين مبلغ الشيك بنقد يحمل تسمية مشتركة وتختلف قيمته في بلد الإصدار عن قيمته في بلد الوفاء افترض أن المقصود نقد بلد الوفاء.
 6- إذا عين مبلغ الشيك بنقد يحمل تسمية مشتركة من عملات أجنبية مختلفة ليس بينها نقد بلد الوفاء كانت العبرة بنوع العملة الموجودة بحساب الساحب لدى البنك المسحوب عليه أو على أساس عملة البلد الذي صدر فيه الشيك إذا لم يوجد بحسابات الساحب عملة تحمل الاسم المشترك. فإذا تعددت العملات الموجودة بحسابات الساحب الموجودة لدى المسحوب عليه وتعذر تحديد العملة المقصودة في الشيك يتم الوفاء بقيمة الشيك من العملة الأقل قيمة ويحصل كله ما لم يرفض الحامل سداد قيمة الشيك وفقا لتلك الأسس.$cc1023$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6506,7 +6518,7 @@ WITH ins_art_law17_1999_511 AS (
   SELECT id, 511, $cc1024$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1024$, $cc1025$1- تسرى في حالة ضياع الشيك لأمر الأحكام المنصوص عليها في المواد من 433 الى 436 من هذا القانون.
 2- ينقضى التزام الكفيل الذي يقدم في حالة ضياع الشيك لأمر بمضى ستة أشهر من تاريخ الصرف إذا لم تحصل خلالها مطالبة أو دعوى.$cc1025$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6519,7 +6531,7 @@ WITH ins_art_law17_1999_512 AS (
 2- ومتى تلقى المسحوب عليه الإعتراض وجب عليه الإمتناع عن الوفاء بقيمة الشيك لحائزه وتجنيب مقابل وفاء الشيك الى أن يفصل في أمره.
 3- ويقوم المعترض بنشر رقم الشيك المفقود أو الهالك ومبلغه واسم الساحب واسم المسحوب عليه واسم المعترض وعنوانه في إحدى الصحف اليومية , ويكون باطلا كل تصرف يقع على الشيك بعد تاريخ هذا النشر.$cc1027$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6534,7 +6546,7 @@ WITH ins_art_law17_1999_513 AS (
 3- وإذا لم يرفع المعترض دعوى الإستحقاق خلال الميعاد المنصوص عليه في الفقرة السابقة تعين على قاضي الأمور المستعجلة بناء على طلب حائز الشيك أن يقضي بشطب الإعتراض. وفي هذه الحالة يعتبر حائز الشيك بالنسبة الى المسحوب عليه مالكه الشرعي.
 4- وإذا رفع المعترض دعوى استحقاق الشيك فلا يجوز للمسحوب عليه أن يدفع قيمته إلا لمن يتقدم له من الخصمين بحكم نهائي بملكية الشيك أو بتسوية ودية مصدق عليها من الطرفين تقر له بالملكية.$cc1029$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6548,7 +6560,7 @@ WITH ins_art_law17_1999_514 AS (
   SELECT id, 514, $cc1030$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1030$, $cc1031$1- إذا انقضت ستة أشهر من تاريخ الإعتراض المنصوص عليه في المادة 512 من هذا القانون دون أن يتقدم حائز الشيك للمطالبة بالوفاء, جاز للمعترض أن يطلب من المحكمة الإذن له بقبض مبلغ الشيك. ويصدر هذا الحكم في مواجهة المسحوب عليه وبعد أن تتحقق المحكمة من ملكية المعترض على الشيك.
 2- وإذا لم يرفع المعترض الدعوى المشار إليها في الفقرة السابقة, أو رفعها ورفضتها المحكمة وجب على المسحوب عليه أن يعيد قيد مقابل الوفاء في جانب الأصول من حساب الساحب.$cc1031$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6563,7 +6575,7 @@ WITH ins_art_law17_1999_515 AS (
 4- ويجوز تحويل التسطير العام الى تسطير خاص. أما التسطير الخاص فلا يجوز تحويله الى تسطير عام.
 5- يعتبر شطب التسطير أو شطب اسم (البنك) المكتوب بين الخطين كأن لم يكن.$cc1033$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6582,7 +6594,7 @@ WITH ins_art_law17_1999_516 AS (
 5- إذا خالف المسحوب عليه الأحكام المنصوص عليها في هذه المادة كان مسئولا عن تعويض الضرر بما لا يجاوز مبلغ الشيك.
 6- يقصد بكلمة (عميل) في حكم هذه المادة كل شخص له حساب لدى المسحوب عليه وحصل منه على دفتر شيكات أو كان من حقه الحصول على هذا الدفتر.$cc1035$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6600,7 +6612,7 @@ WITH ins_art_law17_1999_517 AS (
 3- وإذا خالف المسحوب عليه الأحكام المنصوص عليها في هذه المادة كان مسئولا عن تعويض الضرر بما لا يجاوز مبلغ الشيك.
 5- الرجوع$cc1037$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6615,7 +6627,7 @@ WITH ins_art_law17_1999_518 AS (
 2- لا يجوز الإمتناع عن إصدار البيان المشار إليه في الفقرة السابقة إذا طلبه الحامل ولو كان الشيك يشتمل على شرط الرجوع بلا مصاريف. ومع ذلك يجوز للملتزم بإصدار البيان طلب مهلة لا تجاوز يوم العمل التالي لتقديم الشيك ولو قدم في اليوم الأخير من ميعاد التقديم.
 3- ويجب إثبات الإمتناع عن الدفع بالكيفية المنصوص عليها في الفقرة الأولى من هذه المادة قبل إنقضاء ميعاد التقديم. فإذا قدم الشيك في آخر يوم من هذا الميعاد جاز إثبات الإمتناع عن الدفع في يوم العمل التالي له.$cc1039$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6627,7 +6639,7 @@ WITH ins_art_law17_1999_519 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 519, $cc1040$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1040$, $cc1041$على حامل الشيك إخطار من ظهره إليه والساحب بعدم وفاء قيمته, وعلى كل مظهر أن يخطر بدوره من ظهر إليه الشيك , وتسرى على هذه الإخطارات الأحكام المنصوص عليها في المادة 440 من هذا القانون.$cc1041$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6637,7 +6649,7 @@ WITH ins_art_law17_1999_520 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 520, $cc1042$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1042$, $cc1043$يجوز أن يكتب في الشيك شرط (الرجوع بلا مصاريف) وتسرى عندئذ الأحكام المنصوص عليها في المادة 441 من هذا القانون.$cc1043$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6650,7 +6662,7 @@ WITH ins_art_law17_1999_521 AS (
 3- ويثبت هذا الحق لكل ملتزم في الشيك إذا دفع قيمته.
 4- والدعوى المقامة على أحد الملتزمين لا تحول دون الرجوع على الباقين ولو كانوا لاحقين للملتزم الذي وجهت إليه الدعوى إبتداء.$cc1045$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6666,7 +6678,7 @@ WITH ins_art_law17_1999_522 AS (
 (ب) العائد محسوبا من تاريخ تقديم الشيك وفقا للسعر الذي يتعامل به البنك المركزي.
 (جـ) مصاريف الإحتجاج أو ما يقوم مقامه ومصاريف الإخطارات والدمغة وغيرها.$cc1047$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6682,7 +6694,7 @@ WITH ins_art_law17_1999_523 AS (
 (ب) عائد هذا المبلغ محسوبا من تاريخ الوفاء وفقا للسعر الذي يتعامل به البنك المركزي.
 (جـ) المصاريف التي تحملها.$cc1049$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6696,7 +6708,7 @@ WITH ins_art_law17_1999_524 AS (
   SELECT id, 524, $cc1050$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1050$, $cc1051$1- لكل ملتزم طولب بوفاء قيمة الشيك أو كان مستهدفا للمطالبة بها أن يطلب في حالة قيامه بالوفاء تسليم الشيك إليه ومعه الإحتجاج أو ما يقوم مقامه ومخالصة بما أوفاه.
 2- ولكل مظهر أوفى قيمة الشيك أن يشطب تظهيره والتظهيرات اللاحقة له.$cc1051$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6707,7 +6719,7 @@ WITH ins_art_law17_1999_525 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 525, $cc1052$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1052$, $cc1053$لحامل الشيك المعمول عنه احتجاج عدم الوفاء أو ما يقوم مقامه أن يوقع حجزا تحفظيا بغير كفالة على أموال كل من الساحب أو المظهر أو الضامن الإحتياطي وذلك بمراعاة الأحكام المقررة بشأن هذا الحجز في قانون المرافعات المدنية والتجارية.$cc1053$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6721,7 +6733,7 @@ WITH ins_art_law17_1999_526 AS (
 4- إذا استمرت القوة القاهرة أكثر من ثلاثين يوما محسوبة من التاريخ الذي قام فيه الحامل بإخطار من ظهر له الشيك بقيام القوة القاهرة ولو وقع هذا التاريخ قبل انقضاء ميعاد تقديم الشيك جاز الرجوع على الملتزمين دون الحاجة إلى تقديم الشيك أو عمل الإحتجاج أو ما يقوم مقامه إلا إذا كان حق الرجوع موقوفا بموجب القانون لمدة أطول.
 5- ولا يعتبر من القوة القاهرة الأمور المتصلة بشخص حامل الشيك أو بمن كلفه بتقديمه أو بعمل الاحتجاج أو ما يقوم مقامه.$cc1055$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6735,7 +6747,7 @@ WITH ins_art_law17_1999_527 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 527, $cc1056$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1056$, $cc1057$يحتفظ حامل الشيك بحقه في الرجوع على الساحب ولو لم يقدم الشيك إلى المسحوب عليه أو لم يقم بعمل الإحتجاج أو ما يقوم مقامه في الميعاد القانوني , إلا إذا كان الساحب قد قدم مقابل الوفاء وظل هذا المقابل موجودا عند المسحوب عليه حتى انقضاء ميعاد تقديم الشيك ثم زال المقابل بفعل غير منسوب إلى الساحب.$cc1057$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6748,7 +6760,7 @@ WITH ins_art_law17_1999_528 AS (
 3- ولا يلتزم المسحوب عليه بالتحقق من صحة توقيعات المظهرين أو الضامنين الاحتياطيين ولا يسأل عن تزويرها.
 6- التحريف$cc1059$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6761,7 +6773,7 @@ WITH ins_art_law17_1999_529 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 529, $cc1060$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1060$, $cc1061$إذا وقع تحريف في متن الشيك التزم الموقعون اللاحقون للتحريف بما ورد في المتن المحرف، أما الموقعون السابقون فيلتزمون بما ورد في المتن الأصلي.$cc1061$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6773,7 +6785,7 @@ WITH ins_art_law17_1999_530 AS (
 2- يعتبر القبول الصريح أو الضمني من العميل لكشف الحساب الدوري الذي يرسله إليه البنك إبراء لذمة البنك مما قيده في هذا الحساب بالخصم أو الإضافة من مبالغ الشيكات، ويكون قبولا ضمنيا على وجه الخصوص عدم اعتراض العميل على كشف الحساب خلال ثلاثين يوما من تاريخ تسلمه. ويجوز للبنك بعد قبول كشف الحساب أن يرد إلى العميل الشيكات التي دفعها خصما على الحساب وان يحتفظ بتسجيلات مصورة لهذه الشيكات تكون لها حجية كاملة لصالحه.
 7- التقادم$cc1063$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6790,7 +6802,7 @@ WITH ins_art_law17_1999_531 AS (
 5- ولا تسرى مدة هذا التقادم إذا صدر حكم بالدين أو اقر به المدين بسند منفرد يترتب عليه إقرارا تجديده.
 6- تسرى على انقطاع هذا التقادم أو وقفه الأحكام المنصوص عليها في القانون المدني.$cc1065$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6806,7 +6818,7 @@ WITH ins_art_law17_1999_532 AS (
   SELECT id, 532, $cc1066$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1066$, $cc1067$يجوز لحامل الشيك رغم تقادم دعوى المطالبة بقيمته أن يطالب الساحب الذي لم يقدم مقابل الوفاء أو قدمه ثم استرده كله أو بعضه ما أثرى به بغير وجه حق وكذلك يجوز للحامل توجيه هذه المطالبة إلى كل مظهر يحقق إثراء بغير وجه حق.
 8- العقوبات$cc1067$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6822,7 +6834,7 @@ WITH ins_art_law17_1999_533 AS (
 (د)- تسليم أحد العملاء دفتر شيكات لا يشتمل على البيانات المنصوص عليها في المادة 530 من هذا القانون.
 2- ويكون البنك مسئولا بالتضامن مع موظفيه المحكوم عليهم عن سداد العقوبات المالية المحكوم بها.$cc1069$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6845,7 +6857,7 @@ WITH ins_art_law17_1999_534 AS (
 4- وللمجني عليه ولوكيله الخاص في الجرائم المنصوص عليها في هذه المادة أن يطلب من النيابة العامة أو المحكمة بحسب الأحوال وفي أية حالة كانت عليها الدعوى إثبات صلحه مع المتهم.
 ويترتب على الصلح انقضاء الدعوى الجنائية ولو كانت مرفوعة بطريق الادعاء المباشر، وتأمر النيابة العامة بوقف العقوبة إذا تم الصلح أثناء تنفيذها ولو بعد صيرورة الحكم باتا.$cc1071$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6863,7 +6875,7 @@ WITH ins_art_law17_1999_535 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 535, $cc1072$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1072$, $cc1073$يعاقب بغرامة لا تجاوز ألف جنيه المستفيد الذي يحصل بسوء نية على شيك ليس له مقابل وفاء، سواء في ذلك أكان شخصا طبيعيا أم اعتباريا.$cc1073$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6873,7 +6885,7 @@ WITH ins_art_law17_1999_536 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 536, $cc1074$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1074$, $cc1075$يعاقب بالحبس وبغرامة لا تجاوز نصف قيمة الشيك أو بإحدى هاتين العقوبتين كل من ادعى بسوء نية تزوير شيك وحكم نهائيا بعدم صحة هذا الادعاء.$cc1075$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6884,7 +6896,7 @@ WITH ins_art_law17_1999_537 AS (
   SELECT id, 537, $cc1076$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1076$, $cc1077$1- إذا قضت المحكمة بالإدانة في إحدى جرائم الشيك المنصوص عليها في المادة 534 من هذا القانون جاز لها أن تأمر بنشر الحكم على نفقة المحكوم عليه في صحيفة يومية ويجب أن يتضمن هذا النشر اسم المحكوم عليه وموطنه ومهنته والعقوبة المحكوم عليه بها.
 2- ويجوز للمحكمة في حالة العود أن تأمر بسحب دفتر الشيكات من المحكوم عليه ومنع إعطائه دفاتر شيكات جديدة لمدة تعينها، وتتولى النيابة العامة تبليغ هذا الأمر إلى جميع البنوك.$cc1077$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6895,7 +6907,7 @@ WITH ins_art_law17_1999_538 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 538, $cc1078$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1078$, $cc1079$توقع الجزاءات المقررة للجرائم المنصوص عليها في المواد 533، 534، 535 من هذا القانون على كل من يرتكب خارج مصر فعلا يجعله فاعلا أو شريكا في جريمة من هذه الجرائم تتعلق بشيك مسحوب على بنك في مصر، ولو كان هذا الفعل غير معاقب عليه في الدولة التي وقع فيها.$cc1079$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6905,7 +6917,7 @@ WITH ins_art_law17_1999_539 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 539, $cc1080$الباب الرابع: الأوراق التجارية — الفصل الثالث: الشيك$cc1080$, $cc1081$يجوز لحامل الشيك الذي ادعى مدنيا في الدعوى الجنائية والمقامة تطبيقا للمادة 534، من هذا القانون أن يطلب الحكم له بالقدر غير المدفوع من قيمة الشيك، وتسرى على هذا الطلب والطعن فيه أحكام الدعوى المدنية التبعية.$cc1081$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6915,7 +6927,7 @@ WITH ins_art_law17_1999_540 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 540, $cc1082$الباب الرابع: الأوراق التجارية — الفصل الرابع: أحكام مشتركة$cc1082$, $cc1083$يحرر احتجاج عدم القبول أو عدم الوفاء وفقا للقواعد المقررة في قانون المرافعات المدنية والتجارية لاوراق المحضرين في موطن الملتزم بقبول الورقة التجارية بوفائها أو في آخر موطن معروف له.$cc1083$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6925,7 +6937,7 @@ WITH ins_art_law17_1999_541 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 541, $cc1084$الباب الرابع: الأوراق التجارية — الفصل الرابع: أحكام مشتركة$cc1084$, $cc1085$يشتمل الاحتجاج فضلا عن البيانات الواجب ذكرها في أوراق المحضرين على صورة حرفية للورقة التجارية وكل ما ورد بها خاص بقبولها وتظهيرها وضمانها احتياطيا ووفاء قيمتها عند الاقتضاء وغير ذلك من البيانات، كما يجب أن يشتمل الاحتجاج على التنبيه بقبول الورقة أو وفائها و إثبات حضور أو غياب من عليه القبول أو الوفاء واسباب الامتناع عنهما والعجز عن وضع الإمضاء أو الامتناع عنه ومقدار ما دفع من قيمة الورقة في حالة الوفاء الجزئي.$cc1085$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6935,7 +6947,7 @@ WITH ins_art_law17_1999_542 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 542, $cc1086$الباب الرابع: الأوراق التجارية — الفصل الرابع: أحكام مشتركة$cc1086$, $cc1087$لا تقوم أية ورقة أخرى مقام الاحتجاج إلا في الأحوال المنصوص عليها في القانون.$cc1087$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6946,7 +6958,7 @@ WITH ins_art_law17_1999_543 AS (
   SELECT id, 543, $cc1088$الباب الرابع: الأوراق التجارية — الفصل الرابع: أحكام مشتركة$cc1088$, $cc1089$1- على المحضر المكلف بعمل الاحتجاج ترك صورة منه لمن حرر في مواجهته.
 2- وعلى المحضرين قيد أوراق الاحتجاج بتمامها يوما فيوما مع مراعاة ترتيب تواريخها في سجل خاص يصدر بتنظيمه قرار من وزير العدل.$cc1089$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6965,7 +6977,7 @@ WITH ins_art_law17_1999_544 AS (
 (و) ملخص أسباب الامتناع عن الوفاء التي ذكرها المدين وقت تحرير الاحتجاج.
 3- يمسك مكتب السجل التجاري دفترا لقيد البيانات المذكورة في الفقرة السابقة، ويجوز لكل شخص الاطلاع عليها مقابل الرسوم المقررة، ويقوم مكتب السجل التجاري بعمل نشرة تتضمن تلك البيانات.$cc1091$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6987,7 +6999,7 @@ WITH ins_art_law17_1999_545 AS (
 4- تحسب في كل ميعاد أيام العطلة التي تتخلله.
 5- على كل تاجر أن يعلن في مكان بارز في منشأته عن يوم العطلة الأسبوعية في المنشأة وإلا افترض انه يوم الجمعة من كل أسبوع.$cc1093$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7001,7 +7013,7 @@ WITH ins_art_law17_1999_546 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 546, $cc1094$الباب الرابع: الأوراق التجارية — الفصل الرابع: أحكام مشتركة$cc1094$, $cc1095$لا يدخل في حساب المواعيد القانونية أو الاتفاقية المتعلقة بالأوراق التجارية اليوم الأول منها ويكمل الميعاد بانقضاء آخر يوم منه.$cc1095$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7011,7 +7023,7 @@ WITH ins_art_law17_1999_547 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 547, $cc1096$الباب الرابع: الأوراق التجارية — الفصل الرابع: أحكام مشتركة$cc1096$, $cc1097$لا يجوز للمحاكم أن تمنح مهلة للوفاء بقيمة الورقة التجارية أو للقيام بأي إجراء متعلق بها إلا في الأحوال وفي الحدود التي ينص عليها القانون.$cc1097$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7023,7 +7035,7 @@ WITH ins_art_law17_1999_548 AS (
 2- وفي جميع الأحوال يجب أن يكون التوقيع مقروءا أو يسهل معه التعرف على اسم الموقع ولقبه وإلا جاز للمحكمة أن تعتبر التوقيع كأن لم يكن.
 3- إذا شهد شاهدان على الورقة التجارية أو على الوصلة الملحقة بها بأن صاحب الختم أو البصمة وضع خاتمه أو بصمته أمامها وهو على علم بمضمون الالتزام امتنع على الموقع الادعاء بعدم علمه بهذا المضمون، وذلك باستثناء حالتي التدليس والإكراه.$cc1099$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7035,7 +7047,7 @@ WITH ins_art_law17_1999_549 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 549, $cc1100$الباب الرابع: الأوراق التجارية — الفصل الرابع: أحكام مشتركة$cc1100$, $cc1101$لا يترتب على قبول الدائن تسلم ورقة تجارية وفاء لدينه تجديد هذا الدين إلا إذا تبين وضوح اتجاه قصد المتعاقدين إلى إحداث التجديد.$cc1101$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7046,7 +7058,7 @@ WITH ins_art_law17_1999_550 AS (
   SELECT id, 550, $cc1102$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1102$, $cc1103$1- يعد في حالة إفلاس كل تاجر ملزم بموجب أحكام هذا القانون بإمساك دفاتر تجارية إذا توقف عن دفع ديونه التجارية اثر اضطراب أعماله المالية.
 2- ولا يترتب على التوقف عن الدفع اثر قبل صدور حكم شهر الإفلاس، ما لم ينص القانون على غير ذلك.$cc1103$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7059,7 +7071,7 @@ WITH ins_art_law17_1999_551 AS (
 2- يجوز لورثة التاجر طلب شهر إفلاسه بعد وفاته مع مراعاة الميعاد المذكور في الفقرة السابقة، فإذا اعترض بعض الورثة على شهر الإفلاس وجب أن تسمع المحكمة أقوالهم ثم تفصل في الطلب وفقا لمصلحة ذوي الشأن.
 3- تعلن صحيفة دعوى شهر الإفلاس في حالة وفاة التاجر إلى الورثة جملة في آخر موطن للمتوفى.$cc1105$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7071,7 +7083,7 @@ WITH ins_art_law17_1999_552 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 552, $cc1106$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1106$, $cc1107$يشهر إفلاس التاجر بناء على طلبه أو طلب أحد الدائنين أو النيابة العامة. ويجوز للمحكمة أن تقضى بشهر الإفلاس من تلقاء ذاتها.$cc1107$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7088,7 +7100,7 @@ WITH ins_art_law17_1999_553 AS (
 (و) بيان بالاحتجاجات التي حررت ضد التاجر خلال السنتين السابقتين على تقديم طلب شهر الإفلاس.
 2- يجب أن تكون الوثائق المشار إليها في الفقرة السابقة مؤرخة وموقعة من التاجر، وإذا تعذر تقديم بعض هذه الوثائق أو استيفاء بياناتها وجب عليه إيضاح أسباب ذلك.$cc1109$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7107,7 +7119,7 @@ WITH ins_art_law17_1999_554 AS (
 2- ويكون للدائن بدين آجل الحق في طلب شهر الإفلاس إذا لم يكن لمدينه التاجر موطن معروف في مصر أو إذا لجأ إلى الفرار أو اغلق متجره أو شرع في تصفيته أو جرى تصرفات ضارة بدائنيه بشرط أن يقدم الدائن ما يثبت أن المدين توقف عن دفع ديونه التجارية الحالة.
 3- ويطلب الدائن شهر إفلاس مدينه بصحيفة تودع قلم كتاب المحكمة المختصة مصحوبة بما يفيد إيداع مبلغ ألف جنيه خزانة المحكمة على سبيل الأمانة لحساب مصروفات نشر الحكم الصادر بشهر الإفلاس، يطلب فيها اتخاذ الإجراءات التحفظية اللازمة ويبين فيها الظروف التي يستدل منها على توقف المدين عن دفع ديونه، ويحدد قلم كتاب المحكمة اقرب جلسة لنظر الدعوى ويعلن بها المدين.$cc1111$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7119,7 +7131,7 @@ WITH ins_art_law17_1999_555 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 555, $cc1112$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1112$, $cc1113$لا يجوز شهر إفلاس التاجر بسبب توقفه عن دفع ما يستحق عليه من غرامات جنائية أو ضرائب أو رسوم أو تأمينات اجتماعية.$cc1113$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7130,7 +7142,7 @@ WITH ins_art_law17_1999_556 AS (
   SELECT id, 556, $cc1114$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1114$, $cc1115$1- إذا طلبت النيابة العامة شهر إفلاس التاجر أو إذا رأت المحكمة شهر إفلاسه من تلقاء ذاتها وجب على قلم الكتاب أن يعلنه بيوم الجلسة.
 2- في حالة وفاة التاجر أو اعتزاله التجارة لا يجوز للمحكمة أن تنظر في شهر إفلاسه من تلقاء ذاتها أو بناء على طلب النيابة العامة بعد انقضاء الميعاد المشار إليه في الفقرة الأولى من المادة 551 من هذا القانون.$cc1115$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7141,7 +7153,7 @@ WITH ins_art_law17_1999_557 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 557, $cc1116$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1116$, $cc1117$يخطر قلم الكتاب النيابة العامة بطلب شهر الإفلاس ولا يحول عدم حضورها أو عدم إبداء الرأي دون الحكم في دعوى الإفلاس.$cc1117$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7151,7 +7163,7 @@ WITH ins_art_law17_1999_558 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 558, $cc1118$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1118$, $cc1119$يجوز للمحكمة المختصة بنظر دعوى الإفلاس أن تأمر باتخاذ التدابير اللازمة للمحافظة على أموال المدين أو إدارتها إلى أن يتم الفصل في الدعوى، كما يجوز أن تتخذ من الإجراءات ما يمكنها من الإحاطة بحالة المدين المالية واسباب توقفه عن الدفع.$cc1119$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7162,7 +7174,7 @@ WITH ins_art_law17_1999_559 AS (
   SELECT id, 559, $cc1120$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1120$, $cc1121$1- تختص بشهر الإفلاس المحكمة الابتدائية التي يقع في دائرتها موطن تجاري للمدين، فإذا لم يكن له موطن تجاري كانت المحكمة المختصة هي التي يقع في دائرتها محل إقامته المعتادة.
 2- ومع عدم الإخلال بالاتفاقات الدولية الثنائية أو المتعددة الأطراف النافذة في مصر يجوز شهر إفلاس التاجر الذي له في مصر فرع أو وكالة ولو لم يصدر حكم بشهر إفلاسه في دولة أجنبية وفي هذه الحالة تكون المحكمة المختصة بشهر الإفلاس في مصر هي التي تقع في دائرتها الفرع أو الوكالة.$cc1121$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7174,7 +7186,7 @@ WITH ins_art_law17_1999_560 AS (
   SELECT id, 560, $cc1122$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1122$, $cc1123$1- تكون المحكمة التي شهرت الإفلاس مختصة بنظر جميع الدعاوى الناشئة عن التفليسة.
 2- وتعتبر الدعوى ناشئة عن التفليسة على وجه الخصوص إذا كانت متعلقة بإدارتها أو كان الفصل فيها يقتضى تطبيق أحكام الإفلاس، ولا يشمل ذلك الدعاوى الناشئة عن الديون التي للتفليسة على الغير أو للغير عليها.$cc1123$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7187,7 +7199,7 @@ WITH ins_art_law17_1999_561 AS (
 2- وللمحكمة، عند الضرورة، أن تأمر باتخاذ الإجراءات اللازمة للتحفظ على شخص المدين، ولا يجوز للمحكمة أن تأمر بهذا الإجراء في حكم شهر الإفلاس إذا طلب المدين شهر إفلاسه خلال الميعاد المشار إليه في الفقرة الأولى من المادة 553 من هذا القانون.
 3- ويرسل قلم كتاب المحكمة إلى النيابة العامة ملخصا من حكم شهر الإفلاس فور صدوره.$cc1125$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7201,7 +7213,7 @@ WITH ins_art_law17_1999_562 AS (
 2- وإذا صدر حكم شهر الإفلاس بعد وفاة المدين أو بعد اعتزاله التجارة ولم يعين فيه تاريخ التوقف عن الدفع اعتبر تاريخ الوفاة أو اعتزال التجارة تاريخا مؤقتا للتوقف عن الدفع.
 3- تستعين المحكمة في تعيين تاريخ التوقف عن الدفع بكل فعل أو قول أو تصرف يصدر من المدين ويكشف عن اضطراب أعماله أو سعيه إلى الاستمرار في نشاطه التجاري بوسائل غير مشروعة ضارة بدائنيه. ويدخل في ذلك على الخصوص شروع المدين في الهرب أو الانتحار، أو إخفاء أمواله أو بيعها بخسارة أو عقد قروض بشروط باهظة أو الدخول في مضاربات طائشة.$cc1127$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7214,7 +7226,7 @@ WITH ins_art_law17_1999_563 AS (
   SELECT id, 563, $cc1128$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1128$, $cc1129$1- يجوز للمحكمة من تلقاء ذاتها، أو بناء على طلب النيابة العامة أو المدين أو أحد الدائنين أو أمين التفليسة أو غيرهم من ذوى المصلحة، تعديل التاريخ المؤقت للتوقف عن الدفع وذلك إلى انقضاء عشرة أيام من تاريخ إيداع قائمة الديون المحققة قلم كتاب المحكمة طبقا للفقرة الأولى من المادة 653 من هذا القانون وبعد انقضاء هذا الميعاد يصير التاريخ المعين للتوقف عن الدفع نهائيا.
 2- وفي جميع الأحوال لا يجوز إرجاع تاريخ التوقف عن الدفع إلى اكثر من سنتين سابقتين على تاريخ صدور الحكم بشهر الإفلاس.$cc1129$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7228,7 +7240,7 @@ WITH ins_art_law17_1999_564 AS (
 3- ويتولى أمين التفليسة نشر ملخص الحكم في صحيفة يومية تعينها المحكمة في حكم شهر الإفلاس، ويجب أن يتم النشر خلال عشرة أيام من تاريخ إخطاره بالحكم ويشتمل الملخص المذكور فيما يتعلق بحكم شهر الإفلاس على اسم المفلس وموطنه ورقم قيده في السجل التجاري والمحكمة التي أصدرت الحكم وتاريخ صدوره والتاريخ المؤقت للتوقف عن الدفع واسم قاضي التفليسة. وفي حالة تعديل تاريخ التوقف عن الدفع فيشتمل النشر فضلا عن البيانات المذكورة على التاريخ الجديد الذي عينته المحكمة.
 4- وعلى أمين التفليسة، خلال ثلاثين يوما من تاريخ إخطاره بحكم شهر الإفلاس، قيد ملخصه باسم جماعة الدائنين. في كل مكتب للشهر العقاري يوجد في دائرته عقار للمفلس، ولا يترتب على هذا القيد أي حق آخر لجماعة الدائنين.$cc1131$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7243,7 +7255,7 @@ WITH ins_art_law17_1999_565 AS (
 2- ومع عدم الإخلال بأحكام الفقرة الأولى من المادة 563 من هذا القانون يكون ميعاد الاعتراض في جميع الأحكام الصادرة في الدعاوى الناشئة عن التفليسة ثلاثين يوما من تاريخ صدورها ما لم تكن واجبة الشهر فيسرى الميعاد من تاريخ شهرها.
 3- ويسرى على ميعاد استئناف الحكم الصادر في دعوى شهر الإفلاس وغيره من الأحكام الصادرة في الدعاوى الناشئة عن التفليسة وطريقة رفعها أحكام قانون المرافعات المدنية والتجارية.$cc1133$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7255,7 +7267,7 @@ WITH ins_art_law17_1999_566 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 566, $cc1134$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1134$, $cc1135$تكون الأحكام الصادرة في دعاوى الإفلاس واجبة النفاذ المعجل بلا كفالة ما لم ينص على غير ذلك.$cc1135$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7270,7 +7282,7 @@ WITH ins_art_law17_1999_567 AS (
 (د) الأحكام الصادرة بوقف إجراءات التفليسة إلى حين الفصل في الطعن في قرار قاضي التفليسة بشأن قبول الديون أو رفضها.
 (ه) الأحكام الصادرة بشأن قبول الديون المتنازع فيها مؤقتا.$cc1137$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7285,7 +7297,7 @@ WITH ins_art_law17_1999_568 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 568, $cc1138$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1138$, $cc1139$إذا أوفى المدين جميع ما هو مستحق عليه من ديون تجارية قبل أن يحوز حكم شهر الإفلاس قوة الشيء المقضى به وجب أن تقضى بإلغاء حكم شهر الإفلاس على أن يتحمل المدين كافة مصاريف الدعوى.$cc1139$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7295,7 +7307,7 @@ WITH ins_art_law17_1999_569 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 569, $cc1140$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1140$, $cc1141$إذا لم توجد في التفليسة، وقت شهرها، نقود حاضرة لمواجهة شهر حكم الإفلاس ونشره أو وضع الأختام على أموال المفلس أو رفعها أو التحفظ على شخص المفلس وجب دفع هذه المصاريف من مبلغ الأمانة التي أودعها طالب شهر الإفلاس المبينة بالمادة 554/3 من هذا القانون ويسترد طالب شهر الإفلاس المبالغ التي دفعها على سبيل الامتياز على جميع الدائنين من أول نقود تدخل التفليسة، كما يجوز لقاضي التفليسة أن يأمر بالمبادرة ببيع بعض أموال التفليسة لمواجهة هذه المصاريف.$cc1141$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7306,7 +7318,7 @@ WITH ins_art_law17_1999_570 AS (
   SELECT id, 570, $cc1142$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الأول: شهر الإفلاس$cc1142$, $cc1143$1- إذا طلب المدين شهر إفلاسه وقضت المحكمة برفض الطلب جاز لها أن تحكم عليه بغرامة لا تقل عن ألف جنيه ولا تجاوز خمسة آلاف جنيه إذا تبين لها انه تعمد اصطناع الإفلاس.
 2- وإذا طلب أحد الدائنين شهر الإفلاس وقضت المحكمة برفض الطلب جاز لها أن تحكم على الدائن بالغرامة المنصوص عليها في الفقرة السابقة وبنشر الحكم على نفقته في الصحف التي تعينها، إذا تبين لها انه تعمد الإساءة إلى سمعة المدين التجارية، وذلك مع عدم الإخلال بحق المدين في طلب التعويض.$cc1143$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7319,7 +7331,7 @@ WITH ins_art_law17_1999_571 AS (
 2- ويجوز في كل وقت لقاضي التفليسة من تلقاء نفسه أو بناء على طلب المفلس أو المراقب الأمر بإضافة أمين أو اكثر بشرط ألا يزيد عددهم على ثلاثة.
 3- يصدر بتنظيم مهنة أمناء التفليسات قرار من الوزير المختص.$cc1145$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7332,7 +7344,7 @@ WITH ins_art_law17_1999_572 AS (
   SELECT id, 572, $cc1146$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثاني: الأشخاص الذين يديرون التفليسة$cc1146$, $cc1147$1- لا يجوز أن يعين أمينا للتفليسة من كان زوجا للمفلس أو قريبا له إلى الدرجة الرابعة أو من كان خلال السنتين السابقتين على شهر الإفلاس شريكا له أو مستخدما عنده أو محاسبا له أو وكيلا عنه.
 2- وكذلك لا يجوز أن يعين أمينا للتفليسة من سبق الحكم عليه بالإدانة في جناية أو في جنحة ماسة بالشرف والأمانة.$cc1147$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7345,7 +7357,7 @@ WITH ins_art_law17_1999_573 AS (
 2- يدون أمين التفليسة، يوما بيوم، جميع الأعمال المتعلقة بإدارة التفليسة في دفتر خاص ترقم صفحاته ويضع عليها قاضي التفليسة توقيعه أو ختمه ويؤشر في نهاية الدفتر بما يفيد انتهاءه.
 3- ويجوز للمحكمة ولقاضي التفليسة وللمراقب الاطلاع على هذا الدفتر في كل وقت، وللمفلس أيضا الاطلاع عليه بإذن من قاضي التفليسة.$cc1149$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7359,7 +7371,7 @@ WITH ins_art_law17_1999_574 AS (
 2- ويجوز لقاضي التفليسة أن يقسم العمل بينهم أو أن يعهد إلى أحدهم بعمل معين، وفي هذه الحالة لا يكون أمين التفليسة مسئولا إلا عن العمل الذي كلف به.
 3- ويجوز لأمناء التفليسة أن ينيبوا بعضهم البعض في القيام بالأعمال المعهود بها إليهم، ولا يجوز لهم إنابة الغير إلا بإذن من قاضي التفليسة، وفي هذه الحالة يكون أمين التفليسة ونائبه مسئولين بالتضامن عن الأعمال المذكورة.$cc1151$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7371,7 +7383,7 @@ WITH ins_art_law17_1999_575 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 575, $cc1152$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثاني: الأشخاص الذين يديرون التفليسة$cc1152$, $cc1153$يجوز للمفلس وللمراقب الاعتراض لدى قاضي التفليسة على أعمال امينها قبل إتمامها، ويترتب على الاعتراض وقف إجراء العمل، ويجب أن يفصل قاضي التفليسة في الاعتراض خلال خمسة أيام من تاريخ تقديمه، ويكون قرار قاضي التفليسة واجب النفاذ فورا.$cc1153$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7381,7 +7393,7 @@ WITH ins_art_law17_1999_576 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 576, $cc1154$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثاني: الأشخاص الذين يديرون التفليسة$cc1154$, $cc1155$يجوز للمحكمة، من تلقاء ذاتها أو بناء على طلب قاضي التفليسة أو المفلس أو المراقب، أن تأمر بعزل أمين التفليسة وتعيين غيره أو بإنقاص عدد الأمناء إذا تعددوا.$cc1155$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7393,7 +7405,7 @@ WITH ins_art_law17_1999_577 AS (
 2- ويجوز لقاضي التفليسة أن يأمر بصرف مبالغ لأمين التفليسة قبل تقديم التقرير المذكور في الفقرة السابقة خصما من أتعابه.
 3- ويجوز لكل ذي شأن الطعن أمام المحكمة في قرار قاضي التفليسة الخاص بتقدير أتعاب أمين التفليسة ومصاريفه.$cc1157$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7408,7 +7420,7 @@ WITH ins_art_law17_1999_578 AS (
 3- ويقدم للمحكمة كل ثلاثة اشهر تقريرا عن حالة التفليسة، كما يقدم لها تقريرا عن كل نزاع يتعلق بالتفليسة ويكون من اختصاصها الفصل فيه.
 4- وله في كل وقت استدعاء المفلس أو ورثته أو وكلائه أو مستخدميه أو أي شخص آخر لسماع أقوالهم في شئون التفليسة.$cc1159$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7421,7 +7433,7 @@ WITH ins_art_law17_1999_579 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 579, $cc1160$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثاني: الأشخاص الذين يديرون التفليسة$cc1160$, $cc1161$تودع القرارات التي يصدرها قاضي التفليسة قلم كتاب المحكمة في اليوم التالي لصدورها، وللقاضي أن يأمر قلم الكتاب بتبليغها إلى الأشخاص الذين تعينهم، ويكون التبليغ بكتاب مسجل بعلم الوصول، إلا إذا نص القانون أو أمر قاضي التفليسة بتبليغها بطريقة أخرى.$cc1161$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7433,7 +7445,7 @@ WITH ins_art_law17_1999_580 AS (
 2- يقدم الطعن بصحيفة تودع قلم كتاب المحكمة وتعلن لذوى الشأن خلال عشرة أيام من تاريخ الإيداع أو التبليغ على حسب الأحوال، وتنظره المحكمة في أول جلسة، على ألا يشترك قاضي التفليسة المطعون في قراره في نظر هذا الطعن، ويوقف الطعن تنفيذ القرار حتى تفصل المحكمة في أمره ما لم تأمر باستمرار تنفيذه.
 3- إذا رفضت المحكمة الطعن جاز لها أن تحكم على الطاعن بغرامة لا تقل عن خمسمائة جنيه ولا تجاوز ألفى جنيه إذا تبين لها انه تعمد تعطيل تنفيذ قرار قاضي التفليسة.$cc1163$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7446,7 +7458,7 @@ WITH ins_art_law17_1999_581 AS (
   SELECT id, 581, $cc1164$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثاني: الأشخاص الذين يديرون التفليسة$cc1164$, $cc1165$1- للمحكمة في كل وقت، أن تستبدل بقاضي التفليسة غيره من قضاة المحكمة.
 2- وفي حالة الغياب المؤقت يعين رئيس المحكمة أحد قضاتها لينوب عن قاضي التفليسة.$cc1165$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7458,7 +7470,7 @@ WITH ins_art_law17_1999_582 AS (
   SELECT id, 582, $cc1166$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثاني: الأشخاص الذين يديرون التفليسة$cc1166$, $cc1167$1- يعين قاضي التفليسة مراقبا أو اكثر من بين الدائنين الذين يرشحون أنفسهم لذلك.
 2- ويجوز للمفلس ولكل دائن الاعتراض على قرار قاضي التفليسة الخاص بتعيين المراقب دون أن يترتب على الاعتراض وقف تنفيذ القرار، ويقدم الاعتراض إلى قاضي التفليسة نفسه، ويجب أن يفصل فيه على وجه السرعة.$cc1167$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7469,7 +7481,7 @@ WITH ins_art_law17_1999_583 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 583, $cc1168$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثاني: الأشخاص الذين يديرون التفليسة$cc1168$, $cc1169$لا يجوز أن يكون المراقب أو النائب عن الشخص الاعتباري المعين مراقبا زوجا للمفلس أو قريبا له إلى الدرجة الرابعة.$cc1169$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7480,7 +7492,7 @@ WITH ins_art_law17_1999_584 AS (
   SELECT id, 584, $cc1170$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثاني: الأشخاص الذين يديرون التفليسة$cc1170$, $cc1171$1- يقوم المراقب، بالإضافة إلى السلطات المقررة له، بنصوص خاصة بفحص الميزانية والتقرير المقدمين من المدين وغير ذلك من المهام التي يكلفه بها قاضي التفليسة في شأن الرقابة على أعمال أمينها، ومعاونة قاضي التفليسة في ذلك.
 2- وللمراقب أن يطلب من أمين التفليسة إيضاحات عن سير إجراءاتها وعن إيراداتها ومصروفاتها وحالة الدعاوى المتعلقة بها.$cc1171$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7493,7 +7505,7 @@ WITH ins_art_law17_1999_585 AS (
 2- ويجوز عزل المراقب بقرار من قاضي التفليسة.
 3- ولا يسأل المراقب إلا عن خطئه الجسيم.$cc1173$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7506,7 +7518,7 @@ WITH ins_art_law17_1999_586 AS (
   SELECT id, 586, $cc1174$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1174$, $cc1175$1- يجوز للمحكمة بناء على طلب قاضي التفليسة أو النيابة العامة أو أمين التفليسة أو المراقب أن تأمر عند الاقتضاء بالتحفظ على شخص المفلس أو بمنعه من مغادرة البلاد لمدة محددة قابلة للتجديد، وللمفلس أن يتظلم من هذا الأمر دون أن يترتب على التظلم وقف تنفيذه.
 2- وللمحكمة أن تقرر في كل وقت إلغاء التحفظ على شخص المفلس أو أمر المنع من مغادرة البلاد.$cc1175$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7517,7 +7529,7 @@ WITH ins_art_law17_1999_587 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 587, $cc1176$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1176$, $cc1177$لا يجوز للمفلس أن يتغيب عن موطنه دون أن يخطر أمين التفليسة كتابة بمحل وجوده، ولا يجوز له أن يغير موطنه إلا بإذن من قاضي التفليسة.$cc1177$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7528,7 +7540,7 @@ WITH ins_art_law17_1999_588 AS (
   SELECT id, 588, $cc1178$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1178$, $cc1179$1- لا يجوز لمن شهر إفلاسه أن يكون ناخبا أو عضوا في المجالس النيابية أو المجالس المحلية أو الغرف التجارية أو الصناعية أو النقابات المهنية، ولا أن يكون مديرا أو عضوا في مجلس إدارة أية شركة ولا أن يشتغل بأعمال البنوك أو الوكالة التجارية أو التصدير والاستيراد أو السمسرة في بيع أو شراء الأوراق المالية أو البيع بالمزاد العلني، كل ذلك ما لم يرد إليه اعتباره.
 2- ولا يجوز لمن شهر إفلاسه أن ينوب عن غيره في إدارة أمواله، ومع ذلك يجوز للمحكمة المختصة أن تأذنه في إدارة أموال أولاده القصر إذا لم يترتب على ذلك ضرر لهم.$cc1179$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7541,7 +7553,7 @@ WITH ins_art_law17_1999_589 AS (
 2- إذا كان التصرف مما لا يحتج به على الغير إلا بالقيد أو التسجيل أو غير ذلك من الإجراءات فلا يسرى على جماعة الدائنين إلا إذا تم الإجراء قبل صدور حكم شهر الإفلاس.
 3- لا يحول غل يد المفلس عن إدارة أمواله والتصرف فيها دون قيامه بالإجراءات اللازمة للمحافظة على حقوقه.$cc1181$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7554,7 +7566,7 @@ WITH ins_art_law17_1999_590 AS (
   SELECT id, 590, $cc1182$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1182$, $cc1183$1- لا يجوز للمفلس بعد صدور حكم شهر الإفلاس الوفاء بما عليه من ديون او استيفاء ماله من حقوق.
 2- ومع ذلك إذا كان المفلس حاملا لورقة تجارية جاز الوفاء له بقيمتها عند حلول ميعاد استحقاقها إلا إذا عارض أمين التفليسة في هذا الوفاء طبقا للمادة 431 من هذا القانون.$cc1183$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7565,7 +7577,7 @@ WITH ins_art_law17_1999_591 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 591, $cc1184$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1184$, $cc1185$لا تقع المقاصة بعد صدور حكم شهر الإفلاس بين ما للمفلس من حقوق وما عليه من التزامات إلا إذا وجد ارتباط بينهما، ويوجد الارتباط على وجه الخصوص إذا نشأت الحقوق والالتزامات عن سبب واحد او شملها حساب جار.$cc1185$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7580,7 +7592,7 @@ WITH ins_art_law17_1999_592 AS (
 (ج) الحقوق المتصلة بشخص المفلس او بأحواله الشخصية.
 (د) التعويضات التي تستحق للمستفيد في عقد تأمين صحيح أبرمه المفلس قبل صدور حكم شهر الإفلاس ومع ذلك يلتزم المستفيد بأن يرد إلى التفليسة جميع أقساط التأمين التي دفعها المفلس ابتداء من التاريخ الذي عينته المحكمة للتوقف عن الدفع ما لم ينص القانون على غير ذلك.$cc1187$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7595,7 +7607,7 @@ WITH ins_art_law17_1999_593 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 593, $cc1188$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1188$, $cc1189$إذا آلت إلى المفلس تركة فلا يكون لدائنيه حق على أموالها إلا بعد أن يستوفى دائنو المورث حقوقهم من هذه الأموال، ولا يكون لدائني المورث أي حق على أموال التفليسة.$cc1189$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7610,7 +7622,7 @@ WITH ins_art_law17_1999_594 AS (
 2- يجوز للمحكمة أن تأذن بإدخال المفلس في الدعاوى المتعلقة بالتفليسة، كما يجوز لها أن تأذن بإدخال الدائن في هذه الدعاوى إذا كانت له مصلحة خاصة فيها.
 3- إذا رفع المفلس أو رفعت عليه دعوى جنائية أو دعوى متعلقة بشخصه أو بأحواله الشخصية وجب إدخال أمين التفليسة فيها إذا اشتملت على طلبات مالية.$cc1191$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7625,7 +7637,7 @@ WITH ins_art_law17_1999_595 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 595, $cc1192$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1192$, $cc1193$إذا حكم على المفلس بعد شهر إفلاسه بالتعويض عن ضرر أحدثه للغير جاز للمحكوم له الدخول في التفليسة بالتعويض المقضى به ما لم يثبت تواطؤه مع المفلس.$cc1193$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7638,7 +7650,7 @@ WITH ins_art_law17_1999_596 AS (
 3- يجوز في كل وقت لقاضي التفليسة من تلقاء ذاته أو بناء على طلب من أمين التفليسة أن يعدل مقدار الإعانة أو أن يأمر بإلغائها، ويجوز التظلم من هذا القرار أمام قاضي التفليسة نفسه.
 4- يوقف صرف الإعانة متى حاز حكم التصديق على الصلح قوة الشيء المقضى، وإذا لم يقع الصلح يوقف صرف الإعانة بمجرد قيام حالة الاتحاد.$cc1195$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7651,7 +7663,7 @@ WITH ins_art_law17_1999_597 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 597, $cc1196$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1196$, $cc1197$مع مراعاة حكم المادة 588 من هذا القانون يجوز للمفلس بدون إذن، أن يمارس تجارة جديدة بغير أموال التفليسة ويكون للدائنين الذين تنشأ ديونهم بمناسبة هذه التجارة الأولوية في استيفاء حقوقهم من أموالها.$cc1197$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7665,7 +7677,7 @@ WITH ins_art_law17_1999_598 AS (
 (ج)وفاء الديون الحالة بغير الشيء المتفق عليه، ويعتبر الوفاء بطريق الأوراق التجارية أو النقل المصرفي في حكم الوفاء بالنقود.
 (د) كل رهن أو تأمين اتفاقي آخر وكذلك كل اختصاص يتقرر على أموال المدين ضمانا لدين سابق على التأمين.$cc1199$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7679,7 +7691,7 @@ WITH ins_art_law17_1999_599 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 599, $cc1200$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1200$, $cc1201$كل ما أجراه المفلس من تصرفات غير ما ذكر في المادة 598 من هذا القانون وخلال الفترة المشار إليها يجوز الحكم بعدم نفاذه في مواجهة جماعة الدائنين اذا كان التصرف ضارا بها وكان المتصرف إليه يعلم وقت وقوع التصرف بتوقف المفلس عن الدفع.$cc1201$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7689,7 +7701,7 @@ WITH ins_art_law17_1999_600 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 600, $cc1202$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1202$, $cc1203$إذا دفعت قيمة ورقة تجارية بعد تاريخ التوقف عن الدفع وقبل الحكم بشهر الإفلاس فلا يجوز أن يسترد من الحامل ما دفع له، وانما يلزم الساحب أو من سحبت الورقة التجارية لحسابه برد القيمة المدفوعة إذا كان يعلم وقت إنشاء الورقة التجارية بتوقف المفلس عن الدفع، ويقع الالتزام بالرد في حالة السند للأمر على المظهر الأول إذا كان يعلم حصوله وقت الوفاء بتوقف المفلس عن الدفع.$cc1203$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7700,7 +7712,7 @@ WITH ins_art_law17_1999_601 AS (
   SELECT id, 601, $cc1204$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1204$, $cc1205$1- حقوق الرهن أو الامتياز أو الاختصاص المقررة على أموال المدين يجوز الحكم بعدم نفاذها في مواجهة جماعة الدائنين إذا قيدت بعد تاريخ التوقف عن الدفع وبعد انقضاء ثلاثين يوما من تاريخ تقرير الرهن أو الامتياز أو الاختصاص.
 2- يأخذ الدائن صاحب الرهن أو الاختصاص التالي للرهن أو الاختصاص الذي حكم بعدم نفاذه في مواجهة جماعة الدائنين مرتبة هذا التأمين ومع ذلك لا يعطى الدائن المذكور من الثمن الناتج من بيع المال المقرر عليه التأمين إلا ما كان يحصل عليه بغرض نفاذ الرهن أو الاختصاص السابق ويؤول الفرق إلى جماعة الدائنين.$cc1205$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7712,7 +7724,7 @@ WITH ins_art_law17_1999_602 AS (
   SELECT id, 602, $cc1206$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1206$, $cc1207$1- إذا حكم بعدم نفاذ أي تصرف في حق جماعة الدائنين التزم المتصرف إليه بأن يرد إليه التفليسة ما حصل عليه من المفلس بمقتضى هذا التصرف أو قيمة الشيء وقت قبضه، كما يلزم بدفع عوائد ما قبضه أو ثماره من تاريخ القبض.
 2- ويكون للمتصرف إليه الحق في استرداد العوض الذي قدمه للمفلس إذا وجد هذا العوض بعينه في التفليسة، فإذا لم يوجد كان من حق المتصرف إليه أن يطالب جماعة الدائنين بالمنفعة التي عادت عليها من التصرف وان يشترك في التفليسة بوصفه دائنا عاديا بما يزيد على قيمة هذه المنفعة.$cc1207$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7723,7 +7735,7 @@ WITH ins_art_law17_1999_603 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 603, $cc1208$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1208$, $cc1209$يجوز لأمين التفليسة وحده أن يطلب عدم نفاذ تصرفات المدين في حق جماعة الدائنين اذا وقع التصرف قبل صدور حكم شهر الإفلاس وذلك وفقا لاحكام القانون المدني، ويسرى الحكم الصادر بعدم نفاذ التصرف في حق جميع الدائنين سواء نشأت حقوقهم قبل حصول التصرف او بعد حصوله.$cc1209$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7734,7 +7746,7 @@ WITH ins_art_law17_1999_604 AS (
   SELECT id, 604, $cc1210$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1210$, $cc1211$تسقط الدعاوى الناشئة عن تطبيق الأحكام المنصوص عليها في المواد 598 إلى 601 والمادة 603 من هذا القانون بمضي سنتين من تاريخ صدور الحكم بشهر الإفلاس.
 2- آثار الإفلاس بالنسبة إلى الدائنين$cc1211$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7747,7 +7759,7 @@ WITH ins_art_law17_1999_605 AS (
 2- وكذلك يترتب على صدور حكم شهر الإفلاس وقف الدعاوى الفردية المقامة من الدائنين المذكورين في الفقرة السابقة ووقف إجراءات التنفيذ التي بدأها هؤلاء الدائنون قبل صدور حكم شهر الإفلاس ومع ذلك إذا تحدد يوم لبيع عقار المفلس جاز الاستمرار في إجراءات التنفيذ بإذن من قاضي التفليسة.
 3- أما الدائنون المرتهنون واصحاب حقوق الامتياز الخاصة والحاصلون على اختصاص على أموال المدين فيجوز لهم إقامة الدعاوى الفردية في مواجهة أمين التفليسة أو الاستمرار فيها كما يجوز لهم التنفيذ او الاستمرار على الأموال التي تقع عليها تأميناتهم.$cc1213$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7759,7 +7771,7 @@ WITH ins_art_law17_1999_606 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 606, $cc1214$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1214$, $cc1215$الحكم بشهر الإفلاس يسقط آجال جميع الديون النقدية التي على المفلس سواء أكانت عادية أم مضمونة بامتياز عام أو خاص.$cc1215$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7769,7 +7781,7 @@ WITH ins_art_law17_1999_607 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 607, $cc1216$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1216$, $cc1217$الحكم بشهر الإفلاس يوقف سريان عوائد الديون العادية بالنسبة إلى جماعة الدائنين فقط ولا تجوز المطالبة بعوائد الديون المضمونة برهن أو امتياز أو اختصاص إلا من المبالغ الناتجة من بيع الأموال التي يقع عليها التأمين ويستنزل اصل الدين أولا ثم العوائد المستحقة قبل صدور الحكم بشهر الإفلاس ثم العوائد المستحقة بعد صدوره.$cc1217$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7779,7 +7791,7 @@ WITH ins_art_law17_1999_608 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 608, $cc1218$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1218$, $cc1219$للمحكمة أن تستنزل من الدين الآجل الذي لم يشترط فيه عائد مبلغا يعادل العائد المستحق عن المدة من تاريخ الحكم بشهر الإفلاس إلى تاريخ استحقاق الدين.$cc1219$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7789,7 +7801,7 @@ WITH ins_art_law17_1999_609 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 609, $cc1220$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1220$, $cc1221$يجوز الاشتراك في التفليسة بالديون المعلقة على شرط فاسخ، مع تقديم كفيل، أما الديون المعلقة على شرط واقف فيجنب نصيبها في التوزيعات إلى أن تتبين نتيجة الشرط.$cc1221$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7800,7 +7812,7 @@ WITH ins_art_law17_1999_610 AS (
   SELECT id, 610, $cc1222$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1222$, $cc1223$1- إذا وجد جملة ملتزمين بدين واحد وشهر إفلاس أحدهم فلا يترتب على هذا الإفلاس اثر بالنسبة إلى الملتزمين الآخرين ما لم ينص القانون على غير ذلك.
 2- وإذا تم الصلح مع الملتزم الذي أفلس فلا تسرى شروطه على الملتزمين الآخرين.$cc1223$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7811,7 +7823,7 @@ WITH ins_art_law17_1999_611 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 611, $cc1224$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1224$, $cc1225$إذا استوفى الدائن من أحد الملتزمين بدين واحد جزءا من الدين ثم أفلس باقي الملتزمين أو أفلس أحدهم فلا يجوز للدائن أن يشترك في التفليسات إلا بالباقي من دينه ويبقى محتفظا بحقه في مطالبة الملتزم غير المفلس بهذا الباقي، ويجوز لهذا الملتزم أن يشترك لهذا الملتزم أن يشترك في كل تفليسة بما وفاه عنها.$cc1225$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7824,7 +7836,7 @@ WITH ins_art_law17_1999_612 AS (
 3- وإذا كان مجموع ما حصل عليه الدائن يزيد على دينه وتوابعه عادت الزيادة إلى تفليسة من يكون مكفولا من الآخرين بحسب ترتيب التزاماتهم بالدين فإذا لم يوجد هذا الترتيب عادت الزيادة إلى التفليسات التي دفعت اكثر من حصتها في الدين.
 3- آثار الإفلاس بالنسبة إلى أصحاب الديون المضمونة برهن أو امتياز على منقول$cc1227$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7837,7 +7849,7 @@ WITH ins_art_law17_1999_613 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 613, $cc1228$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1228$, $cc1229$لا تدرج أسماء دائني المفلس الحائزين، بوجه قانوني، على رهن أو امتياز خاص على منقول في جماعة الدائنين إلا على سبيل التذكرة.$cc1229$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7847,7 +7859,7 @@ WITH ins_art_law17_1999_614 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 614, $cc1230$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1230$, $cc1231$يجوز لأمين التفليسة في كل وقت وبعد الحصول على إذن من قاضي التفليسة، دفع الدين المضمون برهن أو استرداد الأشياء المرهونة لحساب جماعة الدائنين.$cc1231$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7858,7 +7870,7 @@ WITH ins_art_law17_1999_615 AS (
   SELECT id, 615, $cc1232$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1232$, $cc1233$1- إذا بيع المنقول المرهون بناء على طلب الدائن المرتهن بثمن يجاوز الدين، وجب على أمين التفليسة قبض المقدار الزائد لحساب جماعة الدائنين، وإذا كان الثمن اقل من الدين اشترك الدائن المرتهن بالباقي له في التفليسة بوصفه دائنا عاديا بشرط أن يكون دينه قد حقق طبقا لاحكام هذا القانون.
 2- ويجوز لأمين التفليسة أن يعذر الدائن المرتهن بكتاب مسجل مصحوب بعلم الوصول بوجوب اتخاذ الإجراءات القانونية للتنفيذ على الأشياء المرهونة قبل انتهاء حالة الاتحاد فإذا لم يتخذ الدائن المرتهن هذه الإجراءات خلال شهر من تاريخ إخطاره، جاز لقاضي التفليسة أن يأذن لأمين التفليسة ببيع المنقولات المرهونة، ويبلغ قرار قاضي التفليسة بالأذن إلى الدائن المرتهن ويجوز لهذا الدائن الطعن في القرار، ويترتب على الطعن وقف تنفيذ البيع ما لم تأمر المحكمة بغير ذلك.$cc1233$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7870,7 +7882,7 @@ WITH ins_art_law17_1999_616 AS (
   SELECT id, 616, $cc1234$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1234$, $cc1235$1- على أمين التفليسة بعد استئذان قاضي التفليسة أن يدفع خلال الأيام العشرة التالية لصدور الحكم بشهر الإفلاس مما يكون تحت يده من نقود التفليسة وبالرغم من وجود أي دين آخر، الأجور والمرتبات والمبالغ المستحقة قبل صدور الحكم بشهر الإفلاس عن مدة ثلاثين يوما للعاملين لدى المفلس، فإذا لم يكن لدى أمين التفليسة النقود اللازمة لوفاء هذه الديون وجب الوفاء من أول نقود تدخل التفليسة ولو وجدت ديون أخرى تسبقها في مرتبة الامتياز.
 2- ويكون للمبالغ المستحقة للطوائف المذكورة والزائدة على ما تقدم مرتبة الامتياز المقررة قانونا.$cc1235$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7881,7 +7893,7 @@ WITH ins_art_law17_1999_617 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 617, $cc1236$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1236$, $cc1237$يكون للمؤجر في حالة إنهاء إيجار العقار الذي يمارس فيه المفلس التجارة طبقا للمادة 624 من هذا القانون امتياز لضمان الأجرة المستحقة له عن السنة السابقة على صدور حكم شهر الإفلاس وعن السنة الجارية، وإذا بيعت المنقولات الموجودة في العين المؤجرة أو نقلت أو ظل المؤجر محتفظا بحقه في الامتياز.$cc1237$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7891,7 +7903,7 @@ WITH ins_art_law17_1999_618 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 618, $cc1238$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1238$, $cc1239$لا يشمل الامتياز المقرر للحكومة بسبب اختلاف أنواعها الضرائب على إلا دين الضريبة المستحقة على المفلس عن السنتين السابقتين على صدور الحكم بشهر الإفلاس، وتدخل الضرائب الأخرى المستحقة في التوزيعات بوصفها ديونا عادية.$cc1239$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7902,7 +7914,7 @@ WITH ins_art_law17_1999_619 AS (
   SELECT id, 619, $cc1240$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1240$, $cc1241$يجوز لقاضي التفليسة بناء على اقتراح أمينها أن يأمر عند الاقتضاء باستخدام أول نقود تدخل التفليسة في الوفاء بحقوق الدائنين الذين لهم امتياز على منقولات المفلس بشرط أن تكون أسماؤهم قد وردت بالقائمة النهائية للديون غير المتنازع فيها المشار إليها في الفقرة الأولى من المادة 655 من هذا القانون، وإذا حصلت منازعة في الامتياز فلا يجوز الوفاء إلا بعد الفصل فيها بحكم نهائي.
 4- آثار الإفلاس بالنسبة إلى أصحاب الديون المضمونة برهن أو امتياز أو اختصاص على عقار$cc1241$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7913,7 +7925,7 @@ WITH ins_art_law17_1999_620 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 620, $cc1242$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1242$, $cc1243$إذا حصل توزيع ثمن العقارات قبل توزيع ثمن المنقولات أو حصل التوزيعان معا كان للدائنين المرتهنين أو الممتازين أو الحاصلين على اختصاص الذين لم يستوفوا حقوقهم كلها أو بعضها من ثمن العقارات المحملة بالتأمين أن يشتركوا بالباقي مع الدائنين العاديين في توزيع الأموال التي يتعلق بها حق جماعة الدائنين بشرط أن تكون ديونهم قد حققت طبقا لاحكام هذا القانون.$cc1243$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7925,7 +7937,7 @@ WITH ins_art_law17_1999_621 AS (
 2- وبعد بيع العقارات وإجراء التسوية النهائية بحسب مراتب الدائنين المرتهنين والممتازين واصحاب حقوق الاختصاص لا يجوز لمن تؤهله مرتبته للحصول على كل دينه من ثمن العقارات المذكورة، قبض الدين إلا بعد استنزال المقدار الذي جنب له، ويرد هذا المقدار إلى جماعة الدائنين العاديين.
 3- وإذا كانت مرتبة الدائن المرتهن أو الممتاز أو صاحب حق الاختصاص لا تؤهله إلا للحصول على جزء من دينه كان من حقه الاشتراك في قسمة الغرماء بالباقي له من الدين، وإذا تبين عند التسوية النهائية أن ما حصل عليه وما جنب لحسابه يزيد على مقدار دينه وجب استنزال الجزء الزائد ورده إلى جماعة الدائنين العاديين.$cc1245$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7938,7 +7950,7 @@ WITH ins_art_law17_1999_622 AS (
   SELECT id, 622, $cc1246$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1246$, $cc1247$الدائنون المرتهنون أو الممتازون أو أصحاب حقوق الاختصاص الذين لا يحصلون على شئ من ثمن العقارات التي تقع عليها تأميناتهم يعتبرون دائنين عاديين وتسرى عليهم بهذه الصفة جميع الآثار الناشئة عن أعمال جماعة الدائنين وعن الصلح القضائي إن وقع.
 5- أثر الإفلاس في العقود الصحيحة المبرمة قبل شهره$cc1247$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7951,7 +7963,7 @@ WITH ins_art_law17_1999_623 AS (
 2- وإذا لم ينفذ أمين التفليسة العقد أو لم يستمر في تنفيذه جاز للطرف الآخر أن يطلب الفسخ، وكل قرار يتخذه أمين التفليسة بشأن العقد يجب أن يعرض على قاضي التفليسة ليأذن به، ويجوز للطرف الآخر أن يعين لأمين التفليسة مهلة مناسبة لإيضاح موقفه من العقد.
 3- وللمتعاقد الاشتراك في التفليسة كدائن عادي بالتعويض المترتب على الفسخ الا اذا نص على احتفاظ التعويض بالامتياز المقرر له قانونا.$cc1249$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7966,7 +7978,7 @@ WITH ins_art_law17_1999_624 AS (
 3- وإذا قرر أمين التفليسة الاستمرار في الإجارة وجب أن يدفع الأجرة المتأخرة وان يقدم ضمانا كافيا للوفاء بالأجرة المستقبلة، ويجوز للمؤجر أن يطلب من قاضي التفليسة إنهاء الإجارة إذا كان الضمان غير كاف وذلك خلال خمسة عشر يوما من تاريخ إخطاره برغبة أمين التفليسة في الاستمرار في الإجارة.
 4- ولأمين التفليسة بعد الحصول على إذن من قاضي التفليسة تأجير العقار من الباطن او التنازل عن الإيجار وفقا للأحكام المنظمة للعلاقة بين المالك والمستأجر ولو كان المفلس ممنوعا من ذلك بمقتضى عقد الإيجار بشرط ألا يترتب على ذلك ضرر للمؤجر.$cc1251$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7983,7 +7995,7 @@ WITH ins_art_law17_1999_625 AS (
 3- يكون للتعويض المستحق للعامل وفقا للفقرتين السابقتين الامتياز المقرر له قانونا.
 6- الاسترداد$cc1253$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7998,7 +8010,7 @@ WITH ins_art_law17_1999_626 AS (
   SELECT id, 626, $cc1254$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1254$, $cc1255$1- لكل شخص أن يسترد من التفليسة الأشياء التي تثبت له ملكيتها أو حق استردادها وقت شهر الإفلاس.
 2- ويكون لأمين التفليسة، بعد اخذ رأى المراقب والحصول على إذن من قاضي التفليسة رد الشيء إلى مالكه أو صاحب الحق في استرداده، وإذا رفض طلب الاسترداد جاز لطالبه عرض النزاع على المحكمة.$cc1255$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8013,7 +8025,7 @@ WITH ins_art_law17_1999_627 AS (
 3- وإذا كان المفلس قد أودع البضائع لدى الغير جاز استردادها منه.
 4- وإذا افترض المفلس برهن البضائع وكان الدائن المرتهن لا يعلم وقت إنشاء الرهن بعدم ملكية المفلس لها فلا يجوز استردادها إلا بعد وفاء الدين المضمون بالرهن.$cc1257$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8028,7 +8040,7 @@ WITH ins_art_law17_1999_628 AS (
   SELECT id, 628, $cc1258$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1258$, $cc1259$1- يجوز استرداد الأوراق التجارية وغيرها من الأوراق ذات القيمة، المسلمة إلى المفلس لتحصيلها أو لتخصيصها لوفاء معين إذا وجدت عينا في التفليسة ولم تكن قيمتها قد دفعت.
 2- ولا يجوز استرداد أوراق النقد المودعة لدى المفلس إلا إذا اثبت طالب الاسترداد ذاتيتها.$cc1259$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8040,7 +8052,7 @@ WITH ins_art_law17_1999_629 AS (
   SELECT id, 629, $cc1260$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1260$, $cc1261$1- إذا فسخ عقد البيع بحكم أو بمقتضى شرط في العقد قبل صدور الحكم بشهر إفلاس المشتري، جاز للبائع استرداد البضائع كلها أو بعضها في التفليسة بشرط أن توجد عينا.
 2- ويجوز الاسترداد ولو وقع الفسخ بعد صدور حكم شهر الإفلاس بشرط أن تكون دعوى الاسترداد أو دعوى الفسخ قد رفعت قبل صدور هذا الحكم.$cc1261$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8053,7 +8065,7 @@ WITH ins_art_law17_1999_630 AS (
 2- وإذا أفلس المشتري بعد إرسال البضائع إليه وقبل دخولها مخازنه أو مخزن أو وكيله المكلف ببيعها، جاز للبائع استرداد حيازتها، ومع ذلك لا يجوز الاسترداد إذا فقدت البضائع ذاتيتها، أو تصرف فيها قبل وصولها، بغير تدليس، بموجب وثائق الملكية أو النقل.
 3- وفي جميع الأحوال يجوز لأمين التفليسة، بعد استئذان قاضي التفليسة، أن يطلب تسليم البضائع بشرط أن يدفع للبائع الثمن المتفق عليه، فإذا لم يطلب أمين التفليسة ذلك جاز للبائع أن يتمسك بحقه في الفسخ وطلب التعويض والاشتراط به في التفليسة.$cc1263$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8066,7 +8078,7 @@ WITH ins_art_law17_1999_631 AS (
   SELECT id, 631, $cc1264$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1264$, $cc1265$1- إذا أفلس المشتري قبل دفع الثمن وبعد دخول البضائع مخازنه أو مخازن وكيله المكلف ببيعها، فلا يجوز للبائع أن يطلب فسخ البيع أو استرداد البضائع، كما يسقط حقه في الامتياز.
 2- وكل شرط يكون من شأنه تمكين البائع من استرداد البضائع او الاحتفاظ بامتيازه عليها لا يحتج به على جماعة الدائنين.$cc1265$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8077,7 +8089,7 @@ WITH ins_art_law17_1999_632 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 632, $cc1266$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثالث: آثار الإفلاس$cc1266$, $cc1267$تتقادم دعوى الاسترداد التي توجه إلى أمين التفليسة في الحالات المذكورة في المواد من 626 إلى 630 من هذا القانون بمضي سنة من تاريخ نشر حكم شهر الإفلاس في الصحيفة اليومية التي تعينها المحكمة وفقا للفقرة الثالثة من المادة 564 من هذا القانون.$cc1267$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8090,7 +8102,7 @@ WITH ins_art_law17_1999_633 AS (
 3- وإذا تبين لقاضي التفليسة إمكان جرد أموال المفلس في يوم واحد جاز له أو لمن يندبه، البدء في الجرد فورا دون حاجة إلى وضع الأختام.
 4- ويحرر محضر بوضع الأختام أو بالجرد يوقعه من قام بهذا الإجراء، ويسلم المحضر لقاضي التفليسة.$cc1269$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8103,7 +8115,7 @@ WITH ins_art_law17_1999_634 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 634, $cc1270$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الرابع: إدارة التفليسة$cc1270$, $cc1271$لا يجوز وضع الأختام على الملابس والمنقولات الضرورية للمفلس ولمن يعولهم، ويعين قاضي التفليسة هذه الأشياء وتسلم إلى المفلس بقائمة يوقعها كل من قاضي التفليسة والمفلس.$cc1271$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8119,7 +8131,7 @@ WITH ins_art_law17_1999_635 AS (
 (هـ) الأشياء اللازمة لتشغيل المتجر إذا تقرر الاستمرار في تشغيله.
 2- وتجرد الأشياء المذكورة في الفقرة السابقة بحضور قاضي التفليسة أو من يندبه لذلك، وتسلم لأمين التفليسة بقائمة يوقعها.$cc1273$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8136,7 +8148,7 @@ WITH ins_art_law17_1999_636 AS (
   SELECT id, 636, $cc1274$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الرابع: إدارة التفليسة$cc1274$, $cc1275$1- يأمر قاضي التفليسة، بناء على طلب أمينها، برفع الأختام للبدء في جرد أموال المفلس.
 2- ويجب أن يبدأ رفع الأختام والجرد خلال ثلاثين يوما من تاريخ صدور حكم شهر الإفلاس.$cc1275$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8150,7 +8162,7 @@ WITH ins_art_law17_1999_637 AS (
 3- وتذكر في القائمة الأموال التي لم توضع عليها الأختام أو التي رفعت عنها.
 4- وتجوز الاستعانة بخبير في إجراء الجرد وتقويم الأموال.$cc1277$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8163,7 +8175,7 @@ WITH ins_art_law17_1999_638 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 638, $cc1278$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الرابع: إدارة التفليسة$cc1278$, $cc1279$إذا شهر الإفلاس بعد وفاة التاجر ولم تحرر قائمة جرد بمناسبة الوفاة، أو إذا توفى التاجر بعد شهر إفلاسه وقبل البدء في تحرير قائمة الجرد أو قبل إتمامها، وجب تحرير القائمة فورا او الاستمرار في تحريرها بالكيفية المبينة في المادة السابقة وذلك بحضور ورثة المفلس أو بعد إخطارهم بالحضور.$cc1279$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8173,7 +8185,7 @@ WITH ins_art_law17_1999_639 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 639, $cc1280$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الرابع: إدارة التفليسة$cc1280$, $cc1281$يتسلم أمين التفليسة، بعد الجرد، أموال المفلس ودفاتره وأوراقه ويوقع في نهاية قائمة الجرد بما يفيد ذلك.$cc1281$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8185,7 +8197,7 @@ WITH ins_art_law17_1999_640 AS (
 2- ويدعى المفلس إلى حضور جلسة إقفال الدفاتر التجارية، فإذا لم يحضر وجب دعوته مرة أخرى إلى الحضور خلال ثلاثة أيام من تاريخ الإخطار وإلا أقفلت الدفاتر بغير حضوره.
 3- ولا يجوز للمفلس أن ينيب عنه غيره لحضور جلسة إقفال الدفاتر إلا لاسباب يقبلها قاضي التفليسة.$cc1283$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8198,7 +8210,7 @@ WITH ins_art_law17_1999_641 AS (
   SELECT id, 641, $cc1284$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الرابع: إدارة التفليسة$cc1284$, $cc1285$1- اذا لم يكن المفلس قد قدم الميزانية، وجب على أمين التفليسة أن يقوم بعملها، وإيداعها قلم كتاب المحكمة.
 2- ويتسلم أمين التفليسة الرسائل الواردة باسم المفلس والمتعلقة بأشغاله، ولأمين التفليسة فضها والاحتفاظ بها، وللمفلس الاطلاع عليها.$cc1285$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8210,7 +8222,7 @@ WITH ins_art_law17_1999_642 AS (
   SELECT id, 642, $cc1286$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الرابع: إدارة التفليسة$cc1286$, $cc1287$1- يقوم أمين التفليسة بجميع الأعمال اللازمة للمحافظة على حقوق المفلس لدى الغير، ويطالب بهذه الحقوق ويستوفيها.
 2- وعليه أن يفيد ما للمفلس من حقوق عينية على عقارات مدينيه، إذا لم يكن المفلس قد أجرى القيد.$cc1287$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8223,7 +8235,7 @@ WITH ins_art_law17_1999_643 AS (
 2- ويتم بيع المنقول بالكيفية التي يعينها قاضي التفليسة،ا ما بيع العقار فيجب أن يتم طبقا للأحكام المنصوص عليها في قانون المرافعات المدنية والتجارية بشأن بيع عقارات المفلس.
 3- يجوز الطعن أمام المحكمة في القرار الصادر من قاضي التفليسة ببيع أموال المفلس خلال فترة الإجراءات التمهيدية.$cc1289$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8237,7 +8249,7 @@ WITH ins_art_law17_1999_644 AS (
 2- فإذا كان النزاع غير معين القيمة، أو كانت قيمته تزيد على خمسة آلاف جنيه، فلا يكون الصلح أو قبول التحكيم نافذا إلا بعد تصديق قاضي التفليسة على شروطه، ويدعى المفلس إلى الحضور عند التصديق ويسمع قاضي التفليسة أقواله إذا حضر، ولا يكون لاعتراضه أي اثر. ويجوز الطعن أمام المحكمة في قرار قاضي التفليسة إذا صدر برفض التصديق على شروط الصلح أو التحكيم.
 3- ولا يجوز لأمين التفليسة النزول عن حق للمفلس، أو الإقرار بحق للغير عليه إلا بالشروط المبينة في هذه المادة.$cc1291$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8252,7 +8264,7 @@ WITH ins_art_law17_1999_645 AS (
 3- ويشرف أمين التفليسة على من يعين للإدارة، وعليه أن يقدم تقريرا شهريا إلى قاضي التفليسة عن سير التجارة.
 4- ويجوز للمفلس ولأمين التفليسة الطعن أمام المحكمة في قرار قاضي التفليسة برفض الإذن بالاستمرار في تشغيل المتجر.$cc1293$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8265,7 +8277,7 @@ WITH ins_art_law17_1999_646 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 646, $cc1294$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الرابع: إدارة التفليسة$cc1294$, $cc1295$في حالة وفاة المفلس يقوم مقامه ورثته في إجراءات الإفلاس، ولهم أن ينيبوا أحدهم ليمثلهم في ذلك، فإذا لم يتفقوا جاز لقاضي التفليسة بناء على طلب اميها إنابة من يمثلهم، وللقاضي في كل وقت عزل من أنيب وتعيين غيره.$cc1295$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8278,7 +8290,7 @@ WITH ins_art_law17_1999_647 AS (
 وعليه أن يقدم إلى قاضي التفليسة بيانا بالمبالغ المذكورة خلال خمسة أيام من تاريخ الإيداع.
 2- ولا يجوز سحب تلك المبالغ أو غيرها مما يودعه الغير لحساب التفليسة إلا بأمر من قاضي التفليسة.$cc1297$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8292,7 +8304,7 @@ WITH ins_art_law17_1999_648 AS (
   SELECT id, 648, $cc1298$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الرابع: إدارة التفليسة$cc1298$, $cc1299$1- يجوز عند الضرورة لقاضي التفليسة بعد اخذ رأي المراقب أن يأمر بإجراء توزيعات على الدائنين الذين حققت ديونهم، ويكون التوزيع بمقتضى قائمة يعدها أمين التفليسة ويؤشر عليها قاضي التفليسة بإجراء التوزيع.
 2- ويجوز للمفلس ولكل ذي مصلحة الطعن أمام المحكمة في قرار قاضي التفليسة الخاص بإجراء توزيعات على الدائنين.$cc1299$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8305,7 +8317,7 @@ WITH ins_art_law17_1999_649 AS (
 2- كما يجب على أمين التفليسة أن يقدم إلى قاضي التفليسة تقارير عن حالة التفليسة في مواعيد دورية يحددها القاضي.
 2- تحقيق الديون$cc1301$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8322,7 +8334,7 @@ WITH ins_art_law17_1999_650 AS (
 4- ويعيد أمين التفليسة المستندات إلى الدائنين بعد قفل التفليسة، ويكون مسئولا عنها لمدة سنة من تاريخ التفليسة.
 [ملاحظة توثيقية: صححت الفقرة 1 من المادة (650) بالاستدراك المنشور بالجريدة الرسمية- العدد 38 (مكرر) في 2000/9/27.]$cc1303$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8338,7 +8350,7 @@ WITH ins_art_law17_1999_651 AS (
   SELECT id, 651, $cc1304$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الرابع: إدارة التفليسة$cc1304$, $cc1305$1- إذا لم يقدم جميع الدائنين المقيدة أسماؤهم في الميزانية مستندات ديونهم خلال الأيام العشرة التالية لنشر الحكم بشهر الإفلاس في الصحف، وجب على أمين التفليسة النشر فورا في الصحيفة اليومية التي نشر فيها حكم الإفلاس لدعوة الدائنين إلى تقديم مستنداتهم مصحوبة بالبيان المشار إليه في المادة السابقة.
 2- وعلى الدائنين تقديم مستندات ديونهم مصحوبة بالبيان خلال عشرة أيام من تاريخ النشر في الصحف، ويكون هذا الميعاد أربعين يوما بالنسبة إلى الدائنين المقيمين خارج مصر، ولا يضاف إلى أي من هذه المواعيد ميعاد للمسافة.$cc1305$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8351,7 +8363,7 @@ WITH ins_art_law17_1999_652 AS (
 2- وإذا نازع أمين التفليسة أو المراقب أو المفلس في صحة أحد الديون أو في مقداره أو في ضماناته وجب على أمين التفليسة إخطار الدائن بذلك فورا وللدائن تقديم إيضاحات كتابية أو شفوية خلال عشرة أيام من تاريخ تسلم الإخطار.
 3- ولا تخضع الديون واجبة السداد المستحقة للحكومة بسبب الرسوم والضرائب على اختلاف انواعها لإجراءات التحقيق.$cc1307$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8366,7 +8378,7 @@ WITH ins_art_law17_1999_653 AS (
 3- وعلى أمين التفليسة خلال ستة أيام من تاريخ الإيداع أن ينشر في صحيفة يومية بيانا بحصوله، وعليه أن يرسل إلى المفلس والى كل دائن خلال هذا الميعاد نسخة من هذه القائمة والكشف المذكورين، مع بيان المبالغ التي يرى قبولها من كل دين.
 4- ولكل ذي مصلحة الاطلاع على القائمة والكشف المودعين بقلم كتاب المحكمة.$cc1309$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8379,7 +8391,7 @@ WITH ins_art_law17_1999_654 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 654, $cc1310$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الرابع: إدارة التفليسة$cc1310$, $cc1311$للمفلس ولكل دائن ورد اسمه بقائمة الديون المدرجة بها أن ينازع في الديون المدرجة بها خلال عشرة أيام من تاريخ النشر في الصحف عن حصول الإيداع، وتسلم المنازعة إلى قلم كتاب المحكمة أو ترسل إليه بكتاب مسجل مصحوبا بعلم الوصول أو ببرقية أو فاكس أو تلكس وعلى قلم الكتاب عرضها فورا على قاضي التفليسة ولا يضاف إلى هذا الميعاد ميعاد للمسافة.$cc1311$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8391,7 +8403,7 @@ WITH ins_art_law17_1999_655 AS (
 2- ويجوز لقاضي التفليسة اعتبار الدين متنازعا فيه ولو لم تقدم بشأنه أية منازعة.
 3- ويفصل قاضي التفليسة في الديون المتنازع فيها خلال ثلاثين يوما من تاريخ انقضاء ميعاد المنازعة، ويخطر قلم كتاب المحكمة ذوى الشأن بميعاد الجلسة قبل ميعاد انعقادها بثلاثة أيام على الأقل.$cc1313$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8407,7 +8419,7 @@ WITH ins_art_law17_1999_656 AS (
 4- وإذا كان الطعن في الدين متعلقا بتأميناته وجب قبوله مؤقتا بوصفه دينا عاديا.
 5- ولا يشترك الدائن الذي لم يقبل دينه نهائيا أو مؤقتا في إجراءات التفليسة.$cc1315$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8424,7 +8436,7 @@ WITH ins_art_law17_1999_657 AS (
 3- وإذا ثبتت ديونهم بعد ذلك فلا يجوز لهم المطالبة بحصص في التوزيعات التي تمت، وانما يجوز لهم ن يأخذوا من المبالغ الباقية دون توزيع أنصبة ديونهم التي كانت تؤول إليهم لو أنهم اشتركوا في التوزيعات السابقة.
 3- قفل التفليسة لعدم كفاية الأموال$cc1317$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8439,7 +8451,7 @@ WITH ins_art_law17_1999_658 AS (
 2- ويترتب على قرار قفل التفليسة لعدم كفاية أموالها أن يعود إلى كل دائن الحق في اتخاذ الإجراءات ومباشرة الدعاوى الفردية ضد المفلس.
 3- وإذا كان دين الدائن قد حقق نهائيا في التفليسة جاز له التنفيذ على أموال المفلس بناء على شهادة من قاضي التفليسة بمقدار دينه، تعتبر بمثابة حكم نهائي فيما يتعلق بهذا التنفيذ.$cc1319$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8453,7 +8465,7 @@ WITH ins_art_law17_1999_659 AS (
 2- كما يجوز لقاضي التفليسة أن يأمر من تلقاء نفسه أو بناء على طلب أمين التفليسة بإعادة فتح التفليسة والاستمرار في إجراءاتها.
 3- وفي جميع الأحوال يجب أن تدفع بالأولوية مصاريف الإجراءات التي تمت طبقا للفقرتين السابقتين.$cc1321$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8465,7 +8477,7 @@ WITH ins_art_law17_1999_660 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 660, $cc1322$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1322$, $cc1323$لقاضي التفليسة بعد وضع القائمة النهائية للديون المشار إليها في المادة 655 من هذا القانون أن يأمر في كل وقت بناء على طلب المفلس بإنهاء التفليسة إذا اثبت انه أوفى كل ديون الدائنين الذين تحققت ديونهم في التفليسة أو انه أودع قلم كتاب المحكمة أو لدى أمين التفليسة المبالغ اللازمة لوفاء تلك الديون من أصل وعوائد ومصاريف.$cc1323$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8477,7 +8489,7 @@ WITH ins_art_law17_1999_661 AS (
 2- وتنتهي التفليسة بمجرد صدور قرار قاضي التفليسة بإنهائها لزوال مصلحة جماعة الدائنين ويستعيد المفلس جميع حقوقه.
 2- الصلح القضائي$cc1325$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8491,7 +8503,7 @@ WITH ins_art_law17_1999_662 AS (
 2- وتوجه هذه الدعوة، في حالة عدم حصول أية منازعة في الديون، خلال الأيام الخمسة التالية لوضع القائمة النهائية بالديون المنصوص عليها في المادة 655 من هذا القانون وفي حالة حصول المنازعة توجه الدعوة خلال الخمسة عشر يوما التالية لانتهاء ميعاد الطعن في آخر قرار لقاضي التفليسة بشأن قبول الديون أو رفضها.
 3- وعلى أمين التفليسة، خلال الميعاد المنصوص عليه في الفقرة السابقة، أن يقوم بنشر الدعوة لحضور المداولة في الصلح في الصحيفة اليومية التي نشر فيها حكم شهر الإفلاس.$cc1327$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8505,7 +8517,7 @@ WITH ins_art_law17_1999_663 AS (
 2- ويحضر الدائنون الجمعية بأنفسهم أو بوكلاء مفوضين في كتابة الصلح.
 3- ويدعى المفلس إلى حضور الجمعية، ولا يجوز له أن ينيب عنه غيره إلا لاسباب جدية يقبلها قاضي التفليسة.$cc1329$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8518,7 +8530,7 @@ WITH ins_art_law17_1999_664 AS (
   SELECT id, 664, $cc1330$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1330$, $cc1331$1- يقدم أمين التفليسة تقريرا إلى جمعية الصلح مشتملا على حالة التفليسة وما تم بشأنها من إجراءات، ومقترحات المفلس في الصلح ورأى أمين التفليسة في هذه المقترحات.
 2- ويتلى تقرير أمين التفليسة في جمعية الصلح ويسلم موقعا منه الى قاضي التفليسة وتسمع أقوال المفلس إن حضر ويحرر قاضي التفليسة محضرا بما تم في الجمعية.$cc1331$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8530,7 +8542,7 @@ WITH ins_art_law17_1999_665 AS (
   SELECT id, 665, $cc1332$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1332$, $cc1333$1- لا يقع الصلح إلا بموافقة أغلبية الدائنين الذين قبلت ديونهم نهائيا أو مؤقتا بشرط أن يكونوا حائزين لثلثي قيمة هذه الديون، ولا يحسب في هاتين الاغلبيتين الدائنون الذين لم يشتركوا في التصويت كما لا تحسب ديونهم.
 2- ولا يجوز التصويت على الصلح بالمراسلة.$cc1333$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8542,7 +8554,7 @@ WITH ins_art_law17_1999_666 AS (
   SELECT id, 666, $cc1334$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1334$, $cc1335$1- لا يجوز لزوج المفلس ولأقاربه إلى الدرجة الثانية الاشتراك في مداولات الصلح أو التصويت على شروطه.
 2- وإذا نزل أحد هؤلاء الدائنين المشار إليهم في المادة السابقة عن دينه إلى الغير بعد صدور الحكم بشهر الإفلاس فلا يجوز للمتنازل إليه الاشتراك في مداولات الصلح أو التصويت عليه.$cc1335$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8556,7 +8568,7 @@ WITH ins_art_law17_1999_667 AS (
 3- وفي جميع الأحوال لا يكون التنازل عن التأمين نهائيا إلا إذا تم الصلح وصدقت عليه المحكمة.
 4- وإذا ابطل الصلح عاد التأمين الذي شمله التنازل.$cc1337$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8571,7 +8583,7 @@ WITH ins_art_law17_1999_668 AS (
 2- وإذا لم تتوافر إحدى الاغلبيتين المنصوص عليهما في المادة 665 من هذا القانون تأجلت المداولة مرة واحدة لمدة عشرة أيام.
 3- ويجوز للدائنين الذين حضروا الاجتماع الأول أو كانوا ممثلين فيه ووقعوا محضر الصلح إلا يحضروا الاجتماع الثاني، وفي هذه الحالة تبقى موافقتهم على الصلح في الاجتماع الأول قائمة ونافذة في الاجتماع الثاني إلا إذا حضروا هذا الاجتماع وابدوا فيه مقترحاته بشأن الصلح في الفترة بين الاجتماعين.$cc1339$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8583,7 +8595,7 @@ WITH ins_art_law17_1999_669 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 669, $cc1340$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1340$, $cc1341$لا يجوز عقد الصلح مع مفلس حكم عليه بعقوبة الإفلاس بالتدليس، وإذا بدأ التحقيق مع المفلس في جريمة الإفلاس بالتدليس وجب تأجيل النظر في الصلح.$cc1341$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8593,7 +8605,7 @@ WITH ins_art_law17_1999_670 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 670, $cc1342$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1342$, $cc1343$لا يحول الحكم على المفلس بعقوبة الإفلاس بالتقصير دون الصلح معه، وإذا بدأ التحقيق مع المفلس في جريمة الإفلاس بالتقصير جاز للدائنين النظر في الصلح أو تأجيل النظر فيه.$cc1343$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8605,7 +8617,7 @@ WITH ins_art_law17_1999_671 AS (
 2- ويجوز أن يعقد الصلح بشرط الوفاء إذا أيسر المدين خلال مدة تعين في عقد الصلح، على ألا تجاوز خمس سنوات من تاريخ التصديق على الصلح، ولا يعتبر المدين قد ايسر إلا إذا زادت قيمة موجوداته على ديونه بما يعادل عشرة في المائة على الأقل.
 3- وللدائنين أن يشترطوا تقديم كفيل أو اكثر لضمان تنفيذ شروط الصلح.$cc1345$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8618,7 +8630,7 @@ WITH ins_art_law17_1999_672 AS (
   SELECT id, 672, $cc1346$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1346$, $cc1347$1- يجوز لكل دائن له حق الاشتراك في عمل الصلح أن يبلغ قاضي التفليسة كتابة بما لديه من اعتراض على الصلح واسبابه وذلك خلال عشرة أيام من تاريخ التوقيع على محضر الصلح.
 2- وعلى قاضي التفليسة خلال ثلاثة أيام من تاريخ انقضاء الميعاد المنصوص عليه في الفقرة السابقة أن يرسل محضر الصلح إلى المحكمة التي شهر الإفلاس للتصديق على الصلح، وذلك مع تقرير من القاضي عن حالة التفليسة ورأيه في شروط الصلح وبيان بالاعتراضات التي قدمت على الصلح وأسبابها.$cc1347$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8633,7 +8645,7 @@ WITH ins_art_law17_1999_673 AS (
 4- وتعين المحكمة في حكم التصديق على الصلح مراقبا أو اكثر للإشراف على تنفيذ شروط الصلح.
 5- وإذا رفضت المحكمة الاعتراض على الصلح جاز لها الحكم على المعترض بغرامة لا تقل عن ألف جنيه ولا تجاوز خمسة آلاف جنيه إذا تبين انه تعمد تأخير وقوع الصلح.$cc1349$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8647,7 +8659,7 @@ WITH ins_art_law17_1999_674 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 674, $cc1350$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1350$, $cc1351$تسرى شروط الصلح على الدائنين الذين تتألف منهم جماعة الدائنين ولو لم يشتركوا في إجراءات الصلح أو اشتركوا فيها ولم يوافقوا عليه.$cc1351$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8659,7 +8671,7 @@ WITH ins_art_law17_1999_675 AS (
 2- وعلى أمين التفليسة خلال عشرة أيام من تاريخ صدور الحكم بالتصديق على الصلح قيد ملخصه باسم مراقب الصلح بوصفه نائبا عن الدائنين في كل مكتب للشهر العقاري يقع في دائرته عقار للمفلس، ويترتب على هذا القيد إنشاء رهن على العقارات المذكورة لضمان حقوق الدائنين الذي يسرى عليهم الصلح ما لم يتفق في الصلح على غير ذلك، ويقوم المراقب بشطب الرهن بعد تنفيذ شروط الصلح.
 3- وكذلك يجب على أمين التفليسة خلال الميعاد المذكور في الفقرة السابقة قيد ملخص حكم التصديق على الصلح باسم المراقب بوصفه نائبا عن الدائنين في مكتب السجل التجاري الذي يقع في دائرته متجر المفلس وفي كل مكتب للسجل المذكور يكون للمفلس في دائرته فرع أو مكتب أو وكالة، ويترتب على هذا القيد إنشاء رهن على المتجر لضمان حقوق الدائنين الذين يسرى عليهم الصلح ما لم يتفق في الصلح على غير ذلك، ويقوم المراقب بشطب الرهن بعد تنفيذ شروط الصلح، وتسرى في شأن هذا الرهن الأحكام الخاصة برهن المتجر.$cc1353$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8674,7 +8686,7 @@ WITH ins_art_law17_1999_676 AS (
 3- تنتهي مهمة أمين التفليسة ويستلم المفلس أمواله ودفاتره وأوراقه منه بموجب إيصال، ولا يكون أمين التفليسة مسئولا عن هذه الأشياء إذا لم يستلمها المفلس خلال سنة من تاريخ إقرار الحساب الختامي.
 4- ويحرر قاضي التفليسة محضرا بجميع ما تقدم، وإذا قام نزاع فصل فيه.$cc1355$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8690,7 +8702,7 @@ WITH ins_art_law17_1999_677 AS (
 3- يترتب على إبطال الصلح براءة ذمة الكفيل الذي يضمن تنفيذ شروطه.
 4- تختص المحكمة التي أصدرت حكم شهر الإفلاس بنظر دعوى إبطال الصلح.$cc1357$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8703,7 +8715,7 @@ WITH ins_art_law17_1999_678 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 678, $cc1358$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1358$, $cc1359$إذا بدأ التحقيق مع المفلس في جريمة الإفلاس بالتدليس بعد التصديق على الصلح أو إذا أقيمت عليه الدعوى الجنائية في هذه الجريمة بعد التصديق على الصلح، جاز للمحكمة التي أصدرت حكم شهر الإفلاس، بناء على طلب النيابة العامة أو كل ذي مصلحة، أن تأمر باتخاذ ما تراه من تدابير للمحافظة على أموال المدين، وتلغى هذه التدابير، بحكم القانون، إذا تقرر حفظ التحقيق أو تقرر بأن لا وجه لاقامة الدعوى أو حكم ببراءة المفلس.$cc1359$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8714,7 +8726,7 @@ WITH ins_art_law17_1999_679 AS (
   SELECT id, 679, $cc1360$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1360$, $cc1361$1- إذا لم يقم المفلس بتنفيذ شروط الصلح جاز طلب فسخه من المحكمة التي أصدرت حكم شهر الإفلاس.
 2- ولا يترتب على فسخ الصلح براءة ذمة الكفيل الذي يضمن تنفيذ شروطه، ويجب تكليف هذا الكفيل بحضور الجلسة التي ينظر فيها طلب فسخ الصلح.$cc1361$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8729,7 +8741,7 @@ WITH ins_art_law17_1999_680 AS (
 4- ويدعو أمين التفليسة الدائنين الجدد لتقديم مستندات ديونهم لتحقيقها وفقا لإجراءات تحقيق الديون.
 5- وتحقق فورا الديون الجديدة دون ان يعاد تحقيق الديون التي سبق قبولها، ومع ذلك يجب استبعاد الديون التي دفعت بكاملها وتخفيض الديون التي دفع جزء منها.$cc1363$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8744,7 +8756,7 @@ WITH ins_art_law17_1999_681 AS (
   SELECT id, 681, $cc1364$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1364$, $cc1365$1- التصرفات الحاصلة من المدين بعد التصديق على الصلح وقبل إبطاله أو فسخه تكون نافذة في حق الدائنين، ولا يجوز لهم طلب عدم نفاذها في حقهم إلا طبقا للأحكام المنصوص عليها في المادة 237 من القانون المدني.
 2- تسقط دعوى عدم نفاذ التصرف المنصوص عليها في الفقرة السابقة بمضي سنتين من تاريخ إبطال الصلح او فسخه.$cc1365$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8758,7 +8770,7 @@ WITH ins_art_law17_1999_682 AS (
 3- تسرى الأحكام المذكورة في الفقرتين السابقتين في حالة شهر إفلاس المدين مرة أخرى قبل أن يصدر حكم بإبطال الصلح أو بفسخه.
 3- الصلح مع التخلي عن الأموال$cc1367$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8775,7 +8787,7 @@ WITH ins_art_law17_1999_683 AS (
 4- إذا كان الثمن عن بيع الأموال التي تخلى عنها المدين يجاوز الديون المطلوبة منه وجب رد المقدار الزائد إليه.
 4- اتحاد الدائنين$cc1369$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8792,7 +8804,7 @@ WITH ins_art_law17_1999_684 AS (
 (ب) إذا طلب المدين الصلح ورفضه الدائنون أو رفضت المحكمة التصديق عليه.
 (ج) إذا حصل المدين على الصلح ثم ابطل.$cc1371$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8807,7 +8819,7 @@ WITH ins_art_law17_1999_685 AS (
 2- إذا قررت أغلبية الدائنين الحاضرين تغيير أمين التفليسة وجب على قاضي التفليسة تعيين غيره فورا.
 3- على أمين التفليسة السابق أن يقدم إلى أمين الاتحاد في الميعاد الذي يعينه قاضي التفليسة وبحضوره حسابا عن إدارته ويخطر المدين بميعاد تقديم الحساب.$cc1373$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8821,7 +8833,7 @@ WITH ins_art_law17_1999_686 AS (
 2- إذا وافقت أغلبية الدائنين الحاضرين على تقرير الإعانة للمفلس أو لمن يعولهم وجب على قاضي التفليسة، بعد اخذ رأي أمين الاتحاد ورأي المراقب، تعيين مقدار الإعانة.
 3- ويجوز لأمين الاتحاد، دون غيره، الطعن أمام المحكمة في قرار قاضي التفليسة بتعيين مقدار الإعانة، وفي هذه الحالة يصرف نصف الإعانة لمن تقررت له إلى حين الفصل في الطعن.$cc1375$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8835,7 +8847,7 @@ WITH ins_art_law17_1999_687 AS (
 2- ولا يجوز تنفيذ التفويض بالاستمرار في التجارة إلا بعد تصديق قاضي التفليسة عليه.
 3- وإذا نشأت عن الاستمرار في التجارة التزامات تزيد على أموال الاتحاد وكان الدائنون الذين وافقوا على الاستمرار في التجارة مسئولين في أموالهم الخاصة دون تضامن بينهم عن الزيادة بشرط أن تكون ناشئة عن أعمال تدخل في حدود التفويض الصادر منهم، وتكون مسئولية كل دائن بنسبة دينه.$cc1377$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8850,7 +8862,7 @@ WITH ins_art_law17_1999_688 AS (
 3- ويجوز لأمين الإتحاد الصلح أو قبول التحكيم في جميع حقوق المفلس بشرط مراعاة الأحكام المنصوص عليها في المادة 644 من هذا القانون.
 [ملاحظة توثيقية: صححت الفقرة 3 من المادة (688) بالاستدراك المنشور بالجريدة الرسمية- العدد 38 (مكرر) في 2000/9/27.]$cc1379$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8866,7 +8878,7 @@ WITH ins_art_law17_1999_689 AS (
 3- ولا يجوز لأمين الاتحاد بيع موجودات التفليسة دفعة واحدة مقابل مبلغ إجمالي إلا بعد إستئذان قاضي التفليسة.
 4- يجوز لكل ذي مصلحة الطعن في قرار قاضي التفليسة بشأن تعيين كيفية بيع منقولات المفلس أو الإذن ببيع أمواله دفعة واحدة مقابل مبلغ إجمالي، ويترتب على الطعن وقف تنفيذ القرار إلا إذا أمرت المحكمة بغير ذلك.$cc1381$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8880,7 +8892,7 @@ WITH ins_art_law17_1999_690 AS (
   SELECT id, 690, $cc1382$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1382$, $cc1383$1- يودع أمين الاتحاد المبالغ الناتجة عن بيع أموال المفلس خزانة المحكمة أو بنكا بعينه قاضي التفليسة وذلك في يوم العمل التالي للتحصيل على الأكثر.
 2- ويقدم أمين الاتحاد إلى قاضي التفليسة بيانا شهريا عن حالة التصفية ومقدار المبالغ المودعة ولا يجوز سحب هذه المبالغ إلا بأمر من قاضي التفليسة او بشيك يوقعه القاضي وأمين الاتحاد.$cc1383$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8892,7 +8904,7 @@ WITH ins_art_law17_1999_691 AS (
   SELECT id, 691, $cc1384$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1384$, $cc1385$1- تستنزل من المبالغ الناتجة عن بيع أموال المفلس الرسوم ومصاريف إدارة التفليسة وديون دائني جماعة الدائنين والإعانات المقررة للمفلس ولمن يعولهم، والمبالغ المستحقة للدائنين الممتازين، ويوزع الباقي بين الدائنين بنسبة ديونهم المحققة.
 2- وتجنب حصة الديون المتنازع فيها والديون التي قبلت مؤقتا وتحفظ حتى يفصل في شأنها.$cc1385$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8903,7 +8915,7 @@ WITH ins_art_law17_1999_692 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 692, $cc1386$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1386$, $cc1387$يأمر قاضي التفليسة بإجراء التوزيعات بين الدائنين ويعين مقدار المبلغ الذي يوزع، وعلى أمين الاتحاد إخطار الدائنين بذلك، ولقاضي التفليسة، عند الاقتضاء، أن يأمر قرار التوزيع في صحيفة يومية يعينها.$cc1387$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8915,7 +8927,7 @@ WITH ins_art_law17_1999_693 AS (
 2- وإذا تعذر على الدائن تقديم سند الدين جاز لقاضي التفليسة أن يأذن بدفع دينه بعد التحقق من قبوله.
 3- وفي جميع الأحوال يجب أن يعطى الدائن مخالصة على قائمة التوزيع.$cc1389$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8927,7 +8939,7 @@ WITH ins_art_law17_1999_694 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 694, $cc1390$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1390$, $cc1391$إذا انقضت ستة اشهر من تاريخ قيام حالة الاتحاد دون إنجاز التصفية وجب على أمين الاتحاد أن يقدم إلى قاضي التفليسة تقريرا عن حالة التصفية وأسباب التأخير في إنجازها، ويرسل لقاضي التفليسة هذا التقرير إلى الدائنين مع دعوتهم للاجتماع لمناقشته، ويكون الإجراء كذلك كلما انقضت ستة اشهر دون أن ينجز أمين الاتحاد أعمال التصفية.$cc1391$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8939,7 +8951,7 @@ WITH ins_art_law17_1999_695 AS (
 2- وينحل الاتحاد وتعتبر التفليسة منتهية بحكم القانون بعد المصادقة على الحساب المشار إليه في الفقرة السابقة.
 3- ويكون أمين الاتحاد مسئولا لمدة سنة من تاريخ انتهاء التفليسة عن الدفاتر والمستندات والأوراق المسلمة إليه.$cc1393$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8951,7 +8963,7 @@ WITH ins_art_law17_1999_696 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 696, $cc1394$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الخامس: انتهاء التفليسة$cc1394$, $cc1395$يعود الى كل دائن بعد انتهاء حالة الاتحاد الحق في التنفيذ على المدين للحصول على الباقي من دينه، ويعتبر قبول الدين في التفليسة بمثابة حكم نهائي فيما يتعلق بهذا التنفيذ.$cc1395$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8968,7 +8980,7 @@ WITH ins_art_law17_1999_697 AS (
 (و) لا يغير أمين التفليسة عند قيام حالة الاتحاد.
 (ز) لا يجرى إلا توزيع واحد على الدائنين بعد الانتهاء من بيع أموال التفليسة.$cc1397$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8985,7 +8997,7 @@ WITH ins_art_law17_1999_698 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 698, $cc1398$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل السابع: إفلاس الشركات$cc1398$, $cc1399$تسرى على إفلاس الشركات الأحكام المذكورة في هذا الباب والقواعد التالية.$cc1399$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8996,7 +9008,7 @@ WITH ins_art_law17_1999_699 AS (
   SELECT id, 699, $cc1400$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل السابع: إفلاس الشركات$cc1400$, $cc1401$1- فيما عدا شركات المحاصة، تعد في حالة إفلاس، كل شركة اتخذت أحد الأشكال المنصوص عليها في قانون الشركات إذا توقفت عن دفع ديونها إثر اضطراب أعمالها المالية، ويلزم شهر إفلاسها بحكم يصدر بذلك.
 2- ويجوز شهر إفلاس الشركة ولو كانت في دور التصفية.$cc1401$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9010,7 +9022,7 @@ WITH ins_art_law17_1999_700 AS (
 [ملاحظة توثيقية: مصححة بالاستدراك المنشور بالجريدة الرسمية- العدد 38 (مكرر) في 1999/9/27.]
 3- ويجب أن تشتمل الصحيفة على أسماء الشركاء المتضامنين الحاليين والذين خرجوا من الشركة بعد توقفها عن الدفع مع بيان موطن كل شريك متضامن وجنسيته وتاريخ خروجه من الشركة في السجل التجاري.$cc1403$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9024,7 +9036,7 @@ WITH ins_art_law17_1999_701 AS (
   SELECT id, 701, $cc1404$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل السابع: إفلاس الشركات$cc1404$, $cc1405$1- يجوز لدائني الشركة طلب شهر إفلاسها ولو كان شريكا فيها، أما الشركاء غير الدائنين فلا يجوز لهم بصفتهم الفردية طلب شهر إفلاس الشركة.
 2- إذا طلب الدائن شهر إفلاس الشركة، وجب اختصام كافة الشركاء المتضامنين.$cc1405$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9035,7 +9047,7 @@ WITH ins_art_law17_1999_702 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 702, $cc1406$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل السابع: إفلاس الشركات$cc1406$, $cc1407$يجوز للمحكمة من تلقاء ذاتها أو بناء على طلب الشركة أن تؤجل النظر في طلب شهر إفلاسها لمدة لا تجاوز ثلاثة اشهر إذا كان من المحتمل دعم مركزها المالي أو إذا اقتضت مصلحة الاقتصاد القومي ذلك، وللمحكمة أن تأمر باتخاذ ما تراه من تدابير المحافظة على موجودات الشركة.$cc1407$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9047,7 +9059,7 @@ WITH ins_art_law17_1999_703 AS (
 2- وتقضى المحكمة بحكم واحد بشهر إفلاس الشركة والشركاء المتضامنين ولو لم تكن مختصة بشهر إفلاس هؤلاء الشركاء.
 3- وتعين المحكمة لتفليسة الشركة وتفليسات الشركاء المتضامنين قاضيا واحدا وأمينا واحدا أو اكثر، ومع ذلك تكون كل تفليسة مستقلة عن غيرها من التفليسات من حيث موجوداتها وخصومها وإدارتها وتحقيق ديونها وكيفية انتهائها.$cc1409$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9061,7 +9073,7 @@ WITH ins_art_law17_1999_704 AS (
 2- وإذا تبين أن موجودات الشركة لا تكفى لوفاء 20% على الأقل من ديونها، جاز للمحكمة بناء على طلب قاضي التفليسة أن تقضى بإلزام أعضاء مجلس الإدارة أو المديرين كلهم أو بعضهم بالتضامن بينهم أو بغير تضامن بدفع ديون الشركة كلها أو بعضها إلا إذا اثبتوا انهم بذلوا في تدبير شئون الشركة عناية الرجل الحريص.
 3- ويجوز للمحكمة من تلقاء ذاتها أو بناء على طلب قاضي التفليسة أن تقضى بإسقاط الحقوق المنصوص عليها في المادة 588 من هذا القانون عن أعضاء مجلس إدارة الشركة أو مديريها الذين ارتكبوا أخطاء جسيمة أدت إلى اضطراب أعمال الشركة وتوقفها عن الدفع.$cc1411$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9073,7 +9085,7 @@ WITH ins_art_law17_1999_705 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 705, $cc1412$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل السابع: إفلاس الشركات$cc1412$, $cc1413$1- يقوم الممثل القانوني عن الشركة التي شهر إفلاسها مقامها في كل أمر يستلزم فيه القانون اخذ رأي المفلس أو حضوره، وعليه الحضور أمام قاضي التفليسة أو أمينها متى طلب منه ذلك والإدلاء بما يطلب منه من معلومات أو إيضاحات.$cc1413$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9083,7 +9095,7 @@ WITH ins_art_law17_1999_706 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 706, $cc1414$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل السابع: إفلاس الشركات$cc1414$, $cc1415$يجوز لأمين التفليسة بعد استئذان قاضي التفليسة أن يطالب الشركاء بدفع الباقي من حصصهم في رأس المال ولو لم يحل ميعاد استحقاقه، ولقاضي التفليسة أن يأمر بقصر هذه المطالبة على القدر اللازم لوفاء ديون الشركة.$cc1415$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9093,7 +9105,7 @@ WITH ins_art_law17_1999_707 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 707, $cc1416$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل السابع: إفلاس الشركات$cc1416$, $cc1417$لا تخضع سندات القرض التي أصدرتها الشركة لإجراءات تحقيق الديون، وتقبل هذه السندات بقيمتها الإسمية بعد إستنزال ما تكون الشركة قد دفعته منها، وإذا اشترط أداء مكافأة عند الوفاء بسند القرض وجب قبول السند بقيمته الإسمية مضافا إليها الجزء الذي استحق من المكافأة حتى صدور الحكم بشهر الإفلاس.$cc1417$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9104,7 +9116,7 @@ WITH ins_art_law17_1999_708 AS (
   SELECT id, 708, $cc1418$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل السابع: إفلاس الشركات$cc1418$, $cc1419$1- توضع مقترحات الصلح بموافقة أغلبية الشركاء أو الجمعية العامة على حسب الأحوال.
 2- ويتولى الممثل القانوني عن الشركة تقديم مقترحات الصلح في جمعية الدائنين.$cc1419$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9115,7 +9127,7 @@ WITH ins_art_law17_1999_709 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 709, $cc1420$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل السابع: إفلاس الشركات$cc1420$, $cc1421$إذا كان الصلح خاصا بشركة أصدرت سندات قرض تجاوز قيمتها ثلث مجموع ديونها فلا يجوز منحها الصلح إلا إذا وافقت على شروطه الجمعية العامة لجماعة مالكي هذه السندات، وتؤجل دعوة الدائنين إلى الاجتماع للمداولة في الصلح إلى ان تصدر تلك الموافقة.$cc1421$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9127,7 +9139,7 @@ WITH ins_art_law17_1999_710 AS (
 2- وإذا تم الصلح مع الشركة وانتهت تفليسات الشركاء المتضامنين بالاتحاد استمرت الشركة قائمة إلا إذا كان موضوع الصلح هو التخلي عن جميع أموالها.
 3- وإذا انتهت تفليسة الشركة وتفليسات الشركاء بالصلح اعتبر كل صلح مستقلا عن غيره ولا تسرى شروطه إلا على دائني التفليسة الخاصة به.$cc1423$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9139,7 +9151,7 @@ WITH ins_art_law17_1999_711 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 711, $cc1424$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل السابع: إفلاس الشركات$cc1424$, $cc1425$لا تحل الشركة بانتهاء تفليستها بالاتحاد، ومع ذلك يجوز حل هذه الشركة إذا تبين أن ما بقى من موجوداتها بعد تصفية الاتحاد لا يكفي لمتابعة أعمالها على وجه مجد.$cc1425$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9149,7 +9161,7 @@ WITH ins_art_law17_1999_712 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 712, $cc1426$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثامن: رد الاعتبار التجاري$cc1426$, $cc1427$فيما عدا حالة الإفلاس بالتدليس تعود بحكم القانون جميع الحقوق التي سقطت عن المفلس طبقا للمادة 588 من هذا القانون بعد انقضاء ثلاث سنوات من تاريخ انتهاء التفليسة.$cc1427$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9160,7 +9172,7 @@ WITH ins_art_law17_1999_713 AS (
   SELECT id, 713, $cc1428$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثامن: رد الاعتبار التجاري$cc1428$, $cc1429$يجب الحكم برد الاعتبار إلى المفلس ولو لم ينقض الميعاد المنصوص عليه في المادة السابقة إذا أوفى جميع ديونه من اصل ومصاريف وعوائد مدة لا تزيد على سنتين.
 وإذا كان المفلس شريكا متضامنا في شركة حكم بشهر إفلاسها فلا يرد إليه اعتباره وجوبا إلا إذا أوفى جميع ديون الشركة من اصل ومصاريف وعوائد مدة لا تزيد على سنتين.$cc1429$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9173,7 +9185,7 @@ WITH ins_art_law17_1999_714 AS (
 (أ) إذا حصل المفلس على صلح من دائنيه ونفذ شروطه، ويسرى هذا الحكم على الشريك المتضامن في شركة حكم بشهر إفلاسها إذا حصل هذا الشريك على صلح خاص به ونفذ شروطه.
 (ب) إذا اثبت المفلس أن الدائنين قد أبرءوا ذمته من جميع الديون أو انهم اجمعوا على الموافقة على رد اعتباره.$cc1431$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9185,7 +9197,7 @@ WITH ins_art_law17_1999_715 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 715, $cc1432$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثامن: رد الاعتبار التجاري$cc1432$, $cc1433$إذا امتنع أحد الدائنين عن قبض دينه أو كان غائبا أو تعذر معرفة موطنه جاز إيداع الدين خزانة المحكمة وتقوم شهادة الإيداع فيما يتعلق برد الاعتبار مقام التخالص.$cc1433$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9197,7 +9209,7 @@ WITH ins_art_law17_1999_716 AS (
 2- ولا يرد الاعتبار إلى المفلس الذي صدر عليه حكم بالإدانة في إحدى جرائم الإفلاس بالتدليس إلا بعد انقضاء مدة خمس سنوات من تاريخ تنفيذ العقوبة المحكوم بها أو صدور عفو عنها.
 3- وفي جميع الأحوال المذكورة في الفقرتين السابقتين لا يجوز رد الاعتبار إلى المفلس إلا إذا كان قد وفى جميع الديون المطلوبة منه من اصل ومصاريف وعوائد مدة لا تزيد على سنتين، أو أجرى تسوية بشأنها مع الدائنين.$cc1435$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9209,7 +9221,7 @@ WITH ins_art_law17_1999_717 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 717, $cc1436$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثامن: رد الاعتبار التجاري$cc1436$, $cc1437$يرد الاعتبار إلى المفلس بعد وفاته بناء على طلب أحد الورثة وذلك طبقا للأحكام المنصوص عليها في المواد السابقة.$cc1437$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9221,7 +9233,7 @@ WITH ins_art_law17_1999_718 AS (
 2- ويرسل قلم كتاب المحكمة فورا صورة من الطلب إلى النيابة العامة
 3- وينشر ملخص الطلب في إحدى الصحف اليومية التي تصدر أو توزع في دائرة المحكمة على نفقة المدين. ويجب أن يشتمل هذا الملخص عل اسم المدين وتاريخ صدور حكم شهر الإفلاس وكيفية انتهاء التفليسة والتنبيه على الدائنين بتقديم اعتراضاتهم إن كان لها مقتضى.$cc1439$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9233,7 +9245,7 @@ WITH ins_art_law17_1999_719 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 719, $cc1440$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثامن: رد الاعتبار التجاري$cc1440$, $cc1441$تودع النيابة العامة قلم كتاب المحكمة خلال ثلاثين يوما من تاريخ تسلمها صورة طلب رد الاعتبار تقريرا يشتمل على بيانات عن نوع الإفلاس والأحكام التي صدرت على المفلس في جرائم الإفلاس أو المحاكمات أو التحقيقات الجارية معه في هذا الشأن.$cc1441$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9243,7 +9255,7 @@ WITH ins_art_law17_1999_720 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 720, $cc1442$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثامن: رد الاعتبار التجاري$cc1442$, $cc1443$لكل دائن لم يستوف حقه أن يقدم اعتراضا على طلب رد الاعتبار خلال ثلاثين يوما من تاريخ نشر الطلب في الصحف، ويكون الاعتراض بتقرير كتابي يقدم إلى قلم كتاب المحكمة مرفقا به المستندات المؤيدة له.$cc1443$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9253,7 +9265,7 @@ WITH ins_art_law17_1999_721 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 721, $cc1444$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثامن: رد الاعتبار التجاري$cc1444$, $cc1445$يقوم قلم كتاب المحكمة بعد انقضاء الميعاد المنصوص عليه في المادة السابقة بإخطار الدائنين الذين قدموا معارضات في طلب رد الاعتبار بتاريخ الجلسة المحددة لنظر الطلب.$cc1445$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9264,7 +9276,7 @@ WITH ins_art_law17_1999_722 AS (
   SELECT id, 722, $cc1446$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثامن: رد الاعتبار التجاري$cc1446$, $cc1447$1- تفصل المحكمة في طلب رد الاعتبار بحكم انتهائي.
 2- وإذا قضت المحكمة برفض الطلب، فلا يجوز تقديمه من جديد إلا بعد انقضاء سنة من تاريخ صدور الحكم.$cc1447$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9275,7 +9287,7 @@ WITH ins_art_law17_1999_723 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 723, $cc1448$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثامن: رد الاعتبار التجاري$cc1448$, $cc1449$إذا أجريت قبل الفصل في طلب رد الاعتبار تحقيقات مع المفلس بشأن إحدى جرائم الإفلاس أو أقيمت عليه الدعوى الجنائية بذلك، وجب على النيابة العامة إخطار المحكمة فورا، وعلى المحكمة أن توقف الفصل في طلب رد الاعتبار حتى انتهاء التحقيقات أو صدور الحكم النهائي في الدعوى الجنائية.$cc1449$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9285,7 +9297,7 @@ WITH ins_art_law17_1999_724 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 724, $cc1450$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل الثامن: رد الاعتبار التجاري$cc1450$, $cc1451$إذا صدر على المدين حكم بالإدانة في إحدى جرائم الإفلاس بعد صدور الحكم برد الاعتبار اعتبر هذا الحكم كأن لم يكن، ولا يجوز للمدين الحصول بعد ذلك على رد الاعتبار إلا بالشروط النصوص عليها في المادة 716 من هذا القانون.$cc1451$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9297,7 +9309,7 @@ WITH ins_art_law17_1999_725 AS (
 2- وللتاجر الذي توقف عن دفع ديونه، ولو طلب شهر إفلاسه، أن يطلب الصلح الواقي من الإفلاس إذا توافرت فيه الشروط المذكورة في الفقرة السابقة وقدم طلب الصلح خلال الميعاد المنصوص عليه في المادة 553 من هذا القانون.
 3- وفيما عدا شركات المحاصة يجوز منح الصلح الواقي من الإفلاس لكل شركة توافرت فيها الشروط المنصوص عليها في الفقرتين السابقتين، ومع ذلك لا يجوز منح هذا الصلح للشركة وهي في دور التصفية.$cc1453$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9310,7 +9322,7 @@ WITH ins_art_law17_1999_726 AS (
   SELECT id, 726, $cc1454$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1454$, $cc1455$1- لا يقبل طلب الصلح الواقي من الإفلاس إلا إذا كان الطالب قد زاول التجارة بصفة مستمرة خلال السنتين السابقتين على تقديم الطلب وقام خلال هذه المدة بما تفرضه عليه الأحكام الخاصة بالسجل التجاري وبالدفاتر التجارية.
 2- ولا يجوز للشركاء طلب الصلح الواقي إلا بعد الحصول على إذن بذلك من أغلبية الشركاء او من الجمعية العامة على حسب الأحوال.$cc1455$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9322,7 +9334,7 @@ WITH ins_art_law17_1999_727 AS (
   SELECT id, 727, $cc1456$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1456$, $cc1457$1- لمن آل إليهم المتجر بطريق الإرث أو الوصية أن يطلبوا الصلح الواقي إذا قرروا الاستمرار في التجارة وكان التاجر قد فاته قبل ممن يجوز لهم الحصول على هذا الصلح.
 2- ويجب أن يطلب الورثة أو الموصى إليهم الصلح الواقي خلال ثلاثة اشهر من تاريخ الوفاة وإذا لم يتفق الورثة أو الموصى إليهم جميعا على طلب الصلح، وجب على المحكمة أن تسمع أقوال من عارض منهم في طلب الصلح ثم تفصل فيه وفقا لمصلحة ذوى الشأن.$cc1457$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9333,7 +9345,7 @@ WITH ins_art_law17_1999_728 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 728, $cc1458$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1458$, $cc1459$لا يجوز للمدين أثناء تنفيذ الصلح أن يطلب منحه صلحا آخر.$cc1459$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9343,7 +9355,7 @@ WITH ins_art_law17_1999_729 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 729, $cc1460$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1460$, $cc1461$إذا قدم إلى المحكمة طلب لشهر إفلاس المدين وطلب آخر بالصلح الواقي من الإفلاس، فلا يجوز الفصل في طلب شهر الإفلاس إلا بعد الفصل في طلب الصلح.$cc1461$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9353,7 +9365,7 @@ WITH ins_art_law17_1999_730 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 730, $cc1462$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1462$, $cc1463$يقدم طلب الصلح الواقي إلى قلم كتاب المحكمة الابتدائية المختصة بشهر الإفلاس يبين فيه أسباب اضطراب الأعمال ومقترحات الصلح وضمانات تنفيذها، وإذا لم يتمكن الطالب من تقديم كل هذه البيانات وجب بيان أسباب ذلك.$cc1463$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9373,7 +9385,7 @@ WITH ins_art_law17_1999_731 AS (
 وإذا كان الطلب خاصا بشركة وجب أن يرفق به فضلا عن الوثائق المذكورة في الفقرة السابقة صورة من عقد الشركة ونظامها مصدقا عليها من مكتب السجل التجاري والوثائق المثبتة لصفة مقدم الطلب وصورة من قرار الشركاء أو الجمعية العامة بطلب الصلح وبيان بأسماء الشركاء المتضامنين وعناوينهم وجنسياتهم.
 ويجب أن تكون تلك الوثائق مؤرخة وموقعة من طالب الصلح، وإذا تعذر تقديم بعضها أو استيفاء بياناتها وجب أن يتضمن الطلب أسباب ذلك.$cc1465$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9395,7 +9407,7 @@ WITH ins_art_law17_1999_732 AS (
 2- ويجوز للمحكمة أن تتخذ من الإجراءات ما يمكنها من الإحاطة بحالة المدين المالية واسباب اضطرابها.
 3- وتنظر المحكمة في طلب الصلح في غير علانية وعلى وجه الاستعجال، وتفصل في الطلب بحكم انتهائي.$cc1467$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9410,7 +9422,7 @@ WITH ins_art_law17_1999_733 AS (
 إذا سبق الحكم على التاجر بالإدانة في إحدى جرائم الإفلاس بالتدليس أو في جريمة التزوير أو السرقة أو النصب أو خيانة الأمانة أو إصدار شيك بدون مقابل وفاء أو اختلاس الأموال العامة ما لم يكن قد رد إليه اعتباره.
 (ج) إذا اعتزل التجارة أو لجأ إلى الفرار.$cc1469$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9423,7 +9435,7 @@ WITH ins_art_law17_1999_734 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 734, $cc1470$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1470$, $cc1471$إذا قضت المحكمة برفض طلب الصلح الواقي جاز أن تحكم على التاجر بغرامة لا تقل عن ألف جنيه ولا تزيد على خمسة آلاف جنيه إذا تبين لها انه تعمد الإيهام باضطراب أعماله أو إحداث الاضطراب فيها.$cc1471$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9437,7 +9449,7 @@ WITH ins_art_law17_1999_735 AS (
 (ب) تعيين أمين أو اكثر لمباشرة إجراءات الصلح ومتابعتها.
 3- ويجوز للمحكمة أن تأمر في حكم افتتاح إجراءات الصلح بأن يودع المدين خزانة المحكمة أمانة نقدية لمواجهة مصاريف الإجراءات، ويجوز أن تقضى المحكمة بإلغاء إجراءات الصلح أو بوقفها إذا لم يودع المدين الأمانة في الميعاد الذي عينته.$cc1473$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9452,7 +9464,7 @@ WITH ins_art_law17_1999_736 AS (
   SELECT id, 736, $cc1474$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1474$, $cc1475$يعين أمين الصلح من بين الأشخاص المرخص لهم في مزاولة مهنة أمين التفليسة، وتسرى في هذا الشأن الأحكام المنصوص عليها في المادة 572 من هذا القانون.
 [ملاحظة توثيقية: مصححة بالاستدراك المنشور بالجريدة الرسمية- العدد 38 (مكرر) في 1999/9/27.]$cc1475$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9464,7 +9476,7 @@ WITH ins_art_law17_1999_737 AS (
   SELECT id, 737, $cc1476$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1476$, $cc1477$تسرى على القرارات التي يصدرها القاضي المشرف على الصلح الأحكام المنصوص عليها في المادتين 579، 580 من هذا القانون.
 [ملاحظة توثيقية: مصححة بالاستدراك المنشور بالجريدة الرسمية- العدد 38 (مكرر) في 1999/9/27.]$cc1477$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9477,7 +9489,7 @@ WITH ins_art_law17_1999_738 AS (
 2- ويقوم أمين الصلح خلال خمسة أيام من تاريخ الإخطار بقيد الحكم بافتتاح إجراءات الصلح في السجل التجاري ونشر ملخصه مصحوبا بدعوة الدائنين إلى الاجتماع في صحيفة يومية يعينها القاضي المشرف.
 3- وعلى أمين الصلح أن يرسل في الميعاد المذكور في الفقرة السابقة الدعوة إلى الاجتماع مرفقا بها مقترحات الصلح إلى الدائنين المعلومة عناوينهم.$cc1479$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9490,7 +9502,7 @@ WITH ins_art_law17_1999_739 AS (
   SELECT id, 739, $cc1480$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1480$, $cc1481$1- يقوم القاضي المشرف فور صدور الحكم بافتتاح إجراءات الصلح بقفل دفاتر المدين ووضع توقيعه عليها.
 2- ويباشر أمين الصلح خلال أربع وعشرين ساعة من وقت إخطاره بصدور الحكم إجراءات الجرد بحضور المدين وكاتب المحكمة.$cc1481$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9502,7 +9514,7 @@ WITH ins_art_law17_1999_740 AS (
   SELECT id, 740, $cc1482$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1482$, $cc1483$1- يبقى المدين بعد صدور الحكم بافتتاح إجراءات الصلح قائما على إدارة أمواله بإشراف أمين الصلح، وله أن يقوم بجميع التصرفات العادية التي تقتضيها أعماله التجارية، ومع ذلك لا يجوز الاحتجاج على الدائنين بالتبرعات التي يجريها المدين بعد صدور الحكم المذكور.
 2- ولا يجوز للمدين بعد صدور الحكم بافتتاح إجراءات الصلح أن يعقد صلحا أو رهنا من أي نوع أو أن يجرى تصرفا ناقلا للملكية لا تستلزمه أعماله التجارية العادية إلا بعد الحصول على إذن من القاضي المشرف، وكل تصرف يتم على خلاف ذلك لا يحتج به على الدائنين.$cc1483$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9514,7 +9526,7 @@ WITH ins_art_law17_1999_741 AS (
   SELECT id, 741, $cc1484$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1484$, $cc1485$1- توقف جميع الدعاوى وإجراءات التنفيذ الموجهة إلى المدين بمجرد الحكم بافتتاح إجراءات الصلح، أما الدعاوى المرفوعة من المدين وإجراءات التنفيذ التي باشرها فتبقى سارية مع إدخال أمين الصلح فيها.
 2- ولا يجوز بعد صدور الحكم بافتتاح إجراءات الصلح التمسك قبل الدائنين بقيد الرهون وحقوق الامتياز والاختصاص المقررة على أموال المدين.$cc1485$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9525,7 +9537,7 @@ WITH ins_art_law17_1999_742 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 742, $cc1486$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1486$, $cc1487$لا يترتب على صدور الحكم بافتتاح إجراءات الصلح حلول آجال الديون التي على المدين أو وقف سريان عوائدها.$cc1487$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9535,7 +9547,7 @@ WITH ins_art_law17_1999_743 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 743, $cc1488$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1488$, $cc1489$إذا أخفى المدين بعد تقديم طلب الصلح جزءا من أمواله أو أتلفه أو أجرى بسوء نية تصرفات ضارة بالدائنين أو تصرفات مخالفة لاحكام المادة 740 من هذا القانون تقضى المحكمة من تلقاء ذاتها بإلغاء إجراءات الصلح.$cc1489$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9547,7 +9559,7 @@ WITH ins_art_law17_1999_744 AS (
 2- ويكون الميعاد المذكور في الفقرة السابقة ثلاثين يوما بالنسبة الى الدائنين المقيمين خارج مصر.
 3- ولا يضاف إلى الميعاد المذكور في الفقرتين السابقتين ميعاد للمسافة.$cc1491$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9560,7 +9572,7 @@ WITH ins_art_law17_1999_745 AS (
   SELECT id, 745, $cc1492$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1492$, $cc1493$1- يضع أمين الصلح بعد انتهاء الميعاد المنصوص عليه في المادة 746 من هذا القانون قائمة بأسماء الدائنين الذين طلبوا الاشتراك في إجراءات الصلح وبيانا بمقدار كل دين على حدة والمستندات والتأمينات التي تؤيده ان وجدت وما يراه بشأن قبوله أو رفضه.
 2- ولأمين الصلح أن يطلب من الدائن تقديم إيضاحات عن الدين أو تكملة مستندات أو تعديل مقداره أو صفاته.$cc1493$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9573,7 +9585,7 @@ WITH ins_art_law17_1999_746 AS (
 2- ويقوم أمين الصلح في اليوم التالي للإيداع بنشر بيان بحصول الإيداع في صحيفة يومية يعينها القاضي المشرف، ويرسل أمين الصلح إلى المدين والى كل دائن نسخة من قائمة الديون وبيان المبالغ التي يرى قبولها من كل دين.
 3- ولكل ذي مصلحة الاطلاع على القائمة المودعة قلم كتاب المحكمة.$cc1495$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9585,7 +9597,7 @@ WITH ins_art_law17_1999_747 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 747, $cc1496$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1496$, $cc1497$للمدين ولكل دائن ورد اسمه بقائمة الديون أن ينازع في الديون المدرجة بها خلال عشرة أيام من تاريخ النشر في الصحف عن حصول الإيداع، وتقدم المنازعة إلى قلم الكتاب ويجوز إرسالها بكتاب مسجل أو ببرقية أو بتلكس أو فاكس، ولا يضاف إلى هذا الميعاد ميعاد للمسافة.$cc1497$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9598,7 +9610,7 @@ WITH ins_art_law17_1999_748 AS (
 3- ويفصل القاضي المشرف في الديون المتنازع عليها خلال ثلاثين يوما من تاريخ انقضاء ميعاد المنازعة.
 4- ويخطر قلم كتاب المحكمة ذوي الشأن بميعاد الجلسة قبل انعقادها بثلاثة أيام على الأقل، كما يبلغهم القرار الصادر في المنازعة فور صدوره.$cc1499$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9613,7 +9625,7 @@ WITH ins_art_law17_1999_749 AS (
 2- ويجوز للمحكمة قبل الفصل في الطعن أن تأمر بقبول الدين مؤقتا بمبلغ مؤقتا تقدره ولا يجوز قبول الدين مؤقتا إذا أقيمت بشأنه دعوى جنائية.
 3- وإذا كانت المنازعة على الدين متعلقة بتأميناته وجب قبوله مؤقتا بوصفه دينا عاديا.$cc1501$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9625,7 +9637,7 @@ WITH ins_art_law17_1999_750 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 750, $cc1502$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1502$, $cc1503$لا يجوز أن يشترك في إجراءات الصلح الواقي الدائنون الذين لم يقدموا مستندات ديونهم في الميعاد المنصوص عليه في المادة 744 من هذا القانون ولا الدائنون الذين لم تقبل ديونهم نهائيا او مؤقتا.$cc1503$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9635,7 +9647,7 @@ WITH ins_art_law17_1999_751 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 751, $cc1504$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1504$, $cc1505$يعين القاضي المشرف بعد الانتهاء من تحقيق الديون ميعادا لإجتماع الدائنين للمداولة في مقترحات الصلح، وترسل الدعوة إلى حضور هذا الاجتماع إلى كل دائن قبل دينه نهائيا أو مؤقتا، ويجوز للقاضي المشرف أن يأمر بنشر الدعوة إلى صحيفة يومية يعينها.$cc1505$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9646,7 +9658,7 @@ WITH ins_art_law17_1999_752 AS (
   SELECT id, 752, $cc1506$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1506$, $cc1507$1- يودع أمين الصلح قلم كتاب المحكمة قبل الميعاد المعين لاجتماع الدائنين بخمسة أيام على الأقل تقريرا عن حالة المدين المالية واسباب اضطرابها وبيانا بأسماء الدائنين الذين لهم الحق في الاشتراك في إجراءات الصلح، ويجب أن يتضمن التقرير رأي أمين الصلح في الشروط التي اقترحها المدين للصلح.
 2- ويجوز لكل ذي مصلحة أن يطلب من القاضي المشرف الإذن له بالاطلاع على التقرير المذكور.$cc1507$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9659,7 +9671,7 @@ WITH ins_art_law17_1999_753 AS (
 2- ويجوز للدائن أن يقيم عنه وكيلا في حضور الاجتماع، ويجب أن يحضر المدين بنفسه، ولا يجوز أن يقيم عنه وكيلا في الحضور بدلا منه إلا لعذر يقبله القاضي المشرف.
 3- ولا تجوز المداولة في شروط الصلح إلا بعد تلاوة تقرير أمين الصلح المشار إليه في المادة السابقة، ويجوز للمدين تعديل شروطه للصلح أثناء المداولة.$cc1509$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9672,7 +9684,7 @@ WITH ins_art_law17_1999_754 AS (
   SELECT id, 754, $cc1510$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1510$, $cc1511$1- لا يقع الصلح إلا بموافقة أغلبية الدائنين الذين قبلت ديونهم نهائيا أو مؤقتا بشرط أن يكونوا حائزين لثلثي قيمة هذه الديون، ولا يحسب في هاتين الاغلبيتين الدائنون الذين لم يشتركوا في التصويت كما لا تحسب ديونهم.
 2- واذا كان الصلح خاصا بشركة أصدرت سندات قرض وجب مراعاة الأحكام المنصوص عليها في المادة 709 من هذا القانون.$cc1511$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9684,7 +9696,7 @@ WITH ins_art_law17_1999_755 AS (
   SELECT id, 755, $cc1512$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1512$, $cc1513$1- يسرى على الصلح الواقي من الإفلاس الحظر المنصوص عليه في المادة 666 من هذا القانون.
 2- وتسرى في شأن اشتراك الدائنين أصحاب التأمينات العينية في التصويت على الصلح الأحكام المنصوص عليها في المادة 667 من هذا القانون.$cc1513$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9696,7 +9708,7 @@ WITH ins_art_law17_1999_756 AS (
   SELECT id, 756, $cc1514$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1514$, $cc1515$1- يوقع الصلح الواقي في الجلسة التي تم فيها التصويت عليه والا كان لاغيا.
 2- وإذا لم تتحقق إحدى الاغلبيتين المنصوص عليهما في المادة 754 من هذا القانون تأجلت المداولة عشرة ايام لا مهلة بعدها، وتسرى في هذه الحالة الأحكام المنصوص عليها في الفقرة الثالثة من المادة 668 من هذا القانون.$cc1515$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9709,7 +9721,7 @@ WITH ins_art_law17_1999_757 AS (
 2- يجوز لكل دائن له حق الاشتراك في مداولات الصلح أن يبلغ القاضي المشرف كتابة بما لديه من اعتراض على الصلح وأسبابه وذلك خلال عشرة أيام من تاريخ التوقيع على محضر الصلح.
 3- وعلى القاضي المشرف خلال سبعة أيام من انقضاء الميعاد المنصوص عليه في الفقرة السابقة أن يرسل محضر الصلح إلى المحكمة التي اصدر الأمر بافتتاح إجراءات الصلح للتصديق عليه، وذلك مع تقرير من القاضي عن حالة المفلس المالية واسباب اضطراب أعماله وشروط الصلح وبيان بالاعتراضات التي قدمت على الصلح واسبابها.$cc1517$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9724,7 +9736,7 @@ WITH ins_art_law17_1999_758 AS (
 3- يجوز للمحكمة أن ترفض التصديق على الصلح ولو لم يقدم بشأنه أي اعتراض إذا وجدت أسباب تتصل بالمصلحة العامة أو بمصلحة الدائنين تبرر ذلك.
 4- إذا رفضت المحكمة الاعتراض على الصلح جاز لها الحكم على المعترض بغرامة لا تقل عن ألف جنيه ولا تزيد على خمسة آلاف جنيه إذا تبين انه تعمد تأخير الصلح.$cc1519$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9739,7 +9751,7 @@ WITH ins_art_law17_1999_759 AS (
 2- يجوز أن يعقد الصلح بشرط الوفاء إذا أيسر المدين خلال مدة تعين في شروط الصلح على ألا تجاوز خمس سنوات من تاريخ التصديق على الصلح، ولا يعتبر المدين قد أيسر إلا إذا زادت موجوداته على الديون المترتبة عليه بما يعادل عشرة في المائة على الأقل.
 3- وللدائنين أن يشترطوا تقديم ضمان عيني أو شخصي لتنفيذ شروط الصلح.$cc1521$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9752,7 +9764,7 @@ WITH ins_art_law17_1999_760 AS (
   SELECT id, 760, $cc1522$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1522$, $cc1523$1- يشهر الحكم الصادر بالتصديق على الصلح الواقي وفقا للأحكام المقررة لشهر حكم الإفلاس.
 2- ويجب أن يشتمل الملخص الذي ينشر في الصحف على اسم المدين وموطنه ورقم قيده في السجل التجاري والمحكمة التي صدقت على الصلح وتاريخ حكم التصديق.$cc1523$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9765,7 +9777,7 @@ WITH ins_art_law17_1999_761 AS (
 2- لا يفيد من الصلح الواقي المدينون المتضامنون مع المدين أو كفلاؤه في الدين ومع ذلك إذا وقع الصلح مع شركة أفاد من شروطه الشركاء المسئولون في جميع أموالهم عن ديون الشركة إلا إذا نص في عقد الصلح على غير ذلك.
 3- لا يسرى الصلح على دين النفقة ولا على الديون التي نشأت بعد صدور الحكم بافتتاح إجراءات الصلح.$cc1525$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9778,7 +9790,7 @@ WITH ins_art_law17_1999_762 AS (
   SELECT id, 762, $cc1526$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1526$, $cc1527$1- يجوز للمحكمة التي صدقت على الصلح أن تمنح المدين بناء على طلبه آجالا للوفاء بالديون التي لايسرى عليها الصلح بشرط الا تجاوز الآجال التي تمنحها المحكمة الأجل المقرر في الصلح.
 2- ولا يترتب على التصديق على الصلح حرمان المدين من الآجال التي تكون أبعد مدى من الأجل المقرر في الصلح.$cc1527$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9791,7 +9803,7 @@ WITH ins_art_law17_1999_763 AS (
 2- يطلب الرقيب من المحكمة التي صدقت على الصلح خلال عشرة أيام من الانتهاء من تنفيذ شروط الصلح، الحكم بقفل الإجراءات، ويشهر هذا الطلب بالكيفية المنصوص عليها في المادة 738 من هذا القانون.
 3- ويصدر الحكم بقفل الإجراءات خلال ثلاثين يوما من تاريخ النشر في الصحف، ويفيد ملخصه في السجل التجاري.$cc1529$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9806,7 +9818,7 @@ WITH ins_art_law17_1999_764 AS (
 3- لا يلزم الدائنون برد ما قبضوه من ديونهم قبل الحكم بإبطال الصلح.
 4- يترتب على إبطال الصلح براءة ذمة الكفيل الذي يضمن تنفيذ شروطه.$cc1531$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9824,7 +9836,7 @@ WITH ins_art_law17_1999_765 AS (
 2- ولا يلزم الدائنون برد ما قبضوه من ديونهم قبل الحكم بفسخ الصلح.
 3- ولا يترتب على فسخ الصلح براءة ذمة الكفيل الذي يضمن تنفيذ شروطه، ويجب تكليف الكفيل بحضور الجلسة التي ينظر فيها طلب فسخ الصلح.$cc1533$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9840,7 +9852,7 @@ WITH ins_art_law17_1999_766 AS (
   SELECT id, 766, $cc1534$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1534$, $cc1535$1- يقدر القاضي المشرف على الصلح اجر كل من أمين الصلح والرقيب إذا كان من غير الدائنين، ويودع قرار القاضي في هذا الشأن قلم كتاب المحكمة في اليوم التالي لصدوره.
 2- ويجوز لكل ذي مصلحة الاعتراض على القرار أمام المحكمة خلال خمسة عشر يوما من تاريخ الإيداع، ويكون الحكم الصادر في الاعتراض نهائيا.$cc1535$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9851,7 +9863,7 @@ WITH ins_art_law17_1999_767 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 767, $cc1536$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل التاسع: الصلح الواقي من الإفلاس$cc1536$, $cc1537$يجوز للمحكمة من تلقاء ذاتها أو بناء على تقرير من القاضي المشرف في الصلح أن تأمر في الحكم بقفل إجراءات الصلح بصرف مكافأة إجمالية للرقيب إذا كان من الدائنين وتبين انه بذل في عمله جهدا غير عادي وكانت حالة المدين المالية تسمح بذلك.$cc1537$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9861,7 +9873,7 @@ WITH ins_art_law17_1999_768 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 768, $cc1538$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل العاشر: جرائم الإفلاس والصلح الواقي منه$cc1538$, $cc1539$تسرى في شأن جرائم التفالس الأحكام المنصوص عليها في قانون العقوبات.$cc1539$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9877,7 +9889,7 @@ WITH ins_art_law17_1999_769 AS (
 2- يعاقب الدائن بالعقوبة المنصوص عليها بالفقرة السابقة إذا اشترك بسوء نية في مداولات الصلح والتصويت عليه وهو ممنوع من هذا الاشتراك، أو كان دينه مغالى فيه، أو قرر له المدين أو أي شخص آخر مزايا خاصة مقابل تصويته مع الصلح.
 3- يعاقب بالحبس مدة لا تقل عن ستة اشهر أمين الصلح الذي قدم أو اقر بسوء نية بيانات غير صحيحة عن حالة المدين.$cc1541$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9893,7 +9905,7 @@ WITH ins_art_law17_1999_770 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 770, $cc1542$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل العاشر: جرائم الإفلاس والصلح الواقي منه$cc1542$, $cc1543$لا يترتب على إقامة الدعوى الجنائية بالإفلاس بالتدليس او بالتقصير أي تعديل في الأحكام الخاصة بإجراءات التفليسة إلا إذا نص القانون على غير ذلك.$cc1543$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9904,7 +9916,7 @@ WITH ins_art_law17_1999_771 AS (
   SELECT id, 771, $cc1544$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل العاشر: جرائم الإفلاس والصلح الواقي منه$cc1544$, $cc1545$1- في حالة إقامة الدعوى الجنائية على المفلس يجب على أمين التفليسة أن يقدم للنيابة العامة أو للمحكمة كل ما تطلبه من وثائق أو مستندات أو معلومات أو إيضاحات تتعلق بالتفليسة.
 2- وتبقى الوثائق والمستندات المذكورة أثناء التحقيق أو المحاكمة لدى النيابة العامة أو المحكمة وترد بعد انتهاء التحقيق أو المحاكمة إلى أمين التفليسة أو إلى المدين أو ورثته على حسب الأحوال.$cc1545$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9916,7 +9928,7 @@ WITH ins_art_law17_1999_772 AS (
   SELECT id, 772, $cc1546$الباب الخامس: الإفلاس والصلح الواقي منه — الفصل العاشر: جرائم الإفلاس والصلح الواقي منه$cc1546$, $cc1547$إذا كانت الجريمة تتعلق باتفاق عقده المدين أو أي شخص مع أحد الدائنين لمنح هذا الدائن مزايا خاصة مقابل التصويت على الصلح، جاز للمحكمة الجنائية أن تقضى من تلقاء ذاتها بإبطال هذا الاتفاق وبإلزام الدائن برد ما استولى عليه بمقتضاه ولو صدر الحكم في الجريمة بالبراءة، وللمحكمة أن تقضى أيضا بناء على طلب ذوى الشأن بالتعويض عند الاقتضاء.
 ===================================================================$cc1547$
   FROM laws WHERE law_no = 17 AND law_year = 1999 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9937,7 +9949,7 @@ WITH ins_art_law0_1883_19 AS (
 النوع الثالث: شركة المساهمة.
 وتتبع في هذه الشركات الأصول العمومية المبينة في القانون المدني والشروط المتفق عليها بين الشركاء والقواعد الآتية.$cc1552$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9951,7 +9963,7 @@ WITH ins_art_law0_1883_20 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 20, $cc1553$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1553$, $cc1554$شركة التضامن هي الشركة التي يعقدها اثنان أو اكثر بقصد الاتجار على وجه الشركة بينهم بعنوان مخصوص يكون اسما لها.$cc1554$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9961,7 +9973,7 @@ WITH ins_art_law0_1883_21 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 21, $cc1555$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1555$, $cc1556$اسم واحد من الشركاء أو اكثر يكون عنوانا للشركة.$cc1556$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9971,7 +9983,7 @@ WITH ins_art_law0_1883_22 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 22, $cc1557$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1557$, $cc1558$الشركاء في شركة التضامن متضامنون لجميع تعهداتها ولو لم يحصل وضع الإمضاء عليها إلا من أحدهم إنما يشترط أن يكون هذا الإمضاء بعنوان الشركة.$cc1558$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9981,7 +9993,7 @@ WITH ins_art_law0_1883_23 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 23, $cc1559$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1559$, $cc1560$شركة التوصية هي الشركة التي تعقد بين شريك واحد أو اكثر مسئولين ومتضامنين وبين شريك واحد أو اكثر يكون أصحاب أموال فيها وخارجين عن الإدارة ويسمون موصون.$cc1560$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9991,7 +10003,7 @@ WITH ins_art_law0_1883_24 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 24, $cc1561$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1561$, $cc1562$تكون إدارة هذه الشركة بعنوان ويلزم أن يكون هذا العنوان اسم واحد أو اكثر من الشركاء المسئولين المتضامنين.$cc1562$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10001,7 +10013,7 @@ WITH ins_art_law0_1883_25 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 25, $cc1563$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1563$, $cc1564$وإذا وجدت عدة شركاء متضامنين ودخلت أسماؤهم في عنوان الشركة سواء كانوا كلهم مديرين لها أو كان المدير لها واحد منهم أو اكثر على ذمة الجميع فالشركة تكون شركة تضامن بالنسبة لهم وشركة توصية بالنسبة لأرباب المال الخارجين عن إدارتها.$cc1564$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10011,7 +10023,7 @@ WITH ins_art_law0_1883_26 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 26, $cc1565$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1565$, $cc1566$لا يجوز أن يدخل في عنوان الشركة اسم واحد من الشركاء الموصين أي أرباب المال الخارجين عن الإدارة.$cc1566$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10021,7 +10033,7 @@ WITH ins_art_law0_1883_27 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 27, $cc1567$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1567$, $cc1568$الشركاء الموصون لا يلزمهم من الخسارة التي تحصل إلا بقدر المال الذي دفعوه أو الذي كان يلزمهم دفعه إلى الشركة.$cc1568$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10031,7 +10043,7 @@ WITH ins_art_law0_1883_28 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 28, $cc1569$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1569$, $cc1570$ولا يجوز لهم أن يعملوا عملا متعلقا بإدارة الشركة ولو بناء على توكيل.$cc1570$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10041,7 +10053,7 @@ WITH ins_art_law0_1883_29 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 29, $cc1571$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1571$, $cc1572$إذا أذن أحد الشركاء الموصين بدخول اسمه في عنوان الشركة خلافا لما هو منصوص في المادة 26 فيكون ملزوما على وجه التضامن بجميع ديون وتعهدات الشركة.$cc1572$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10052,7 +10064,7 @@ WITH ins_art_law0_1883_30 AS (
   SELECT id, 30, $cc1573$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1573$, $cc1574$وكذلك إذا عمل أي واحد من الشركاء الموصين عملا متعلقا بإدارة الشركة يكون ملزوما على وجه التضامن بديون الشركة وتعهداتها التي تنتج من العمل الذي أجراه.
 ويجوز أن يلزم الشريك المذكور على وجه التضامن بجميع تعهدات الشركة أو بعضها على حسب عدد وجسامة أعماله وعلى حسب ائتمان الغير له بسبب تلك الأعمال.$cc1574$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10063,7 +10075,7 @@ WITH ins_art_law0_1883_31 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 31, $cc1575$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1575$, $cc1576$إذا أبدى أحد الشركاء الموصين نصائح أو أجرى تفتيشا أو ملاحظة فلا يترتب على ذلك إلزامه بشيء.$cc1576$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10073,7 +10085,7 @@ WITH ins_art_law0_1883_32 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 32, $cc1577$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1577$, $cc1578$شركة المساهمة لا تعنون باسم الشركاء ولا باسم أحدهم.$cc1578$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10083,7 +10095,7 @@ WITH ins_art_law0_1883_33 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 33, $cc1579$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1579$, $cc1580$وانما يطلق عليها الغرض المقصود منها كعنوان لها.$cc1580$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10093,7 +10105,7 @@ WITH ins_art_law0_1883_34 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 34, $cc1581$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1581$, $cc1582$تناط إدارة هذه الشركة بوكلاء إلى اجل معلوم سواء كانوا من الشركاء أو من غيرهم وبأجرة أو لا ويجوز عزلهم ولو كان تعيينهم مصرحا به في نظام الشركة أو وجد شرط يقضى بعدم عزلهم.$cc1582$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10103,7 +10115,7 @@ WITH ins_art_law0_1883_35 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 35, $cc1583$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1583$, $cc1584$هؤلاء الوكلاء المديرون ليسوا مسئولين إلا عن وفاء العمل الذي أحيل على عهدتهم أي لا يترتب على ما يجرونه من الإدارة إلزامهم بشيء فيما يختص بتعهدات الشركة إلزاما خاصا بأشخاصهم أو على وجه التضامن.$cc1584$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10113,7 +10125,7 @@ WITH ins_art_law0_1883_36 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 36, $cc1585$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1585$, $cc1586$الشركاء في هذه الشركة لا يلزمهم من الخسارة إلا بقدر مساهمتهم فيها.$cc1586$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10123,7 +10135,7 @@ WITH ins_art_law0_1883_37 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 37, $cc1587$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1587$, $cc1588$رأس مال شركة المساهمة يتجزأ إلى اسهم متساوية القيمة وكذلك أجزاء أسهم متساوية.$cc1588$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10133,7 +10145,7 @@ WITH ins_art_law0_1883_38 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 38, $cc1589$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1589$, $cc1590$يجوز أن يكون سند الأسهم في صورة سند لحامله وفي هذه الحالة يحصل التنازل عن السند بتسليمه من يد إلى أخرى.$cc1590$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10143,7 +10155,7 @@ WITH ins_art_law0_1883_39 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 39, $cc1591$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1591$, $cc1592$وتثبت ملكية الأسهم بقيدها في دفاتر الشركة ويكون التنازل عن هذه الأسهم بكتابة في الدفاتر المذكورة يوضع عليها إمضاء كل من المتنازل والمتنازل له أو إمضاء وكيلها وعلى مدير الشركة أن يذكر ذلك في هامش السند الأصلي أو على ظهره إذا لم يعط سندا آخر جديدا.$cc1592$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10153,7 +10165,7 @@ WITH ins_art_law0_1883_40 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 40, $cc1593$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1593$, $cc1594$لا يجوز إيجاد شركة المساهمة إلا بأمر يصدر من الجانب الخديوي بالتصديق على الشروط المندرجة في عقد الشركة وبالترخيص بتشكيلها.$cc1594$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10163,7 +10175,7 @@ WITH ins_art_law0_1883_41 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 41, $cc1595$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1595$, $cc1596$جميع شركات المساهمة التي تؤسس بالقطر المصري يجب أن تكون مصرية وأن يكون مركزها الأصلي بالقطر المذكور.$cc1596$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10173,7 +10185,7 @@ WITH ins_art_law0_1883_42 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 42, $cc1597$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1597$, $cc1598$ويجوز أيضا أن يكون رأس مال شركات التوصية متجزئا إلى اسهم بدون إخلال بالقواعد المقررة لنوع هذه الشركة.$cc1598$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10184,7 +10196,7 @@ WITH ins_art_law0_1883_43 AS (
   SELECT id, 43, $cc1599$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1599$, $cc1600$لا يجوز لأي شركة أن تجزئ رأس مالها إلى اسهم أو أجزاء اسهم قيمة كل واحد منها اقل من أربعة جنيهات مصرية.
 [ملاحظة توثيقية: معدلة بالقانون رقم 78 لسنة 1943- الوقائع المصرية العدد 92 في 12 أغسطس سنة 1943.]$cc1600$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10195,7 +10207,7 @@ WITH ins_art_law0_1883_44 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 44, $cc1601$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1601$, $cc1602$تكون سندات الأسهم في شركات التوصية بأسماء أربابها حتى يدفع نصف قيمتها ويكون المساهمون والأشخاص المتنازل لهم بأسمائهم مسئولين إلى إتمام الوفاء بهذا النصف.$cc1602$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10205,7 +10217,7 @@ WITH ins_art_law0_1883_45 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 45, $cc1603$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1603$, $cc1604$يعين في الأمر المرخص بإيجاد شركة المساهمة قدر المبلغ اللازم دفعة من كل منهم ليكون السهم بعد ذلك لحامل سنده ويخلو طرف المساهم أو المتنازل إليه الذي كان السند باسمه.$cc1604$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10215,7 +10227,7 @@ WITH ins_art_law0_1883_46 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 46, $cc1605$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1605$, $cc1606$ويكون عقد شركات التضامن وشركات التوصية بالكتابة ويجوز أن تكون مشارطة كل منهما رسمية أو غير رسمية.$cc1606$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10225,7 +10237,7 @@ WITH ins_art_law0_1883_47 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 47, $cc1607$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1607$, $cc1608$ويكون الإجراء كذلك في المشارطة التي يلتزم بها المتعاقدون السعي بشروط معينة في الحصول على الرخصة اللازمة لإيجاد شركة المساهمة.$cc1608$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10235,7 +10247,7 @@ WITH ins_art_law0_1883_48 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 48, $cc1609$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1609$, $cc1610$ويسلم ملخص مشارطة شركة التضامن أو شركة التوصية إلى قلم كتاب كل من المحاكم الابتدائية التي يوجد في دائرتها مركز الشركة أو فرع من فروعها ليسجل في السجل المعد لذلك ويعلن بلصقة مدة ثلاثة اشهر في اللوحة المعدة في المحكمة للإعلانات القضائية.$cc1610$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10245,7 +10257,7 @@ WITH ins_art_law0_1883_49 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 49, $cc1611$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1611$, $cc1612$ويلزم أيضا درجة في إحدى الصحف التي تطبع في مركز الشركة المذكورة وتكون معدة لنشر الإعلانات القضائية أو في صحيفتين تطبعان في مدينة أخرى ويجوز لكل من المتعاقدين استيفاء هذا الإجراءات.$cc1612$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10256,7 +10268,7 @@ WITH ins_art_law0_1883_50 AS (
   SELECT id, 50, $cc1613$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1613$, $cc1614$ويشمل هذا الملخص على أسماء الشركاء وألقابهم وصفاتهم ومساكنهم ما عدا الشركاء أرباب الأسهم الغير مسئولين في شركة المساهمة والشركاء أصحاب الأموال الخارجين عن الإدارة في شركة التوصية.
 وعلى عنوان الشركة وعلى بيان أسماء الشركاء المأذونين بالإدارة ويوضع الإمضاء على ذمة الشركة وعلى مقدار المبالغ التي حصلت أو يلزم تحصيلها بالأسهم أو بصفة رأس مال لشركة التوصية، وعلى بيان وقت ابتداء الشركة ووقت انتهائها.$cc1614$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10267,7 +10279,7 @@ WITH ins_art_law0_1883_51 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 51, $cc1615$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1615$, $cc1616$يجب استيفاء هذه الإجراءات في مدة خمسة عشر يوما من تاريخ وضع الإمضاء على المشارطة وإلا كانت الشركة لاغية.$cc1616$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10277,7 +10289,7 @@ WITH ins_art_law0_1883_52 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 52, $cc1617$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1617$, $cc1618$ومع ذلك يزول هذا البطلان إذا أعلن الملخص المتقدم ذكره قبل طلب الحكم بذلك البطلان.$cc1618$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10287,7 +10299,7 @@ WITH ins_art_law0_1883_53 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 53, $cc1619$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1619$, $cc1620$لا يجوز للشركاء أن يحتجوا بهذا البطلان على غيرهم وانما لهم الاحتجاج به على بعضهم بعضا.$cc1620$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10297,7 +10309,7 @@ WITH ins_art_law0_1883_54 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 54, $cc1621$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1621$, $cc1622$إذا حكم بالبطلان يتبع في تسوية حقوق الشركاء في الأعمال التي حصلت قبل طلبه نص المشارطة التي حكم ببطلانها.$cc1622$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10307,7 +10319,7 @@ WITH ins_art_law0_1883_55 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 55, $cc1623$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1623$, $cc1624$لا يترتب على إلغاء الشركة اعتبار الشركاء أصحاب الأموال في شركة التوصية وأرباب الأسهم في شركة المساهمة انهم ملتزمون بشيء ما على وجه التضامن.$cc1624$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10317,7 +10329,7 @@ WITH ins_art_law0_1883_56 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 56, $cc1625$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1625$, $cc1626$إذا كانت مشارطات الشركة رسمية يضع المأمور الذي يضع على يده تحررت إمضاءه على ملخصها، وأما إذا كانت غير رسمية فيكون الإمضاء على ملخصها من الشريك الذي يعلنه.$cc1626$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10327,7 +10339,7 @@ WITH ins_art_law0_1883_57 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 57, $cc1627$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1627$, $cc1628$يلزم إعلان المشارطة الابتدائية لشركة المساهمة ونظامها والأمر بإيجادها ويكون إعلان ذلك بتعليقه في المحكمة الابتدائية مدة الوقت المعين آنفا ونشره في إحدى الجرائد وان لم يحصل ذلك ألزم مدير الشركة بديونها على وجه التضامن ووجبت عليهم التعويضات أيضا.$cc1628$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10337,7 +10349,7 @@ WITH ins_art_law0_1883_58 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 58, $cc1629$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1629$, $cc1630$إذا قصد الاستمرار على الشركة بعد انقضاء مدتها يجب إثبات ذلك بإقرار من الشركاء بالكتابة ويجب استيفاء الإجراءات المقررة بالمواد السابقة في هذا الإقرار وفي كل اتفاق تضمن فسخ الشركة قبل انقضاء مدتها المعينة في المشارطة المؤسسة لها وفي كل تبديل في الشركاء المتضامنين خروج أحدهم منها وفي جميع الشروط او الاتفاقات الجديدة التي يكون للغير فيها شأن وفي كل تغيير في عنوان الشركة وان لم تستوف تلك الإجراءات في أمر من هذه الأمور فيكون لاغيا بالشروط السابق ذكرها.$cc1630$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10347,7 +10359,7 @@ WITH ins_art_law0_1883_59 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 59, $cc1631$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1631$, $cc1632$وزيادة على أنواع الشركات الثلاثة السالف ذكرها تعتبر أيضا بحسب القانون الشركات التجارية التي ليس لها راس مال شركة ولا عنوان شركة وهي المسماة بشركات المحاصة.$cc1632$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10357,7 +10369,7 @@ WITH ins_art_law0_1883_60 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 60, $cc1633$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1633$, $cc1634$تختص هذه الشركات بعمل واحد أو اكثر من الأعمال التجارية وتراعى في ذلك العمل وفي الإجراءات المتعلقة به وفي الحصص التي تكون لكل واحد من الشركاء في الأرباح الشروط التي يتفقون عليها.$cc1634$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10367,7 +10379,7 @@ WITH ins_art_law0_1883_61 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 61, $cc1635$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1635$, $cc1636$من عقد من المحاصين عقدا مع الغير يكون مسئولا له دون غيره.$cc1636$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10377,7 +10389,7 @@ WITH ins_art_law0_1883_62 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 62, $cc1637$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1637$, $cc1638$الحقوق والواجبات التي لبعض الشركات على بعض في هذه الشركات تكون قاصرة على قسمة الأرباح بينهم أو الخسارة التي تنشأ عن أعمال الشركة سواء حصلت منهم منفردين أو مجتمعين على حسب شروطهم.$cc1638$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10387,7 +10399,7 @@ WITH ins_art_law0_1883_63 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 63, $cc1639$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1639$, $cc1640$يجوز إثبات وجود شركات المحاصة بإبراز الدفاتر والخطابات.$cc1640$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10397,7 +10409,7 @@ WITH ins_art_law0_1883_64 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 64, $cc1641$الباب الثاني: في أنواع العقود التجارية — الفصل الأول: في الشركات$cc1641$, $cc1642$لا يلزم في شركات المحاصة التجارية اتباع الإجراءات المقررة للشركات الأخرى.$cc1642$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10409,7 +10421,7 @@ WITH ins_art_law0_1883_65 AS (
 وتتبع في ذلك القواعد العمومية المقررة لسقوط الحق بمضي المدة مع مراعاة القواعد المقررة لانقطاعها.
 ===================================================================$cc1644$
   FROM laws WHERE law_no = 0 AND law_year = 1883 AND country_code = 'EG'
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)

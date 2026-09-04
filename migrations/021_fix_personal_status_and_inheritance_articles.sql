@@ -21,6 +21,15 @@ BEGIN;
 
 ALTER TABLE articles ADD COLUMN IF NOT EXISTS article_suffix_order smallint NOT NULL DEFAULT 0;
 ALTER TABLE articles DROP CONSTRAINT IF EXISTS uq_articles_law_no;
+-- ⚠️ إصلاح جذرى مصاحب (2026-09-04): تغيير هذا القيد من عمودين لثلاثة كان
+-- يكسر ON CONFLICT (law_id, article_no) DO NOTHING فى كل ملفات migrations
+-- 003-020 (آلاف الاستدعاءات) بمجرد نجاح هذا الملف مرة واحدة — نفس عائلة
+-- عطل laws_category_check (راجع تعليق migrations/003 الكامل)، لكن هذا
+-- النوع أخطر: فشل فورى غير مشروط بالبيانات (PostgreSQL يرفض أى ON CONFLICT
+-- لا يطابق قيداً فريداً موجوداً فعلياً بنفس الأعمدة بالضبط)، لا فشل مشروط
+-- بوجود صف متعارض. صُحِّحت كل الملفات الاثنى عشر لتستخدم الأعمدة الثلاثة.
+-- أى migration مستقبلية تُعدِّل قيوداً فريدة مشتركة يجب أن تفحص كل استخدام
+-- ON CONFLICT السابق لها فى المستودع، لا فقط الملفات اللاحقة.
 ALTER TABLE articles ADD CONSTRAINT uq_articles_law_no UNIQUE (law_id, article_no, article_suffix_order);
 
 
