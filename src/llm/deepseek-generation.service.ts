@@ -270,6 +270,232 @@ export class DeepseekGenerationService {
       return { status: 'error', detail: (err as Error).message };
     }
   }
+
+  /**
+   * خدمة الحوكمة والالتزام والمخاطر (Service 3، 2026-09-04) — القسم 4.3 من
+   * project doc (تصور-تقنى-محترف-ثلاث-خدمات-ذكاء-اصطناعى-2026-09-02.md).
+   * الطبقة الثانية (بعد rerank) فى نفس نمط selectBestCandidate بالضبط —
+   * راجع تعليقها أعلاه لسبب "مقارنة مباشرة لكل المرشحين معاً" بدل فحوصات
+   * منفردة متتالية؛ نفس الدرسين المستفادين (max_tokens بهامش أمان،
+   * thinking:disabled) ينطبقان هنا حرفياً.
+   *
+   * الفارق الجوهرى عن selectBestCandidate: هذه ليست "اختر مرشحاً واحداً" بل
+   * "أصدر حكم حوكمة بنيوى" — قد تستند لأكثر من مرشح واحد معاً (مثال: مادة
+   * تُلزم بإجراء + مادة تُحدد عقوبة عدم الالتزام)، وقد ترفض الحكم كلياً
+   * ("معلومات غير كافية") حتى لو وُجد مرشح ظاهرياً قريب.
+   *
+   * ⚠️ فحص إضافى إلزامى غير موجود فى selectBestCandidate (القسم 4.3، الفقرة
+   * الأخيرة من project doc): يجب التحقق ليس فقط من "هل هذا المرشح ذو صلة
+   * بموضوع السؤال؟" بل أيضاً من "هل هذا المرشح يخص نفس الجهة/القطاع الرقابى
+   * الذى يقصده السؤال فعلاً؟" — خطر "التسريب الكاذب" هنا أعلى أثراً من
+   * الخدمة الأولى (قرار حوكمة خاطئ قد يُبنى عليه قرار تجارى فعلى)، لذلك
+   * التعليمة صريحة فى الـsystem prompt أدناه ولا تُترك ضمنية.
+   *
+   * سياسة fail-open/fail-closed **أكثر تحفظاً عمداً** من selectBestCandidate:
+   * selectBestCandidate يقبل fail-open عند 'not_configured' (يعرض أفضل مرشح
+   * حسب rerank كأن التحقق لم يُجرَ — مقبول لسؤال عام). هنا **لا** — حكم حوكمة
+   * بلا أى تحقق فعلى (سواء لغياب المفتاح أو لعطل تشغيلي) يُعامَل كلاهما
+   * كـ"معلومات غير كافية" فى GovernanceService (القرار نفسه، لا فى هذه
+   * الدالة — هذه الدالة تُرجع الحالة الخام فقط)، لأن الحكم البنيوى هنا
+   * (متوافق/غير متوافق) يُحتمَل أن يُبنى عليه قرار عمل حقيقى مباشرة، بخلاف
+   * إجابة نصية عامة يقرأها المستخدم ويُقيِّمها بنفسه.
+   */
+  async assessCompliance(input: {
+    question: string;
+    candidates: Array<{
+      lawTitle: string;
+      lawNo: number;
+      lawYear: number;
+      articleNo: number;
+      articleText: string;
+    }>;
+  }): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | {
+        status: 'ok';
+        verdict: GovernanceVerdict;
+        selectedIndices: number[];
+        riskNote: string;
+        confidence: number;
+      }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+    if (input.candidates.length === 0) {
+      return {
+        status: 'ok',
+        verdict: 'معلومات غير كافية',
+        selectedIndices: [],
+        riskNote: 'لا توجد مادة قانونية مفهرَسة ذات صلة ضمن نطاق الحوكمة والالتزام والمخاطر الحالى.',
+        confidence: 0,
+      };
+    }
+
+    const system =
+      'أنت مدقق حوكمة والتزام صارم ومتشكك، تعمل لصالح منصة قانونية مصرية. أمامك ' +
+      'وصف لإجراء أو قرار ينوي مستخدم اتخاذه، وعدة مواد قانونية/تنظيمية مرشحة من ' +
+      'نطاق الحوكمة والالتزام والمخاطر فقط (مكافحة غسل أموال، تأمين، تمويل غير ' +
+      'مصرفى). ترتيب عرض المرشحين لا يعكس دقتها إطلاقاً.\n\n' +
+      'مهمتك: افحص كل مرشح على حدة قبل إصدار أى حكم، بخطوتين إلزاميتين:\n' +
+      '(1) هل نص المرشح يخص فعلاً **نفس الجهة الرقابية والقطاع** الذى يقصده ' +
+      'الإجراء المذكور (مثال: قانون تأمين لا يحكم شركة تمويل استهلاكى، وقرار ' +
+      'مكافحة غسل أموال لا يحل محل قرار حوكمة تأمين، حتى لو بدا الموضوعان ' +
+      'متشابهين لفظياً)؟ إن لم يكن كذلك استبعد هذا المرشح كلياً من الأساس ' +
+      'القانونى، بصرف النظر عن قربه الظاهرى.\n' +
+      '(2) هل نص المرشح يتضمن شرطاً أو استثناءً ضيقاً غير وارد فى وصف الإجراء؟ ' +
+      'إن وُجد، لا تعتمد عليه كأساس وحيد للحكم.\n\n' +
+      'بعد الفحص، أصدر حكماً واحداً من أربعة بالضبط: "متوافق" (الإجراء يطابق ' +
+      'المتطلبات القانونية الواردة فى المرشحين المعتمَدين تماماً)، "غير متوافق" ' +
+      '(يخالفها صراحة)، "متوافق جزئياً" (يطابق بعض المتطلبات ويخالف أو يُغفل ' +
+      'بعضها)، أو "معلومات غير كافية" (لا يوجد مرشح واحد من نفس الجهة/القطاع ' +
+      'يجيب بدقة كافية — هذا الخيار الآمن الافتراضى عند أى شك حقيقى، ولا يُعَد ' +
+      'فشلاً). لا تخمّن ولا تُصدر "متوافق" أو "غير متوافق" إلا لو كان الأساس ' +
+      'القانونى المعتمَد كافياً ومن نفس النطاق فعلاً.\n\n' +
+      'أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى قبلها أو بعدها، بالضبط بهذا ' +
+      'الشكل: {"verdict": "متوافق أو غير متوافق أو متوافق جزئياً أو معلومات ' +
+      'غير كافية", "selected": [أرقام المرشحين المعتمَدين فعلاً كأساس، من 1 ' +
+      'إلى عدد المرشحين، مصفوفة فارغة [] لو معلومات غير كافية], "risk_note": ' +
+      '"جملة أو جملتان بالعربية تشرح أثر عدم التوافق إن وُجد أو سبب عدم كفاية ' +
+      'المعلومات", "confidence": رقم عشرى بين 0 و1 يعكس ثقتك الفعلية بالحكم}';
+
+    const candidatesText = input.candidates
+      .map(
+        (c, i) =>
+          `${i + 1}) المادة ${c.articleNo} من ${c.lawTitle} (رقم ${c.lawNo} لسنة ${c.lawYear}):\n"""${c.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `وصف الإجراء/القرار المُراد فحص مطابقته: ${input.question}\n\n` +
+      `المرشحون (نطاق الحوكمة/الالتزام/المخاطر فقط):\n${candidatesText}\n\n` +
+      'افحص أولاً هل كل مرشح من نفس الجهة/القطاع الرقابى الذى يقصده الإجراء، ثم ' +
+      'أصدر الحكم. رد بـJSON فقط كما هو محدد.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          // إخراج أكبر من selectBestCandidate (verdict + selected[] + risk_note
+          // + confidence بدل رقم واحد + سبب قصير) — هامش أمان أوسع يتماشى مع
+          // "درس التقطيع الأول" الموثَّق فى selectBestCandidate.
+          max_tokens: 500,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek assessCompliance API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek assessCompliance: content فارغ رغم thinking:disabled — reasoning_content ` +
+            `length=${reasoningLen}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+        return { status: 'error', detail: 'empty_response' };
+      }
+
+      const parsed = parseVerdictJson(text, input.candidates.length);
+      if (!parsed) {
+        this.logger.warn(`DeepSeek assessCompliance: could not parse JSON from response: ${text}`);
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+
+      return {
+        status: 'ok',
+        verdict: parsed.verdict,
+        selectedIndices: parsed.selected.map((n) => n - 1),
+        riskNote: parsed.riskNote,
+        confidence: parsed.confidence,
+      };
+    } catch (err) {
+      this.logger.warn(`DeepSeek assessCompliance call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
+}
+
+export type GovernanceVerdict = 'متوافق' | 'غير متوافق' | 'متوافق جزئياً' | 'معلومات غير كافية';
+
+const GOVERNANCE_VERDICTS: readonly GovernanceVerdict[] = [
+  'متوافق',
+  'غير متوافق',
+  'متوافق جزئياً',
+  'معلومات غير كافية',
+];
+
+/**
+ * تحليل دفاعي لرد assessCompliance، بنفس نمط parseSelectionJson (ثلاث
+ * محاولات متدرجة: JSON.parse مباشر → استخراج أول {...} substring → regex
+ * مباشر للحقول)، مع تحقق إضافى لكل حقل:
+ *   - verdict يجب أن يكون بالضبط أحد القيم الأربع المسموحة (لا مطابقة جزئية
+ *     أو تخمين لصيغة قريبة — قيمة خارج القائمة = فشل تحليل → fail-closed).
+ *   - selected مصفوفة أرقام صحيحة كل منها ضمن [1, maxIndex]؛ أرقام مكررة
+ *     تُفرَّد؛ رقم واحد خارج المدى يُسقط الحكم بالكامل (لا يُقبَل الحكم مع
+ *     تجاهل الرقم الفاسد وحده — نفس مبدأ "رقم خارج المدى = هلوسة" فى
+ *     parseSelectionJson).
+ *   - confidence يُطبَّق (clamp) لـ[0, 1] بدل رفضه لو جاء خارج المدى قليلاً
+ *     (خطأ تقريب طبيعى فى نموذج لغوى، لا هلوسة بنيوية كرقم مرشح خاطئ).
+ */
+function parseVerdictJson(
+  text: string,
+  maxIndex: number,
+): { verdict: GovernanceVerdict; selected: number[]; riskNote: string; confidence: number } | null {
+  const attempts = [text];
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    attempts.push(match[0]);
+  }
+
+  const isValidVerdict = (v: unknown): v is GovernanceVerdict =>
+    typeof v === 'string' && (GOVERNANCE_VERDICTS as readonly string[]).includes(v);
+
+  const isValidSelected = (v: unknown): v is number[] =>
+    Array.isArray(v) &&
+    v.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= maxIndex);
+
+  for (const attempt of attempts) {
+    try {
+      const parsed = JSON.parse(attempt) as {
+        verdict?: unknown;
+        selected?: unknown;
+        risk_note?: unknown;
+        confidence?: unknown;
+      };
+      if (isValidVerdict(parsed.verdict) && isValidSelected(parsed.selected)) {
+        const confidenceRaw = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
+        return {
+          verdict: parsed.verdict,
+          selected: Array.from(new Set(parsed.selected)),
+          riskNote: typeof parsed.risk_note === 'string' ? parsed.risk_note : '',
+          confidence: Math.min(1, Math.max(0, confidenceRaw)),
+        };
+      }
+    } catch {
+      // جرّب المحاولة التالية
+    }
+  }
+
+  return null;
 }
 
 /**

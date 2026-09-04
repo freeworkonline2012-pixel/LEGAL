@@ -12,6 +12,7 @@ import { CountriesModule } from './countries/countries.module';
 import { validate } from './config/env.validation';
 import { buildTypeOrmOptions, createResilientDataSource } from './config/typeorm.config';
 import { FeedbackModule } from './feedback/feedback.module';
+import { GovernanceModule } from './governance/governance.module';
 import { GuidanceModule } from './guidance/guidance.module';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
@@ -54,6 +55,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     ArticlesModule,
     GuidanceModule,
     QuestionsModule,
+    GovernanceModule,
     FeedbackModule,
     ReviewsModule,
     AuditModule,
