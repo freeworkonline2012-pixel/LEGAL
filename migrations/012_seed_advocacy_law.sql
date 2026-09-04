@@ -56,9 +56,9 @@
 
 BEGIN;
 
-ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
-ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','other'));
+-- قيد laws_category_check أُزيل من هنا (2026-09-04، إصلاح جذرى لعطل تكرار
+-- إعادة تعريفه فى 9 ملفات مختلفة — راجع تعليق migrations/003 الكامل).
+-- مُعرَّف الآن فى migrations/020 فقط.
 
 INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at, last_amended_at)
 VALUES (
@@ -78,7 +78,7 @@ WITH ins_art_law17_1 AS (
 حقوق المواطنين وحرياتهم .
 ويمارس مهنة المح اماة المحامون وحدهم ف ي استقالل، وال سلطان عليهم ف ي ذلك اال لضمائرهم وأحكام القانون.$ab1$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -90,7 +90,7 @@ WITH ins_art_law17_2 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 2, NULL, $ab2$ملغاة. )٤ ($ab2$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -100,7 +100,7 @@ WITH ins_art_law17_3 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 3, NULL, $ab3$ملغاة. )٤ ($ab3$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -112,7 +112,7 @@ WITH ins_art_law17_4 AS (
 كما يجوز للمحام ي أن يمارس مهنة المحاماة ف ي االدارات القانونية للهيئات العامة وشركات القطاع العام
 والخاص والمؤسسات الصحفية وفى البنوك والشركات الخاصة والجمعيات طبقا ألحكام هذا القانون .$ab4$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -124,7 +124,7 @@ WITH ins_art_law17_5 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 5, NULL, $ab5$ملغاة. )٤ ($ab5$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -135,7 +135,7 @@ WITH ins_art_law17_6 AS (
   SELECT id, 6, NULL, $ab6$يعتبر المحام ي الذي يلتحق بمكتب محام ولم لم يكن شريكا له فيه، ممارسا لمهنة حرة ويعتبر ما يحصل عليه
 أتعابا عن عمله.$ab6$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -150,7 +150,7 @@ WITH ins_art_law17_7 AS (
 وال يجوز مزاولة أعمال المحاماة للهيئات العامة الت ي يتقرر انشاؤها بعد العمل بأحكام هذا القانون، اال بقرار من
 وزير العدل بعد موافقة مجلس نقابة المحامين.$ab7$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -170,7 +170,7 @@ WITH ins_art_law17_8 AS (
 بها بسبب أعمال وظائفهم .
 قضي بعدم دستورية الفقرة الثالثة . )١٧ ($ab8$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -187,7 +187,7 @@ WITH ins_art_law17_9 AS (
   SELECT id, 9, NULL, $ab9$يجوز للمحام ي مزاولة أعمال المحاماة ف ي البنوك وشركات المساهمة الخاصة والجمعيات التعاونية. وتكون
 عالقة المحام ي بهذه الجهات عالقة وكالة، ولو اقتصر عمله عليها.$ab9$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -208,7 +208,7 @@ WITH ins_art_law17_10 AS (
 كما ينشأ جدول خاص للمحامين بالقطاع العام والهيئات العامة والمؤسسات الصحفية تبين به أسماؤهم ومحال
 اقامتهم، واسم الجهة الت ي يعملون بها .$ab10$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -233,7 +233,7 @@ WITH ins_art_law17_11 AS (
 ويكون بكل نقابة فرعية جدوالن عامان وجداول ملحقة مقصورة على اثبات أسماء المحامين الذين توجد مقارهم
 ف ي دائرتها .$ab11$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -253,7 +253,7 @@ WITH ins_art_law17_12 AS (
 الفصل الثان ى
 في القيد في الجدول الع ام$ab12$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -288,7 +288,7 @@ WITH ins_art_law17_13 AS (
 القانون من تاريخ افتقاد أى من هذه الشروط دون حاجة إلى صدور قرار بذلك من لجنة القيد، ويجب اإلخطار
 بهذا اإلجراء بكتاب موصى عليه، وإخطار النقابة الفرعية المختصة. )٥ ($ab13$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -330,7 +330,7 @@ WITH ins_art_law17_14 AS (
 ٦ - المناصب الدينية .
 وباستثناء ما ورد بالبند )٣(، يشترط التفرغ للمحاماة . )٦ ($ab14$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -352,7 +352,7 @@ WITH ins_art_law17_15 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 15, $al15$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في جدول المحامي ن$al15$, $ab15$قضي بعدم دستورية المادة )٢٣($ab15$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -365,7 +365,7 @@ WITH ins_art_law17_16 AS (
 النقابة من بين أعضائه سنويا.
 ويرفق بطلب القيد األوراق المثبتة لتوافر الشروط المبينة بالمادة )١٣( والت ي يبينها النظام الداخل ي للنقابة .$ab16$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -380,7 +380,7 @@ WITH ins_art_law17_17 AS (
 أعضاءها، وتحرر محاضر بأعمالها يوقع عليها من رئيس اللجنة.
 وال يصح انعقاد اللجنة اال بحضور ثالثة أعضاء على األقل، على أن يكون من بينهم النقيب أو وكيل النقابة .$ab17$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -394,7 +394,7 @@ WITH ins_art_law17_18 AS (
 قرارها برفض القيد تعين أن يكون مسببا ويخطر به طالب القيد خالل خمسة عشر يوما من تاريخ صدوره
 بخطاب مسجل مصحوب بعلم الوصول .$ab18$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -412,7 +412,7 @@ WITH ins_art_law17_19 AS (
 المبينة بالمادة السابقة.
 وال يجوز تجديد الطلب ف ي الحاالت المبينة بالفقرتين السابقتين اال إذا زالت األسباب المانعة من القيد .$ab19$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -434,7 +434,7 @@ WITH ins_art_law17_20 AS (
 الفصل الثا لث
 في القيد بجدول المحامين تحت التمري ن$ab20$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -452,7 +452,7 @@ WITH ins_art_law17_21 AS (
 الجداول الملحقة األخرى.
 قضي بعدم دستورية الفقرة الثانية )٢٠ ($ab21$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -471,7 +471,7 @@ WITH ins_art_law17_22 AS (
 أعمال المحاماة فيها طبقا ألحكام هذا القانون واسم المحام ي الذي سيتولى االشراف عليه ف ي هذه االدارة مرفقا به
 موافقتها .$ab22$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -489,7 +489,7 @@ WITH ins_art_law17_23 AS (
   SELECT id, 23, $al23$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في جدول المحامي ن$al23$, $ab23$يقدم طلب القيد بجدول المحامين تحت التمرين مع طلب القيد بالجدول العام ويعرض على لجنة القبول طبقا
 ألحكام الفصل السابق .$ab23$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -503,7 +503,7 @@ WITH ins_art_law17_24 AS (
 ستة أشهر من انقضاء المدة المشار إليها، ينتقل تلقائيًا إلى جدول غير المشتغلين دون حاجة إلى صدور قرار بذلك
 من لجنة القيد، ويجوز له طلب إعادة القيد متى توافرت له الشروط المقررة في هذا القانون. )٨ ($ab24$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -520,7 +520,7 @@ WITH ins_art_law17_25 AS (
 ألحق بها دون أن يكون له الحق ف ي أن يوقع صحف الدعاوى أو المذكرات أو األوراق الت ي تقدم الى المحاكم
 المذكورة أو الى مكاتب الشهر والتوثيق أو مكاتب السجل التجارى أو أن يعد عقودا باسمه.$ab25$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -543,7 +543,7 @@ WITH ins_art_law17_26 AS (
 وفى جميع األحوال ال يجوز للمحام ي تحت التمرين تقديم فتوى كتابية باسمه أو التوقيع على العقود الت ي تقدم الى
 الشهر العقارى فيما عدا طلبات اثبات التاريخ .$ab26$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -562,7 +562,7 @@ WITH ins_art_law17_27 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 27, $al27$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في جدول المحامي ن$al27$, $ab27$ال يجوز للمحام ي تحت التمرين أن يفتح مكتبا باسمه طوال فترة التمرين.$ab27$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -575,7 +575,7 @@ WITH ins_art_law17_28 AS (
 المحاضرات قدامى المحامين ورجال القضاء وأساتذة القانون وخبراؤه المتخصصون.
 وعلى مجلس النقابة أن ينشئ معهدا للمحاماة لتدريب المحامين تحت التمرين.$ab28$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -593,7 +593,7 @@ WITH ins_art_law17_29 AS (
 شهريًا. ويجوز لمجلس النقابة الفرعية بناء على طلب المحام ي المقبول أمام النقض ومحاكم االستئناف أن يقرر
 إعفاؤه من قبول أى محاٍم للتمرين بمكتبه إذا رأى من ظروفه ما يبرر ذلك .$ab29$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -608,7 +608,7 @@ WITH ins_art_law17_30 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 30, $al30$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في جدول المحامي ن$al30$, $ab30$ملغاة )١١ ($ab30$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -623,7 +623,7 @@ WITH ins_art_law17_31 AS (
 ويسرى هذا الشرط على المحامين الذين يبدأ قيدهم بعد تاريخ العمل بهذا القانون وبعد صدور قرار مجلس النقابة
 العامة ف ي تنظيم االلتحاق بمعهد المحاماة أو معاهد الدراسات القانونية المنصوص عليها ف ي المادة )٢٨(. )٥ ($ab31$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -639,7 +639,7 @@ WITH ins_art_law17_32 AS (
   SELECT id, 32, $al32$الباب األول — في القيد بجدول المحامي ن — الفصل الرابع — في القبول للمرافعة أمام المحاكم االبتدائي ة$al32$, $ab32$يجوز قيد المحام ي مباشرة أمام المحاكم ا البتدائية إذا كان قد أمضى فترة التمرين ف ي أعمال نظيرة ألعمال
 المحاماة وفق أحكام المادة )٤٦(.$ab32$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -660,7 +660,7 @@ WITH ins_art_law17_33 AS (
 ولمن رفض طلبه أن يطعن ف ي قرار الرفض أمام محكمة استئناف القاهرة خالل ستين يوما من تاريخ ابالغه
 بالقرار.$ab33$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -686,7 +686,7 @@ WITH ins_art_law17_34 AS (
 وذلك فيما عدا عقود تأسيس شركات المساهمة وعقود الرهن الرسمى أو تعديلها .
 وال يجوز للمحام ي أمام المحاكم االبتدائية اعطاء اآلراء والفتاوى القانونية المكتوبة.$ab34$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -710,7 +710,7 @@ WITH ins_art_law17_35 AS (
 وال يجوز قبول القيد ألول مرة بجداول المحامين أمام محاكم االستئناف لمن يكون قد انقطع عن مزاولة األعمال
 القانونية النظيرة مدة تجاوز عشر سنوات .$ab35$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -734,7 +734,7 @@ WITH ins_art_law17_36 AS (
 ولم يرفض طلبه أن يطعن ف ي قرار الرفض أمام محكمة استئناف القاهرة خالل ستين يوما من تاريخ ابالغه
 بالقرار.$ab36$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -757,7 +757,7 @@ WITH ins_art_law17_37 AS (
 الفصل الساد س
 في القبول للمرافعة أمام محكمة النق ض$ab37$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -775,7 +775,7 @@ WITH ins_art_law17_38 AS (
   SELECT id, 38, $al38$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — في القبول للمرافعة أمام محاكم االستئن ا ف$al38$, $ab38$ينشأ جدول خاص للمحامين المقبولين أمام محكمة النقض وما يعادلها وتعد المحكمة االدارية العليا والمحكمة
 الدستورية العليا ف ي ذلك معادلة لمحكمة النقض .$ab38$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -790,7 +790,7 @@ WITH ins_art_law17_39 AS (
 ٢ - الشاغلون لوظيفة أستاذ ف ي مادة القانون بالجامعات المصرية .
 ٣ - المستشارون السابقون بالمحاكم وما يعادلها من وظائف الهيئات القضائية .$ab39$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -807,7 +807,7 @@ WITH ins_art_law17_40 AS (
 وعضوين يندبهما مجلس النقابة سنويا من بين أعضائه ويبلغ قرار اللجنة بالقبول أو الرفض الى الطالب والى
 النقابة العامة.$ab40$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -822,7 +822,7 @@ WITH ins_art_law17_41 AS (
 العليا، اال للمحامين المقيدين بجدول المحامين أمام محكمة النقض واال حكم بعدم ق بول الطعن. كما ال يجوز
 لغيرهم الحضور عن الخصوم والمرافعة أمام هذه المحاكم.$ab41$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -837,7 +837,7 @@ WITH ins_art_law17_42 AS (
 أمامها طبقا لقانون بلده وذلك فيما عدا الطعون الدستورية واالدارية وباذن من النقابة العامة وفى دعوى معينة
 بذاتها وبشرط المعاملة بالمثل.$ab42$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -856,7 +856,7 @@ WITH ins_art_law17_43 AS (
 وعلى االدارات القانونية ف ي الجهات الت ي يجوز لمحاميها مزاولة أعمال المحاماة طبقا ألحكام هذا القانون اخطار
 النقابة بأى تغيير يطرأ على أعضاء هذه االدارات بما يستوجب نقل اسم العضو الى جدول غير المشتغلين .$ab43$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -876,7 +876,7 @@ WITH ins_art_law17_44 AS (
 ويكون للمحام ي حق الطعن أمام الدائرة الجنائية بمحكمة النقض ف ي القرار الذي يصدر ف ي هذا الشأن خالل
 األربعين يوما التالية العالنه بهذا القرار. )٢٥ ($ab44$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -898,7 +898,7 @@ WITH ins_art_law17_45 AS (
 ويجوز لمن ال يتوافر فيه شروط هذه المادة من المقيدين بجدول غير المشتغلين أن يعدلوا أوضاعهم خالل سنة
 من تاريخ العمل بهذا القانون.$ab45$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -920,7 +920,7 @@ WITH ins_art_law17_46 AS (
 ويصدر قرار من وزير العدل بعد موافقة مجلس النقابة العامة بما يعتبر من األعمال القانونية األخرى الت ي تعد
 نظيرة ألعمال المحاماة .$ab46$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -936,7 +936,7 @@ WITH ins_art_law17_47 AS (
 يورده ف ي مرافعته الشفوية أو ف ي مذكراته المكتوبة مما يستلزمه حق الدفاع، وذلك مع عدم االخالل بأحكام قانون
 االجراءات الجنائية وقانون المرافعات المدنية والتجارية .$ab47$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -948,7 +948,7 @@ WITH ins_art_law17_48 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 48, $al48$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al48$, $ab48$للمحام ي حرية قبول التوكيل ف ي دعوى معينة أو عدم قبوله وفق ما يمليه عليه اقتناعه .$ab48$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -962,7 +962,7 @@ WITH ins_art_law17_49 AS (
 أمر يستدعى محاسبته نقابيا أو جنائيا، يأمر رئيس الجلسة بتحرير مذكرة بما حدث ويحيلها الى النيابة العامة
 ويخطر النقابة الفرعية المختصة بذلك .$ab49$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -982,7 +982,7 @@ WITH ins_art_law17_50 AS (
 الحالة تجرى المحاكمة ف ي جلسة سرية.
 وال يجوز أن يشترك ف ي نظر الدعوى القاضى أو أحد أعضاء الهيئة الت ي وقع أمامها الفعل المؤثم. )٥ ($ab50$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1006,7 +1006,7 @@ WITH ins_art_law17_51 AS (
 يحضر هو أو من ينيبه من المحامين، التحقيق .
 ولمجلس النقابة، ولمجلس النقابة الفرعية المختص طلب صور التحقيق ب غير رسوم .$ab51$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1029,7 +1029,7 @@ WITH ins_art_law17_52 AS (
 مسوغ قانونى.
 ويجب اثبات جميع ما يدور ف ي الجلسة ف ي محضرها .$ab52$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1045,7 +1045,7 @@ WITH ins_art_law17_53 AS (
   SELECT id, 53, $al53$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al53$, $ab53$للمحام ي المرخص لها من النيابة بزيارة أحد المحبوسين ف ي السجون العمومية حق زيارته ف ي أى وقت
 واالجتماع به على انفراد، وفى مكان الئق داخل السجن .$ab53$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1057,7 +1057,7 @@ WITH ins_art_law17_54 AS (
   SELECT id, 54, $al54$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al54$, $ab54$يعاقب كل من تعدى على محام أو أهانه باالشارة أو القول أو التهديد أثناء قيامه بأعمال مهنته أو بسببها بالعقوبة
 المقررة لمن يرتكب هذه الجريمة ضد أحد أعضاء هيئة المحكمة.$ab54$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1069,7 +1069,7 @@ WITH ins_art_law17_55 AS (
   SELECT id, 55, $al55$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al55$, $ab55$ال يجوز الحجز على مكتب المحام ي وكافة محتوياته المستخدمة ف ي مزاولة المهنة.
 قضي بعدم دستورية الفقرة الثانية )٢٢ ($ab55$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1081,7 +1081,7 @@ WITH ins_art_law17_56 AS (
   SELECT id, 56, $al56$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al56$, $ab56$للمحام ي سواء كان خصما أصليا أو كيال ف ي دعوى أن ينيب عنه ف ي الحضور أو ف ي المرافعات أو ف ي غير ذلك
 من اجراءات التقاضى محاميا آخر تحت مسئوليته دون توكيل خاص ما لم يكن ف ي التوكيل ما يمنع ذلك .$ab56$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1093,7 +1093,7 @@ WITH ins_art_law17_57 AS (
   SELECT id, 57, $al57$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al57$, $ab57$ال يلتزم المحام ي الذي يحضر عن موكله بمقتضى توكيل عام أن يودع التوكيل بملف الدعوى ويكتفى باالطالع
 عليه واثبات رقمه وتاريخه والجهة المحرر أمامها بمحضر الجلسة.$ab57$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1112,7 +1112,7 @@ WITH ins_art_law17_58 AS (
 المحامين المشتغلين وذلك متى بلغت أو جاوزت قيمة الدعوى أو أمر األداء خمسين جنيها .
 ويقع باطال كل اجراء يتم بالمخالفة ألحكام هذه المادة .$ab58$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1133,7 +1133,7 @@ WITH ins_art_law17_59 AS (
 مكاتب السجل التجارى وغيرها إال إذا كانت موقعًا عليها من أحد المحامين المقبولين للمرافعة أمام المحاكم
 االبتدائية على األقل بعد التصديق على توقيعه أمام النقابة العامة أو النقابة الفرعية التابع لها. )٥ ($ab59$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1155,7 +1155,7 @@ WITH ins_art_law17_60 AS (
 ويسرى هذا الحكم على الشركات المذكورة القائمة عند العمل بأحكام هذا القانون وذلك عند تجديد قيدها بالسجل
 التجارى. )٥ ($ab60$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1176,7 +1176,7 @@ WITH ins_art_law17_61 AS (
 الفصل الثان ى
 في واجبات المحامين$ab61$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1192,7 +1192,7 @@ WITH ins_art_law17_62 AS (
 تعديل لها، في الوقائع المصرية وتكون ملزمة ألعضاء النقابة، ويترتب على مخالفتهم ألحكامها انعقاد مسئوليتهم
 المهنية عن األفعال الت ي ترتكب بالمخالفة ألحكام مدونة السلوك. )٩ ($ab62$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1208,7 +1208,7 @@ WITH ins_art_law17_63 AS (
 وال يجوز له النكوص عن الدفاع عن متهم ف ي دعوى جنائية اال إذا استشعر أنه لن يستطيع بسبب ظروفه أو
 مالبسات الدعوى أن يؤدى واجب الدفاع فيها بأمانة وكفاية .$ab63$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1223,7 +1223,7 @@ WITH ins_art_law17_64 AS (
 وال يجوز للمحام ي المنتدب للدفاع أن يتنحى عن مواصلة الدفاع اال بعد استئذان المحكمة الت ي يتولى الدفاع أمامها
 وعليه أن يستمر ف ي الحضور حتى تقبل تنحيته وتعيين غيره.$ab64$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1237,7 +1237,7 @@ WITH ins_art_law17_65 AS (
   SELECT id, 65, $al65$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al65$, $ab65$على المحام ي أن يمتنع عن أداء الشهادة عن الوقائع أو المعلومات الت ي علم بها طريق مهنته إذا طلب منه ذلك من
 أبلغها اليه، اال إذا كان ذكرها له بقصد ارتكاب جناية أو جنحة.$ab65$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1252,7 +1252,7 @@ WITH ins_art_law17_66 AS (
 ويسرى هذا الحظر على المحام ي الذي يتولى عضوية مجلس الشعب ومجلس الشورى أو المجالس المحلية
 بالنسبة للدعاوى الت ي ترفع على هذه المجالس .$ab66$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1267,7 +1267,7 @@ WITH ins_art_law17_67 AS (
   SELECT id, 67, $al67$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al67$, $ab67$يراعى المحام ي ف ي مخاطبته المحاكم عند انعقادها أن يكون ذلك بالتوقير الالزم وأن يعمل على أن تكون عالقته
 بأعضاء الهيئات القضائية قائمة على التعاون واالحترام المتبادل .$ab67$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1282,7 +1282,7 @@ WITH ins_art_law17_68 AS (
 واذا لم يصدر االذن ف ي الحالتين المبينتين بالفقرتين السابقتين خالل خمسة عشر يوما كان للمحام ي اتخاذ ما يراه
 من اجراءات .$ab68$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1297,7 +1297,7 @@ WITH ins_art_law17_69 AS (
   SELECT id, 69, $al69$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al69$, $ab69$على المحام ي أن يمتنع عن ذكر األمور الشخصية الت ي تسئ لخصم موكله أو اتهامه بما يمس شرفه وكرامته، ما
 لم تستلزم ذلك ضرورة الدفاع عن مصالح موكله .$ab69$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1309,7 +1309,7 @@ WITH ins_art_law17_70 AS (
   SELECT id, 70, $al70$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al70$, $ab70$ال يجوز للمحام ي أن يدلى بتصريحات أو بيانات عن القضايا المنظورة الت ي يتولى الدفاع فيها أو أن ينشر أمورا
 من شأنها التأثير ف ي سير هذه الدعاوى لصالح موكله أو ضد خصمه.$ab70$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1325,7 +1325,7 @@ WITH ins_art_law17_71 AS (
 المختصة أن يأمر بإزالة الالفتة أو األمر بإزالة المخالفة من أوراق المحام ي وعدم قبول أوراقه أمام المحاكم
 ومكاتب الشهر العقارى لحين إزالة أسباب الشكوى. )٦ ($ab71$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1341,7 +1341,7 @@ WITH ins_art_law17_72 AS (
   SELECT id, 72, $al72$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al72$, $ab72$مع عدم االخالل بحقوق ورثة المحام ي, ال يجوز أن تخصص حصة من أتعاب المحام ي لشخص من غير
 المحامين ولو كان من موظفى مكتبه .$ab72$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1353,7 +1353,7 @@ WITH ins_art_law17_73 AS (
   SELECT id, 73, $al73$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al73$, $ab73$يكون حضور المحام ي أمام جميع المحاكم بالرداء الخاص بالمحاماه. وعلى المحام ي أن يحافظ على أن يكون
 مظهره الئقا وجديرا باالحترام.$ab73$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1366,7 +1366,7 @@ WITH ins_art_law17_74 AS (
 دائرة النقابة المقيد بها.
 وال يجوز أن يكون للمحام ي أكثر من مكتب واحد ف ي جمهورية مصر العربية. )١ ($ab74$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1382,7 +1382,7 @@ WITH ins_art_law17_75 AS (
 أية جهة وكذلك استالم األحكام واتخاذ اجراءات تنفيذها وتسوية الرسوم واألمانات واسترداها.
 ويقبل أن يكون هذه التوكيل مصدق عليه من النقابة الفرعية المختصة .$ab75$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1401,7 +1401,7 @@ WITH ins_art_law17_76 AS (
 الفصل الثا لث
 في عالقة المحامي بموك ل ه$ab76$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1417,7 +1417,7 @@ WITH ins_art_law17_77 AS (
   SELECT id, 77, $al77$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al77$, $ab77$يتولى المحام ي تمثيل موكله ف ي النزاع الموكل فيه ف ي حدود ما يعهد به اليه وطبقا لطلباته، مع احتفاظه بحرية
 دفاعة ف ي تكييف الدعوى وعرض األسانيد القانونية طبقا ألصول الفهم القانونى السليم.$ab77$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1430,7 +1430,7 @@ WITH ins_art_law17_78 AS (
 فيها وأن يقدم له النصح فيما يتعلق بالطعن ف ي الحكم إذا كان ف ي غير مصلحته، وأن يلفت نظره الى مواعيد
 الطعن.$ab78$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1443,7 +1443,7 @@ WITH ins_art_law17_79 AS (
   SELECT id, 79, $al79$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al79$, $ab79$على المحام ي أن يحتفظ بما يفضى به اليه موكله من معلومات، ما لم يطلب منه ابداءها للدفاع عن مصالحه ف ي
 الدعوى.$ab79$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1457,7 +1457,7 @@ WITH ins_art_law17_80 AS (
 للمحام ي أن يمثل مصالح متعارضة .
 ويسرى هذا الحظر على المحام ي وشركائه وكل من يعمل لديه ف ي نفس المكتب من المحامين بأية صفة كانت .$ab80$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1470,7 +1470,7 @@ WITH ins_art_law17_81 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 81, $al81$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al81$, $ab81$ال يجوز للمحام ي أن يبتاع كل أو بعض الحقوق المتنازع عليها إذا كان يتولى الدفاع بشأنها.$ab81$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1488,7 +1488,7 @@ WITH ins_art_law17_82 AS (
 وفى جميع األحوال ال يجوز أن يكون أساس تعامل المحامي مع موكله أن تكون أتعابه حصة عينية من الحقوق
 المتنازع عليها. ))٢٢( ($ab82$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1510,7 +1510,7 @@ WITH ins_art_law17_83 AS (
 والمحامى الذي صدر قرار بتقدير أتعابه أو عقد صلح مصدق عليه من مجلس النقابة الفرعية أو من المحكمة أن
 يحصل على أمر باختصاصه بعقارات من صدر ضده قرار التقدير أو عقد الصلح أو الحكم .$ab83$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1525,7 +1525,7 @@ WITH ins_art_law17_84 AS (
   SELECT id, 84, $al84$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al84$, $ab84$)قضي بعدم دستورية نصى الفقرتين األولى والثانية من المادة )٨٤( وسقوط نص الفقرة الثالثة من المادة ذاتها
 ()١٢ ($ab84$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1538,7 +1538,7 @@ WITH ins_art_law17_85 AS (
 وال يكون قرار التقدير نهائيًا إال بعد انتهاء ميعاد االستئناف دون طعن أو صدور الحكم فيه وتوضع الصيغة
 التنفيذية على قرارات التقدير النهائية بواسطة قاضى األمور الوقتية المختص وذلك بغير رسوم. )٥ ($ab85$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1552,7 +1552,7 @@ WITH ins_art_law17_86 AS (
 من تاريخ انتهاء الوكالة أو من تاريخ وفاة الموكل حسب األحوال. وتنقطع هذه المدة بالمطالبة بها بكتاب موصى
 عليه.$ab86$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1564,7 +1564,7 @@ WITH ins_art_law17_87 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 87, $al87$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al87$, $ab87$للمحام ي الحق ف ي أن يسترد من موكله ما يكون قد أنفقه من مصروفات قضائية مؤيدة بالمستندات .$ab87$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1575,7 +1575,7 @@ WITH ins_art_law17_88 AS (
   SELECT id, 88, $al88$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al88$, $ab88$ألتعاب المحامين وما يلحق بها من مصروفات امتياز يلى مباشرة حق الخزانة العامة على ما آل الى موكله نتيجة
 عمل المحام ي أو الحكم ف ي الدعوى موضوع الوكالة وعلى ضمانات االفراج والكفاالت أيا كان نوعها .$ab88$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1591,7 +1591,7 @@ WITH ins_art_law17_89 AS (
 الواردة اليه. ومع ذلك يجب على المحام ي أن يعطى موكله صورا من هذه األوراق بناء على طلب الموكل وعلى
 نفقته .$ab89$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1612,7 +1612,7 @@ WITH ins_art_law17_90 AS (
 وفى جميع األحوال يجب أن يراعى أال يترتب على حبس األوراق والمستندات تفويت أى ميعاد محدد التخاذ
 اجراء قانونى يترتب على عدم مراعاته سقوط لحق فيه .$ab90$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1629,7 +1629,7 @@ WITH ins_art_law17_91 AS (
   SELECT id, 91, $al91$الباب األول — في القيد بجدول المحامي ن — الفصل األول — في حقوق المحامي ن$al91$, $ab91$يسقط حق الموكل ف ي مطالبة محاميه برد األوراق والمستندات والحقوق المترتبة على عقد الوكالة بمضى خمس
 سنوات من تاريخ انتهاء وكالته، وتنقطع هذه المدة بالمطالبة بها بكتاب موصى عليه .$ab91$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1643,7 +1643,7 @@ WITH ins_art_law17_92 AS (
 الموكل .
 ويتعين على المحكمة تأجيل الدعوى المدة الكافية لتوكيل محام آخر.$ab92$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1661,7 +1661,7 @@ WITH ins_art_law17_93 AS (
 ويصدر مجلس النقابة العامة نظاما لمكاتب المساعدات القضائية يبين كيفية ترتيب المحامين بهذه المكاتب
 والمكافآت الت ي تدفع لهم وشروط انتفاع المواطنين بخدماتها.$ab93$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1678,7 +1678,7 @@ WITH ins_art_law17_94 AS (
 الرسوم القضائية العساره .
 ويقوم المحام ي المنتدب بالدفاع عنه أمام القضاء بغير اقتضاء أى أتعاب منه .$ab94$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1692,7 +1692,7 @@ WITH ins_art_law17_95 AS (
 طريق مكتب محام، يندب مجلس النقابة الفرعية بناء على طلب صاحب الشأن محاميا التخاذ االجراء القانونى
 والحضور والمرافعة، ويحدد مجلس النقابة بموافقة صاحب الشأن.$ab95$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1708,7 +1708,7 @@ WITH ins_art_law17_96 AS (
 بالمحافظة على مصالح الموكلين وتصفية المكتب إذا كان لذلك مقتض، وتتم هذه التصفية بموافقة ذوى الشأن
 وتحت اشراف مجلس النقابة الفرعية.$ab96$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1726,7 +1726,7 @@ WITH ins_art_law17_97 AS (
 الدور نظرا لطبيعة الدعوى أو بناء على طلب المحام ي الذي يتولى اجراءات اعفاء موكله المعسر من الرسوم .
 ويجب على المحام ي المنتدب أن يقوم بما يكلف به، وال يسوغ له أن يتنحى اال ألسباب تقبلها الجهة الت ي تندبه.$ab97$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1747,7 +1747,7 @@ WITH ins_art_law17_98 AS (
 ويجب أال تتجاوز عقوبة المنع من مزاولة المهنة ثالث سنوات. وال يترتب على محو األسم نهائيا من الجدول
 المساس بالمعاش المستحق .$ab98$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1772,7 +1772,7 @@ WITH ins_art_law17_99 AS (
 التأديبية المرفوعة عليه.
 وعلى مجلس النقابة الفرعية أن يندب محاميا آخر لمباشرة قضايا المحام ي الموقوف طوال فترة وقفه .$ab99$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1794,7 +1794,7 @@ WITH ins_art_law17_100 AS (
 والمدد الالزمة للقيد بجدول النقابة والترشيح لمجلس النقابة.
 واذا زاول المحام ي مهنته ف ي فترة المنع يعاقب تأديبيا بمحو اسمه نهائيا من الجدول .$ab100$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1809,7 +1809,7 @@ WITH ins_art_law17_101 AS (
   SELECT id, 101, $al101$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — المسئولية التأديبي ة$al101$, $ab101$ال يحول اعتزال المحام ي أو منعه من مزاولة المحاماة دون محاكمته تأديبيا عن أعمال ارتكبها خالل مزاولته
 مهنته وذلك لمدة الثالث السنوات التالية لالعتزال أو المنع .$ab101$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1822,7 +1822,7 @@ WITH ins_art_law17_102 AS (
 المحكمة االدارية العليا أو رئيس محكمة استئناف أو رئيس محكمة القضاء االدارى أو رئيس محكمة ابتدائية أو
 رئيس محكمة ادارية.$ab102$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1835,7 +1835,7 @@ WITH ins_art_law17_103 AS (
   SELECT id, 103, $al103$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — المسئولية التأديبي ة$al103$, $ab103$تسر يأحكام قانون السلطة القضائية بشأن رجال القضاء على جميع إجراءات التحقيق أو رفع الدعوى العمومية أو
 التأديبية على النقيب العام للمحامين. )٨ ($ab103$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1847,7 +1847,7 @@ WITH ins_art_law17_104 AS (
   SELECT id, 104, $al104$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — المسئولية التأديبي ة$al104$, $ab104$إذا لم تكن الوقائع المسندة الى المحام ي من الجسامة بحيث تستدعى المحاكمة الجنائية أو التأديبية، جاز للنيابة أن
 ترسل لمجلس النقابة التحقيق الذي أجرته ليتخذ ما يراه ف ي هذا الشأن.$ab104$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1861,7 +1861,7 @@ WITH ins_art_law17_105 AS (
 مجلس النقابة العامة إذا رأت توقيع عقوبة أشد واال حفظت الشكوى، على أن يتم ذلك خالل ثالثة أشهر على
 األكثر ولكل من الشاكى والمشكو ف ي حقه أن يتظلم من هذا القرار خالل خمسة عشر يوما الى النقابة العامة.$ab105$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1874,7 +1874,7 @@ WITH ins_art_law17_106 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 106, $al106$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — المسئولية التأديبي ة$al106$, $ab106$على كل محكمة جنائية تصدر حكما متضمنا معاقبة محام أن ترسل الى نقابة المحامين نسخة من الحكم .$ab106$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1886,7 +1886,7 @@ WITH ins_art_law17_107 AS (
 من مستشارى المحكمة المذكورة تعينهما جمعيتها العمومية كل سنة ومن عضوين من أعضاء مجلس النقابة
 يختار أحدهما المحام ي المرفوعة عليه الدعوى التأديبية ويختار اآلخر مجلس النقابة .$ab107$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1901,7 +1901,7 @@ WITH ins_art_law17_108 AS (
 ويجب أن يبلغ المحام ي رئيس المجلس اسم عضو النقابة الذي يختاره قبل الجلسة بسبعة أيام فان لم يفعل اختار
 مجلس النقابة عضوا آخر .$ab108$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1916,7 +1916,7 @@ WITH ins_art_law17_109 AS (
 االدارية العليا أو محاكم االستئناف ومحكمة القضاء االدارى.
 ولمجلس التأديب أن يأمر بحضوره شخصيا أمامه.$ab109$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1931,7 +1931,7 @@ WITH ins_art_law17_110 AS (
 ف ي قانون االجراءات الجنائية ف ي مواد الجنح، ويعاقب على شهادة الزور أمام مجلس التأديب بعق وبات شهادة
 الزور ف ي مواد الجنح.$ab110$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1945,7 +1945,7 @@ WITH ins_art_law17_111 AS (
   SELECT id, 111, $al111$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — المسئولية التأديبي ة$al111$, $ab111$تكون جلسات التأديب دائما سرية ويصدر القرار بعد سماع أقوال االتهام وطلباته ودفاع المحام ي أو من يوكله
 للدفاع عنه.$ab111$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1956,7 +1956,7 @@ WITH ins_art_law17_112 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 112, $al112$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — المسئولية التأديبي ة$al112$, $ab112$يجب أن يكون قرار مجلس التأديب مسببا وأن تتلى أسبابه كاملة عند النطق به ف ي جلسة سرية.$ab112$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1967,7 +1967,7 @@ WITH ins_art_law17_113 AS (
   SELECT id, 113, $al113$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — المسئولية التأديبي ة$al113$, $ab113$تعلن القرارات التأديبية ف ي جميع األحوال على يد محضر الى ذوى الشأن والنيابة العامة ويقوم مقام هذا االعالن
 تسليم صورة القرار الى المحام ي صاحب الشأن بايصال .$ab113$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1979,7 +1979,7 @@ WITH ins_art_law17_114 AS (
   SELECT id, 114, $al114$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — المسئولية التأديبي ة$al114$, $ab114$يجوز للمحام ي أن يعارض ف ي القرارات الت ي تصدر ف ي غيبته خالل عشرة أيام من تاريخ اعالنه أو استالمه
 صورة منها .$ab114$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -1991,7 +1991,7 @@ WITH ins_art_law17_115 AS (
   SELECT id, 115, $al115$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — المسئولية التأديبي ة$al115$, $ab115$تكون المعارضة بتقرير من المحام ي المعارض أو الوكيل عنه بقلم كتاب محكمة استئناف القاهرة، أم الطعن ف ي
 القرار فيكون بتقرير بقلم كتاب محكمة النقض. )١ ($ab115$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2009,7 +2009,7 @@ WITH ins_art_law17_116 AS (
 وال يجوز أن يشترك ف ي المجلس أحد أعضاء مجلس التأديب الذي أصدر القرار المطعون عليه.
 والقرار الذي يصدر يكون نهائيا .$ab116$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2030,7 +2030,7 @@ WITH ins_art_law17_117 AS (
 وال يجوز تجديد الطلب أكثر من مرة .
 ويرفع االلتماس بعريضة تقدم الى المجلس ويكون القرار الذي يصدر برفضه نهائيا .$ab117$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2051,7 +2051,7 @@ WITH ins_art_law17_118 AS (
 وال يجوز تجديد الطلب أكثر من مرة .
 والقرار الذي يصدر برفض الطلب يكون نهائيا.$ab118$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2076,7 +2076,7 @@ WITH ins_art_law17_119 AS (
 في نظام نقابة المحامي ن
 باب تمهيد ى$ab119$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2095,7 +2095,7 @@ WITH ins_art_law17_120 AS (
   SELECT id, 120, $al120$الباب األول — في القيد بجدول المحامي ن — الفصل الخامس — المسئولية التأديبي ة$al120$, $ab120$نقابة المحامين مؤسسة مهنية مستقلة تضم المحامين ف ي جمهورية مصر العربية المقيدين بجداولها، وتتمتع
 بالشخصية االعتبارية، ومقرها مدينة القاهرة وتتبعها نقابات فرعية على النحو الذي ينظمه هذا القانون .$ab120$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2112,7 +2112,7 @@ WITH ins_art_law17_121 AS (
 )هـ( التعاون مع النقابات المهنية والمنظمات المماثلة ف ي الدول العربية والدول األفريقية وغيرها للعمل على
 خدمة األهداف القومية لألمة العربية ونصرة قضايا الحرية والسالم والتقدم .$ab121$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2132,7 +2132,7 @@ WITH ins_art_law17_122 AS (
 وللنقابة أيضا التعاون مع اتحادات المحامين ومنظماتها الدولية لتبادل الخبرات حول نظم القضاء والمحاماه
 واالرتقاء بمستوى المهنة وتأكيد رسالتها ف ي الدفاع عن حقوق االنسان .$ab122$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2148,7 +2148,7 @@ WITH ins_art_law17_123 AS (
 ) أ ( الجمعية العمومية .
 )ب( مجلس النقابة .$ab123$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2167,7 +2167,7 @@ WITH ins_art_law17_124 AS (
 هذا االجتماع أعيدت الدعوة الجتماع يعقد خالل أسبوعين وتكرر الدعوة حتى يكتمل العدد المطلوب .
 وفى جميع األحوال يجوز لمجلس النقابة تأجيل انعقاد الجمعية العمومية الى ما بعد انتهاء العطلة القضائية .$ab124$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2188,7 +2188,7 @@ WITH ins_art_law17_125 AS (
 كما يعلن فض االجتماع ويتولى أمين عام النقابة أمانة االجتماع وعند غيابه يختار رئيس الجمعية أمينا لالجتماع.
 وتختار الجمعية العمومية اثنين من بين أعضائها فارزى أصوات.$ab125$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2208,7 +2208,7 @@ WITH ins_art_law17_126 AS (
 ٣ - تعديل مقدار المعاش المقرر للمحامين والمستحقين عنهم وتعديل قواعد استحقاق المعاش بناء على اقتراح
 مجلس النقابة ووفقا لتقرير خبيرين اكتواريين يختارهما مجلس النقابة .$ab126$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2225,7 +2225,7 @@ WITH ins_art_law17_127 AS (
   SELECT id, 127, $al127$الباب األول — النقابة العامة — الفصل األول — الجمعية العمومي ة$al127$, $ab127$ال يجوز للجمعية العمومية أن تنظر ف ي غير المسائل الواردة ف ي جدول األعمال ومع ذلك يجوز لمجلس النقابة أن
 يعرض لنظر المسائل العاجلة الت ي طرأت بعد توجيه الدعوة وتمت دراستها .$ab127$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2241,7 +2241,7 @@ WITH ins_art_law17_128 AS (
 وإذا لم يوجه النقيب الدعوة خالل المدة المذكورة، اجتمعت الجمعية العمومية غير العادية بقوة القانون في اليوم
 التالى النتهاء تلك المدة. )٨ ($ab128$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2264,7 +2264,7 @@ WITH ins_art_law17_129 AS (
 تشكل جريمة جنائية، كما ال يجوز إعادة تقديم الطلب لذات األسباب الت ي رفضتها الجمعية العامة صراحة أو
 ضمنًا قبل مرور عام على تقديم الطلب المشار إليه. )٨ ($ab129$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2285,7 +2285,7 @@ WITH ins_art_law17_130 AS (
 واألمين العام وفارزى األصوات.
 ويبين النظام الداخل ي للنقابة اجراءات دعوة الجمعية العمومية وانعقادها وكيفية سير العمل فيها .$ab130$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2307,7 +2307,7 @@ WITH ins_art_law17_131 AS (
 من فئة من الفئات المذكورة في هذه المادة .
 ويتم انتخاب النقيب وجميع أعضاء النقابة من الجمعية العمومية للنقابة. )٨ ($ab131$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2328,7 +2328,7 @@ WITH ins_art_law17_132 AS (
 والذين أمضوا ف ي االشتغال الفعل ي بالمهنة أكثر من عشرين سنة متصلة باإلضافة الى الشروط العامة للترشيح
 لعضوية مجلس النقابة .$ab132$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2345,7 +2345,7 @@ WITH ins_art_law17_133 AS (
 ٣ - أال يكون قد صدر ضده خالل الثالث السنوات السابقة على ذلك أحكام أو قرارات تأديبية تجاوز عقوبة
 اإلنذار. )١($ab133$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2365,7 +2365,7 @@ WITH ins_art_law17_134 AS (
 استئناف القاهرة خالل عشرة أيام من تاريخ نشر كشوف المرشحين ويفصل ف ي الطعن على وجه االستعجال.
 )٢٥ ($ab134$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2384,7 +2384,7 @@ WITH ins_art_law17_135 AS (
 وتتولى الجمعية العمومية المذكورة بالمادة )١٢٤( اختيار النقيب واألعضاء الخمسة عشر المبينين بالمادة
 )١٣١(. )٥ ($ab135$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2400,7 +2400,7 @@ WITH ins_art_law17_136 AS (
 السابقة على انتهاء مدته. )١ (
 )الفقرة الثانية ملغاة ()١١ ($ab136$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2418,7 +2418,7 @@ WITH ins_art_law17_137 AS (
 ويحدد النظام الداخل ي للنقابة اختصاصات أعضاء المكتب وتوزيع األعمال بين أعضاء المجلس وتشكيل لجانه
 واختصاصاتها .$ab137$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2438,7 +2438,7 @@ WITH ins_art_law17_138 AS (
 ويرأس النقيب اجتماعات مجلس النقابة وفى حالة غيابه تكون الرئاسة ألقدم الوكيلين ف ي القيد بجدول المحامين
 بشرط أن يكون مزاوال للمهنة مستقال وفى حالة غيابهما تكون الرئاسة ألكبر أعضاء المجلس سنا.$ab138$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2457,7 +2457,7 @@ WITH ins_art_law17_139 AS (
 أعضاء المجلس أو بناء على طلب مجالس خمس نقابات فرعية على األقل، وذلك بكتاب يوجه الى النقيب مرفقا
 به جدول األعمال المقترح .$ab139$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2474,7 +2474,7 @@ WITH ins_art_law17_140 AS (
 المجلس .
 ويبين النظام الداخل ي للنقابة اجراءات دعوة المجلس الى االنعقاد وكيفية اعداد جدول أعماله ونظام العمل فيه.$ab140$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2495,7 +2495,7 @@ WITH ins_art_law17_141 AS (
 وللعضو الذي أسقت عضويته حق الطعن أمام الدائرة الجنائية لمحكمة النقض ف ي القرار الذي يصدر باسقاط
 عضويته بتقرير يقدمه الى محكمة النقض خالل أربعين يوما من تاريخ اخطاره بالقرار.$ab141$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2520,7 +2520,7 @@ WITH ins_art_law17_142 AS (
 النقابة الدعوة الى انتخاب عضو جديد يكمل المدة الباقية للعضو األصل ي، على أن يجرى االنتخاب خالل ستين
 يوما من تاريخ شغل المكان.$ab142$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2544,7 +2544,7 @@ WITH ins_art_law17_143 AS (
 ٥ – وضع الئحة الرعاية االجتماعية والصحية .
 ٦ – إعداد الموازنة التقديرية المجمعة للنقابة، وحساباتها الختامية المجمعة. )٨ ($ab143$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2564,7 +2564,7 @@ WITH ins_art_law17_144 AS (
 ولمجلس النقابة العامة أن يقرر إنشاء نقابة فرعية واحدة تشمل اختصاصها أكثر من دائرة محكمة ابتدائية.
 وال يسرى قرارها المذكور إال بعد موافقة الجمعية العمومية للنقابة المعنية. )٨ ($ab144$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2577,7 +2577,7 @@ WITH ins_art_law17_145 AS (
   SELECT id, 145, $al145$الباب الثاني — النقابات الفرعي ة — الفصل األول — تشكيل النقابات الفرعية وهيئاته ا$al145$, $ab145$تضم النقابة الفرعية جميع المحامين المقيدين بالجدول العام ف ي دائرة النقابة الفرعية والذين يتخذون مكاتبهم أو
 يلحقون باإلدارات القانونية المنصوص عليها ف ي هذا القانون ف ي دائرة اختصاصها .$ab145$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2592,7 +2592,7 @@ WITH ins_art_law17_146 AS (
 الفصل الثان ى
 الجمعية العمومي ة$ab146$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2608,7 +2608,7 @@ WITH ins_art_law17_147 AS (
 محكمة النقض أو محاكم االستئناف، أو المحاكم االبتدائية ممن تتوافر فيهم الشروط المبينة بالفقرة األولى من
 المادة )١٢٤( .$ab147$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2621,7 +2621,7 @@ WITH ins_art_law17_148 AS (
   SELECT id, 148, $al148$الباب الثاني — النقابات الفرعي ة — الفصل األول — تشكيل النقابات الفرعية وهيئاته ا$al148$, $ab148$تنعقد الجمعية العمومية للنقابة الفرعية سنويا ف ي شهر مارس من كل سنة برئاسة نقيبها وذلك بمقر النقابة الفرعية
 أو ف ي أى مكان آخر مالئم ف ي الجهة الت ي يقع بها مقرها. إذا تبين أن مقر النقابة ال يتسع ألعضائها .$ab148$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2636,7 +2636,7 @@ WITH ins_art_law17_149 AS (
 ٢ - ابداء الرأى ف ي األمور الت ي يعرضها عليها مجلس النقابة الفرعية أو الت ي تطلب النقابة العامة الرأى فيها .
 ٣ - انتخاب النقيب وأعضاء مجلس النقابة الفرعية .$ab149$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2657,7 +2657,7 @@ WITH ins_art_law17_150 AS (
 طلب مسبق موقع عليه من ثلث عدد أعضاء الجمعية العمومية أو بناء على طلب مجلس النقابة العامة لطرح
 موضوع عليه ألخذ الرأى فيه ويتولى مجلس النقابة الفرعية الدعوة الى االجتماع ف ي هذه الحاالت .$ab150$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2677,7 +2677,7 @@ WITH ins_art_law17_151 AS (
 الفصل الثا لث
 مجلس النقابة الفرعي ة$ab151$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2696,7 +2696,7 @@ WITH ins_art_law17_152 AS (
 ويتم انتخابهم عن طريق الجمعية العمومية للنقابة وتكون مدة عضوية المجلس أربع سنوات، ويتعين دعوة
 الجمعية العمومية قبل انتهاء مدة المجلس بستين يو ًما على األقل إلجراء انتخابات جديدة. )٨ ($ab152$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2712,7 +2712,7 @@ WITH ins_art_law17_153 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 153, $al153$الباب الثاني — النقابات الفرعي ة — الفصل األول — تشكيل النقابات الفرعية وهيئاته ا$al153$, $ab153$ملغاة )١١ ($ab153$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2726,7 +2726,7 @@ WITH ins_art_law17_154 AS (
 على اشتغالهم بالمهنة عشرون سنة متصلة على األقل.
 ويكون لهيئة المكتب كافة االختصاصات المخولة لهيئة مكتب النقابة العامة ف ي حدود اختصاص النقابة الفرعية .$ab154$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2742,7 +2742,7 @@ WITH ins_art_law17_155 AS (
 جميع االختصاصات المخولة لمجلس النق ابة العامة ف ي دائرة النقابة الفرعية وكذلك االختصاصات األخرى الت ي
 نص عليها هذا القانون.$ab155$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2756,7 +2756,7 @@ WITH ins_art_law17_156 AS (
 وشغل األماكن الشاغرة واجتماعات المجلس وقراراته ومحاضر جلساته، األحكام المقررة ف ي هذا القانون وفى
 النظام الداخل ي للنقابة بشأن مجلس النقابة العامة .$ab156$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2770,7 +2770,7 @@ WITH ins_art_law17_157 AS (
 وطريقة اعداد موازناتها التقديرية واعداد حساباتها الختامية السنوية ووضع الموازنة السنوية المجمعة والحسابات
 الختامية المجمعة وطريقة مراجعتها .$ab157$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2786,7 +2786,7 @@ WITH ins_art_law17_158 AS (
 وتباشر مجالس النقابات الفرعية ذات الصالحيات ف ي حدود دائرة النقابة الفرعية وفق الميزانيات التقديرية
 المقررة من مجلس النقابة العامة.$ab158$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2800,7 +2800,7 @@ WITH ins_art_law17_159 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 159, $al159$الباب الثاني — النقابات الفرعي ة — الفصل األول — تشكيل النقابات الفرعية وهيئاته ا$al159$, $ab159$تبدأ السنة المالية للنقابة ف ي أول يناير وتنته ي ف ي آخر ديسمبر.$ab159$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2816,7 +2816,7 @@ WITH ins_art_law17_160 AS (
 ولمراقب الحسابات االطالع على دفاتر النقابة العامة والنقابات الفرعية وسجالتها ومستنداتها وطلب البيانات
 وااليضاحات الت ي يرى لزوما لها.$ab160$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2833,7 +2833,7 @@ WITH ins_art_law17_161 AS (
   SELECT id, 161, $al161$الباب الثاني — النقابات الفرعي ة — الفصل األول — تشكيل النقابات الفرعية وهيئاته ا$al161$, $ab161$يتلقى مجلس النقابة العامة من النقابات الفرعية ف ي بداية كل عام وفى موعد ال يجاوز شهر فبراير مقترحاتها
 بشأن مواز نتها التقديرية لسنة مقبلة كما يتلقى منها بيانا بحساباتها الختامية عن السنة المنتهية .$ab161$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2846,7 +2846,7 @@ WITH ins_art_law17_162 AS (
 آخر فبراير من كل سنة كما يعد الحساب الختام ي للسنة المنتهية متضمنا الحسابات الختامية لكل نقابة فرعية،
 ويحيلها الى مراقب الحسابات لوضع تقرير عنها.$ab162$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2859,7 +2859,7 @@ WITH ins_art_law17_163 AS (
   SELECT id, 163, $al163$الباب الثاني — النقابات الفرعي ة — الفصل األول — تشكيل النقابات الفرعية وهيئاته ا$al163$, $ab163$تنشر الموازنة التقديرية والحساب الختام ي مع تقرير مراقب الحسابات ف ي مجلة المحاماة قبل الموعد المحدد
 النعقاد الجمعية العمومية بخمسة عشر يوما على األقل.$ab163$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2870,7 +2870,7 @@ WITH ins_art_law17_164 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 164, $al164$الباب الثاني — النقابات الفرعي ة — الفصل األول — تشكيل النقابات الفرعية وهيئاته ا$al164$, $ab164$يستمر العمل بموازنة السنة السابقة حتى تقوم الجمعية العمومية باقرار الموازنة الجديدة.$ab164$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2886,7 +2886,7 @@ WITH ins_art_law17_165 AS (
 ويكون الصرف من حسابات النقابة وفق ما يقضى به النظام المالى للنقابة وبتوقيع النقيب أو الوكيل وأمين
 الصندوق أو األمين المساعد للصندوق .$ab165$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2909,7 +2909,7 @@ WITH ins_art_law17_166 AS (
 ويحدد مجلس النقابة العامة عند اعداد الموازنة التقديرية ما يخصص سنويا من هذه الموارد للنقابات الفرعية،
 على أساس عدد األعضاء المقيدين بكل نقابة فرعية .$ab166$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2937,7 +2937,7 @@ WITH ins_art_law17_167 AS (
 ٦٠ لإلعادة الى الجدول، ما لم يكن قد مضى على نقله الى جدول غير المشتغلين أكثر من خمس عشرة سنة
 فتسري بشأنه الرسوم المقررة للقيد بالجدول العا م$ab167$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2964,7 +2964,7 @@ WITH ins_art_law17_168 AS (
 ٦٠ للمحام ي أمام محاكم االستئناف .
 ٨٠ للمحام ي أمام محكمة النقض.$ab168$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -2984,7 +2984,7 @@ WITH ins_art_law17_169 AS (
 ومن يتأخر ف ي سداد االشتراك عن الموعد المشار اليه ال يقبل منه أى طالب وال تعطى له أى شهادة من النقابة
 وال يتمتع بأى خدمة نقابية اال بعد أن يؤدى جميع االشتراكات المتأخرة .$ab169$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3006,7 +3006,7 @@ WITH ins_art_law17_170 AS (
 يجوز أن يعيد اسمه اال بإجراءات جديدة ورسوم قيد جديدة مع سداد رسوم االشتراكات المستحقة، وتضم المدة
 السابقة على زوال عضويته من النقابة الى مدد القيد الجديدة.$ab170$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3026,7 +3026,7 @@ WITH ins_art_law17_171 AS (
 وجدت أسباب قوية تبرر ذلك بناء على توصية مجلس النقابة الفرعية المختص.
 وال يجوز أن يتكرر االعفاء ألكثر من سنتين متتاليتين خالل عشر سنوات.$ab171$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3040,7 +3040,7 @@ WITH ins_art_law17_172 AS (
 لسبب ال يرجع الى تقصير ف ي استيفاء شروط القيد .
 وال تقبل طلبات استرداد رسوم القيد واالشتراكات بعد انتهاء السنة المالية التالية للسنة الت ي دفعت فيها .$ab172$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3055,7 +3055,7 @@ WITH ins_art_law17_173 AS (
 واذا لم تقم بسدادها ف ي الميعاد المحدد، كان المحام ي مسئوال أمام النقابة عن سدادها، مع حفظ حقه ف ي استردادها
 من الجهة الت ي يتبعها .$ab173$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3070,7 +3070,7 @@ WITH ins_art_law17_174 AS (
 وفى الحاالت الت ي يلزم فيها القانون بنشر الحكم ف ي احدى الصحف، يتم النشر ف ي مجلة المحاماة. وعلى الجهات
 المسئولة عن تنفيذ األحكام مراعاة ذلك.$ab174$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3085,7 +3085,7 @@ WITH ins_art_law17_175 AS (
 وتعفى أموال النقابة والنقابات الفرعية الثابتة والمنقولة، وجميع العمليات االستثمارية مهما كان نوعها من جميع
 الضرائب والرسوم والدمغة والعوائد الت ي تفرضها الحكومة أو أية سلطة عامة.$ab175$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3102,7 +3102,7 @@ WITH ins_art_law17_176 AS (
 ويكون للصندوق شخصية اعتبارية مستقلة ويمثله نقيب المحامين قانونا أمام الغير ويكون له فروع ف ي دائرة كل
 نقابة فرعية، تختص بمباشرة اختصاصاته ف ي حدود دائرة النقابة الفرعية وذلك فيما عدا ترتيب المعاشات .$ab176$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3120,7 +3120,7 @@ WITH ins_art_law17_177 AS (
 ويحل الوكيل اآلخر محل أقدم الوكيلين، كما يحل أمين الصندوق المساعد محل أمين الصندوق وذلك عند غياب
 أى منهما .$ab177$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3142,7 +3142,7 @@ WITH ins_art_law17_178 AS (
 ٥ - اعداد ميزانية الصندوق التقريرية وحساباته الختامية السنوية ومركزه المالى وعرضها على مجلس النقابة .
 ٦ - اقتراح بتعديل األحكام المنظمة للصندوق ف ي القانون أو ف ي الئحته التنفيذية.$ab178$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3165,7 +3165,7 @@ WITH ins_art_law17_179 AS (
 وتصدر قراراتها باألغلبية ألصوات الحاضرين، وذلك فيما عدا تقرير أوجه االستثمار فيشترط موافقة األغلبية
 المطلقة ألعضاء اللجنة.$ab179$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3181,7 +3181,7 @@ WITH ins_art_law17_180 AS (
   SELECT id, 180, $al180$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al180$, $ab180$للجنة أن تشكل من بين أعضائها لجنة فرعية تختص بالبت ف ي الحاالت العاجلة فيما عدا ترتيب المعاشات، وذلك
 ف ي الحدود الت ي تبينها الالئحة التنفيذية .$ab180$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3197,7 +3197,7 @@ WITH ins_art_law17_181 AS (
 ٤ - عائد استثمار أموال الصندوق .
 ٥ - الهبات والتبرعات واالعانات الت ي يتلقاها والت ي يوافق الصندوق على قبولها .$ab181$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3213,7 +3213,7 @@ WITH ins_art_law17_182 AS (
   SELECT id, 182, $al182$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al182$, $ab182$تصدر نقابة المحامين لصالح صندوق الرعاية االجتماعية والصحية طوابع دمغة المحاماة بفئات من خمسة
 جنيهات الى جنيه واحد وأى فئات أخرى يقررها مجلس النقابة بناء على اقتراح لجنة الصندوق .$ab182$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3233,7 +3233,7 @@ WITH ins_art_law17_183 AS (
 ثالثة جنيهات عند الحضور أمام محاكم االستئناف والقضاء االدارى.
 خمسة جنيهات عند الحضور أمام محاكم النقض واالدارية العليا والدستورية العليا. )٧ ($ab183$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3257,7 +3257,7 @@ WITH ins_art_law17_184 AS (
 ف ي هذا الشأن. واذا أصر أحد الطرفين على طلب النظر ف ي أمر التقدير ضوعف ما يستحق من دمغة على الطلب
 وفق ما تقدم ويسددها مقدم الطلب ويرجع بها على المحكوم عليه.$ab184$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3276,7 +3276,7 @@ WITH ins_art_law17_185 AS (
 ٣ - الشهادات الت ي تصدرها نقابة المحامين بناء على طلب المحام ي أو أى جهة أخرى ويكون طابع الدمغة ف ي
 هذه الحاالت من فئة جنيه واحد على كل ورقة.$ab185$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3294,7 +3294,7 @@ WITH ins_art_law17_186 AS (
 المحاضر واألوراق المفروضة عليها، وفى حالة عدم تنفيذ حكم القانون ف ي هذا الشأن يكون الموظف المختص
 مسئوال شخصيا عن قيمتها مع عدم االخالل بمسئوليته االدارية.$ab186$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3320,7 +3320,7 @@ WITH ins_art_law17_187 AS (
 ويحصل في قضايا التحكيم مبلغ خمسمائة جنيه كأتعاب محاماة تحصل مع الرسوم القضائية عند إيداع حكم
 المحكمين بالمحكمة المختصة. )٨ ($ab187$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3345,7 +3345,7 @@ WITH ins_art_law17_188 AS (
 لتحصيل الرسم بمقتضى قوانين الرسوم القضائية وتخصص من األتعاب المحصلة نسبة ٥% ألقالم الكتاب
 والمحضرين ويكون توزيعها فيما بينهم طبقا للقواعد الت ي يضعها وزير العدل بقرار منه. )١ ($ab188$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3362,7 +3362,7 @@ WITH ins_art_law17_189 AS (
 ويكون للصندوق مراقب للحسابات تعينه الجمعية العمومية سنويا وتحدد أتعابه بناء على اقتراح مجلس النقابة.
 ويجوز أن يكون مراقب حسابات النقابة مراقبا لحسابات الصندوق .$ab189$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3380,7 +3380,7 @@ WITH ins_art_law17_190 AS (
 التأمين. وذلك دون اخالل بحق مجلس النقابة ف ي أن يعهد الى الهيئة العامة للتأمين بندب بعض خبرائه
 االكتواريين لفحص بعض أوجه نشاط الصندوق واستثماراته.$ab190$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3397,7 +3397,7 @@ WITH ins_art_law17_191 AS (
 العمومية للصندوق. ويستمر العمل على أساس الموازنة السابقة حتى يتم اعتماده الموازنة الجديدة من الجمعية
 العمومية .$ab191$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3411,7 +3411,7 @@ WITH ins_art_law17_192 AS (
   SELECT id, 192, $al192$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al192$, $ab192$تعد الجمعية العمومية للنقابة الت ي تدعى للنظر ف ي موازنة النقابة وحساباتها الختامية السنوية، جمعية عمومية
 للصندوق تختص باعتماد موازنته التقديرية وحساباته الختامية وتعيين مراقب حساباته وتحديد أتعابه .$ab192$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3423,7 +3423,7 @@ WITH ins_art_law17_193 AS (
   SELECT id, 193, $al193$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al193$, $ab193$تنشر الموازنة التقديرية والحساب الختام ي للصندوق ف ي مجلة المحاما ة مع الموازنة التقديرية والحساب الختام ي
 للنقابة العامة.$ab193$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3437,7 +3437,7 @@ WITH ins_art_law17_194 AS (
 كما يراعى في اعداد هذه الموازنة تحديد المبالغ الت ي تخصص للرعاية االجتماعية والصحية لألعضاء، وما
 يرصد منها للنقابات الفرعية على أساس عدد أعضائها المقيدين بالجدول العام .$ab194$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3456,7 +3456,7 @@ WITH ins_art_law17_195 AS (
 الصندوق، كان لمجلس النقابة أن يقترح على الجمعية العمومية اما زيادة االحتياط ي العام أو تكوين احتياطات
 خاصة الغراض مختلفة أو زيادة المعاشات والخدمات الت ي يؤديها الصندوق للمنتفعين به.$ab195$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3479,7 +3479,7 @@ WITH ins_art_law17_196 AS (
 ويعتبر ف ي حكم بلوغ سن الستين وفاة المحام ي أو عجزه عجزا كامال مستديما .
 ٤ - أن يكون مسددا لرسوم االشتراك المستحق عليه ما لم يكن قد أعفى منها طبقا ألحكام هذا القانون.$ab196$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3499,7 +3499,7 @@ WITH ins_art_law17_197 AS (
 ويجوز للجمعية العمومية تعديل المعاش أو تعديل الحد األقصى تبعا لتغير األسعار القياسية لنفقات المعيشة وفى
 ضوء المركز المال ي للصندوق وفق أحكام المادة )١٩٤( .$ab197$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3516,7 +3516,7 @@ WITH ins_art_law17_198 AS (
 ٢ - إذا أصاب المحام ي عجز كامل يمنعه من االستمرار ف ي مزاولة المهنة وكانت مدة اشتغاله عشر سنوات على
 األقل. )١($ab198$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3530,7 +3530,7 @@ WITH ins_art_law17_199 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 199, $al199$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al199$, $ab199$ف ي حالة وفاة المحام ي الذي يستحق معاشا طبقا للمادة السابقة يؤول معاشه الى المستحقين عنه.$ab199$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3541,7 +3541,7 @@ WITH ins_art_law17_200 AS (
   SELECT id, 200, $al200$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al200$, $ab200$إذا توفى المحام ي أو أصيب بعجز كلى دون أن تتوافر فيه شروط استحقاقه معاشا طبقا للمواد السابقة وكان مقيدا
 بالجدول العام صرف له أو المستحقين عنه مبلغ خمسمائة جنيه دفعة واحدة ومعاش قدره أربعون جنيها شهريا .$ab200$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3552,7 +3552,7 @@ WITH ins_art_law17_201 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 201, $al201$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al201$, $ab201$عند حساب مدة ممارسة المحام ي للمحاماة تجبر كسور السنة إذا زادت على النصف وتهمل ان قلت عن ذلك.$ab201$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3577,7 +3577,7 @@ WITH ins_art_law17_202 AS (
 وتبين الالئحة التنفيذية كيفية اثبات االعالة وعدم وجود دخل خاص وكيفية ثبوت العجز الكامل وذلك ف ي الحاالت
 المشار اليها .$ab202$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3610,7 +3610,7 @@ WITH ins_art_law17_203 AS (
 نهايتها .
 ٤ - إذا توافرت ف ي المستحق شروط استحقاق معاش أكبر مع مراعاة حكم المادة )٢٠٦( . )١ ($ab203$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3631,7 +3631,7 @@ WITH ins_art_law17_204 AS (
 المستحقين .
 كما يعود حق األرملة ف ي المعاش إذا طلقت أو ترملت ولم تكن مستحقة لمعاش عن الزوج األخير .$ab204$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3645,7 +3645,7 @@ WITH ins_art_law17_205 AS (
   SELECT id, 205, $al205$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al205$, $ab205$قضي بعدم دستورية نص المادة فيما تضمنه من قصر الحق ف ي الجمع بين المعاش والدخل من العمل على أرملة
 المحام ي دون أرمل المحامية )١٥ ($ab205$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3660,7 +3660,7 @@ WITH ins_art_law17_206 AS (
 على أنه إذا كان المعاش المستحق بمقتضى قوانين أخرى عن سنوات غير سنوات مزاولة المهنة، فال يسرى عليه
 حكم الفقرة السابقة. )١ ($ab206$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3677,7 +3677,7 @@ WITH ins_art_law17_207 AS (
 وعلى الطالب تصفية أعمال مكتبه خالل ثالثة أشهر تبدأ من يوم قبول الطلب.
 ويبدأ صرف المعاش ف ي أول الشهر التال ي إلخطار لجنة الصندوق بتصفية أعماله فعال .$ab207$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3692,7 +3692,7 @@ WITH ins_art_law17_208 AS (
 المحام ي نهائيا من جدول المحامين المشتغلين وال يجوز للمحام ي بعد أن يحصل على معاش التقاعد أن يطلب قيد
 أسمه ف ي جدول المشتغلين .$ab208$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3704,7 +3704,7 @@ WITH ins_art_law17_209 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 209, $al209$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al209$, $ab209$ال يجوز استبدال المعاشات المقررة وفقا لهذا القانون .$ab209$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3716,7 +3716,7 @@ WITH ins_art_law17_210 AS (
 بالقانون ١٠١ لسنة ١٩٤٤ بشأن المحاماة أمام المحاكم الشرعية، المشتغلين وقت صدور القانون وذلك عند
 استحقاقهم المعاش .$ab210$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3736,7 +3736,7 @@ WITH ins_art_law17_211 AS (
 وخمسة جنيهات بالنسبة لكل من باق ي المستحقين ويسرى ما تقدم على المعاشات واألنصبة المستحقة ابتداء من
 الشهر التال ي لتاريخ العمل بأحكام هذا القانون .$ab211$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3755,7 +3755,7 @@ WITH ins_art_law17_212 AS (
   SELECT id, 212, $al212$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al212$, $ab212$يجوز لمجلس النقابة أن يعقد ت أمينا لدى احدى شركات التأمين لتغطية التزامات الصندوق عن معاشات التقاعد
 ومخاطر الوفاة الموجبة الستحقاقها .$ab212$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3771,7 +3771,7 @@ WITH ins_art_law17_213 AS (
 وفى جميع األحوال ال يجوز أن يزيد مجموع ما يحصل عليه المحام ي أو المستحقون عنه من معونات عن الحد
 األقصى لمعاش سنة واحدة .$ab213$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3789,7 +3789,7 @@ WITH ins_art_law17_214 AS (
 وطبقا لالعتمادات السنوية الت ي تخصص لكل منها الموازنة التقديرية .
 ويجوز أن يكون ذلك عن طريق انشاء نظام للتأمين الصح ي.$ab214$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3804,7 +3804,7 @@ WITH ins_art_law17_215 AS (
 تكوين مكتبة قانونية خاصة به بعد أنتهاء فترة تمرينة وقبوله بجدول المحاكم االبتدائية واالدارية، على أال يقبل قيد
 المحام ي أمام محاكم االستئناف اال بعد سداد هذه القروض.$ab215$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3816,7 +3816,7 @@ WITH ins_art_law17_216 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 216, $al216$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al216$, $ab216$ملغاة . )٣ ($ab216$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3827,7 +3827,7 @@ WITH ins_art_law17_217 AS (
   SELECT id, 217, $al217$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al217$, $ab217$يختص مجلس النقابة وحده بالفصل ف ي تظلمات ذوى الشأن من قرارات لجنة الصندوق، كما تختص مجالس
 النقابات الفرعية ف ي الفصل ف ي تظلمات ذوى الشأن من قرارات لجانه الفرعية.$ab217$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3839,7 +3839,7 @@ WITH ins_art_law17_218 AS (
   SELECT id, 218, $al218$الباب الرابع — صندوق الرعاية االجتماعية والصحي ة$al218$, $ab218$مع عدم االخالل بأحكام قانون المرافعات تعتبر المعاشات والمعونات تقرر طبقا ألحكام هذا القانون نفقة ال
 يجوز تحويلها أو الحجز عليها أو التنازل عنها للغير .$ab218$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3852,7 +3852,7 @@ WITH ins_art_law17_219 AS (
 اجراءات تقديم الطلبات والفصل فيها وما يقدم من مستندات مؤيدة لها وتحديد اختصاصات كل من النقابة العامة
 والنقابات الفرعية بشأنها.$ab219$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3865,7 +3865,7 @@ WITH ins_art_law17_220 AS (
   SELECT id, 220, $al220$الباب الخامس — االمانة العامة$al220$, $ab220$يكون للنقابة أمانة عامة تتولى الشئون االدارية والمالية والتنفيذية المتعلقة بالنقابة وتخضع لإلشراف المباشر
 المين عام النقابة واالشراف األعلى للنقيب .$ab220$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3878,7 +3878,7 @@ WITH ins_art_law17_221 AS (
 والمالية واالشراف على العاملين بها ويكون مسئوال عن ادارة شئون النقابة أمام األمين العام الذي يكون له عليه
 حق التنبيه واالنذار البسيط وفيما عدا ذلك ال يحاسب تأديبيا اال أمام مجلس النقابة .$ab221$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3893,7 +3893,7 @@ WITH ins_art_law17_222 AS (
 الباب الساد س
 أحكام عامة وختامي ة$ab222$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3907,7 +3907,7 @@ WITH ins_art_law17_223 AS (
   SELECT id, 223, $al223$الباب الخامس — االمانة العامة$al223$, $ab223$ال تسري أحكام القوانين الخاصة باالجتماعات العامة على اجتماعات أعضاء النقابة للبحث فيما ال يخرج عن
 أهداف النقابة المحددة بهذا القانون .$ab223$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3919,7 +3919,7 @@ WITH ins_art_law17_224 AS (
   SELECT id, 224, $al224$الباب الخامس — االمانة العامة$al224$, $ab224$ال يجوز تفتيش مقار نقابة المحامين ونقاباتها الفرعية ولجانها الفرعية أو وضع أختام عليها اال بمعرفة أحد
 أعضاء النيابة العامة وبحضور نقيب المحامين أو نقيب النقابة الفرعية أو من يمثلها .$ab224$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3931,7 +3931,7 @@ WITH ins_art_law17_225 AS (
   SELECT id, 225, $al225$الباب الخامس — االمانة العامة$al225$, $ab225$تنشر القرارات ذات الطابع العام الت ي تصدرها الجمعية العمومية ومجلس النقابة العامة والجمعيات العمومية
 للنقابات الفرعية ومجالسها بمجلة المحاماة وفق ما يقرره مجلس النقابة العامة .$ab225$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3943,7 +3943,7 @@ WITH ins_art_law17_226 AS (
   SELECT id, 226, $al226$الباب الخامس — االمانة العامة$al226$, $ab226$كل تنبيه أو اخطار يجب أن يكون بمقتضى خطاب موصى عليه بعلم الوصول ما لم يرد ف ي القانون نص على
 خالف ذلك .$ab226$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3959,7 +3959,7 @@ WITH ins_art_law17_227 AS (
 المحاماة ولم يكن من المحامين المقيدين بجدول المحامين المشتغلين أو كان ممنوعا من مزاولة المهنة .
 وتؤول حصيلة الغرامة المحكوم بها الى صندوق الرعاية االجتماعية والصحية. )٥ ($ab227$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3977,7 +3977,7 @@ WITH ins_art_law17_228 AS (
 والصحية وال يجوز االعفاء منها اال لعذر يقبله مجلس النقابة العامة وبشرط االخطار به سلفا ما لم يثبت أنه كان
 طارئا .$ab228$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -3993,7 +3993,7 @@ WITH ins_art_law17_229 AS (
 الباب السابع )١٠ (
 أكاديمية المحاماة والدراسات القانوني ة$ab229$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -4011,7 +4011,7 @@ WITH ins_art_law17_230 AS (
 الدراسة بهذه األكاديمية وحصول طالب القيد على شهادة إتمام الدراسة بها، على أن تبدأ الدراسة اعتبا ًرا من يناير
 ٢٠٢١$ab230$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)
@@ -4031,7 +4031,7 @@ WITH ins_art_law17_231 AS (
 واإلداري وضوابط القبول والدراسة ومدتها ومناهجها واستصدار المعادالت للمؤهالت المهنية الصادرة عنها .
 )١($ab231$
   FROM laws WHERE law_no = 17 AND law_year = 1983
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, change_note)

@@ -30,7 +30,7 @@ WITH ins_art_100_2020_________________2 AS (
  .3قرار مجلس إدارة الهيئة رقم ( )61لسنة 2۰2۰بشأن القواعد التنةيذية لحوكمة شركات التمويل االستهالكي.
  كما يلغى كل حكم يخالف أحكام القواعد المرافقة لهذا القرار.$b2$
   FROM laws WHERE law_no = 100 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -48,7 +48,7 @@ WITH ins_art_100_2020_________________3 AS (
 اسخررراح ب ظرررا اسجارررب برررمه منصرررو رئرررمس مجلرررس ات ار امنصرررو اسعلرررو اسانبررردب أا اسرررائمس اسبنفمرررذي
  في أا انبخاباا ساجلس إ ار اسااتر أا رال رنر ب د أقصى مه تاريخ اسعال بتذا اسقاار.$b3$
   FROM laws WHERE law_no = 100 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -450,7 +450,7 @@ WITH ins_art_100_2020_________________4 AS (
  ١-۸في حاسر تصاف اسااتر في أرتاتا سااتر تابعر أا رابعر سلهمألا اسفعلمر ستا تعد وذه اشرت ش أرت
  رزينر اتهاي علمتا تافر اشحكا اسخاألر ب رت اسخزينر.$b4$
   FROM laws WHERE law_no = 100 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1023,7 +1023,7 @@ WITH ins_art_114_1 AS (
 تليفون: +7٠١171015050٠ فاكس ”"05/..١51 للد 5الولالا غ0 5عو860 ووأواأن8
 01١. .خم حا. |ارازازالالا نبنى الجسور لا المواجز$b6$
   FROM laws WHERE law_no = 114 AND law_year = 2021
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1242,7 +1242,7 @@ WITH ins_art_166_2020_________________________________1 AS (
 8- جهاز ثنمية المشروعات المتوسطة والصغيرة ومتناهية الصغر.
 -٠6 صندوق مصر السيادي للاستثمار والتنمية.$b8$
   FROM laws WHERE law_no = 166 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1289,7 +1289,7 @@ WITH ins_art_166_2020_________________________________2 AS (
 إدارة الأصول (الشركات التي تزاول نشاط إدارة صناديق الاستثمار وتكوين وإدارة محافظ الأوراق المالية)» من
 مؤسسي شركة صندوق الاستثمار وفقاً لقرار مجلس إدارة الهيئة رقم )0١( لسنة 51 بشأن الشروط الواجب$b9$
   FROM laws WHERE law_no = 166 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1305,7 +1305,7 @@ WITH ins_art_166_2020_________________________________3 AS (
 تليفون: ٠#0امع0" 17.7 فاكس ".الاسم .للب تيتن,الجسون لا الحواجد و 0
 عع 601 جع الالالالانا يهم$b10$
   FROM laws WHERE law_no = 166 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1352,7 +1352,7 @@ WITH ins_art_196_2024_1 AS (
 ويكون رأس مال الشركات المشار إليها مدفوعا بالكامل بالجنيه المصرى
  أو ما يعادله بالعملات الأجنبية الحرة التى يقبلها البنك المركزى المصرى .$b12$
   FROM laws WHERE law_no = 196 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1397,7 +1397,7 @@ WITH ins_art_196_2024_2 AS (
 كما تلتزم باقى الشركات المخاطبة بأحكام هذا القرار بتوفيق أوضاعها خلال سنة
  من تاريخ العمل به .$b13$
   FROM laws WHERE law_no = 196 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1419,7 +1419,7 @@ WITH ins_art_196_2024_3 AS (
 مساهميها قبل استيفاء متطلبات الحد الأدنى لرؤوس الأموال المشار إليها إلا بعد
  الحصول على عدم ممانعة الهيئة .$b14$
   FROM laws WHERE law_no = 196 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1436,7 +1436,7 @@ WITH ins_art_196_2024_4 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b15$
   FROM laws WHERE law_no = 196 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1533,7 +1533,7 @@ WITH ins_art_2_2025_________________1_1 AS (
 
          11$b17$
   FROM laws WHERE law_no = 2 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1627,7 +1627,7 @@ WITH ins_art_2_2026_1 AS (
   SELECT id, 1, NULL, $b19$يزاد الحد الأقصى للتغطية التأمينية لنشاط التأمين متناهى الصغر ليصبح
  ثلاثمائة وتسعين ألف جنيه .$b19$
   FROM laws WHERE law_no = 2 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1641,7 +1641,7 @@ WITH ins_art_2_2026_2 AS (
 الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b20$
   FROM laws WHERE law_no = 2 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -1699,7 +1699,7 @@ WITH ins_art_2023_08_10_10_04_08_735_1_1 AS (
 
 601١.2 .خم <. |الالازانانا$b22$
   FROM laws WHERE law_no = 3 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2083,7 +2083,7 @@ WITH ins_art_205_1 AS (
 تليفون: +141711015010 فاكس 5011/1521 1017م 5اله/اا 01م 8 ووأ0اأن 8
 60 خرج] *] . /تبالرتراتبايا نيتى الجسور لا المسواجز$b24$
   FROM laws WHERE law_no = 205 AND law_year = 2021
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2514,7 +2514,7 @@ WITH ins_art_269_2024_1 AS (
  وصناديق الملكية المباشرة داخل
  جمهورية مصر العربية .$b26$
   FROM laws WHERE law_no = 269 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2630,7 +2630,7 @@ WITH ins_art_269_2024_2 AS (
  بأرصدة الاستثمارات وعوائد الاستثمار عليها .
  الوقائع المصریة – العدد ١٥تابع ) أ ( فى ١٩ینایر سنة ٢٠٢٥ ١٠$b27$
   FROM laws WHERE law_no = 269 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2664,7 +2664,7 @@ WITH ins_art_269_2024_3 AS (
  -١وجود مستحقات مالية واجبة السداد على الصندوق .
  -٢استحقاق آجال استثمارات الصندوق تمهيدا لإعادة استثمارها وفق ًا لأحكام هذا القرار .$b28$
   FROM laws WHERE law_no = 269 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2685,7 +2685,7 @@ WITH ins_art_269_2024_4 AS (
  -٤الجهات الأخرى التى تحددها الهيئة فيما يخص أى أوجه استثمار بخلاف
  الواردة أعلاه .$b29$
   FROM laws WHERE law_no = 269 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2706,7 +2706,7 @@ WITH ins_art_269_2024_5 AS (
 وتلتزم الصناديق المشار إليها بتوفيق أوضاعها فيما يتعلق بالالتزام بالحدود الدنيا
  المنصوص عليها بهذا القرار خلال ستة أشهر من تاريخ العمل به .$b30$
   FROM laws WHERE law_no = 269 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2723,7 +2723,7 @@ WITH ins_art_269_2024_6 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b31$
   FROM laws WHERE law_no = 269 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2745,7 +2745,7 @@ WITH ins_art_276_2024_1 AS (
 إعداد تلك القوائم اعتبارا من بداية السنة وحتى تاريخ نهاية الفترة الدورية المعد عنها
  تلك القوائم .$b33$
   FROM laws WHERE law_no = 276 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2768,7 +2768,7 @@ WITH ins_art_276_2024_2 AS (
  -٥الإيضاحات المتممة متضمنة أهم السياسات المحاسبية وأية مذكرات
  إيضاحية أخرى .$b34$
   FROM laws WHERE law_no = 276 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2791,7 +2791,7 @@ WITH ins_art_276_2024_3 AS (
 الدورية المعد عنها تلك القوائم ،على أن تكون معتمدة من مجلس إدارة الصندوق ومعد
  بشأنها تقرير من مراقب الحسابات .$b35$
   FROM laws WHERE law_no = 276 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2805,7 +2805,7 @@ WITH ins_art_276_2024_4 AS (
 القوائم المالية الدورية وفق ًا لأحكامه اعتبارا من الفترة المالية المنتهية فى
  مارس ٢٠٢٥$b36$
   FROM laws WHERE law_no = 276 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2819,7 +2819,7 @@ WITH ins_art_276_2024_5 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b37$
   FROM laws WHERE law_no = 276 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2852,7 +2852,7 @@ WITH ins_art_3_1 AS (
 مرفق ًا بها تقرير فحص محدود من مراقب الحسابات خلال ) (٤٥يوما من نهاية الفترة
  المقدم عنها القوائم المالية .$b39$
   FROM laws WHERE law_no = 3 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2896,7 +2896,7 @@ WITH ins_art_3_2 AS (
 وفي جميع الأحوال يجب أن تكون جميع البيانات والأوراق موقعة من الممثل
  القانوني للشركة ومن مديرها المالي توقيع حي أو إلكتروني .$b40$
   FROM laws WHERE law_no = 3 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2940,7 +2940,7 @@ WITH ins_art_3_3 AS (
 وعلى مراقب الحسابات أن يخطر الهيئة وكذا الشركة كتابة بأي نقص أو خطأ
  أو بأية مخالفة يكتشفها أثناء فحصه .$b41$
   FROM laws WHERE law_no = 3 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -2975,7 +2975,7 @@ WITH ins_art_3_4 AS (
  الصادرة تنفيذ ًا له .
 ٧ الوقائع المصریة – العدد ٣٤تابع )أ( فى ١١فبرایر سنة ٢٠٢٥$b42$
   FROM laws WHERE law_no = 3 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3081,7 +3081,7 @@ WITH ins_art_3_5 AS (
  رقم الإيداع بدار الكتب ٢٦٨لسنة ٢٠٢٥
  ٥٠٩ - ٢٠٢٥/٢/١١ - ٢٠٢٤ / ٢٥٦٠٣$b43$
   FROM laws WHERE law_no = 3 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3196,7 +3196,7 @@ WITH ins_art_37_1 AS (
 1 السيد الأستاذ/ وليد إبراهيم عوف
 ويسري بشأن نظام عمل اللجنة القواعد الواردة بقرار مجلس إدارة الهيئة رقم 141 لسنة 2017.$b45$
   FROM laws WHERE law_no = 37 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3227,7 +3227,7 @@ WITH ins_art_37_2 AS (
 تليفون: +1١٠ ٠076070٠ فاكسء “ا ."01م لاءلا+ ثيئى الجسورلا العواوز
 601١/١. شح . [الالاثارالا$b46$
   FROM laws WHERE law_no = 37 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3260,7 +3260,7 @@ WITH ins_art_49_1 AS (
  المادة ): (۸
 تبدأ السنة المالية للاتحاد في الأول من يناير وتنتهي في آخر ديسمبر من كل عام .$b48$
   FROM laws WHERE law_no = 49 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3283,7 +3283,7 @@ WITH ins_art_49_2 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b49$
   FROM laws WHERE law_no = 49 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3325,7 +3325,7 @@ WITH ins_art_5_1 AS (
 لتولي إجراءات بيع الأسهم المشتراة على أن تؤول حصيلة البيع للمساهم بعد خصم
  المصروفات .$b51$
   FROM laws WHERE law_no = 5 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3361,7 +3361,7 @@ WITH ins_art_5_2 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b52$
   FROM laws WHERE law_no = 5 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3401,7 +3401,7 @@ WITH ins_art_53_2020_1 AS (
 تليفون: +71170760170١ فاكس ١.17 /ثزن؟ از + 5اأة/ا! أمى ععو820 ووألأزند8
 ناع. 601 طح . //الا/الا/ا نبنى الجسورلا المواجز$b54$
   FROM laws WHERE law_no = 53 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3437,7 +3437,7 @@ WITH ins_art_59_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 1, NULL, $b56$يُلغى قرار مجلس إدارة الهيئة رقم )١8١( لسنة 7٠١15 المشار إليه.$b56$
   FROM laws WHERE law_no = 59 AND law_year = 2021
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3450,7 +3450,7 @@ WITH ins_art_59_2 AS (
 الإيصال أو الإخطار موقعاً من العميل بما يفيد قيامه بالاستلام وعلى مسئولية الشركة؛ وذلك كله وفقاً للضوابط التي
 تصدرها الهيئة.$b57$
   FROM laws WHERE law_no = 59 AND law_year = 2021
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3469,7 +3469,7 @@ WITH ins_art_59_3 AS (
 تليفون: 5056096٠ 717+ فاكس: 11--/70173 ”ء الى وأل/لا امم دعو860 ووللاان8
 اع /1 0 خرطاع. /ابابارابايا نبئى الجسور لا الحواجز$b58$
   FROM laws WHERE law_no = 59 AND law_year = 2021
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3506,7 +3506,7 @@ WITH ins_art_897__1 AS (
 صنفرة أوترميل الزجاج من أثر الطريق (خمسون بالمائة)
 5 الوقائع المصرية - العدد "١7 تابع (ه) فى أول أبريل سنة ٠١575$b60$
   FROM laws WHERE law_no = 897 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3537,7 +3537,7 @@ WITH ins_art_897__2 AS (
 أجزاء, السيارات - قطع الغيار -,التالفة.«ؤيتم تطبق نسبئة الخصِيم المنصوص؛#عليها
 في الوثيقة,حالة تعذر تسليم الأجزاء أو قطع الغيار التالفة لأئاسبب من الأشباب .$b61$
   FROM laws WHERE law_no = 897 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3555,7 +3555,7 @@ WITH ins_art_897__3 AS (
 بما يتفق مع“ما؛:تضمنه, هذا القرار من ضؤابطء وذلك! خلال مدة لاإتجاوز ستة أشهر
 من تاريخ العمل بأخَكام هذا القرار”.$b62$
   FROM laws WHERE law_no = 897 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3576,7 +3576,7 @@ WITH ins_art_897__4 AS (
 رقم الإيداع بدار الكتب 7558 لسنة ٠١75
 ١ ل :/5 :151-37$b63$
   FROM laws WHERE law_no = 897 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -3894,7 +3894,7 @@ WITH ins_art_99_2023_1 AS (
 
 حيث نصنعلمعرفة وتتشرها 0102160ه55أ0 200 لعأهعى ذأ ولع اهمها عمعالالا$b65$
   FROM laws WHERE law_no = 99 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4205,7 +4205,7 @@ WITH ins_art_UG50745UG50746_1 AS (
 وتكليف الإدارات المختصة بالهيئة بإعداد دراسة حول ضوابط وشروط عمل تلك الشركات بهدف
 تطويرها وتنمية نشاطها.$b67$
   FROM laws WHERE law_no = 82 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4224,7 +4224,7 @@ WITH ins_art_UG50745UG50746_2 AS (
 تليفون: لوعن لا فأكس: بم لالد والة/ة! أمم معول8,1 ومألاأن8
 601/6 ..ض”حح] ./ابابا/الالا نيني الجسور لا الحواجرٌ$b68$
   FROM laws WHERE law_no = 82 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4265,7 +4265,7 @@ WITH ins_art_UG51302UG51303_1 AS (
 المصرح بهاء ويتعين على المخالف التصرف في النسبة الزائدة خلال ستة أشهر من تاريخ أيلولتها إليه والا كان
 للهيئة الأمر بتعيين إحدى شركات السمسرة لتولي إجراءات بيع الأسهم المخالفة» على أن تؤول حصيلة البيع للمساهم$b70$
   FROM laws WHERE law_no = 133 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4294,7 +4294,7 @@ WITH ins_art_UG51302UG51303_2 AS (
 المال أو حقوق التصويت بطريقة مباشرة أو غير مباشرة تمكنه من تعيين غالبية أعضاء مجلس إدارة الشركة أو
 التحكم على أي نحو في القرارات التي يصدرها مجلس إدارتها أو التحكم في القرارات التي تصدر عن جمعيتها العامة.$b71$
   FROM laws WHERE law_no = 133 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4310,7 +4310,7 @@ WITH ins_art_UG51302UG51303_3 AS (
 تليشون: +17١17705090٠١ فاكس 5013/13 لاه 5ااقلاا أم0 دعو860 وملمائن8
 مع ./01 6 شطح. /لالابارا/ا نيئى الجيسور لا الحصسواجز$b72$
   FROM laws WHERE law_no = 133 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4347,7 +4347,7 @@ WITH ins_art_UG51839UG51840_1 AS (
 5- التنسيق بين الإدارات المختلفة بالشركة ومن بينها الإدارات الفنية والمالية وإدارة المخاطر وإدارة تكنولوجيا
 المعلومات والمراجعة الداخلية وكافة الإدارات المعنية في هذا الشأن.$b74$
   FROM laws WHERE law_no = 162 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4378,7 +4378,7 @@ WITH ins_art_UG51839UG51840_2 AS (
 تليفون: +17٠١9501070٠ فاكس "015/٠71 املد 5أله/الا امم وعو8,0 ومللأأنا8
 001/0 . فاع . /الالارايايا نبتى الجس وو لا الحواجز$b75$
   FROM laws WHERE law_no = 162 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4416,7 +4416,7 @@ WITH ins_art_UG52513UG52514_1 AS (
 2- تملك امرأة واحدة على الأقل نسبة لا تقل عن (9020) من رأس مال الشركة أو المنشأة» على أن تشغل امرأة
 واحدة على الأقل منصب رئيس مجلس الإدارة أو العضو المنتدب أو المدير التنفيذي أو نائباً لأي منهم.$b77$
   FROM laws WHERE law_no = 187 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4455,7 +4455,7 @@ WITH ins_art_UG52513UG52514_2 AS (
 تليفون: .ت5ه74ه7 5875+ - فاكس :75. .الات 1 آله 6 002022) :.بروع - 35345350 (00202) :181
 وع.اه 3.9 © همامأ و ع 0/١ و . بخ ] . رايبا ينا$b78$
   FROM laws WHERE law_no = 187 AND law_year = 2020
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4485,7 +4485,7 @@ WITH ins_art_alamiria_2022_48_1 AS (
 التأجير التمويلى -التخصيم -تمويل المشروعات المتوسطة والصغيرة ومتناهية
  الصغر -التمويل الاستهلاكى( عن ) (٪٢٥أو عن عضوتين .$b80$
   FROM laws WHERE law_no = 48 AND law_year = 2022
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4499,7 +4499,7 @@ WITH ins_art_alamiria_2022_48_2 AS (
 النحو المشار إليه بالمادة السابقة ،ويجب عليه توفيق أوضاعه وفق ًا لذلك فى أول
  انتخابات لمجلس إدارة الاتحاد ،أو فى ٢٠٢٢/١٢/٣١متى أمكن ذلك .$b81$
   FROM laws WHERE law_no = 48 AND law_year = 2022
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4513,7 +4513,7 @@ WITH ins_art_alamiria_2022_48_3 AS (
 رئيس مجلس إدارة الهيئة
  د /محمد عمران$b82$
   FROM laws WHERE law_no = 48 AND law_year = 2022
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4542,7 +4542,7 @@ WITH ins_art_alamiria_2023_280_1 AS (
 وتقوم الهيئة بدراس���ة الطلب المش���ار إليه ،ويجوز لها مد المهلة المذكورة لمدة
  أخرى إضافية فى ضوء المبررات التى تقدمها الشركة .$b84$
   FROM laws WHERE law_no = 280 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4566,7 +4566,7 @@ WITH ins_art_alamiria_2023_280_2 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b85$
   FROM laws WHERE law_no = 280 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4587,7 +4587,7 @@ WITH ins_art_alamiria_2024_183_1 AS (
 وتنتهى فى آخر ديسمبر من كل عام وذلك اعتبارا من العام المالى ٢٠٢٥/١/١
  وحتى ٢٠٢٥/١٢/٣١$b87$
   FROM laws WHERE law_no = 183 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4610,7 +4610,7 @@ WITH ins_art_alamiria_2024_183_2 AS (
 حسابات الشركة على أن يتم اعتمادها من جمعيتها العامة على أن تستخدم فى إعداد
  أرقام المقارنة عند إعداد القوائم المالية السنوية لعام ٢٠٢٥$b88$
   FROM laws WHERE law_no = 183 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4632,7 +4632,7 @@ WITH ins_art_alamiria_2024_183_3 AS (
   SELECT id, 3, NULL, $b89$يطبق معيار المحاسبة المصرى رقم ) (٥۰عقود التأمين فى شأن الشركات
  المخاطبة بأحكام هذا القرار بداية من القوائم المالية عن عام ٢٠٢٥$b89$
   FROM laws WHERE law_no = 183 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4646,7 +4646,7 @@ WITH ins_art_alamiria_2024_183_4 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b90$
   FROM laws WHERE law_no = 183 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4676,7 +4676,7 @@ WITH ins_art_alamiria_2024_223_1 AS (
 ثالث بين شركة التأمين والعميل أو التى تقوم بإدارة برامج الرعاية الصحية ذاتية
 التموبل لصالح المؤسسات أو الهيئات أو أصحاب الأعمال .$b92$
   FROM laws WHERE law_no = 223 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4705,7 +4705,7 @@ WITH ins_art_alamiria_2024_223_2 AS (
 ويجوز للهيئة مد المهلة المشار إليها بالفقرة الأولى من هذه المادة فى ضوء
 مبررات جدية تقدمها الشركة .$b93$
   FROM laws WHERE law_no = 223 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4728,7 +4728,7 @@ WITH ins_art_alamiria_2024_223_3 AS (
 بشرط الحصول على عدم ممانعة مسبقة من الهيئة للتصديق على تلك المحاضر.
 الوقائع المصرية - العدد ١18 تابع (أ) فى 56 أكتوبر سنة 25.154 ٠“$b94$
   FROM laws WHERE law_no = 223 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4748,7 +4748,7 @@ WITH ins_art_alamiria_2024_223_4 AS (
 ويعد الترخيص المؤقت لاغى فى حال عدم قيام الشركة بتوفيق أوضاعها خلال
 المدد المنصوص عليها بالقانون أو بالقرارات الصادرة عن مجلس إدارة الهيئة .$b95$
   FROM laws WHERE law_no = 223 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4767,7 +4767,7 @@ WITH ins_art_alamiria_2024_223_5 AS (
 الهيئة العامة للرقابة المالية
 د. محمد فريد صالح$b96$
   FROM laws WHERE law_no = 223 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4807,7 +4807,7 @@ WITH ins_art_alamiria_2024_236_1 AS (
  ) الباب الثانى (
  إنشاء الصندوق$b98$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4838,7 +4838,7 @@ WITH ins_art_alamiria_2024_236_2 AS (
   SELECT id, 2, NULL, $b99$تم تسجيل الصندوق طبق ًا لأحكام قانون التأمين الموحد والقرارات الصادرة
  عن الهيئة تنفيذ ًا له .$b99$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4854,7 +4854,7 @@ WITH ins_art_alamiria_2024_236_3 AS (
 الإلكترونى الذى تخصصه الهيئة لهذا الغرض مع مراعاة أحكام المادة ) (٦٧من قانون
  التأمين الموحد .$b100$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4872,7 +4872,7 @@ WITH ins_art_alamiria_2024_236_4 AS (
  قانون التأمين الموحد بموجب القرار رقم ) (.....لسنة ) (.....تحت رقم ). (.....
  ويكون الموقع الإلكترونى للصندوق .....$b101$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4884,7 +4884,7 @@ WITH ins_art_alamiria_2024_236_5 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 5, NULL, $b102$يكون مركز إدارة الصندوق الرئيسى ومحله القانونى ..... :$b102$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4895,7 +4895,7 @@ WITH ins_art_alamiria_2024_236_6 AS (
  ) الباب الثالث (
  شروط العضوية والاشتراكات بالصندوق$b103$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4940,7 +4940,7 @@ WITH ins_art_alamiria_2024_236_7 AS (
  الصندوق ،وبعد إعداد دراسة إكتوارية تفصيلية فى هذا الشأن .
  الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤ ٨$b104$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -4997,7 +4997,7 @@ WITH ins_art_alamiria_2024_236_8 AS (
 ويجوز تحصيل الاشتراكات من أعضاء الصندوق بوسائل التحصيل الإلكترونى
  وفق ًا للقواعد الصادرة عن مجلس إدارة الهيئة .$b105$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5024,7 +5024,7 @@ WITH ins_art_alamiria_2024_236_9 AS (
 تفصيلا ً ،فإذا لم يقم العضو بالسداد فى فترة غايتها شهرا من تاريخ الإخطار تنتهى
  عضويته بالفصل من الصندوق وتسوى مستحقاته وفق ًا لذلك .$b106$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5071,7 +5071,7 @@ WITH ins_art_alamiria_2024_236_10 AS (
  ) الباب الرابع (
  المزايا التأمينية$b107$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5161,7 +5161,7 @@ WITH ins_art_alamiria_2024_236_11 AS (
  يتم صرف المزايا كما يلى :
  )تنقل من الدراسة الاكتوارية($b108$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5251,7 +5251,7 @@ WITH ins_art_alamiria_2024_236_12 AS (
  الدراسة وإرسالها للهيئة خلال ثلاثة أشهر على الأكثر من تاريخ طلبها .
 ١٣ الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤$b109$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5299,7 +5299,7 @@ WITH ins_art_alamiria_2024_236_13 AS (
  ) الباب الخامس (
  النظام المالى واستثمارات الصندوق$b110$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5317,7 +5317,7 @@ WITH ins_art_alamiria_2024_236_14 AS (
  -٣مساهمة الجهة المنشأ بها الصندوق )إن وجدت( .
  -٤أى موارد أخرى يوافق عليها مجلس إدارة الصندوق وتقرها الهيئة .$b111$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5341,7 +5341,7 @@ WITH ins_art_alamiria_2024_236_15 AS (
  للصندوق لإعمال شئونهما فى ذلك ومنها اختيار مدير استثمار آخر للصندوق .
  الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤ ١٤$b112$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5371,7 +5371,7 @@ WITH ins_art_alamiria_2024_236_16 AS (
 على النموذج الذى تعده الهيئة لهذا الغرض ،وذلك كله بما لا يخل بالتزام الصندوق
  بعقد الجمعية العامة فى موعد أقصاه ثلاثة أشهر من انتهاء السنة المالية .$b113$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5407,7 +5407,7 @@ WITH ins_art_alamiria_2024_236_17 AS (
 وفى جميع الأحوال ،لا يجوز التعاقد مع مراقب الحسابات لأداء أى أعمال
  إضافية للصندوق إلا بعد موافقة الجمعية العامة للصندوق .$b114$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5446,7 +5446,7 @@ WITH ins_art_alamiria_2024_236_18 AS (
 للصندوق فلها أن تأمر بإعادة إعداد التقرير بواسطة خبير اكتوارى آخر على نفقة
  الصندوق ،ويلتزم الصندوق فى جميع الحالات بنفقات إعادة الفحص .$b115$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5482,7 +5482,7 @@ WITH ins_art_alamiria_2024_236_19 AS (
 الأعمال وتقييم مجلس الإدارة ،كما يجب إخطار الهيئة باسم مدير الاستثمار
  أو الشركة المتعاقد معها ونسخة من التعاقد المبرم معها .$b116$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5509,7 +5509,7 @@ WITH ins_art_alamiria_2024_236_20 AS (
 توقيعان على الشيك أو من خلال استخدام وسائل الدفع الإلكترونى وفق ًا للقواعد
  المنظمة لها وبعد الحصول على موافقة الهيئة .$b117$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5525,7 +5525,7 @@ WITH ins_art_alamiria_2024_236_21 AS (
 تلك الاشتراكات ،ويقوم برفع ذلك البيان لمجلس إدارة الصندوق لاتخاذ ما يلزم نحو
  أداء الرسم المشار إليه فى المواعيد التى تحددها الهيئة فى هذا الشأن .$b118$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5540,7 +5540,7 @@ WITH ins_art_alamiria_2024_236_22 AS (
  مجلس الإدارة وتعتمدها الجمعية العامة للصندوق .
 ١٧ الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤$b119$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5557,7 +5557,7 @@ WITH ins_art_alamiria_2024_236_23 AS (
  ) الباب السادس (
  السجلات والحسابات السنوية$b120$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5617,7 +5617,7 @@ WITH ins_art_alamiria_2024_236_24 AS (
 وفى جميع الأحوال ،يلتزم الصندوق بالربط مع الهيئة بشأن السجلات المشار
  إليها متى كان ذلك متاحا .$b121$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5694,7 +5694,7 @@ WITH ins_art_alamiria_2024_236_25 AS (
  ) الباب السابع (
  الجمعية العامة للصندوق$b122$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5729,7 +5729,7 @@ WITH ins_art_alamiria_2024_236_26 AS (
 المدة على الجمعية العامة التاسيسية التى تعقد لانتخاب مجلس إدارة الصندوق فور
  تسجيله بالسجل المعد لهذا الغرض بالهيئة والترخيص له بمزاولة النشاط .$b123$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5748,7 +5748,7 @@ WITH ins_art_alamiria_2024_236_27 AS (
 تستلزم ذلك وفق ًا لأحكام القانون والإجراءات والضوابط التى يحددها مجلس إدارة
  الهيئة وهذا النظام .$b124$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5773,7 +5773,7 @@ WITH ins_art_alamiria_2024_236_28 AS (
  -٨النظر فى الموضوعات الأخرى المحددة فى إخطار الدعوة .
 ٢١ الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤$b125$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5797,7 +5797,7 @@ WITH ins_art_alamiria_2024_236_29 AS (
  -٣تصفية الصندوق أو إدماجه أو تحويل أمواله إلى صندوق آخر أو إلى وثيقة
  تأمين جماعية لدى إحدى شركات التأمين العاملة فى جمهورية مصر العربية .$b126$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5829,7 +5829,7 @@ WITH ins_art_alamiria_2024_236_30 AS (
  له حق التصويت .
  الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤ ٢٢$b127$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5865,7 +5865,7 @@ WITH ins_art_alamiria_2024_236_31 AS (
 النموذج من المدير التنفيذى للصندوق وقبل انعقاد الجمعية العامة بحد أقصى اليوم
  السابق على انعقاد الجمعية ولا يجوز أن ينوب العضو عن أكثر من عضو واحد .$b128$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5891,7 +5891,7 @@ WITH ins_art_alamiria_2024_236_32 AS (
 فيشترط حضور ثلثى عدد أعضاء الصندوق أو ألف وخمسمائة عضو بأنفسهم أيهما
  أقل ويصدر القرار بموافقة ثلاثة أرباع عدد أعضاء الصندوق الحاضرين .$b129$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5934,7 +5934,7 @@ WITH ins_art_alamiria_2024_236_33 AS (
 )ب( أن يتوافر فى السجل الالكترونى تقنيات وأنظمة تكفل أمن المعلومات وعدم
  الاختراق على النحو الذى تحدده الهيئة .$b130$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5973,7 +5973,7 @@ WITH ins_art_alamiria_2024_236_34 AS (
  الرابعة مصلحة شخصية فى القرار المعروض .
  الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤ ٢٤$b131$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -5997,7 +5997,7 @@ WITH ins_art_alamiria_2024_236_35 AS (
  ) الباب الثامن (
  مجلس إدارة الصندوق$b132$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6024,7 +6024,7 @@ WITH ins_art_alamiria_2024_236_36 AS (
 حال مساهمتها أو إذا اقتضت ظروف الصندوق ذلك وبما لا يزيد على ثلث أعضاء
  المجلس على أن يكونوا من العاملين الحاليين أو السابقين بالجهة المؤسسة للصندوق .$b133$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6046,7 +6046,7 @@ WITH ins_art_alamiria_2024_236_37 AS (
  وفى حالة تساوى الأصوات يرجح الجانب الذى منه الرئيس .
  ويمثل الصندوق أمام القضاء وفى مواجهة الغير رئيس مجلس إدارته .$b134$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6070,7 +6070,7 @@ WITH ins_art_alamiria_2024_236_38 AS (
  على الترشح ما لم يكن قد رد إليه اعتباره .
  -٥أى شروط أخرى يراها الصندوق وتوافق عليها الهيئة .$b135$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6131,7 +6131,7 @@ WITH ins_art_alamiria_2024_236_39 AS (
  -۱۳متابعة الالتزام بقواعد الحوكمة الصادرة عن الهيئة فى شأن صناديق
  التأمين الخاصة .$b136$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6191,7 +6191,7 @@ WITH ins_art_alamiria_2024_236_40 AS (
 ضرورة لذلك ،ويكون له حق الاشتراك فى مناقشات المجلس دون أن يكون له
  حق التصويت .$b137$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6215,7 +6215,7 @@ WITH ins_art_alamiria_2024_236_41 AS (
  مصلحة شخصية فى القرار المعروض .
  الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤ ٢٨$b138$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6247,7 +6247,7 @@ WITH ins_art_alamiria_2024_236_42 AS (
 ويتم إخطار الهيئة والعضو بالقرار الصادر فى هذا الشأن فور صدوره والأسباب
  التى بنى عليها .$b139$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6282,7 +6282,7 @@ WITH ins_art_alamiria_2024_236_43 AS (
  على النموذج من الهيئة لهذا الغرض .
  -٦التوقيع على أذونات الصرف والشيكات مع المدير المالى المتفرغ للصندوق .$b140$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6321,7 +6321,7 @@ WITH ins_art_alamiria_2024_236_44 AS (
  ويكون له الحق فى حضور جلساته دون أن يكون له صوت معدود .
  الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤ ٣٠$b141$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6363,7 +6363,7 @@ WITH ins_art_alamiria_2024_236_45 AS (
  ) الباب التاسع (
  الرقابة الداخلية والالتزام$b142$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6388,7 +6388,7 @@ WITH ins_art_alamiria_2024_236_46 AS (
 للصندوق ،وعليهم بذل عناية الرجل الحريص فى مباشرتهم لجميع الأعمال المتعلقة
  بالصندوق وفى إداراتهم لأمواله بغية تعظيم العائد على الأموال المستثمرة .$b143$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6403,7 +6403,7 @@ WITH ins_art_alamiria_2024_236_47 AS (
  على المزايا المالية التى يمنحها الصندوق لأعضائه .
 ٣١ الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤$b144$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6432,7 +6432,7 @@ WITH ins_art_alamiria_2024_236_48 AS (
 )ب( أن يتوافر فى السجل الإلكترونى تقنيات وأنظمة تكفل أمن المعلومات وعدم
  الاختراق على النحو الذى تحدده الهيئة .$b145$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6482,7 +6482,7 @@ WITH ins_art_alamiria_2024_236_49 AS (
  ) الباب العاشر (
  تعديل النظام الأساسي$b146$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6522,7 +6522,7 @@ WITH ins_art_alamiria_2024_236_50 AS (
  ) الباب الحادى عشر (
  الاندماج والتحويل والتصفية والشطب$b147$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6544,7 +6544,7 @@ WITH ins_art_alamiria_2024_236_51 AS (
  له من حقوق وما عليه من التزامات .
  ويتم الاندماج أو التحويل وفق ًا للقواعد والإجراءات التى يحددها مجلس إدارة الهيئة .$b148$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6563,7 +6563,7 @@ WITH ins_art_alamiria_2024_236_52 AS (
  على موافقة الجمعية العامة لكل صندوق على حدة .
  ويتم التحويل وفق ًا للقواعد والإجراءات التى يحددها مجلس إدارة الهيئة .$b149$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6590,7 +6590,7 @@ WITH ins_art_alamiria_2024_236_53 AS (
 الخاصة بالصندوق إلى اللجنة بمجرد طلبها ،ويحذر عليهم التصرف فى أى شأن
  من شئون الصندوق إلا بأمر كتابى منها .$b150$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6624,7 +6624,7 @@ WITH ins_art_alamiria_2024_236_54 AS (
  ) الباب الثانى عشر (
  أحكام ختامية$b151$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6645,7 +6645,7 @@ WITH ins_art_alamiria_2024_236_55 AS (
   SELECT id, 55, NULL, $b152$يلتزم الصندوق بتحقيق المساواة والعدالة بين جميع أعضائه ،ولا يجوز تقرير
  ميزة لصالح أحد الأعضاء أو فئة منهم .$b152$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6658,7 +6658,7 @@ WITH ins_art_alamiria_2024_236_56 AS (
  عموميين فى تطبيق أحكام البابين الثالث والرابع من قانون العقوبات .
 ٣٥ الوقائع المصریة – العدد ٢٥٧تابع )ب( فى ١٩نوفمبر سنة ٢٠٢٤$b153$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6674,7 +6674,7 @@ WITH ins_art_alamiria_2024_236_57 AS (
 مقابل مبلغ لا يجاوز خمسين جنيها يتم تحصيله بالطرق المقررة قانون ًا عن كل مستند
  وفق ًا للشروط والأوضاع التى يضعها مجلس إدارة الهيئة .$b154$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6691,7 +6691,7 @@ WITH ins_art_alamiria_2024_236_58 AS (
 ويكون لممثلى الصندوق أو أى من أعضائه طلب نسخة من تلك البيانات
  من الهيئة نظير سداد الرسم ومقابل الخدمة المقرر عن كل بيان .$b155$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6707,7 +6707,7 @@ WITH ins_art_alamiria_2024_236_59 AS (
 اشتركوا فى الصندوق وسددوا اشتراكاتهم بالفعل ،ويستثنى من هذا الشرط صناديق
  التأمين الخاصة التى تعمل بنظام الاشتراكات المحددة .$b156$
   FROM laws WHERE law_no = 236 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6727,7 +6727,7 @@ WITH ins_art_alamiria_2024_237_1 AS (
 التأمين الخاصة ،والشروط الواجب توافرها فى النظام الأساسى لتلك الصناديق
  وضوابط تعديلها .$b158$
   FROM laws WHERE law_no = 237 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6763,7 +6763,7 @@ WITH ins_art_alamiria_2024_237_2 AS (
 وفى جميع الأحوال ،لا يجوز للصندوق مزاولة نشاطه إلا بعد تمام القيد
  فى سجل الهيئة ويعد ذلك ترخيصا بمزاولة النشاط .$b159$
   FROM laws WHERE law_no = 237 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6850,7 +6850,7 @@ WITH ins_art_alamiria_2024_237_3 AS (
  يتعين على الصندوق إمساكها .
  -۲۳قواعد الرقابة الداخلية والامتثال .$b160$
   FROM laws WHERE law_no = 237 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -6940,7 +6940,7 @@ WITH ins_art_alamiria_2024_237_4 AS (
 وبمراعاة أحكام المادة ) (٦٧من قانون التأمين الموحد ،ويخطر الصندوق كتابة ً بقرار
  الهيئة على أن يكون مسببا فى حالة الرفض .$b161$
   FROM laws WHERE law_no = 237 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7018,7 +7018,7 @@ WITH ins_art_alamiria_2024_237_5 AS (
 القرار اسم الصندوق وتاريخ الشطب ،وينشر قرار الشطب على الموقع الإلكترونى
  الذى تخصصه الهيئة لهذا الغرض بعد سداد مقابل مصروفات النشر المقرر .$b162$
   FROM laws WHERE law_no = 237 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7072,7 +7072,7 @@ WITH ins_art_alamiria_2024_237_6 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b163$
   FROM laws WHERE law_no = 237 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7093,7 +7093,7 @@ WITH ins_art_alamiria_2024_256_1 AS (
 ديسمبر من كل عام وذلك اعتبارا ً من العام المالي ٢٠٢٥/١/١وحتى ، ٢٠٢٥/١٢/٣١
  وتلتزم الصناديق بتعديل موعد بداية ونهاية السنة المالية لها على النحو المشار إليه .$b165$
   FROM laws WHERE law_no = 256 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7114,7 +7114,7 @@ WITH ins_art_alamiria_2024_256_2 AS (
 المصرية ،ويتم مراجعتها وإصدار تقرير بشأنها من مراقب حسابات الصندوق ،
  على أن يتم اعتمادها من جمعيته العامة وموافاة الهيئة بها خلال المواعيد المقررة .$b166$
   FROM laws WHERE law_no = 256 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7137,7 +7137,7 @@ WITH ins_art_alamiria_2024_256_3 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b167$
   FROM laws WHERE law_no = 256 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7158,7 +7158,7 @@ WITH ins_art_alamiria_2024_268_1 AS (
 ليصبح مائتين وخمسين ألف جنيه مصري ،وذلك وفق ًا للمادة ) (۳۷من قانون
  التأمين الموحد .$b169$
   FROM laws WHERE law_no = 268 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7173,7 +7173,7 @@ WITH ins_art_alamiria_2024_268_2 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b170$
   FROM laws WHERE law_no = 268 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7210,7 +7210,7 @@ WITH ins_art_alamiria_2024_273_1 AS (
 عقود التأمين ،ويتم مراجعتها وإصدار تقرير بشأنها من مراقب حسابات الشركة ،
  على أن يتم اعتمادها من جمعيتها العامة وموافاة الهيئة بها خلال المواعيد المقررة .$b172$
   FROM laws WHERE law_no = 273 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7241,7 +7241,7 @@ WITH ins_art_alamiria_2024_273_2 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b173$
   FROM laws WHERE law_no = 273 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7261,7 +7261,7 @@ WITH ins_art_alamiria_2024_278_1_1 AS (
   SELECT id, 1, NULL, $b175$تسرى أحكام هذا القرار فى شأن الشروط الواجب توافرها وضوابط اختيار الأعضاء
  من ذوى الخبرة بمجالس إدارة صناديق التأمين الخاصة .$b175$
   FROM laws WHERE law_no = 278 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7300,7 +7300,7 @@ WITH ins_art_alamiria_2024_278_1_2 AS (
 الصندوق حال فقده لأى من الشروط أو إخلاله بأى من التعهدات المشار إليها بهذه المادة .
 ٧ الوقائع المصریة – العدد ) ٢٨٦تابع( فى ٢٣دیسمبر سنة ٢٠٢٤$b176$
   FROM laws WHERE law_no = 278 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7374,7 +7374,7 @@ WITH ins_art_alamiria_2024_278_1_3 AS (
 وفى جميع الأحوال ،تتبع ذات الإجراءات المشار إليها بهذه المادة حال تجديد
  ترشيح الأعضاء من ذوى الخبرة فى مجلس إدارة الصندوق .$b177$
   FROM laws WHERE law_no = 278 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7424,7 +7424,7 @@ WITH ins_art_alamiria_2024_278_1_4 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b178$
   FROM laws WHERE law_no = 278 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7449,7 +7449,7 @@ WITH ins_art_alamiria_2024_298_1 AS (
 ولا يجوز لهؤلاء المتدربين القيام بأعمال الوساطة التأمينية إلا بعد قيدهم بالسجل
  المعد لهذا الغرض بالهيئة بمراعاة الضوابط الواردة بهذا القرار .$b180$
   FROM laws WHERE law_no = 298 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7479,7 +7479,7 @@ WITH ins_art_alamiria_2024_298_2 AS (
  - ٦اجتياز الدورة التدريبية التى تحددها الهيئة ،ويجوز للهيئة قيد المتدرب لديها
  على أن يتعهد بالحصول على الدورة التدريبية عند تحديدها من الهيئة .$b181$
   FROM laws WHERE law_no = 298 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7531,7 +7531,7 @@ WITH ins_art_alamiria_2024_298_3 AS (
 على النموذج المعد منها لهذا الغرض -عند ترك المتدرب للشركة وأسباب ذلك
  أو انتقاله للعمل إليها ،وذلك خلال عشرة أيام من تاريخ الترك أو الانتقال بحسب الأحوال .$b182$
   FROM laws WHERE law_no = 298 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7576,7 +7576,7 @@ WITH ins_art_alamiria_2024_298_4 AS (
  تمام القيد .
 ٥ الوقائع المصریة – العدد ١٩تابع )أ( فى ٢٣ینایر سنة ٢٠٢٤$b183$
   FROM laws WHERE law_no = 298 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7616,7 +7616,7 @@ WITH ins_art_alamiria_2024_298_5 AS (
  أو العملاء .
  الوقائع المصریة – العدد ١٩تابع )أ( فى ٢٣ینایر سنة ٢٠٢٤ ٦$b184$
   FROM laws WHERE law_no = 298 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7657,7 +7657,7 @@ WITH ins_art_alamiria_2024_298_6 AS (
 ويجوز أن يقترن القرار الصادر بتوقيع أى من التدابير من ) ۱إلى (۳بوجوب
  اجتياز المتدرب للدورات التدريبية التى تحددها الهيئة فى هذا الشأن .$b185$
   FROM laws WHERE law_no = 298 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7677,7 +7677,7 @@ WITH ins_art_alamiria_2024_298_7 AS (
   SELECT id, 7, NULL, $b186$يلغى قرار مجلس إدارة الهيئة رقم ١٤٦لسنة ۲۰۱۸المشار إليه ،كما يلغى كل
  حكم يخالف أحكام هذا القرار .$b186$
   FROM laws WHERE law_no = 298 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7691,7 +7691,7 @@ WITH ins_art_alamiria_2024_298_8 AS (
 الهيئة العامة للرقابة المالية
  د.محمد فريد صالح$b187$
   FROM laws WHERE law_no = 298 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7717,7 +7717,7 @@ WITH ins_art_alamiria_2025_159_1 AS (
 تأمين أو أكثر ،لمدة خمسة عشر يوما عن الموعد المقرر للمد المشار إليه
  بالفقرة السابقة .$b189$
   FROM laws WHERE law_no = 159 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7749,7 +7749,7 @@ WITH ins_art_alamiria_2025_159_2 AS (
   
   $b190$
   FROM laws WHERE law_no = 159 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7786,7 +7786,7 @@ WITH ins_art_alamiria_2025_223_1 AS (
 شركة تأمين أو أكثر ،لمدة خمسة عشر يوما عن الموعد المقرر للمد المشار إليه
  بالفقرة السابقة .$b192$
   FROM laws WHERE law_no = 223 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7804,7 +7804,7 @@ WITH ins_art_alamiria_2025_223_2 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b193$
   FROM laws WHERE law_no = 223 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7837,7 +7837,7 @@ WITH ins_art_alamiria_2025_265_2_1 AS (
 ويكون لكل صندوق مقر رئيس���ى مالئم لمباشرة نشاطه ،ويجوز له إنشاء فروع له
  فى المحافظات بعد الحصول على موافقة الهيئة.$b195$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7878,7 +7878,7 @@ WITH ins_art_alamiria_2025_265_2_2 AS (
  أى من البيانات التى تم تسجيل الصندوق بناء عليها.
  5 الوقائع املصرية -العدد ( 295تابع) فى 30ديسمبر سنة 2025$b196$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7911,7 +7911,7 @@ WITH ins_art_alamiria_2025_265_2_3 AS (
 والغي���ر ،ويلتزم الصندوق بموافاة الهيئة بمحض���ر اجتماع مجلس اإلدارة خالل ثالثين
  يوما على األكثر من تاريخ االجتماع للتصديق عليه. ً$b197$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7934,7 +7934,7 @@ WITH ins_art_alamiria_2025_265_2_4 AS (
 وف���ى جمي���ع األحوال ال يجوز ش���غل المدير التنفيذى لمنصبه أو أى من ش���اغلى
  الوظائف الرئيسية بالصندوق إال بعد الحصول على عدم ممانعة الهيئة.$b198$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -7975,7 +7975,7 @@ WITH ins_art_alamiria_2025_265_2_5 AS (
  الصندوق عن أعمال الصندوق.
  7 الوقائع املصرية -العدد ( 295تابع) فى 30ديسمبر سنة 2025$b199$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8019,7 +8019,7 @@ WITH ins_art_alamiria_2025_265_2_6 AS (
  - 4حماية أصول الصندوق ،والعمل على تعظيمها.
  - 5وضع قواعد المساءلة والمحاسبة داخل الصندوق.$b200$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8057,7 +8057,7 @@ WITH ins_art_alamiria_2025_265_2_7 AS (
 بيانات السجالت المشار إليها فى مركزه الرئيسى على أن يحتفظ كل فرع من فروعه
  بالسجالت التى تخصه ،ويجوز للصندوق إمساك وحفظ تلك السجالت إلكترون ًيا.$b201$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8091,7 +8091,7 @@ WITH ins_art_alamiria_2025_265_2_8 AS (
 وإخطار الصندوق بمالحظاتها ،وإلزام الصندوق باتخاذ اإلجراءات التصحيحية المناس���بة
  خالل األجل الذى تحدده.$b202$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8115,7 +8115,7 @@ WITH ins_art_alamiria_2025_265_2_9 AS (
  المحاسبة المصرية.
  - 5أية بيانات أخرى تطلبها الهيئة.$b203$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8144,7 +8144,7 @@ WITH ins_art_alamiria_2025_265_2_10 AS (
 س���ت سنوات مالية متصلة ،وال يجوز أن يعاد تعيينه إال بعد مرور ثالث سنوات مالية
  من انتهاء الست سنوات المشار إليها.$b204$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8175,7 +8175,7 @@ WITH ins_art_alamiria_2025_265_2_11 AS (
  ً
  تنفيذا له. تخالف أى حكم من أحكام قانون التأمين الموحد أو القرارات الصادرة$b205$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8215,7 +8215,7 @@ WITH ins_art_alamiria_2025_265_2_12 AS (
 ض���د الصن���دوق أو ضد أى من أعض���اء مجلس إدارته أو المدير التنفيذى أو ش���اغلى
  الوظائف الرئيسية ،أو األحكام الصادرة ضد أى منهم والمتعلقة بمهامهم الوظيفية.$b206$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8256,7 +8256,7 @@ WITH ins_art_alamiria_2025_265_2_13 AS (
 التقري���ر المق���دم ال يعبر عن حقيقة المركز المالى للصن���دوق ،أن تلزم الصندوق بإعادة
  إعداد التقرير بواسطة خبير اكتوارى آخر على نفقة الصندوق.$b207$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8297,7 +8297,7 @@ WITH ins_art_alamiria_2025_265_2_14 AS (
  - 4الجهات األخرى التى تحددها الهيئة فيما يخص أى أوجه اس���تثمار بخالف
  الواردة أعاله.$b208$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8331,7 +8331,7 @@ WITH ins_art_alamiria_2025_265_2_15 AS (
  فى هذا الشأن.
  13 الوقائع املصرية -العدد ( 295تابع) فى 30ديسمبر سنة 2025$b209$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8355,7 +8355,7 @@ WITH ins_art_alamiria_2025_265_2_16 AS (
  أو أكثر عن الهيئة.
  -٣تنحية واحد أو أكثر من القائمين على اإلدارة التنفيذية للصندوق.$b210$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8375,7 +8375,7 @@ WITH ins_art_alamiria_2025_265_2_17 AS (
   SELECT id, 17, NULL, $b211$تلتزم صناديق التأمين الحكومية القائمة بتوفيق أوضاعها وف ًقا ألحكام هذا القرار
  خالل سنة من تاريخ العمل به.$b211$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8389,7 +8389,7 @@ WITH ins_art_alamiria_2025_265_2_18 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b212$
   FROM laws WHERE law_no = 265 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8412,7 +8412,7 @@ WITH ins_art_alamiria_2025_269_1 AS (
 اعتبا ًرا من تاريخ نش���ر النظام األساس���ى للمعهد بالوقائع املصرية ،و ُيعد من أش���خاص
  القانون اخلاص .$b214$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8441,7 +8441,7 @@ WITH ins_art_alamiria_2025_269_2 AS (
  وف ًقا للقواعد التى يتم االتفاق عليها بني املعهدين.
  16الوقائع املصرية -العدد 271تابع (ب) فى 2ديسمبر سنة 2025$b215$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8485,7 +8485,7 @@ WITH ins_art_alamiria_2025_269_3 AS (
  فى االجتماع.
  وتصدر قرارات اجلمعية العامة بأغلبية أصوات األعضاء احلاضرين.$b216$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8541,7 +8541,7 @@ WITH ins_art_alamiria_2025_269_4 AS (
  ويختار مجلس اإلدارة من بني أعضائه رئي ًسا ونائ ًبا للرئيس.
  18الوقائع املصرية -العدد 271تابع (ب) فى 2ديسمبر سنة 2025$b217$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8579,7 +8579,7 @@ WITH ins_art_alamiria_2025_269_5 AS (
   SELECT id, 5, NULL, $b218$تك���ون مدة مجل���س إدارة املعهد أربع س���نوات تبدأ من تاريخ اختي���ار أعضائه ،
  ويجوز إعادة اختيار العضو لدورة واحدة أخرى متصلة.$b218$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8595,7 +8595,7 @@ WITH ins_art_alamiria_2025_269_6 AS (
  مستويات وتخصصات املدربني.
  مستوى املهارة التى يكتسبها املتدرب بعد االنتهاء من البرنامج.$b219$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8613,7 +8613,7 @@ WITH ins_art_alamiria_2025_269_7 AS (
 وعل���ى املعه���د إخطار الهيئ���ة بقائمة املدرب�ي�ن ملراجعتها واعتمادها ،كم���ا يتعني عليه
  إخطارها بأى تعديل فيها وال يعمل به إال بعد االعتماد.$b220$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8643,7 +8643,7 @@ WITH ins_art_alamiria_2025_269_8 AS (
  - 8اجتياز املقابلة الشخصية التى تعقدها الهيئة فى هذا الشأن.
  ويحدد النظام األساسى للمعهد اختصاصات املدير التنفيذي.$b221$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8672,7 +8672,7 @@ WITH ins_art_alamiria_2025_269_9 AS (
 له واملس���توى الذى وصل له ويتم توقيع الش���هادة من املدير التنفيذى للمعهد ورئيس
  مجلس اإلدارة.$b222$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8689,7 +8689,7 @@ WITH ins_art_alamiria_2025_269_10 AS (
  فور صدورها.
  20الوقائع املصرية -العدد 271تابع (ب) فى 2ديسمبر سنة 2025$b223$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8706,7 +8706,7 @@ WITH ins_art_alamiria_2025_269_11 AS (
 ش���هر من تاريخ صدور هذا القرار ،ويتم نش���ره بالوقائع املصرية وعلى املوقع اإللكترونى
  للمعهد والهيئة و ُيعمل به من اليوم التالى لتاريخ النشر بالوقائع املصرية .$b224$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8721,7 +8721,7 @@ WITH ins_art_alamiria_2025_269_12 AS (
  الهيئة العامة للرقابة املالية
  د .محمد فريد صالح$b225$
   FROM laws WHERE law_no = 269 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8753,7 +8753,7 @@ WITH ins_art_alamiria_2025_302_1 AS (
 فيج���ب تقديم توكيل خاص مصدق عليه متضمنًا قيمة مبلغ التأمين وما يخول للوكيل
  حق استالمه من المجمعة.$b227$
   FROM laws WHERE law_no = 302 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8785,7 +8785,7 @@ WITH ins_art_alamiria_2025_302_2 AS (
  -٣إفادة النيابة الحسبية بأرقام حسابات القصر.
  - 4إفادة بنكية ببيانات الحساب البنكى لتحويل مبلغ التأمين المستحق لهم.$b228$
   FROM laws WHERE law_no = 302 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8813,7 +8813,7 @@ WITH ins_art_alamiria_2025_302_3 AS (
  موضحا به توصيف لحالة العجز ونسبته.
  ً - 3تقرير الجهة الطبية المختصة$b229$
   FROM laws WHERE law_no = 302 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8835,7 +8835,7 @@ WITH ins_art_alamiria_2025_302_4 AS (
 المعاين لتقدير قيمه األضرار المادية لصرف مبلغ التعويض باإلضافة إلى المس���تندات
  المشار إليها بالمادة األولى من هذا القرار.$b230$
   FROM laws WHERE law_no = 302 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8849,7 +8849,7 @@ WITH ins_art_alamiria_2025_302_5 AS (
   SELECT id, 5, NULL, $b231$تلتزم المجمعة بالبت فى طلب صرف التعويض خالل ش���هر على األكثر من تاريخ
  تقديمه مستوف ًيا المستندات المؤيدة له.$b231$
   FROM laws WHERE law_no = 302 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8860,7 +8860,7 @@ WITH ins_art_alamiria_2025_302_6 AS (
   SELECT id, 6, NULL, $b232$ُيلغ���ى ق���رار الهيئ���ة المصري���ة للرقاب���ة عل���ى التأمين رق���م 345لس���نة ٢٠٠٧
  المشار إليه.$b232$
   FROM laws WHERE law_no = 302 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8874,7 +8874,7 @@ WITH ins_art_alamiria_2025_302_7 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b233$
   FROM laws WHERE law_no = 302 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8907,7 +8907,7 @@ WITH ins_art_alamiria_2025_304_1 AS (
 إنشاؤه والمبالغ المستثمرة من الشركة فى رؤوس أموال شركات صناديق االستثمار ،عن
  ( ) ٪10من الحد األدنى المقرر لرأس المال المصدر لشركات التأمين.$b235$
   FROM laws WHERE law_no = 304 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8930,7 +8930,7 @@ WITH ins_art_alamiria_2025_304_2 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 2, NULL, $b236$ُيلغى قرار مجلس إدارة الهيئة رقم 46لسنة ٢٠١٤المشار إليه.$b236$
   FROM laws WHERE law_no = 304 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8943,7 +8943,7 @@ WITH ins_art_alamiria_2025_304_3 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b237$
   FROM laws WHERE law_no = 304 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -8978,7 +8978,7 @@ WITH ins_art_alamiria_2025_306_1_1 AS (
  -٦قبول حصص إعادة تأمين من مجمعات تأمين الأخطار النووية فى نطاق
  الحدود والشروط التي ينظمها هذا النظام واللوائح الداخلية للمجمعة .$b239$
   FROM laws WHERE law_no = 306 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9007,7 +9007,7 @@ WITH ins_art_alamiria_2025_306_1_2 AS (
 الهيئة العامة للرقابة المالية
  د.محمد فريد صالح$b240$
   FROM laws WHERE law_no = 306 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9028,7 +9028,7 @@ WITH ins_art_alamiria_2026_116_2_1 AS (
 مجلس إدارة الهيئة رقم ٢٦٦لسنة ٢٠٢٥المشار إليه ،لمدة ثلاثة أشهر أخرى
  اعتبارا من تاريخ انتهاء فترة توفيق الأوضاع المنصوص عليها بالقرار المذكور .$b242$
   FROM laws WHERE law_no = 116 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9041,7 +9041,7 @@ WITH ins_art_alamiria_2026_116_2_2 AS (
 رئيس مجلس إدارة الهيئة العامة للرقابة المالية
  د /إسلام عبد العظيم عزام$b243$
   FROM laws WHERE law_no = 116 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9070,7 +9070,7 @@ WITH ins_art_alamiria_2026_130_1 AS (
  والإف
  موعد غايته ٢٠٢٦/٦/٣٠$b245$
   FROM laws WHERE law_no = 130 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9103,7 +9103,7 @@ WITH ins_art_alamiria_2026_130_2 AS (
  ل عند ا
  تداول$b246$
   FROM laws WHERE law_no = 130 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9140,7 +9140,7 @@ WITH ins_art_alamiria_2026_132_1 AS (
  بتوفيق أوضاعها خلال المدة المشار إليها بالفقرة السابقة من هذه المادة .
  الوقائع المصریة – العدد ) ١٥٨تابع( فى ٢٢یولیة سنة ٢٠٢٦ ٤$b248$
   FROM laws WHERE law_no = 132 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9160,7 +9160,7 @@ WITH ins_art_alamiria_2026_132_2 AS (
   SELECT id, 2, NULL, $b249$تنتهي المدة المسموح بها للتقدم للهيئة للحصول على الترخيص المؤقت وفق ًا
  لقرار مجلس إدارة الهيئة رقم ٩٠لسنة ٢٠٢٥المشار إليه في ٢٠٢٧/٢/١$b249$
   FROM laws WHERE law_no = 132 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9179,7 +9179,7 @@ WITH ins_art_alamiria_2026_132_3 AS (
  ل عند ا
  تداول$b250$
   FROM laws WHERE law_no = 132 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9207,7 +9207,7 @@ WITH ins_art_alamiria_2026_134_1 AS (
  تد بها
  الهيئة رقم ١٥٨لسنة ۲۰۲٥المشار إليه لتكون في موعد غايته ٢٠٢٦/١٠/٣١$b252$
   FROM laws WHERE law_no = 134 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9226,7 +9226,7 @@ WITH ins_art_alamiria_2026_134_2 AS (
  تداول
  د /إسلام عبد العظيم عزام$b253$
   FROM laws WHERE law_no = 134 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9260,7 +9260,7 @@ WITH ins_art_alamiria_2026_135_1 AS (
 تلك الشركات توزيع أي أرباح نقدية على مساهميها قبل استيفاء متطلبات الحد الأدنى
  لرأس المال إلا بعد الحصول على عدم ممانعة الهيئة .$b255$
   FROM laws WHERE law_no = 135 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9291,7 +9291,7 @@ WITH ins_art_alamiria_2026_135_2 AS (
  ل عند ا
  تداول$b256$
   FROM laws WHERE law_no = 135 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9322,7 +9322,7 @@ WITH ins_art_alamiria_2026_145_1 AS (
  تروني
  تاريخ انتهاء السنة الثانية للعمل بالقانون .$b258$
   FROM laws WHERE law_no = 145 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9352,7 +9352,7 @@ WITH ins_art_alamiria_2026_145_2 AS (
  رقم الإيداع بدار الكتب ٢٦٨لسنة ٢٠٢٦
  ٤٠٩ – ٢٠٢٦/٨/١٣ – ٢٠٢٦/ ٢٥١٥٨$b259$
   FROM laws WHERE law_no = 145 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9420,7 +9420,7 @@ WITH ins_art_alamiria_2026_2036_R_1 AS (
 والاحتيال ) (Fraudالتي تتكشف لها عند الاكتتاب لعمليات تأمينات الأشخاص ،وذلك
  فور اكتشافها مع تضمين ما جاء بالقرار ضمن السياسة الاكتتابية بالشركة.$b261$
   FROM laws WHERE law_no = 2036 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9469,7 +9469,7 @@ WITH ins_art_alamiria_2026_2036_R_2 AS (
   SELECT id, 2, NULL, $b262$تمنح الشركات المخاطبة بأحكام هذا القرار مهلة ثلاثة أشهر من تاريخ العمل به
  لتوفيق أوضاعها وفق ًا لأحكامه.$b262$
   FROM laws WHERE law_no = 2036 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9482,7 +9482,7 @@ WITH ins_art_alamiria_2026_2036_R_3 AS (
  رئيس مجلس إدارة الهيئة
  د /إسلام عزام$b263$
   FROM laws WHERE law_no = 2036 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9509,7 +9509,7 @@ WITH ins_art_alamiria_2026_2044_R_1_1 AS (
  تد بها
  الإخلال بأحكام المادة ) (۲۰۹من قانون التأمين الموحد .$b265$
   FROM laws WHERE law_no = 2044 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9538,7 +9538,7 @@ WITH ins_art_alamiria_2026_2044_R_1_2 AS (
 العقود معدة وفق ًا للأسس الفنية والتقرير الإكتواري وترتيبات إعادة التأمين السابق
  موافاة الهيئة بها .$b266$
   FROM laws WHERE law_no = 2044 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9562,7 +9562,7 @@ WITH ins_art_alamiria_2026_2044_R_1_3 AS (
 المخطر بها مع العقود السابق اعتماد الهيئة لها عند الإصدار وأنها مجددة وفق ًا للأسس
  الفنية والتقرير الإكتواري وترتيبات إعادة التأمين السابق موافاة الهيئة بها .$b267$
   FROM laws WHERE law_no = 2044 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9584,7 +9584,7 @@ WITH ins_art_alamiria_2026_2044_R_1_4 AS (
 إليها أو التقارير الإكتوارية لتلك العقود على أن تكون متضمنة الخبرة الفعلية لها
  أو أي من المستندات الأخرى ذات الصلة بتلك العقود .$b268$
   FROM laws WHERE law_no = 2044 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9610,7 +9610,7 @@ WITH ins_art_alamiria_2026_2044_R_1_5 AS (
  الهيئة العامة للرقابة المالية
  د /إسلام عبد العظيم عزام$b269$
   FROM laws WHERE law_no = 2044 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9648,7 +9648,7 @@ WITH ins_art_alamiria_2026_25_1 AS (
  ة ال يع
  الاستشارية فى مجال التأمين .$b271$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9687,7 +9687,7 @@ WITH ins_art_alamiria_2026_25_2 AS (
 القائم بالإدارة التنفيذية :هو الرئيس التنفيذي أو العضو المنتدب لشركة الخبرة
  الاستشارية في مجال التأمين .$b272$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9717,7 +9717,7 @@ WITH ins_art_alamiria_2026_25_3 AS (
 للتشريعات المنظمة للأنشطة المالية غير المصرفية قبل التعاقد أو تعيين أحد الخبراء
  الاستشاريين في مجال التأمين للعمل لديها .$b273$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9752,7 +9752,7 @@ WITH ins_art_alamiria_2026_25_4 AS (
  التأسيس والترخيص والقيد بالسجل
  أولا ً -تأسيس وترخيص وقيد الأشخاص الاعتبارية$b274$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9838,7 +9838,7 @@ WITH ins_art_alamiria_2026_25_5 AS (
  ضمن العاملين بها .
  تد بها$b275$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -9951,7 +9951,7 @@ WITH ins_art_alamiria_2026_25_6 AS (
  التأسيس وذلك وفقا ً لقرارات مجلس إدارة الهيئة الصادرة في هذا الشأن .
  -١١أي بيانات أو مستندات أخرى ترى الهيئة ضرورة تقديمها للبت في الطلب .$b276$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10013,7 +10013,7 @@ WITH ins_art_alamiria_2026_25_7 AS (
  صورة إ
  أسبوع من تاريخ صدوره .$b277$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10068,7 +10068,7 @@ WITH ins_art_alamiria_2026_25_8 AS (
  سنوات السابقة على طلب الترخيص .
  ة ال يع$b278$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10129,7 +10129,7 @@ WITH ins_art_alamiria_2026_25_9 AS (
  الهيئة لهذا الغرض .
 ١١ الوقائع المصریة – العدد ) ٤٥تابع( فى ٢٤فبرایر سنة ٢٠٢٦$b279$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10161,7 +10161,7 @@ WITH ins_art_alamiria_2026_25_10 AS (
  ثانيا -قيد الأشخاص الطبيعيين في السجل
  صورة إ$b280$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10225,7 +10225,7 @@ WITH ins_art_alamiria_2026_25_11 AS (
  الشروط المنصوص عليها بهذه المادة .
  تد بها$b281$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10343,7 +10343,7 @@ WITH ins_art_alamiria_2026_25_12 AS (
  المستندات المتطلبة للبت فيه .
  ة ال يع$b282$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10455,7 +10455,7 @@ WITH ins_art_alamiria_2026_25_13 AS (
  تغطيتهم من خلال وثيقة مهنية شاملة وفقا للبند أولا ً من هذه المادة .
  تد بها$b283$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10517,7 +10517,7 @@ WITH ins_art_alamiria_2026_25_14 AS (
 وتقوم الهيئة بالبت في الطلب خلال عشرة أيام على الأكثر من تاريخ استيفاء
  المستندات المطلوبة .$b284$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10557,7 +10557,7 @@ WITH ins_art_alamiria_2026_25_15 AS (
  -٤فتح أو إيقاف أو نقل أو غلق أي فرع من فروع الشركة ،أو إيقاف نشاطها .
  تد بها$b285$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10596,7 +10596,7 @@ WITH ins_art_alamiria_2026_25_16 AS (
  قواعد مزاولة نشاط أعمال الخبرة الاستشارية
  في مجال التأمين والتزامات خبراء التأمين الاستشاريين$b286$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10632,7 +10632,7 @@ WITH ins_art_alamiria_2026_25_17 AS (
  -٤اجتياز الاختبار الذي تعقده الهيئة في هذا الشأن .
  تد بها$b287$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10674,7 +10674,7 @@ WITH ins_art_alamiria_2026_25_18 AS (
  من تاريخ خلو المنصب أو قيام ذلك المانع ،ما لم تقرر الهيئة موعدا ً آخر .
  صورة إ$b288$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10723,7 +10723,7 @@ WITH ins_art_alamiria_2026_25_19 AS (
  عدم حضور ممثل عن الهيئة .
 ١٩ الوقائع المصریة – العدد ) ٤٥تابع( فى ٢٤فبرایر سنة ٢٠٢٦$b289$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10780,7 +10780,7 @@ WITH ins_art_alamiria_2026_25_20 AS (
  ولإجمالي الفروع .
  الوقائع المصریة – العدد ) ٤٥تابع( فى ٢٤فبرایر سنة ٢٠٢٦ ٢٠$b290$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10855,7 +10855,7 @@ WITH ins_art_alamiria_2026_25_21 AS (
  ً
  ثالثا -أي سجلات أخرى تحددها الهيئة :$b291$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -10953,7 +10953,7 @@ WITH ins_art_alamiria_2026_25_22 AS (
  متى طلب منه ذلك .
  تد بها$b292$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11036,7 +11036,7 @@ WITH ins_art_alamiria_2026_25_23 AS (
  إيقاف القيد والتدابير الإدارية لك
  تروني$b293$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11086,7 +11086,7 @@ WITH ins_art_alamiria_2026_25_24 AS (
 الهيئة بطلب لتعديل بيانات قيده بالسجل ،واستيفاء أي شروط متطلبة لذلك .ويشطب
  خبير التأمين الاستشاري من السجل حال انتهاء مدة قيده دون قيامه بتعديل بياناته .$b294$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11136,7 +11136,7 @@ WITH ins_art_alamiria_2026_25_25 AS (
  على غش أو خطأ جسيم.
 ٢٥ الوقائع المصریة – العدد ) ٤٥تابع( فى ٢٤فبرایر سنة ٢٠٢٦$b295$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11170,7 +11170,7 @@ WITH ins_art_alamiria_2026_25_26 AS (
 يتعين على خبراء التأمين الاستشاريين المخاطبين بأحكام هذا القرار توفيق
  أوضاعهم وفقا ً لأحكامه خلال ستة أشهر من تاريخ العمل به .$b296$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11191,7 +11191,7 @@ WITH ins_art_alamiria_2026_25_27 AS (
  ل عند ا
  تداول$b297$
   FROM laws WHERE law_no = 25 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11221,7 +11221,7 @@ WITH ins_art_alamiria_2026_27_1 AS (
 ويجوز التأمين على العملاء ممن تجاوزوا السن المشار إليه ضد المخاطر
  المذكورة وفقا ً لما يتم الاتفاق عليه بين شركة التأمين وجهة التمويل .$b299$
   FROM laws WHERE law_no = 27 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11236,7 +11236,7 @@ WITH ins_art_alamiria_2026_27_2 AS (
   SELECT id, 2, NULL, $b300$تلتزم شركات التأمين والجهات المرخص لها بتمويل المشروعات متناهية الصغر
  بتوفيق أوضاعها وفقا ً لأحكام هذا القرار خلال ستة أشهر من تاريخ العمل به .$b300$
   FROM laws WHERE law_no = 27 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11246,7 +11246,7 @@ WITH ins_art_alamiria_2026_27_3 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 3, NULL, $b301$يلغى قرار مجلس إدارة الهيئة رقم ١٦لسنة ٢٠١٩المشار إليه .$b301$
   FROM laws WHERE law_no = 27 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11423,7 +11423,7 @@ WITH ins_art_alamiria_2026_27_4 AS (
  التوقيعات
  الطرف الثاني الطرف الأول$b302$
   FROM laws WHERE law_no = 27 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11612,7 +11612,7 @@ WITH ins_art_alamiria_2026_28_1 AS (
 ويجوز التأمين على العملاء ممن تجاوزوا السن المشار إليه ضد المخاطر
  المذكورة وفقا ً لما يتم الاتفاق عليه بين شركة التأمين وشركة التمويل .$b304$
   FROM laws WHERE law_no = 28 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11631,7 +11631,7 @@ WITH ins_art_alamiria_2026_28_2 AS (
 وتعفى عقود التأمين المشار إليها من مقابل الخدمات المنصوص عليه بقرار
  مجلس إدارة الهيئة رقم ١٤٤لسنة ٢٠١٨المشار إليه .$b305$
   FROM laws WHERE law_no = 28 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11645,7 +11645,7 @@ WITH ins_art_alamiria_2026_28_3 AS (
   SELECT id, 3, NULL, $b306$تلتزم شركات التأمين والشركات المرخص لها بمزاولة نشاط التمويل الاستهلاكي
  بتوفيق أوضاعها وفقا ً لأحكام هذا القرار خلال ستة أشهر من تاريخ العمل به .$b306$
   FROM laws WHERE law_no = 28 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -11819,7 +11819,7 @@ WITH ins_art_alamiria_2026_28_4 AS (
  التوقيعات
  الطرف الثاني الطرف الأول$b307$
   FROM laws WHERE law_no = 28 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12022,7 +12022,7 @@ WITH ins_art_alamiria_2026_29_1 AS (
  -٥ملخص عن أهم نتائج التقديرات موضحا بها أي تحفظات.
  - ٦الإفصاح عن أي حالة من حالات تعارض المصالح أو حالات الشبهة بها.$b309$
   FROM laws WHERE law_no = 29 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12057,7 +12057,7 @@ WITH ins_art_alamiria_2026_29_2 AS (
 في السنة المالية المنتهية في ، ٢٠٢٥/١٢/٣١خلال خمسة عشر يوما من تاريخ
  العمل بهذا القرار.$b310$
   FROM laws WHERE law_no = 29 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12072,7 +12072,7 @@ WITH ins_art_alamiria_2026_29_3 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b311$
   FROM laws WHERE law_no = 29 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12101,7 +12101,7 @@ WITH ins_art_alamiria_2026_3_1 AS (
 المركز المالي الذي تحقق فيه العجز مع التزام الشركة بتقديم خطة لاستيفاء العجز
  خلال المهلة الممنوحة .$b313$
   FROM laws WHERE law_no = 3 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12124,7 +12124,7 @@ WITH ins_art_alamiria_2026_3_2 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b314$
   FROM laws WHERE law_no = 3 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12152,7 +12152,7 @@ WITH ins_art_alamiria_2026_35_1 AS (
 ويجب على الشركات المشار إليها تجديد الوثيقة سنويا ،وكذا الإفصاح بشكل
  فوري عن أي تعديل أو إلغاء يطرأ عليها خلال مدة سريانها.$b316$
   FROM laws WHERE law_no = 35 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12171,7 +12171,7 @@ WITH ins_art_alamiria_2026_35_2 AS (
   SELECT id, 2, NULL, $b317$تلتزم الشركات المشار إليها القائمة وقت العمل بهذا القرار بتوفيق أوضاعها
  وفقا ً لأحكامه وموافاة الهيئة بنسخة من الوثيقة خلال ستة أشهر من تاريخ العمل به.$b317$
   FROM laws WHERE law_no = 35 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12185,7 +12185,7 @@ WITH ins_art_alamiria_2026_35_3 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b318$
   FROM laws WHERE law_no = 35 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12208,7 +12208,7 @@ WITH ins_art_alamiria_2026_38_1 AS (
  الإدارة لتكون في موعد غايته ٢٠٢٦/٤/٣٠
 ٧ الوقائع المصریة – العدد ٣٩تابع )ب( فى ١٧فبرایر سنة ٢٠٢٦$b320$
   FROM laws WHERE law_no = 38 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12224,7 +12224,7 @@ WITH ins_art_alamiria_2026_38_2 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b321$
   FROM laws WHERE law_no = 38 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12250,7 +12250,7 @@ WITH ins_art_alamiria_2026_4_1 AS (
 تلك الشركات توزيع أى أرباح نقدية على مساهميها قبل استيفاء متطلبات الحد الأدنى
  لرأس المال إلا بعد الحصول على عدم ممانعة الهيئة .$b323$
   FROM laws WHERE law_no = 4 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12270,7 +12270,7 @@ WITH ins_art_alamiria_2026_4_2 AS (
 الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b324$
   FROM laws WHERE law_no = 4 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12299,7 +12299,7 @@ WITH ins_art_alamiria_2026_42_1 AS (
  الأستاذ /جمال محمد صقر – عضو من ذوى الخبرة -عضوا .
  ممثل عن الهيئة العامة للرقابة المالية -يختاره رئيس الهيئة -عضوا .$b326$
   FROM laws WHERE law_no = 42 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12321,7 +12321,7 @@ WITH ins_art_alamiria_2026_42_2 AS (
 السالف الإشارة إليه أمام اللجنة المشار إليها في المادة السابقة خلال ثلاثين يوما ً من
  تاريخ صدور القرار المتظلم منه أو انتهاء الأجل الخاص بصدوره .$b327$
   FROM laws WHERE law_no = 42 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12341,7 +12341,7 @@ WITH ins_art_alamiria_2026_42_3 AS (
  -٤إيصال سداد رسم التظلم المقرر قانونا ً بقيمة عشرين ألف جنيه .
  ة ال يع$b328$
   FROM laws WHERE law_no = 42 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12370,7 +12370,7 @@ WITH ins_art_alamiria_2026_42_4 AS (
  أو بالبريد الإلكتروني ،أو باستخدام الرسائل النصية على رقم هاتفه المسجل لدي الهيئة .
 ٣٥ الوقائع المصریة – العدد ) ٤٥تابع( فى ٢٤فبرایر سنة ٢٠٢٦$b329$
   FROM laws WHERE law_no = 42 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12396,7 +12396,7 @@ WITH ins_art_alamiria_2026_42_5 AS (
 اللجنة مشتملا ً علي الأسباب التي بني عليها ،ويكون قرار اللجنة نهائيا ً ونافذا ً
  وملزما ً لأطرافه .$b330$
   FROM laws WHERE law_no = 42 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12415,7 +12415,7 @@ WITH ins_art_alamiria_2026_42_6 AS (
 مسجل مصحوب بعلم الوصول أو على البريد الالكتروني ،وذلك خلال أسبوع على
  الأكثر من تاريخ صدور قرار اللجنة .$b331$
   FROM laws WHERE law_no = 42 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12432,7 +12432,7 @@ WITH ins_art_alamiria_2026_42_7 AS (
  تاريخ صدور الإلغاء .
  ة ال يع$b332$
   FROM laws WHERE law_no = 42 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12446,7 +12446,7 @@ WITH ins_art_alamiria_2026_42_8 AS (
   SELECT id, 8, NULL, $b333$يلغى قرار مجلس إدارة الهيئة رقم ۲۸۳لسنة ٢٠٢٥المشار إليه .
  تد بها$b333$
   FROM laws WHERE law_no = 42 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12463,7 +12463,7 @@ WITH ins_art_alamiria_2026_42_9 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b334$
   FROM laws WHERE law_no = 42 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12504,7 +12504,7 @@ WITH ins_art_alamiria_2026_54_1 AS (
  تقييم األخطار ومعاينة وتقدير األضرار في مجال التأمين.
  عند ا$b336$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12545,7 +12545,7 @@ WITH ins_art_alamiria_2026_54_2 AS (
 القائم باإلدارة التنفيذية هو الرئيس التنفيذى أو العضو المنتدب لشركة الخبرة فى
  تقييم األخطار ومعاينة وتقدير األضرار فى مجال التأمين.$b337$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12578,7 +12578,7 @@ WITH ins_art_alamiria_2026_54_3 AS (
 قب���ل التعاقد أو تعيين أحد خب���راء تقييم األخطار ومعاينة وتقدي���ر األضرار فى مجال
  التأمين للعمل لديها.$b338$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12623,7 +12623,7 @@ WITH ins_art_alamiria_2026_54_4 AS (
  اً
  أول -تأسيس وترخيص وقيد األشخاص االعتبارية$b339$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12713,7 +12713,7 @@ WITH ins_art_alamiria_2026_54_5 AS (
 (ج) أال يكون أحد أعضاء مجلس إدارة الش���ركة عض ًوا بمجلس إدارة شركة أخرى
  تزاول ذات النشاط أو من العاملين بها.$b340$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12836,7 +12836,7 @@ WITH ins_art_alamiria_2026_54_6 AS (
  - ١١أى بيانات أو مستندات أخرى ترى الهيئة ضرورة تقديمها للبت فى الطلب.
  الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026 10$b341$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12909,7 +12909,7 @@ WITH ins_art_alamiria_2026_54_7 AS (
  التأس���يس خالل خمسة عش���ر ً
  الطلب ،ويتم إخطار وكيل المؤسسين بالقرار خالل أسبوع من تاريخ صدوره.$b342$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12952,7 +12952,7 @@ WITH ins_art_alamiria_2026_54_8 AS (
  - 8المس���تند الدال على سداد رسم تسجيل وقيد الشركة وف ًقا لقرار مجلس إدارة
  الهيئة الصادر فى هذا الشأن.$b343$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -12999,7 +12999,7 @@ WITH ins_art_alamiria_2026_54_9 AS (
  لك
  اإللكترونى الذى تخصصه الهيئة لهذا الغرض.$b344$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13034,7 +13034,7 @@ WITH ins_art_alamiria_2026_54_10 AS (
  الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026 12
  ثان ًيا -قيد األشخاص الطبيعيين فى السجل$b345$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13095,7 +13095,7 @@ WITH ins_art_alamiria_2026_54_11 AS (
 ويش���ترط لتجديد قيد أو إعادة قيد خبير تقييم األخطار ومعاينة وتقدير األضرار
  بالسجل استمرار توافر الشروط المنصوص عليها بهذه المادة .$b346$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13194,7 +13194,7 @@ WITH ins_art_alamiria_2026_54_12 AS (
  مستوف ًيا المستندات المتطلبة للبت فيه.
  15 الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026$b347$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13302,7 +13302,7 @@ WITH ins_art_alamiria_2026_54_13 AS (
 أخطائهم قبل حملة الوثائق أو المستفيدين منها أو الغير فى التأمينات الصادرة عنها.
  تروني$b348$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13376,7 +13376,7 @@ WITH ins_art_alamiria_2026_54_14 AS (
 المستندات المطلوبة ،ويجوز لها إجراء الفحص الميدانى للتحقق من استيفاء المتطلبات
  الالزمة لمزاولة النشاط.$b349$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13429,7 +13429,7 @@ WITH ins_art_alamiria_2026_54_15 AS (
  - 4فتح أو إيقاف أو نقل أو غلق أى فرع من فروع الشركة.
  الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026 18$b350$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13473,7 +13473,7 @@ WITH ins_art_alamiria_2026_54_16 AS (
  قواعد مزاولة نشاط الخبرة فى تقييم األخطار ومعاينة وتقدير األضرار
  والتزامات الخبراء الذين يزاولون هذا النشاط$b351$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13509,7 +13509,7 @@ WITH ins_art_alamiria_2026_54_17 AS (
  - 4اجتياز االختبار الذى تعقده الهيئة فى هذا الشأن.
  19 الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026$b352$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13555,7 +13555,7 @@ WITH ins_art_alamiria_2026_54_18 AS (
 ب���اإلدارة التنفيذية ال���واردة بالمادة ( )۱۷من هذا القرار ،وذلك خالل س���تين يوم عمل
 على األكثر من تاريخ خلو المنصب أو قيام ذلك المانع ،ما لم تقرر الهيئة موعدً ا آخر.$b353$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13606,7 +13606,7 @@ WITH ins_art_alamiria_2026_54_19 AS (
  حضور ممثل عن الهيئة.
  صورة إ$b354$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13667,7 +13667,7 @@ WITH ins_art_alamiria_2026_54_20 AS (
  وإلجمالى الفروع .
  صورة إ$b355$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13746,7 +13746,7 @@ WITH ins_art_alamiria_2026_54_21 AS (
  ة ال يع
  ثال ًثا -أى سجالت أخرى تحددها الهيئة .$b356$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13861,7 +13861,7 @@ WITH ins_art_alamiria_2026_54_22 AS (
  متى ُطلب منه ذلك.
  تد بها$b357$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -13959,7 +13959,7 @@ WITH ins_art_alamiria_2026_54_23 AS (
  صورة إ
  إيقاف القيد والتدابير اإلدارية$b358$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14013,7 +14013,7 @@ WITH ins_art_alamiria_2026_54_24 AS (
 متطلبة لذلك .و ُيش���طب خبير تقييم األخطار ومعاينة وتقدير األضرار من الس���جل حال
  انتهاء مدة قيده دون قيامه بتعديل بياناته.$b359$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14069,7 +14069,7 @@ WITH ins_art_alamiria_2026_54_25 AS (
  على غش أو خطأ جسيم .
  27 الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026$b360$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14107,7 +14107,7 @@ WITH ins_art_alamiria_2026_54_26 AS (
 ويتعي���ن على الخبراء المش���ار إليهم التقدم للهيئ���ة لتحديث بياناتهم على النحو
  الوارد بهذا القرار خالل موعد أقصاه تاريخ انتهاء مهلة توفيق األوضاع المذكورة.$b361$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14123,7 +14123,7 @@ WITH ins_art_alamiria_2026_54_27 AS (
  حكم يخالف أحكام هذا القرار.
  صورة إ$b362$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14143,7 +14143,7 @@ WITH ins_art_alamiria_2026_54_28 AS (
  ل عند ا
  تداول$b363$
   FROM laws WHERE law_no = 54 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14175,7 +14175,7 @@ WITH ins_art_alamiria_2026_55_1 AS (
  تد بها
  غير المقيدين بالقائمة المشار إليها.$b365$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14207,7 +14207,7 @@ WITH ins_art_alamiria_2026_55_2 AS (
 بإعادة التأمين نيابة عن ش���ركات إعادة التأمين ،كما تحدد االتفاقية نطاق السلطات
  واالختصاصات المفوض بها وكيل اإلدارة العمومى فى هذا الشأن.$b366$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14240,7 +14240,7 @@ WITH ins_art_alamiria_2026_55_3 AS (
  -٣شركات إعادة التأمين المتعاقد معها.
  ة ال يع$b367$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14290,7 +14290,7 @@ WITH ins_art_alamiria_2026_55_4 AS (
  ة ال يع
  المركزى المصري.$b368$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14362,7 +14362,7 @@ WITH ins_art_alamiria_2026_55_5 AS (
  ة ال يع
  التنفيذيين به للتأكد من كفاءتهم وخبرتهم.$b369$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14411,7 +14411,7 @@ WITH ins_art_alamiria_2026_55_6 AS (
  انتهاء مدة القيد وحتى صدور قرار الهيئة بالبت فى طلب التجديد.
  الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026 32$b370$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14457,7 +14457,7 @@ WITH ins_art_alamiria_2026_55_7 AS (
  - ٩موافاة الهيئة بأى بيانات أو مستندات تطلبها بشأن نشاطه.
  33 الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026$b371$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14513,7 +14513,7 @@ WITH ins_art_alamiria_2026_55_8 AS (
  حقوقها فى هذا الشأن.
  تد بها$b372$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14556,7 +14556,7 @@ WITH ins_art_alamiria_2026_55_9 AS (
 وفى جميع األحوال ،يجوز فى حال صدور قرار بالشطب أن يتم تقديم طلب بإعادة
  القيد بالقائمة شريطة زوال سبب الشطب.$b373$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14590,7 +14590,7 @@ WITH ins_art_alamiria_2026_55_10 AS (
  خالل شهر من تاريخ العمل به.
  تد بها$b374$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14615,7 +14615,7 @@ WITH ins_art_alamiria_2026_55_11 AS (
  تداول
  د /إسالم عبد العظيم عزام$b375$
   FROM laws WHERE law_no = 55 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14648,7 +14648,7 @@ WITH ins_art_alamiria_2026_56_1 AS (
  لك
  تروني الخبرة االكتوارية.$b377$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14683,7 +14683,7 @@ WITH ins_art_alamiria_2026_56_2 AS (
  قبل التعاقد أو تعيين أحد الخبراء االكتواريين فى مجال التأمين للعمل لديها.
  37 الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026$b378$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14727,7 +14727,7 @@ WITH ins_art_alamiria_2026_56_3 AS (
  اً
  أول -تأسيس وترخيص وقيد األشخاص االعتبارية$b379$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14812,7 +14812,7 @@ WITH ins_art_alamiria_2026_56_4 AS (
 (ج) أال يكون أحد أعضاء مجلس إدارة الش���ركة عض ًوا بمجلس إدارة شركة أخرى
  تزاول ذات النشاط أو من العاملين بها.$b380$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14928,7 +14928,7 @@ WITH ins_art_alamiria_2026_56_5 AS (
  - ۱۱أى بيانات أو مستندات أخرى ترى الهيئة ضرورة تقديمها للبت فى الطلب.
  41 الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026$b381$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -14995,7 +14995,7 @@ WITH ins_art_alamiria_2026_56_6 AS (
 من تاريخ استيفاء المستندات المتطلبة للبت فى الطلب ،ويتم إخطار وكيل المؤسسين
  بالقرار خالل أسبوع من تاريخ صدوره.$b382$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15037,7 +15037,7 @@ WITH ins_art_alamiria_2026_56_7 AS (
  - 8المس���تند الدال على سداد رسم تسجيل وقيد الشركة وف ًقا لقرار مجلس إدارة
  الهيئة الصادر فى هذا الشأن.$b383$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15085,7 +15085,7 @@ WITH ins_art_alamiria_2026_56_8 AS (
  الهيئة لهذا الغرض.
  تروني$b384$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15121,7 +15121,7 @@ WITH ins_art_alamiria_2026_56_9 AS (
  43 الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026
  ثان ًيا -قيد األشخاص الطبيعيين فى السجل$b385$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15184,7 +15184,7 @@ WITH ins_art_alamiria_2026_56_10 AS (
  صورة إ
  بالسجل استمرار توافر الشروط المنصوص عليها بهذه المادة.$b386$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15302,7 +15302,7 @@ WITH ins_art_alamiria_2026_56_11 AS (
  من تاريخ تقديمه مستوف ًيا المستندات المتطلبة للبت فيه.
  ة ال يع$b387$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15431,7 +15431,7 @@ WITH ins_art_alamiria_2026_56_12 AS (
 وف���ى جميع األح���وال ،ال يدخل فى تقدير حجم األعمال لوثيقة تأمين المس���ئولية
  المهنية ،أعمال المراجعة على النظراء (. )Peer Review$b388$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15510,7 +15510,7 @@ WITH ins_art_alamiria_2026_56_13 AS (
  الالزمة لمزاولة النشاط.
  49 الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026$b389$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15553,7 +15553,7 @@ WITH ins_art_alamiria_2026_56_14 AS (
  - 4فتح أو إيقاف أو نقل أو غلق أى فرع من فروع الشركة .
  لك$b390$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15593,7 +15593,7 @@ WITH ins_art_alamiria_2026_56_15 AS (
  قواعد مزاولة نشاط الخبرة االكتوارية والتزامات
  الخبراء الذين يزاولون هذا النشاط$b391$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15625,7 +15625,7 @@ WITH ins_art_alamiria_2026_56_16 AS (
  - 4اجتياز االختبار الذى تعقده الهيئة فى هذا الشأن.
  صورة إ$b392$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15663,7 +15663,7 @@ WITH ins_art_alamiria_2026_56_17 AS (
 ب���اإلدارة التنفيذية ال���واردة بالمادة ( )١٦من هذا القرار ،وذلك خالل س���تين يوم عمل
 على األكثر من تاريخ خلو المنصب أو قيام ذلك المانع ،ما لم تقرر الهيئة موعدً ا آخر.$b393$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15712,7 +15712,7 @@ WITH ins_art_alamiria_2026_56_18 AS (
  عدم حضور ممثل عن الهيئة.
  تد بها$b394$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15768,7 +15768,7 @@ WITH ins_art_alamiria_2026_56_19 AS (
  ة ال يع
  وإلجمالى الفروع.$b395$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15838,7 +15838,7 @@ WITH ins_art_alamiria_2026_56_20 AS (
  ثال ًثا -أى سجالت أخرى تحددها الهيئة .
  تد بها$b396$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -15939,7 +15939,7 @@ WITH ins_art_alamiria_2026_56_21 AS (
  ة ال يع
  متى طلب منه ذلك.$b397$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16030,7 +16030,7 @@ WITH ins_art_alamiria_2026_56_22 AS (
  إيقاف القيد والتدابير اإلدارية
  صورة إ$b398$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16082,7 +16082,7 @@ WITH ins_art_alamiria_2026_56_23 AS (
 و ُيش���طب الخبي���ر االكت���وارى من الس���جل ح���ال انتهاء م���دة قي���ده دون قيامه
  بتعديل بياناته.$b399$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16136,7 +16136,7 @@ WITH ins_art_alamiria_2026_56_24 AS (
  على غش أو خطأ جسيم .
  الوقائع املصرية -العدد ( 87تابع) فى 20أبريل سنة 2026 58$b400$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16171,7 +16171,7 @@ WITH ins_art_alamiria_2026_56_25 AS (
 ويتعي���ن على الخبراء المش���ار إليهم التقدم للهيئ���ة لتحديث بياناتهم على النحو
  الوارد بهذا القرار خالل موعد أقصاه تاريخ انتهاء مهلة توفيق األوضاع المذكورة.$b401$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16192,7 +16192,7 @@ WITH ins_art_alamiria_2026_56_26 AS (
  ل عند ا
  تداول$b402$
   FROM laws WHERE law_no = 56 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16228,7 +16228,7 @@ WITH ins_art_alamiria_2026_57_1 AS (
  ممثل عن الهيئة العامة للرقابة المالية -يختاره رئيس الهيئة عضوا .
 ٣ الوقائع المصریة – العدد ) ٦٣تابع( فى ١٧مارس سنة ٢٠٢٦$b404$
   FROM laws WHERE law_no = 57 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16251,7 +16251,7 @@ WITH ins_art_alamiria_2026_57_2 AS (
 السالف الإشارة إليه أمام اللجنة المشار إليها في المادة السابقة خلال ثلاثين يوما من
  تاريخ صدور القرار المتظلم منه أو انتهاء الأجل الخاص بصدوره .$b405$
   FROM laws WHERE law_no = 57 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16267,7 +16267,7 @@ WITH ins_art_alamiria_2026_57_3 AS (
  -٣موضوع التظلم والأسباب التي بني عليها والمستندات المؤيدة له .
  -٤إيصال سداد رسم التظلم المقرر قانون ًا بقيمة عشرين ألف جنيه .$b406$
   FROM laws WHERE law_no = 57 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16291,7 +16291,7 @@ WITH ins_art_alamiria_2026_57_4 AS (
 على أن يخطر المتظلم بتاريخ الجلسة بخطاب مسجل مصحوب بعلم الوصول
 أو بالبريد الإلكتروني ،أو باستخدام الرسائل النصية على رقم هاتفه المسجل لدي الهيئة .$b407$
   FROM laws WHERE law_no = 57 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16320,7 +16320,7 @@ WITH ins_art_alamiria_2026_57_5 AS (
  على الأسباب التي بني عليها ،ويكون قرار اللجنة نهائيا ونافذ ًا وملزما لأطرافه .
  الوقائع المصریة – العدد ) ٦٣تابع( فى ١٧مارس سنة ٢٠٢٦ ٤$b408$
   FROM laws WHERE law_no = 57 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16342,7 +16342,7 @@ WITH ins_art_alamiria_2026_57_6 AS (
 مسجل مصحوب بعلم الوصول أو على البريد الالكتروني ،وذلك خلال أسبوع على
  الأكثر من تاريخ صدور قرار اللجنة .$b409$
   FROM laws WHERE law_no = 57 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16355,7 +16355,7 @@ WITH ins_art_alamiria_2026_57_7 AS (
   SELECT id, 7, NULL, $b410$يرد رسم التظلم إلى المتظلم حال إلغاء القرار خلال ثلاثين يوما على الأكثر من
  تاريخ صدور الإلغاء .$b410$
   FROM laws WHERE law_no = 57 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16383,7 +16383,7 @@ WITH ins_art_alamiria_2026_57_8 AS (
  ل
  تداول$b411$
   FROM laws WHERE law_no = 57 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16420,7 +16420,7 @@ WITH ins_art_alamiria_2026_64_1 AS (
  تد بها
  الهيئة رقم ١٥٨لسنة ۲۰۲٥المشار إليه ،لتكون في موعد غايته ٢٠٢٦/٧/١٠$b413$
   FROM laws WHERE law_no = 64 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16439,7 +16439,7 @@ WITH ins_art_alamiria_2026_64_2 AS (
  تداول
 محمد عبد الحميد الصياد$b414$
   FROM laws WHERE law_no = 64 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16465,7 +16465,7 @@ WITH ins_art_alamiria_2026_70_1 AS (
  المرخص لها بمزاولة التأمين التكافلي في مصر .
  الوقائع المصریة – العدد ١٠٠تابع )أ( فى ٦مایو سنة ٢٠٢٦ ٤$b416$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16510,7 +16510,7 @@ WITH ins_art_alamiria_2026_70_2 AS (
  التعويضات المدفوعة والمخصصات الفنية خلال السنة المالية .
 ٥ الوقائع المصریة – العدد ١٠٠تابع )أ( فى ٦مایو سنة ٢٠٢٦$b417$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16554,7 +16554,7 @@ WITH ins_art_alamiria_2026_70_3 AS (
 تأسيسها ونظامها الأساسي الأحكام الواردة في هذا القرار ،مع ذكر بيانات الأسماء
  المرشحة لعضوية لجنة الرقابة الشرعية رفق طلب الحصول على الترخيص .$b418$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16618,7 +16618,7 @@ WITH ins_art_alamiria_2026_70_4 AS (
  للشركة والوثيقة بما لا يجاوز ) (٪٣٠صافي عوائد استثمار أموال المشتركين .
  صورة إ$b419$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16705,7 +16705,7 @@ WITH ins_art_alamiria_2026_70_5 AS (
  -٧الآلية التي ستتبعها الشركة في حال عدم استلام المشتركين للفائض التأميني ،
  على أن يتم توزيعه في أوجه الخير أو التبرع وبعد موافقة الهيئة .$b420$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16772,7 +16772,7 @@ WITH ins_art_alamiria_2026_70_6 AS (
  استقلالية رأيه .
  الوقائع المصریة – العدد ١٠٠تابع )أ( فى ٦مایو سنة ٢٠٢٦ ٨$b421$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16853,7 +16853,7 @@ WITH ins_art_alamiria_2026_70_7 AS (
 من الجمعية العامة العادية للشركة ،بناء على مبررات يعرضها مجلس إدارتها ،مع
  إخطار الهيئة بذلك .$b422$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -16943,7 +16943,7 @@ WITH ins_art_alamiria_2026_70_8 AS (
 اجتماعاتها التي تعقدها ،وذلك خلال أسبوعين من تاريخ انعقادها على أن تكون
  مستوفاة كافة التوصيات والآراء التي أبداها أعضاء اللجنة .$b423$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17010,7 +17010,7 @@ WITH ins_art_alamiria_2026_70_9 AS (
  -٣أي علاقة أو معاملة تمت مع أي عضو من أعضاء لجنة الرقابة الشرعية .
 ١١ الوقائع المصریة – العدد ١٠٠تابع )أ( فى ٦مایو سنة ٢٠٢٦$b424$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17045,7 +17045,7 @@ WITH ins_art_alamiria_2026_70_10 AS (
  -٢إعداد التقارير اللازمة وموافاة لجنة الرقابة الشرعية ومجلس إدارة الشركة بها .
  ويجب أن يدعى المراقب الشرعي لحضور اجتماعات لجنة الرقابة الشرعية .$b425$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17112,7 +17112,7 @@ WITH ins_art_alamiria_2026_70_11 AS (
  عند تصفية الشركة .
  تد بها$b426$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17191,7 +17191,7 @@ WITH ins_art_alamiria_2026_70_12 AS (
 لتكوين الاحتياطيات ،لا ترد الزيادة إلى المشتركين إلا بعد موافقة الهيئة ،وفي حالة
  تصفية الشركة يعتبر رصيد تلك الاحتياطيات ضمن حقوق المشتركين .$b427$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17243,7 +17243,7 @@ WITH ins_art_alamiria_2026_70_13 AS (
  الشرعية للشركة .
  الوقائع المصریة – العدد ١٠٠تابع )أ( فى ٦مایو سنة ٢٠٢٦ ١٤$b428$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17307,7 +17307,7 @@ WITH ins_art_alamiria_2026_70_14 AS (
  حصة المشترك من الفائض = الفائض القابل للتوزيع × معامل التوزيع المشترك .
 ١٥ الوقائع المصریة – العدد ١٠٠تابع )أ( فى ٦مایو سنة ٢٠٢٦$b429$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17368,7 +17368,7 @@ WITH ins_art_alamiria_2026_70_15 AS (
 شروط العقد أو إلى سوء تصرف وإهمال من شركة التأمين التكافلي ،فتتحمل الشركة
  ذلك العجز أو الخسارة .$b430$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17407,7 +17407,7 @@ WITH ins_art_alamiria_2026_70_16 AS (
  المحقق عن تلك الاستثمارات لصالح المساهمين بالإيضاحات المتممة للقوائم المالية .
  الوقائع المصریة – العدد ١٠٠تابع )أ( فى ٦مایو سنة ٢٠٢٦ ١٦$b431$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17430,7 +17430,7 @@ WITH ins_art_alamiria_2026_70_17 AS (
 التي تحددها لجنة الرقابة الشرعية بالشركة وبعد الحصول على موافقة الهيئة المسبقة
  على ذلك خلال الأجل الذي تحدده .$b432$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17456,7 +17456,7 @@ WITH ins_art_alamiria_2026_70_18 AS (
  ة ال يع
  الصندوق أو الإشراف عليه .$b433$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17488,7 +17488,7 @@ WITH ins_art_alamiria_2026_70_19 AS (
  تخضع اتفاقيات إعادة التأمين لموافقة لجنة الرقابة الشرعية بالشركة .
 ١٧ الوقائع المصریة – العدد ١٠٠تابع )أ( فى ٦مایو سنة ٢٠٢٦$b434$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17524,7 +17524,7 @@ WITH ins_art_alamiria_2026_70_20 AS (
  ل عند ا
  تداول$b435$
   FROM laws WHERE law_no = 70 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17558,7 +17558,7 @@ WITH ins_art_alamiria_2026_97_1 AS (
 التأمين عن الفترة المالية المنتهية فى ٢٠٢٦/٣/٣١والإفصاحات المرفقة بها وتقرير
  مراقب الحسابات بشأنها لتكون فى موعد غايته ٢٠٢٦/٦/١٥$b437$
   FROM laws WHERE law_no = 97 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17580,7 +17580,7 @@ WITH ins_art_alamiria_2026_97_2 AS (
  ل عند ا
  تداول$b438$
   FROM laws WHERE law_no = 97 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17622,7 +17622,7 @@ WITH ins_art_alamiria_2026_98_1 AS (
 وفي جميع الأحوال ،يجب أن تراعي سياسة إعادة التأمين الأحكام الخاصة
  ببرنامج إعادة التأمين على النحو الوارد بالمادة الثانية من هذا القرار .$b440$
   FROM laws WHERE law_no = 98 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17672,7 +17672,7 @@ WITH ins_art_alamiria_2026_98_2 AS (
 اللازمة للتعامل مع هذه المخاطر حال وقوعها وكيفية التعامل مع التأثيرات
  السلبية للمخاطر.$b441$
   FROM laws WHERE law_no = 98 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17737,7 +17737,7 @@ WITH ins_art_alamiria_2026_98_3 AS (
 الاتفاقي أو الاختياري موضحا به نسب التركز والدولة والمنطقة الجغرافية الخاصة
  بمعيدي التأمين.$b442$
   FROM laws WHERE law_no = 98 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17790,7 +17790,7 @@ WITH ins_art_alamiria_2026_98_4 AS (
  -٤استيفاء الملاحظات المبداة على سياسة إعادة التأمين سواء الواردة بتقارير
  الشركة الداخلية أو وفقا لما تبديه الهيئة في هذا الشأن.$b443$
   FROM laws WHERE law_no = 98 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17813,7 +17813,7 @@ WITH ins_art_alamiria_2026_98_5 AS (
   SELECT id, 5, NULL, $b444$على شركات التأمين توفيق أوضاعها وفق ًا لأحكام هذا القرار وموافاة الهيئة
  بسياسة إعادة التأمين المشار إليها خلال ثلاثة أشهر من تاريخ العمل به.$b444$
   FROM laws WHERE law_no = 98 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17824,7 +17824,7 @@ WITH ins_art_alamiria_2026_98_6 AS (
   SELECT id, 6, NULL, $b445$يلغى "البند ثالثا ً -متطلبات إعادة التأمين" الوارد بالمادة ) (٥من قرار مجلس
  إدارة الهيئة رقم ٣لسنة ٢٠٢٥المشار إليه ،كما يلغى كل حكم يخالف هذا القرار.$b445$
   FROM laws WHERE law_no = 98 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17838,7 +17838,7 @@ WITH ins_art_alamiria_2026_98_7 AS (
  الهيئة العامة للرقابة المالية
  د /إسلام عبد العظيم عزام$b446$
   FROM laws WHERE law_no = 98 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17888,7 +17888,7 @@ WITH ins_art___________________21_1 AS (
 تليفون: 7016070٠ 171+ فاكس: 7017/0017 117+ 5الهلالا أهمى 5عو8/0 ولألاأنا8
 .60 .شجاع./الالالالالا نبنى الجسور لا المواجز$b448$
   FROM laws WHERE law_no = 21 AND law_year = 2021
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17948,7 +17948,7 @@ WITH ins_art___________________3973______2025_1 AS (
  الفصل الثاني
  إنشاء الصندوق وأهدافه$b450$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17977,7 +17977,7 @@ WITH ins_art___________________3973______2025_2 AS (
  مجلس إدارة الهيئة في هذا الشأن .
 ٩ الجریدة الرسمیة – العدد ٤٣مكرر )ب( فى ٢٩أكتوبر سنة ٢٠٢٥$b451$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -17997,7 +17997,7 @@ WITH ins_art___________________3973______2025_3 AS (
 الاشتراكات المقررة بالقيمة المحددة في هذا الشأن ،منح شهادة تفيد الاشتراك في
  الصندوق وفق ًا للضوابط التي يصدر بها قرار من مجلس الإدارة بعد موافقة الهيئة .$b452$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18016,7 +18016,7 @@ WITH ins_art___________________3973______2025_4 AS (
 بمتلقي الخدمة أثناء وبسبب تقديم الخدمة الطبية استنادا إلى الدراسات الفنية
  والاكتوارية المعتمدة من الهيئة في هذا الشأن .$b453$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18033,7 +18033,7 @@ WITH ins_art___________________3973______2025_5 AS (
 إليه ،وكذلك إذا كان الضرر الواقع على متلقى الخدمة نتيجة غش أو توطئ أو احتيال
  بهدف الحصول على التعويض .$b454$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18054,7 +18054,7 @@ WITH ins_art___________________3973______2025_6 AS (
  -٥الامتناع عن علاج متلقي الخدمة في الحالات الطارئة أو التي تشكل خطرا
  على حياته .$b455$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18075,7 +18075,7 @@ WITH ins_art___________________3973______2025_7 AS (
 وسلامة المريض المشار إليه أو بعد حصول متلقي الخدمة على حكم قضائي نهائي
  بقيمة التعويض .$b456$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18090,7 +18090,7 @@ WITH ins_art___________________3973______2025_8 AS (
 التعويض ،ويجب أن يتضمن التوكيل قيمة مبلغ التعويض وبما يخول للوكيل
  حق استلامه من الصندوق .$b457$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18105,7 +18105,7 @@ WITH ins_art___________________3973______2025_9 AS (
  الفصل الثالث
  إدارة الصندوق$b458$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18136,7 +18136,7 @@ WITH ins_art___________________3973______2025_10 AS (
 رأت ضرورة لذلك ،ويكون له حق الاشتراك في مناقشات المجلس دون أن يكون
  له حق التصويت .$b459$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18164,7 +18164,7 @@ WITH ins_art___________________3973______2025_11 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 11, NULL, $b460$يمثل رئيس مجلس الإدارة الصندوق أمام القضاء وفي صلاته بالغير .$b460$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18201,7 +18201,7 @@ WITH ins_art___________________3973______2025_12 AS (
  في المهام المسندة إليه .
 ويتعين إخطار الهيئة بقرارات مجلس الإدارة خلال أسبوعين من تاريخ صدورها .$b461$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18256,7 +18256,7 @@ WITH ins_art___________________3973______2025_13 AS (
 )ب( أن يتوافر في السجل الإلكتروني تقنيات وأنظمة تكفل أمن المعلومات
  وعدم الاختراق على النحو الذي تحدده الهيئة .$b462$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18297,7 +18297,7 @@ WITH ins_art___________________3973______2025_14 AS (
 الصندوق وتقييمها للتحقق من توافقها مع أحكام قانون تنظيم المسئولية الطبية وسلامة
  المريض المشار إليه والنظام الأساسي للصندوق .$b463$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18339,7 +18339,7 @@ WITH ins_art___________________3973______2025_15 AS (
  ويحضر جلساته دون أن يكون له صوت معدود .
 ١٥ الجریدة الرسمیة – العدد ٤٣مكرر )ب( فى ٢٩أكتوبر سنة ٢٠٢٥$b464$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18371,7 +18371,7 @@ WITH ins_art___________________3973______2025_16 AS (
  الفصل الرابع
  التنظيم المالي للصندوق$b465$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18388,7 +18388,7 @@ WITH ins_art___________________3973______2025_17 AS (
  -٣الإعانات والهبات والمنح التي يقرر مجلس الإدارة قبولها .
  -٤أي إيرادات أخرى يوافق عليها مجلس الإدارة .$b466$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18410,7 +18410,7 @@ WITH ins_art___________________3973______2025_18 AS (
  أو من ينوب عنه بالإضافة إلى توقيع المدير المالي أو من ينوب عنه .
  الجریدة الرسمیة – العدد ٤٣مكرر )ب( فى ٢٩أكتوبر سنة ٢٠٢٥ ١٦$b467$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18432,7 +18432,7 @@ WITH ins_art___________________3973______2025_19 AS (
 ويكون للصندوق موازنة تخطيطية تعد قبل بداية السنة المالية بثلاثة أشهر على
  الأقل وتعرض على مجلس إدارة الصندوق .$b468$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18452,7 +18452,7 @@ WITH ins_art___________________3973______2025_20 AS (
 ويلتزم الصندوق بموافاة الهيئة بنتيجة هذا الفحص ،بالإضافة إلى المصروفات الأخرى
  ويرحل )الفائض /العجز السنوي( إلى الميزانية في القوائم المالية .$b469$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18488,7 +18488,7 @@ WITH ins_art___________________3973______2025_21 AS (
  -٧وفى حال التعامل مع شركات التأمين يتم موافاة الهيئة ببيان تلك الشركات
  والحصص المسندة إليها .$b470$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18531,7 +18531,7 @@ WITH ins_art___________________3973______2025_22 AS (
  ويلتزم الصندوق في جميع الحالات بنفقات إعادة الفحص .
  الجریدة الرسمیة – العدد ٤٣مكرر )ب( فى ٢٩أكتوبر سنة ٢٠٢٥ ١٨$b471$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18558,7 +18558,7 @@ WITH ins_art___________________3973______2025_23 AS (
 لها من الهيئة بإدارة صناديق الاستثمار ،وذلك كله وف ًقا للقواعد والضوابط الصادرة
  عن مجلس إدارة الهيئة في هذا الشأن .$b472$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18576,7 +18576,7 @@ WITH ins_art___________________3973______2025_24 AS (
  الفصل الخامس
  التنظيم الإداري للصندوق$b473$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18608,7 +18608,7 @@ WITH ins_art___________________3973______2025_25 AS (
  ويحتفظ الصندوق بكافة السجلات والوثائق والمكاتبات طبق ًا للقواعد المقررة .
   $b474$
   FROM laws WHERE law_no = 3973 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18644,7 +18644,7 @@ WITH ins_art__________82__unlocked_1 AS (
 والإفضاحات«المرفقة بها وتقرير«متواقب الحسابات بشأنها مرفقا به.تقرير مجلين
 الإدارة لتكون؛في موعد غايته © (/ه/" 707$b476$
   FROM laws WHERE law_no = 82 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18660,7 +18660,7 @@ WITH ins_art__________82__unlocked_2 AS (
 الهيئة العامةاللرقابة المالية
 د/ إسلام عبد العظيم عزام$b477$
   FROM laws WHERE law_no = 82 AND law_year = 2026
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18719,7 +18719,7 @@ WITH ins_art___________4_1 AS (
 
 د. محمد نريد صالح$b479$
   FROM laws WHERE law_no = 4 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18807,7 +18807,7 @@ WITH ins_art_________________________1 AS (
 تليفون: +7١1750980150٠ فاكس 70/071 اد 5ااولاا أمى ععولم8 ومألاأن8
 6016 . ضمح / الالالال نبنى الجسور لا العواجز$b481$
   FROM laws WHERE law_no = 17 AND law_year = 2021
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -18895,7 +18895,7 @@ WITH ins_art_______________1______2023_1_1 AS (
 
 01.6 6خ |الالازالالا$b483$
   FROM laws WHERE law_no = 1 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -19477,7 +19477,7 @@ WITH ins_art_______________5______2022_1 AS (
 
                                                                                                           19$b485$
   FROM laws WHERE law_no = 5 AND law_year = 2022
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20058,7 +20058,7 @@ WITH ins_art_______________5______2023_1 AS (
 
 601.6. اع |لالالالالا$b487$
   FROM laws WHERE law_no = 5 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20129,7 +20129,7 @@ WITH ins_art__________193______2022_1 AS (
 - الاستلام عن الحالة الاتتمانية للعميل قبل قبول طلب إصدار الوثيقة وذلك من
 خلال شركات الاستعلام الائتمانى المرخص لها .$b489$
   FROM laws WHERE law_no = 193 AND law_year = 2022
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20166,7 +20166,7 @@ WITH ins_art__________193______2022_2 AS (
 عن السداد . على أن يتم إتاحتها لجميع الشركات للاستعلام من خلالها قبل قبول طلب
 إصدار الوثائق .$b490$
   FROM laws WHERE law_no = 193 AND law_year = 2022
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20194,7 +20194,7 @@ WITH ins_art__________193______2022_3 AS (
 محاسب/ أشرف إمام عبد السلام
 رقم الإبداع بدار الكتب 714 لسنة ١71 ؟$b491$
   FROM laws WHERE law_no = 193 AND law_year = 2022
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20219,7 +20219,7 @@ WITH ins_art__________________________2872______2024__1 AS (
 مركبات النقل السريع داخل جمهورية مصر العربية المرافق لهذا القرار ،في شأن
  كافة أنواع المركبات المرخص في تسييرها طبقا لأحكام قانون المرور .$b493$
   FROM laws WHERE law_no = 2872 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20234,7 +20234,7 @@ WITH ins_art__________________________2872______2024__2 AS (
  والشروط الأساسية للوثيقة .
 ١٧ الوقائع المصریة – العدد ١٩٦تابع )ج( فى ٣سبتمبر سنة ٢٠٢٥$b494$
   FROM laws WHERE law_no = 2872 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20248,7 +20248,7 @@ WITH ins_art__________________________2872______2024__3 AS (
   SELECT id, 3, NULL, $b495$يكون إثبات العجز الناشئ عن حوادث مركبات النقل السريع بمعرفة الجهة الطبية
  المختصة ويصرف مبلغ التأمين وفق ًا للنسب المبينة بالجدول المرافق لنموذج الوثيقة .$b495$
   FROM laws WHERE law_no = 2872 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20259,7 +20259,7 @@ WITH ins_art__________________________2872______2024__4 AS (
   SELECT id, 4, NULL, $b496$يلغى قرار رئيس الهيئة المصرية للرقابة على التأمين رقم ٣٤٤لسنة ٢٠٠٧
  المشار إليه ،كما يلغى كل حكم يخالف أحكام هذا القرار .$b496$
   FROM laws WHERE law_no = 2872 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20496,7 +20496,7 @@ WITH ins_art__________________________2872______2024__5 AS (
 الحد الأقصى لالتزام المجمعة عن الأضرار المادية التي تلحق بممتلكات الغير دون
  تلفيات المركبات ٢٠٠٠٠جنيه )عشرون ألف جنيه( عن كل مضرور .$b497$
   FROM laws WHERE law_no = 2872 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20752,7 +20752,7 @@ WITH ins_art______________1______2025__________1 AS (
  - 3أى أسباب أخرى تراها الهيئة وبعد موافاتها بمبررات إنشاء أكثر من صندوق
  داخل الجهة الواحدة .$b499$
   FROM laws WHERE law_no = 1 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20779,7 +20779,7 @@ WITH ins_art______________1______2025__________2 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b500$
   FROM laws WHERE law_no = 1 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20802,7 +20802,7 @@ WITH ins_art______________102______2025__________1 AS (
 التأمين الموحد رقم ١٥٥لسنة ٢٠٢٤لمدة سنة اعتبارا من ) (٢٠٢٥/٧/١١تاريخ
  انتهاء السنة الأولى للعمل بالقانون .$b502$
   FROM laws WHERE law_no = 102 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20819,7 +20819,7 @@ WITH ins_art______________102______2025__________2 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b503$
   FROM laws WHERE law_no = 102 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20847,7 +20847,7 @@ WITH ins_art______________123______2025__________1 AS (
  أو ) (٪١٥من صافى قيمة أصول صندوق متداولة بالبورصات المصرية
  الاستثمار أيهما أقل .$b505$
   FROM laws WHERE law_no = 123 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20869,7 +20869,7 @@ WITH ins_art______________123______2025__________2 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b506$
   FROM laws WHERE law_no = 123 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20894,7 +20894,7 @@ WITH ins_art______________126______2025__________1 AS (
  الفترة المالية المنتهية فى ٢٠٢٥/٩/٣٠لتكون فى موعد غايته . ٢٠٢٥/١٢/١٥
  الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥ ٧٠$b508$
   FROM laws WHERE law_no = 126 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20911,7 +20911,7 @@ WITH ins_art______________126______2025__________2 AS (
 تأمين أو أكثر لمدة خمسة عشر يوما عن المواعيد المشار إليها بالمادة الأولى من هذا
  القرار .$b509$
   FROM laws WHERE law_no = 126 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20925,7 +20925,7 @@ WITH ins_art______________126______2025__________3 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b510$
   FROM laws WHERE law_no = 126 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20947,7 +20947,7 @@ WITH ins_art______________127______2025__________1 AS (
 لسنة ۲۰۲٤أيا كان نوع النشاط الذى تزاوله ،وللاتحاد شخصية اعتبارية مستقلة ،
  ويعد من أشخاص القانون الخاص ،ويكون مقره الرئيسى فى القاهرة الكبرى .$b512$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -20972,7 +20972,7 @@ WITH ins_art______________127______2025__________2 AS (
  -٧دعم الدراسات التأمينية والمساهمة فى تمويلها لخدمة سوق التأمين .
  الوقائع المصریة – العدد ١٢٨تابع )أ( فى ١٢یونیة سنة ٢٠٢٥ ٤$b513$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21057,7 +21057,7 @@ WITH ins_art______________127______2025__________3 AS (
  الفصل الثانى
  العضوية بالاتحاد وحقوق الأعضاء وواجباتهم والأعمال المحظورة عليهم$b514$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21136,7 +21136,7 @@ WITH ins_art______________127______2025__________4 AS (
 أحكام المادة ) (١٣٣من القانون رقم ١٥٥لسنة ۲۰۲٤وفى حالة صدور قرار بشطب
  الشركة تزول عنها صفة العضوية .$b515$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21161,7 +21161,7 @@ WITH ins_art______________127______2025__________5 AS (
  أنواع التأمين .
 ٧ الوقائع المصریة – العدد ١٢٨تابع )أ( فى ١٢یونیة سنة ٢٠٢٥$b516$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21188,7 +21188,7 @@ WITH ins_art______________127______2025__________6 AS (
 الطاقة الاستيعابية للسوق واستقراره ،وبما لا يخالف أحكام القانون رقم ٣
  لسنة ۲۰۰٥بشأن حماية المنافسة ومنع الممارسات الاحتكارية .$b517$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21216,7 +21216,7 @@ WITH ins_art______________127______2025__________7 AS (
  الفصل الثالث
  السنة المالية -موارد الاتحاد والاستخدامات المالية$b518$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21238,7 +21238,7 @@ WITH ins_art______________127______2025__________8 AS (
 ويجوز للجمعية العامة إصدار قرار بتعديل بدايتها ونهايتها بعد موافقة الهيئة العامة
  للرقابة المالية .$b519$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21258,7 +21258,7 @@ WITH ins_art______________127______2025__________9 AS (
 وفى حالة عدم كفاية الموارد السابقة يلتزم الأعضاء بتغطية العجز السنوى بنسبة
  اشتراك كل منهم .$b520$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21281,7 +21281,7 @@ WITH ins_art______________127______2025__________10 AS (
  الفصل الرابع
  أجهزة الاتحاد$b521$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21303,7 +21303,7 @@ WITH ins_art______________127______2025__________11 AS (
  ً
  أولا -الجمعية العامة$b522$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21334,7 +21334,7 @@ WITH ins_art______________127______2025__________12 AS (
 ويتولى أمانة السر أحد العاملين بالاتحاد يحدده رئيس الجمعية وتوافق عليه
  الجمعية العامة .$b523$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21365,7 +21365,7 @@ WITH ins_art______________127______2025__________13 AS (
 للمتطلبات والقواعد التى يقترحها مجلس إدارة الاتحاد وتوافق عليها الجمعية العامة
  للاتحاد وتعتمد من الهيئة .$b524$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21392,7 +21392,7 @@ WITH ins_art______________127______2025__________14 AS (
  الاقتراحات قبل الموعد المحدد لانعقادها بثلاثة أيام عمل على الأقل .
 ١١ الوقائع المصریة – العدد ١٢٨تابع )أ( فى ١٢یونیة سنة ٢٠٢٥$b525$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21428,7 +21428,7 @@ WITH ins_art______________127______2025__________15 AS (
  -١٠المسائل الأخرى التى تهم الأعضاء أو التى يرى مجلس إدارة الاتحاد
  عرضها على الجمعية العامة وإدراجها فى جدول الأعمال .$b526$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21470,7 +21470,7 @@ WITH ins_art______________127______2025__________16 AS (
 العضوية عن كل أو بعض أعضاء مجلس الإدارة فيتعين أن تصدر بموافقة ثلثى
  مجموع أعضاء الجمعية ممن لهم حق الحضور .$b527$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21500,7 +21500,7 @@ WITH ins_art______________127______2025__________17 AS (
  ً
  ثانيا -مجلس إدارة الاتحاد$b528$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21530,7 +21530,7 @@ WITH ins_art______________127______2025__________18 AS (
 أن يراعى التوزان النسبى بين ممثلى الشركات التى تزاول التأمين وإعادة التأمين أيا
  كان نوع نشاطها .$b529$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21572,7 +21572,7 @@ WITH ins_art______________127______2025__________19 AS (
  -٨أن يكون مضى على شغله لوظيفة رئيس مجلس إدارة أو نائب الرئيس
  أو عضو منتدب مدة لا تقل عن سنة .$b530$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21611,7 +21611,7 @@ WITH ins_art______________127______2025__________20 AS (
  فوزه فى الانتخابات -بأى منصب قد يشغله فى تاريخ تالٍ لإعلان نتيجة الانتخاب .
  على أن يختم هذا النموذج بعد استيفاء بياناته بخاتم الشركة .$b531$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21641,7 +21641,7 @@ WITH ins_art______________127______2025__________21 AS (
 على أن يكون قرارها بالاستبعاد مسببا ،ويتم إعلان أصحاب الشأن بقرارات اللجنة
  فور انتهائها من عملها .$b532$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21664,7 +21664,7 @@ WITH ins_art______________127______2025__________22 AS (
 ترشحهم ،ودون الإخلال بالحق فى اللجوء للقضاء يعتبر قرار اللجنة نهائى ونافذ
  وملزم لأطرافه .$b533$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21686,7 +21686,7 @@ WITH ins_art______________127______2025__________23 AS (
  صحيحا فى هذه الحالة أيا كان عدد الحاضرين .
  الوقائع المصریة – العدد ١٢٨تابع )أ( فى ١٢یونیة سنة ٢٠٢٥ ١٦$b534$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21708,7 +21708,7 @@ WITH ins_art______________127______2025__________24 AS (
 ويجوز أن ينضم إلى عضوية اللجنة ممثل عن الهيئة العامة للرقابة المالية
  وعضو من أعضاء الجمعية العامة من غير المرشحين -توافق عليه الجمعية .$b535$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21728,7 +21728,7 @@ WITH ins_art______________127______2025__________25 AS (
 تساوت الأصوات للمرة الثانية تتم الدعوة إلى عقد اجتماع تالٍ خلال الخمسة أيام عمل
  التالية لإجراء الإعادة الثانية .$b536$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21752,7 +21752,7 @@ WITH ins_art______________127______2025__________26 AS (
 للمتطلبات والقواعد التى يقترحها مجلس إدارة الاتحاد وتوافق عليها الجمعية العامة
  للاتحاد وتعتمد من الهيئة .$b537$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21777,7 +21777,7 @@ WITH ins_art______________127______2025__________27 AS (
 من ذات طبيعة نشاط الشركة التى كان يمثلها العضو الذى زالت صفته ،وتكون مدة
  جديدة مكملة لمدة سلفه .$b538$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21794,7 +21794,7 @@ WITH ins_art______________127______2025__________28 AS (
 لمجلس إدارة الاتحاد بغير عذر يقبله المجلس ،ويصدر قرار الإنهاء بالأغلبية المطلقة
  لأصوات الحاضرين من ممثلى الشركات بالمجلس .$b539$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21808,7 +21808,7 @@ WITH ins_art______________127______2025__________29 AS (
 للاتحاد أو نائب للرئيس وذلك للمدة المتبقية للمجلس ،مع الالتزام بقاعدة التوازن
  النسبى المنصوص عليها فى الفقرة الأخيرة من المادة ). (۱۹$b540$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21823,7 +21823,7 @@ WITH ins_art______________127______2025__________30 AS (
  الجمعية العامة .
  الوقائع المصریة – العدد ١٢٨تابع )أ( فى ١٢یونیة سنة ٢٠٢٥ ١٨$b541$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21883,7 +21883,7 @@ WITH ins_art______________127______2025__________31 AS (
  الوقائع المصریة – العدد ١٢٨تابع )أ( فى ١٢یونیة سنة ٢٠٢٥ ٢٠
  ثالثا -رئيس الاتحاد$b542$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -21964,7 +21964,7 @@ WITH ins_art______________127______2025__________32 AS (
  ً
  رابعا -االس التنفيذية$b543$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22007,7 +22007,7 @@ WITH ins_art______________127______2025__________33 AS (
 وظائف الإدارة العليا بها ممن لا يقل مستوى وظيفته عن درجة مدير عام على أن
  يكون حضوره بموجب تفويض يصدر له من مجلس إدارة الشركة .$b544$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22033,7 +22033,7 @@ WITH ins_art______________127______2025__________34 AS (
 وتزول صفة الرئيس أو نائب الرئيس بالوفاة أو بانقطاع العلاقة بين أى منهما
  والشركة التى رشحته أو إذا طلب أيهما إعفاءه من منصبه .$b545$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22059,7 +22059,7 @@ WITH ins_art______________127______2025__________35 AS (
 ويتولى أمانة سر المجلس أحد الأمناء العامين المساعدين أو من يختاره
  أمين عام الاتحاد .$b546$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22100,7 +22100,7 @@ WITH ins_art______________127______2025__________36 AS (
  ً
  خامسا -اللجان الفنية$b547$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22143,7 +22143,7 @@ WITH ins_art______________127______2025__________37 AS (
 ويتولى أمانة اللجنة أحد العاملين بالاتحاد يحدده أمين عام الاتحاد ،وللهيئة العامة
  للرقابة المالية أن توفد ممثلا عنها للحضور ولا يكون لهما صوت معدود .$b548$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22174,7 +22174,7 @@ WITH ins_art______________127______2025__________38 AS (
  الأعضاء الأصليين يحل محله العضو الأول فى كشف الأعضاء المستمعين .
  الوقائع المصریة – العدد ١٢٨تابع )أ( فى ١٢یونیة سنة ٢٠٢٥ ٢٤$b549$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22197,7 +22197,7 @@ WITH ins_art______________127______2025__________39 AS (
  ً
  سادسا -الأمانة العامة$b550$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22234,7 +22234,7 @@ WITH ins_art______________127______2025__________40 AS (
  الفصل الخامس
  مراقب الحسابات$b551$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22277,7 +22277,7 @@ WITH ins_art______________127______2025__________41 AS (
  الفصل السادس
  مساءلة الأعضاء والعقوبات التى توقع على العضو المخالف$b552$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22311,7 +22311,7 @@ WITH ins_art______________127______2025__________42 AS (
  - ٣حرمان العضو أو من ينوب عنه من حضور اجتماعات مجلس الإدارة
  والمجالس التنفيذية واللجان الفنية مدة لا تجاوز ستة أشهر .$b553$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22338,7 +22338,7 @@ WITH ins_art______________127______2025__________43 AS (
 لتلقيه الإخطار ،وعلى المجلس أن يبت فى التظلم خلال الستين يوما التالية لوروده
  للاتحاد ويعتبر القرار الصادر فى التظلم نهائى .$b554$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22362,7 +22362,7 @@ WITH ins_art______________127______2025__________44 AS (
  الفصل السابع
  لجنة فض المنازعات بين الشركات الأعضاء$b555$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22399,7 +22399,7 @@ WITH ins_art______________127______2025__________45 AS (
  الفصل الثامن
  الأجهزة المعاونة$b556$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22433,7 +22433,7 @@ WITH ins_art______________127______2025__________46 AS (
  الفصل التاسع
  أحكام ختامية$b557$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22452,7 +22452,7 @@ WITH ins_art______________127______2025__________47 AS (
   SELECT id, 47, NULL, $b558$يجوز لأى من أجهزة الاتحاد وبموافقة رئيس الاتحاد عقد اجتماعاتها خارج
  مقر الاتحاد .$b558$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22463,7 +22463,7 @@ WITH ins_art______________127______2025__________48 AS (
   SELECT id, 48, NULL, $b559$تحسب مدد العضوية بالمجالس التنفيذية ،واللجان الفنية التى لها صفة الاستمرار ،
  بدءا من تاريخ تشكيل كل منها .$b559$
   FROM laws WHERE law_no = 127 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22492,7 +22492,7 @@ WITH ins_art______________144______2025__________1_1 AS (
  لثلاثة فروع . لثلاثة فروع.
  الوقائع المصریة – العدد ) ١٦٦تابع( فى ٣٠یولیة سنة ٢٠٢٥ ٢٠$b561$
   FROM laws WHERE law_no = 144 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22519,7 +22519,7 @@ WITH ins_art______________144______2025__________1_2 AS (
 مليون جنيه بحسب الأحوال" ،وذلك على النحو الوارد بالبندين ) (۲ ،۱من المادة
  الثانية من قرار مجلس إدارة الهيئة رقم ۱۹٦لسنة ٢٠٢٤المشار إليه.$b562$
   FROM laws WHERE law_no = 144 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22536,7 +22536,7 @@ WITH ins_art______________144______2025__________1_3 AS (
 الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b563$
   FROM laws WHERE law_no = 144 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22559,7 +22559,7 @@ WITH ins_art______________147______2024__________1 AS (
  والقرارات التنفيذية وفق ًا لأحكامه .
  ة ال يع$b565$
   FROM laws WHERE law_no = 147 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22580,7 +22580,7 @@ WITH ins_art______________147______2024__________2 AS (
  ل
  تداول$b566$
   FROM laws WHERE law_no = 147 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22609,7 +22609,7 @@ WITH ins_art______________148______2025__________1 AS (
  -٤شركات التأمين متناهى الصغر.
  -٥شركات التأمين المتخصصة فى أحد فروع التأمين .$b568$
   FROM laws WHERE law_no = 148 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22629,7 +22629,7 @@ WITH ins_art______________148______2025__________2 AS (
  المحسوبة فى أى وقت بنسبة لا تقل عن ) (٪١٢٥من هامش الملاءة المطلوب .
  الوقائع المصریة – العدد ) ١٦٦تابع( فى ٣٠یولیة سنة ٢٠٢٥ ٢٤$b569$
   FROM laws WHERE law_no = 148 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22709,7 +22709,7 @@ WITH ins_art______________148______2025__________3 AS (
  التعامل مع معيدى تأمين من غير المسجلين لدى الهيئة لا يعتد به عند الاحتساب.
  الوقائع المصریة – العدد ) ١٦٦تابع( فى ٣٠یولیة سنة ٢٠٢٥ ٢٦$b570$
   FROM laws WHERE law_no = 148 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22828,7 +22828,7 @@ WITH ins_art______________148______2025__________4 AS (
  أو مقدرة تقديرا فنيا ،ويعتد فيها بالقيم التى تقرها الهيئة بناء على الفحص الفنى
  والمالى الذى تجريه فى هذا الشأن.$b571$
   FROM laws WHERE law_no = 148 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22906,7 +22906,7 @@ WITH ins_art______________148______2025__________5 AS (
  -٤أن يتم معالجة القرض المساند بالقوائم المالية وبما لا يخالف معايير
  المحاسبة المصرية .$b572$
   FROM laws WHERE law_no = 148 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22941,7 +22941,7 @@ WITH ins_art______________148______2025__________6 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
   SELECT id, 6, NULL, $b573$يلغى قرار مجلس إدارة الهيئة رقم ٢٦٢لسنة ١٩٩٥المشار إليه.$b573$
   FROM laws WHERE law_no = 148 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22959,7 +22959,7 @@ WITH ins_art______________148______2025__________7 AS (
  رقم الإيداع بدار الكتب ٢٦٨لسنة ٢٠٢٥
  ٥٠٩ - ٢٠٢٥/٨/٣ - ٢٠٢٥ / ٢٥١٠٩$b574$
   FROM laws WHERE law_no = 148 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -22991,7 +22991,7 @@ WITH ins_art______________15______2025__________1 AS (
  بمزاولة النشاط.
  الوقائع املصرية -العدد ( 39تابع) فى 17فبراير سنة 2025 4$b576$
   FROM laws WHERE law_no = 15 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23043,7 +23043,7 @@ WITH ins_art______________15______2025__________2 AS (
 أجنبية مناظرة مختصة فى الدولة التى يقع فيها مقرها الرئيسي ،أن توافق تلك السلطة
  لها على العمل فى جمهورية مصر العربية ،وأن تطبق مبدأ الرقابة المجمعة.$b577$
   FROM laws WHERE law_no = 15 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23136,7 +23136,7 @@ WITH ins_art______________15______2025__________3 AS (
 ويجوز للهيئة طلب أى بيانات أو مس���تندات أخرى ترى ضرورة تقديمها للبت فى
  طلب التأسيس.$b578$
   FROM laws WHERE law_no = 15 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23212,7 +23212,7 @@ WITH ins_art______________15______2025__________4 AS (
  -5عدم نص النظام األساس���ى للش���ركة على وجوب اس���تخدام أسلوب التصويت
  التراكمى فى انتخاب أعضاء مجلس اإلدارة.$b579$
   FROM laws WHERE law_no = 15 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23295,7 +23295,7 @@ WITH ins_art______________15______2025__________5 AS (
 يطرأ على البيانات والمس���تندات التى تم على أساس���ها تأسيس الشركة أى تعديالت
  أو اإلخطار بأى تعديالت حال وقوعها.$b580$
   FROM laws WHERE law_no = 15 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23384,7 +23384,7 @@ WITH ins_art______________15______2025__________6 AS (
 ويص���در به���ذه التعديالت قرار من رئيس الهيئة ،و ُينش���ر على الموقع اإللكترونى
  للشركة وكذا الموقع اإللكترونى الذى تخصصه الهيئة لهذا الغرض.$b581$
   FROM laws WHERE law_no = 15 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23422,7 +23422,7 @@ WITH ins_art______________15______2025__________7 AS (
  فى مجال األنشطة المالية غير المصرفية.
  الوقائع املصرية -العدد ( 39تابع) فى 17فبراير سنة 2025 12$b582$
   FROM laws WHERE law_no = 15 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23440,7 +23440,7 @@ WITH ins_art______________15______2025__________8 AS (
  ً ، 2025/7/10عل���ى أن توافى الهيئة بجدول زمن���ى
  أو التى سيتم اتخاذها للتوافق مع أحكام هذا القرار خالل شهر من تاريخ العمل به.$b583$
   FROM laws WHERE law_no = 15 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23457,7 +23457,7 @@ WITH ins_art______________15______2025__________9 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b584$
   FROM laws WHERE law_no = 15 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23489,7 +23489,7 @@ WITH ins_art______________152______2023__________1 AS (
 والمسئوليات لفروع )أجسام السفن -الطيران -البترول -الهندسي( ،كما تستثني
  التأمينات الإجبارية ذات الأسعار المحددة من تقديم الدراسة المشار إليها بهذه المادة .$b586$
   FROM laws WHERE law_no = 152 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23514,7 +23514,7 @@ WITH ins_art______________152______2023__________2 AS (
 ابتداء العام المالي ،وعلى شركات التأمين وجمعيات التأمين التعاوني استيفاء
  الملاحظات التي تبديها الهيئة على تلك الدراسات خلال المدة التي تحددها الهيئة .$b587$
   FROM laws WHERE law_no = 152 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23529,7 +23529,7 @@ WITH ins_art______________152______2023__________3 AS (
 القرار ،وعلى الشركات والجمعيات المذكورة استيفاء الملاحظات التي تبديها الهيئة
  على تلك الدراسات خلال المدة التي تحددها الهيئة .$b588$
   FROM laws WHERE law_no = 152 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23545,7 +23545,7 @@ WITH ins_art______________152______2023__________4 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b589$
   FROM laws WHERE law_no = 152 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23569,7 +23569,7 @@ WITH ins_art______________158______2025__________1 AS (
  غير المقيدين بالقائمة المشار إليها .
  الوقائع املصرية -العدد 183تابع (أ) فى 19أغسطس سنة 3 2025$b591$
   FROM laws WHERE law_no = 158 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23606,7 +23606,7 @@ WITH ins_art______________158______2025__________2 AS (
  البنك المركزى المصري .
  4الوقائع املصرية -العدد 183تابع (أ) فى 19أغسطس سنة 2025$b592$
   FROM laws WHERE law_no = 158 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23663,7 +23663,7 @@ WITH ins_art______________158______2025__________3 AS (
  تحصيل األقساط وسداد التعويضات نيابة عنهم .
  - 8أى بيانات أو مستندات أخرى ترى الهيئة ضرورة تقديمها للبت فى الطلب.$b593$
   FROM laws WHERE law_no = 158 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23700,7 +23700,7 @@ WITH ins_art______________158______2025__________4 AS (
 استمرار توافر الشروط المتطلبة للقيد وتقديم المستندات المشار إليها بالمادة السابقة
  فيما عدا البند ( )۲منها .$b594$
   FROM laws WHERE law_no = 158 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23737,7 +23737,7 @@ WITH ins_art______________158______2025__________5 AS (
 لدى الهيئة أو تجديده ،وكذا موافاة الهيئة بأى بيانات أو مستندات تطلبها خالل األجل
  الذى تحدده .$b595$
   FROM laws WHERE law_no = 158 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23780,7 +23780,7 @@ WITH ins_art______________158______2025__________6 AS (
  - 3إخطار الهيئة فور انتهاء تعاقدها مع الوسيط ،أ ًيا كان سببه.
  الوقائع املصرية -العدد 183تابع (أ) فى 19أغسطس سنة 7 2025$b596$
   FROM laws WHERE law_no = 158 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23812,7 +23812,7 @@ WITH ins_art______________158______2025__________7 AS (
 وفى جميع األحوال ،ال يخل ش���طب الوس���يط من القائمة من تنفيذ كافة التزاماته
  تجاه المنشآت المتعاقد معها.$b597$
   FROM laws WHERE law_no = 158 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23839,7 +23839,7 @@ WITH ins_art______________158______2025__________8 AS (
  به ،ويجوز للهيئة مد هذه المهلة فى ضوء مبررات تقبلها.
  8الوقائع املصرية -العدد 183تابع (أ) فى 19أغسطس سنة 2025$b598$
   FROM laws WHERE law_no = 158 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23857,7 +23857,7 @@ WITH ins_art______________158______2025__________9 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b599$
   FROM laws WHERE law_no = 158 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23885,7 +23885,7 @@ WITH ins_art______________16______2025__________1_1 AS (
  القوائم المالية .
 ٩ الوقائع المصریة – العدد ) ٤٦تابع( فى ٢٥فبرایر سنة ٢٠٢٥$b601$
   FROM laws WHERE law_no = 16 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23912,7 +23912,7 @@ WITH ins_art______________16______2025__________1_2 AS (
 للأسس الفنية التي يعتمدها مجلس إدارة الهيئة وفى ضوء الضوابط الصادرة عن الهيئة
  في هذا الشأن .$b602$
   FROM laws WHERE law_no = 16 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23945,7 +23945,7 @@ WITH ins_art______________16______2025__________1_3 AS (
 عليها ووفق ًا لتقديرات الخبير الاكتواري للشركة ،إذا دعت الحاجة إلى تكوين
  هذا المخصص .$b603$
   FROM laws WHERE law_no = 16 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -23988,7 +23988,7 @@ WITH ins_art______________16______2025__________1_4 AS (
 أموال مخصصة ،ولا يجوز بأي حال من الأحوال التصرف أو استخدام هذا
  الاحتياطي إلا بعد الحصول على موافقة كتابية مسبقة من الهيئة بذلك .$b604$
   FROM laws WHERE law_no = 16 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24022,7 +24022,7 @@ WITH ins_art______________16______2025__________1_5 AS (
 الإجراءات اللازمة لاستكمال ذلك النقص من الأرباح القابلة للتوزيع وفق ًا للإجراءات
  والتعليمات التي تحددها الهيئة في هذا الشأن .$b605$
   FROM laws WHERE law_no = 16 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24041,7 +24041,7 @@ WITH ins_art______________16______2025__________1_6 AS (
  المرتبطة بالمخاطر الناشئة عن عقود التأمين .
  الوقائع المصریة – العدد ) ٤٦تابع( فى ٢٥فبرایر سنة ٢٠٢٥ ١٢$b606$
   FROM laws WHERE law_no = 16 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24059,7 +24059,7 @@ WITH ins_art______________16______2025__________1_7 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b607$
   FROM laws WHERE law_no = 16 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24079,7 +24079,7 @@ WITH ins_art______________18______2025__________1 AS (
   SELECT id, 1, NULL, $b609$ُي���زاد الح���د األقصى للتغطية التأمينية لنش���اط التأمين متناه���ى الصغر ليصبح
  ثالثمائة واثنى عشر أل ًفا وخمسمائة جنيه .$b609$
   FROM laws WHERE law_no = 18 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24098,7 +24098,7 @@ WITH ins_art______________18______2025__________2 AS (
  رقم اإليداع بدار الكتب 268لسنة 2025
  509- 2025/2/6 - 2024/25589$b610$
   FROM laws WHERE law_no = 18 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24130,7 +24130,7 @@ WITH ins_art______________198______2025__________1 AS (
  التأمين ،فيما لم يرد بشأنه نص خاص في هذا القرار .
  ة ال يع$b612$
   FROM laws WHERE law_no = 198 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24169,7 +24169,7 @@ WITH ins_art______________198______2025__________2 AS (
  (testلتلك المنصة .
  صورة إ$b613$
   FROM laws WHERE law_no = 198 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24211,7 +24211,7 @@ WITH ins_art______________198______2025__________3 AS (
  تد بها
  والتواصل رقميا بشكل لحظي .$b614$
   FROM laws WHERE law_no = 198 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24238,7 +24238,7 @@ WITH ins_art______________198______2025__________4 AS (
  معلومات عن العملاء أو عن معاملاتهم إلى الغير إلا في الحدود التي يجيزها القانون.
  الوقائع المصریة – العدد ٢١٤تابع ) أ ( فى ٢٥سبتمبر سنة ٢٠٢٥ ٦$b615$
   FROM laws WHERE law_no = 198 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24293,7 +24293,7 @@ WITH ins_art______________198______2025__________5 AS (
  -۱۲تطوير وتحديث المنصة الرقمية بصفة دورية أو كلما دعت الحاجة لذلك .
  - ۱۳موافاة الهيئة بأي بيانات أو مستندات تطلبها خلال الأجل الذي تحدده .$b616$
   FROM laws WHERE law_no = 198 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24366,7 +24366,7 @@ WITH ins_art______________198______2025__________6 AS (
 بحساب شركة التأمين ،عبر قنوات التحصيل الإلكتروني من خلال الشركات المقيدة
  بالسجل المعد لدى الهيئة للتحصيل الإلكتروني لأقساط التأمين .$b617$
   FROM laws WHERE law_no = 198 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24401,7 +24401,7 @@ WITH ins_art______________198______2025__________7 AS (
   SELECT id, 7, NULL, $b618$تسري أحكام قرار مجلس إدارة الهيئة رقم ٥٨لسنة ۲۰۲۲المشار إليه فيما لم
  يرد بشأنه نص خاص في هذا القرار .$b618$
   FROM laws WHERE law_no = 198 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24422,7 +24422,7 @@ WITH ins_art______________198______2025__________8 AS (
  ل عند ا
  تداول$b619$
   FROM laws WHERE law_no = 198 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24462,7 +24462,7 @@ WITH ins_art______________199______2025__________1 AS (
  وتوزيعها من خلال إحدى الجهات المنصوص عليها بالمادة الخامسة من هذا القرار .
 الوقائع المصریة – العدد ٢١٤تابع ) أ ( فى ٢٥سبتمبر سنة ١١ ٢٠٢٥$b621$
   FROM laws WHERE law_no = 199 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24502,7 +24502,7 @@ WITH ins_art______________199______2025__________2 AS (
  ة ال يع
  أو إجراءات رقابية ضد الشركة خلال السنتين السابقتين على تقديم طلب الموافقة .$b622$
   FROM laws WHERE law_no = 199 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24542,7 +24542,7 @@ WITH ins_art______________199______2025__________3 AS (
 تلك المبالغ إلى حساباتها الخاصة ،وتلتزم بتحصيلها من خلال أي من الطرق المشار
  إليها بهذه المادة .$b623$
   FROM laws WHERE law_no = 199 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24598,7 +24598,7 @@ WITH ins_art______________199______2025__________4 AS (
 المطبوعة من الوثيقة رقم الهاتف والبريد الإلكتروني المحددين للتواصل مع مركز
  الاتصال المشار إليه .$b624$
   FROM laws WHERE law_no = 199 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24690,7 +24690,7 @@ WITH ins_art______________199______2025__________5 AS (
  المؤيدة له .
 الوقائع المصریة – العدد ٢١٤تابع ) أ ( فى ٢٥سبتمبر سنة ١٥ ٢٠٢٥$b625$
   FROM laws WHERE law_no = 199 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24751,7 +24751,7 @@ WITH ins_art______________199______2025__________6 AS (
 إليها ،وذلك فيما لم يرد بشأنه نص خاص في هذا القرار أو في قرارات مجلس إدارة
  الهيئة أرقام ۱٤۱ ، ۱٤۰ ، ۱۳۹لسنة ٢٠٢٣المشار إليها .$b626$
   FROM laws WHERE law_no = 199 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24763,7 +24763,7 @@ WITH ins_art______________199______2025__________7 AS (
   SELECT id, 7, NULL, $b627$يلغى قرار مجلس إدارة الهيئة رقم ۱۲۲لسنة ۲۰۱٥المشار إليه ،كما يلغى كل
  حكم يخالف أحكام هذا القرار .$b627$
   FROM laws WHERE law_no = 199 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24783,7 +24783,7 @@ WITH ins_art______________199______2025__________8 AS (
  ل عند ا
  تداول$b628$
   FROM laws WHERE law_no = 199 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24870,7 +24870,7 @@ WITH ins_art______________200______2025__________1 AS (
  وحقوق الأطراف .
  الوقائع المصریة – العدد ) ٢٣٥تابع( فى ٢١أكتوبر سنة ٢٠٢٥ ٦$b630$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -24981,7 +24981,7 @@ WITH ins_art______________200______2025__________2 AS (
 مرة واحدة سنويا ،وإخطار الهيئة بأى تعديلات تطرأ على أى منهما خلال ثلاثين
  يوما من تاريخ اعتمادها من مجلس إدارة الشركة .$b631$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25045,7 +25045,7 @@ WITH ins_art______________200______2025__________3 AS (
 الحوكمة وذلك بعد الحصول على عدم ممانعة من الهيئة بناء على طلب تقدمه الشركة
  مبين ًا فيه مبررات ذلك .$b632$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25103,7 +25103,7 @@ WITH ins_art______________200______2025__________4 AS (
  تد بها
  أولاً :الجمعية العامة للشركة$b633$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25187,7 +25187,7 @@ WITH ins_art______________200______2025__________5 AS (
  اعتماد محضر الاجتماع من الهيئة .
  الوقائع المصریة – العدد ) ٢٣٥تابع( فى ٢١أكتوبر سنة ٢٠٢٥ ١٠$b634$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25273,7 +25273,7 @@ WITH ins_art______________200______2025__________6 AS (
 التحقق من هوية المساهم ،وتسليمه للجمعية لاعتماد الأصوات وحسابها ضمن
  النصاب القانونى .$b635$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25348,7 +25348,7 @@ WITH ins_art______________200______2025__________7 AS (
  )ب( تعيين هيئة الرقابة الشرعية .
  )ج( الموافقة على توزيع الفائض على المشتركين .$b636$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25396,7 +25396,7 @@ WITH ins_art______________200______2025__________8 AS (
  صورة إ
  الهيئة أو الجهة القضائية المختصة .$b637$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25434,7 +25434,7 @@ WITH ins_art______________200______2025__________9 AS (
 ١٣ الوقائع المصریة – العدد ) ٢٣٥تابع( فى ٢١أكتوبر سنة ٢٠٢٥
  ثانيًا :مجلس إدارة الشركة$b638$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25497,7 +25497,7 @@ WITH ins_art______________200______2025__________10 AS (
  والمحاسبية وضمان نزاهتها .
  الوقائع المصریة – العدد ) ٢٣٥تابع( فى ٢١أكتوبر سنة ٢٠٢٥ ١٤$b639$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25578,7 +25578,7 @@ WITH ins_art______________200______2025__________11 AS (
 كافة الشروط الواجب توافرها فى أعضاء مجلس الإدارة ،ويجوز تعدد ممثلى الشخص
  الاعتبارى فى مجلس الإدارة ما لم ينص النظام الأساسى على خلاف ذلك .$b640$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25638,7 +25638,7 @@ WITH ins_art______________200______2025__________12 AS (
  تروني
  يمثلونهم على مصالح الشركة أو المساهمين .$b641$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25689,7 +25689,7 @@ WITH ins_art______________200______2025__________13 AS (
  صورة إ
  وبشرط موافقة الأقلية للشركة التابعة على ذلك .$b642$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25766,7 +25766,7 @@ WITH ins_art______________200______2025__________14 AS (
  المنتدب/الرئيس التنفيذى .
  ة ال يع$b643$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25840,7 +25840,7 @@ WITH ins_art______________200______2025__________15 AS (
  صورة إ
  وقرارات مجلس الإدارة .$b644$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25921,7 +25921,7 @@ WITH ins_art______________200______2025__________16 AS (
 وتعتبر مشاركة عضو مجلس الإدارة عبر هذه الوسائل مشاركة فعلية فى
  الاجتماع ،ويحسب ضمن النصاب القانونى لصحة الانعقاد والتصويت .$b645$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -25994,7 +25994,7 @@ WITH ins_art______________200______2025__________17 AS (
 الوثائق والسجلات والمستندات التى تم الاطلاع عليها خلال الاجتماع أو تمت الإشارة
  إليها ضمن محضر الاجتماع .$b646$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26030,7 +26030,7 @@ WITH ins_art______________200______2025__________18 AS (
  ة ال يع
  التنفيذية العليا إعفاء للمجلس من أى من مسئولياته .$b647$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26077,7 +26077,7 @@ WITH ins_art______________200______2025__________19 AS (
  لك
  تروني$b648$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26150,7 +26150,7 @@ WITH ins_art______________200______2025__________20 AS (
  إدارة متخصصة لإدارة العلاقات مع المستثمرين .
  ة ال يع$b649$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26224,7 +26224,7 @@ WITH ins_art______________200______2025__________21 AS (
  لك
  تروني$b650$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26302,7 +26302,7 @@ WITH ins_art______________200______2025__________22 AS (
  تد بها
  -٦بدلات حضور وانتقال أعضاء اللجنة .$b651$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26393,7 +26393,7 @@ WITH ins_art______________200______2025__________23 AS (
  مهامها وفق ميثاقها التنظيمى .
  الوقائع المصریة – العدد ) ٢٣٥تابع( فى ٢١أكتوبر سنة ٢٠٢٥ ٢٦$b652$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26482,7 +26482,7 @@ WITH ins_art______________200______2025__________24 AS (
 ويجوز للشركة فصل اختصاصات تلك اللجنة وتشكيل لجنتين مستقلتين أحدهما
  للترشيحات والأخرى للمكافآت على أن تحدد اختصاصات كل منهما بوضوح .$b653$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26627,7 +26627,7 @@ WITH ins_art______________200______2025__________25 AS (
  واختصاصاتها .
  الوقائع المصریة – العدد ) ٢٣٥تابع( فى ٢١أكتوبر سنة ٢٠٢٥ ٣٠$b654$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26772,7 +26772,7 @@ WITH ins_art______________200______2025__________26 AS (
 والتأكد من مدى كفاءتها فى أداء عملها ،فى حدود الاختصاصات المقررة لها ،
  إضافة إلى التأكد من استقلالية موظفى إدارة المخاطر عن الإدارة التنفيذية بالشركة .$b655$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26836,7 +26836,7 @@ WITH ins_art______________200______2025__________27 AS (
  تد بها
  من قبل لجنة المخاطر ،والتوصية بالإجراءات المتبعة حال عدم التوافق معها .$b656$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26898,7 +26898,7 @@ WITH ins_art______________200______2025__________28 AS (
 مدى رضاء حملة الوثائق فى جميع مراحل تقديم الخدمات التأمينية لهم متضمنة
  صرف التعويضات أيا كان نوعها .$b657$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -26964,7 +26964,7 @@ WITH ins_art______________200______2025__________29 AS (
  -٥دراسة ملاحظات الهيئة فيما يتعلق بتطبيق قواعد الحوكمة بالشركة واتخاذ
  الإجراءات التصحيحية بشأنها .$b658$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27004,7 +27004,7 @@ WITH ins_art______________200______2025__________30 AS (
  تروني
  كفاءتها وفاعليتها .$b659$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27043,7 +27043,7 @@ WITH ins_art______________200______2025__________31 AS (
  -٤رفع التقارير للجنة المخاطر لمساعدة الشركة فى إدارة المخاطر المرتبطة
  بالمنتج التأمينى الذى تقدمه ،تمهيدا لعرضه على مجلس الإدارة .$b660$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27101,7 +27101,7 @@ WITH ins_art______________200______2025__________32 AS (
  بشأنها لمجلس الإدارة .
  وتلتزم اللجنة بالتنسيق الوثيق مع كل من لجنتى الاستثمار والمخاطر .$b661$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27145,7 +27145,7 @@ WITH ins_art______________200______2025__________33 AS (
  فى هذا الشأن .
  صورة إ$b662$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27170,7 +27170,7 @@ WITH ins_art______________200______2025__________34 AS (
  الإدارات الرقابية والحوكمة
  تد بها$b663$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27227,7 +27227,7 @@ WITH ins_art______________200______2025__________35 AS (
 ملاءمة ومناسبة الأشخاص المنوط بهم القيام بتلك الوظائف وكذا دور ومسئوليات كل
  وظيفة فى ضوء التشريعات المنظمة لذلك .$b664$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27312,7 +27312,7 @@ WITH ins_art______________200______2025__________36 AS (
 وترفع إدارة المخاطر تقاريرها إلى لجنة المخاطر ،ويجب تمكين المسئول
  الرئيسى عن إدارة المخاطر من التواصل مباشرة مع لجنة المخاطر دون عوائق .$b665$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27390,7 +27390,7 @@ WITH ins_art______________200______2025__________37 AS (
  تد بها
  ذلك قواعد الحوكمة .$b666$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27472,7 +27472,7 @@ WITH ins_art______________200______2025__________38 AS (
  الداخلية على كافة التقارير والمعلومات ذات الصلة بعملهم .
  الوقائع المصریة – العدد ) ٢٣٥تابع( فى ٢١أكتوبر سنة ٢٠٢٥ ٤٠$b667$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27543,7 +27543,7 @@ WITH ins_art______________200______2025__________39 AS (
  وكذلك المساهمة فى إعداد التقرير السنوى للحوكمة .
  تد بها$b668$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27590,7 +27590,7 @@ WITH ins_art______________200______2025__________40 AS (
  )الفصل السادس(
  الإفصاح والشفافية$b669$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27641,7 +27641,7 @@ WITH ins_art______________200______2025__________41 AS (
  قدرتها التنافسية فى الأسواق التى تزاول بها نشاطها .
  الوقائع المصریة – العدد ) ٢٣٥تابع( فى ٢١أكتوبر سنة ٢٠٢٥ ٤٢$b670$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27681,7 +27681,7 @@ WITH ins_art______________200______2025__________42 AS (
 هذه التقارير بصورة دورية بما يسمح بتوفير المعلومات فى الوقت المناسب للأطراف
  ذات العلاقة لمساعدتهم فى اتخاذ القرار .$b671$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27746,7 +27746,7 @@ WITH ins_art______________200______2025__________43 AS (
  تد بها
  أو ضد أى من أعضاء مجلس إدارتها أو الإدارة التنفيذية العليا والمتعلقة بمهامهم الوظيفية .$b672$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27813,7 +27813,7 @@ WITH ins_art______________200______2025__________44 AS (
  الصادرة عن الهيئة فى هذا الشأن ،وعرضه على الجمعية العامة .
  الوقائع المصریة – العدد ) ٢٣٥تابع( فى ٢١أكتوبر سنة ٢٠٢٥ ٤٤$b673$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27846,7 +27846,7 @@ WITH ins_art______________200______2025__________45 AS (
  تروني
  هذا التقييم .$b674$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -27975,7 +27975,7 @@ WITH ins_art______________200______2025__________46 AS (
  ل عند ا
  تداول$b675$
   FROM laws WHERE law_no = 200 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28125,7 +28125,7 @@ WITH ins_art______________228______2025__________1 AS (
 المستثمرة في المعادن ،ونسبتها من إجمالي قيمة المحفظة الاستثمارية ،والعوائد
  المحققة بالمبالغ والمعدلات ،والتكاليف وذلك لكل معدن على حدة .$b677$
   FROM laws WHERE law_no = 228 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28171,7 +28171,7 @@ WITH ins_art______________228______2025__________2 AS (
  -٢أن يكون ثابت الملكية وليس محل نزاع قضائي .
  -٣أن يتبع أحد المؤشرات السعرية التي تعتد بها الهيئة .$b678$
   FROM laws WHERE law_no = 228 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28190,7 +28190,7 @@ WITH ins_art______________228______2025__________3 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b679$
   FROM laws WHERE law_no = 228 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28253,7 +28253,7 @@ WITH ins_art______________229______2025__________1 AS (
  صورة إ
  لها على العمل في جمهورية مصر العربية وأن تطبق مبدأ الرقابة المجمعة .$b681$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28355,7 +28355,7 @@ WITH ins_art______________229______2025__________2 AS (
  في طلب التأسيس .
 ٧ الوقائع المصریة – العدد ٢٥٤تابع )أ( فى ١٢نوفمبر سنة ٢٠٢٥$b682$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28432,7 +28432,7 @@ WITH ins_art______________229______2025__________3 AS (
  ة ال يع
  التراكمي في انتخاب أعضاء مجلس الإدارة .$b683$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28490,7 +28490,7 @@ WITH ins_art______________229______2025__________4 AS (
  في طلب الترخيص .
  ة ال يع$b684$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28556,7 +28556,7 @@ WITH ins_art______________229______2025__________5 AS (
  التعديلات أو التغييرات إلا بعد اعتمادها من الهيئة.
  تروني$b685$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28612,7 +28612,7 @@ WITH ins_art______________229______2025__________6 AS (
  ) الفصل الثاني (
  مجلس إدارة والهيكل التنظيمى لشركات إدارة برامج الرعاية الصحية$b686$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28708,7 +28708,7 @@ WITH ins_art______________229______2025__________7 AS (
  -٦إخطار الهيئة عند أي تغيير يطرأ على تشكيل المجلس خلال أسبوع على
  الأكثر من تاريخ التغيير مرفق ًا به كافة البيانات والمستندات المتعلقة بذلك .$b687$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28819,7 +28819,7 @@ WITH ins_art______________229______2025__________8 AS (
  ) الفصل الثالث (
  الالتزامات والمحظورات على شركات إدارة برامج الرعاية الصحية$b688$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -28921,7 +28921,7 @@ WITH ins_art______________229______2025__________9 AS (
 المسبقة من ذوي الشأن وفى حدود هذه الموافقة ،أو في الحالات التي يلزم فيها تقديم
  معلومات محددة للهيئة أو الهيئات القضائية .$b689$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29014,7 +29014,7 @@ WITH ins_art______________229______2025__________10 AS (
  -٧قبول أي عمليات من وسطاء التأمين ويقتصر قبول عملياتها على الجهاز
  التسويقي الملتحق بعلاقة عمل معها .$b690$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29082,7 +29082,7 @@ WITH ins_art______________229______2025__________11 AS (
  الدعوى لحين صدور حكم نهائي فيها .
  كما يجوز الاحتفاظ بالسجلات المشار إليها بهذه المادة بشكل إلكتروني .$b691$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29135,7 +29135,7 @@ WITH ins_art______________229______2025__________12 AS (
  تروني
  حوكمة شركات إدارة برامج الرعاية الصحية$b692$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29176,7 +29176,7 @@ WITH ins_art______________229______2025__________13 AS (
 وتلتزم الشركة أن تقدم إلى الهيئة صورة من محضر اجتماع الجمعية العامة في
  موعد أقصاه ثلاثين يوما من تاريخ انعقاد الجمعية للتصديق عليه .$b693$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29229,7 +29229,7 @@ WITH ins_art______________229______2025__________14 AS (
  الجمعية العامة وفق ًا للتشريعات الصادرة في هذا الشأن .
 الوقائع المصریة – العدد ٢٥٤تابع )أ( فى ١٢نوفمبر سنة ١٩ ٢٠٢٥$b694$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29275,7 +29275,7 @@ WITH ins_art______________229______2025__________15 AS (
  طلب اعتماد محضر اجتماع الجمعية العامة .
  تروني$b695$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29316,7 +29316,7 @@ WITH ins_art______________229______2025__________16 AS (
 من القوائم المالية المعدلة مرفق ًا بها تقرير مراقب الحسابات عن تلك القوائم خلال خمسة
  عشر يوما من تاريخ انعقاد الجمعية العامة التي عدلت القوائم المالية.$b696$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29358,7 +29358,7 @@ WITH ins_art______________229______2025__________17 AS (
  -٧كافة البيانات والإفصاحات وفق ًا لمتطلبات معايير المحاسبة المصرية .
  -٨أي بيانات أخرى تطلبها الهيئة في هذا الشأن .$b697$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29411,7 +29411,7 @@ WITH ins_art______________229______2025__________18 AS (
  مرور ثلاث سنوات مالية من انتهاء الست سنوات المشار إليها .
  ة ال يع$b698$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29460,7 +29460,7 @@ WITH ins_art______________229______2025__________19 AS (
  لمساعدتهم في اتخاذ القرار .
  ٢٢الوقائع المصریة – العدد ٢٥٤تابع )أ( فى ١٢نوفمبر سنة ٢٠٢٥$b699$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29525,7 +29525,7 @@ WITH ins_art______________229______2025__________20 AS (
  صورة إ
  بمهامهم الوظيفية.$b700$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29609,7 +29609,7 @@ WITH ins_art______________229______2025__________21 AS (
  صورة إ
  والمحاسبية وضمان نزاهتها .$b701$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29701,7 +29701,7 @@ WITH ins_art______________229______2025__________22 AS (
  هذه اللجان وتشكيلها ومعاملتها المالية وتنظيم كيفية عملها .
  ٢٦الوقائع المصریة – العدد ٢٥٤تابع )أ( فى ١٢نوفمبر سنة ٢٠٢٥$b702$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29780,7 +29780,7 @@ WITH ins_art______________229______2025__________23 AS (
 الوثائق والسجلات والمستندات التي تم الاطلاع عليها خلال الاجتماع أو تمت الإشارة
  إليها ضمن محضر الاجتماع .$b703$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29818,7 +29818,7 @@ WITH ins_art______________229______2025__________24 AS (
 بالشركة على قواعد وضوابط لتجنب تعارض المصالح ،بما في ذلك وضع آليات
  الإفصاح عن تلك الحالات أو الشبهة بها والإجراءات الواجب اتباعها لمواجهتها .$b704$
   FROM laws WHERE law_no = 229 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29849,7 +29849,7 @@ WITH ins_art______________230______2025__________1 AS (
 التأمين المشار إليها إسناد عمليات إعادة التأمين إلا لشركات وفروع الشركات
  المقيدة بالقائمة .$b706$
   FROM laws WHERE law_no = 230 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29893,7 +29893,7 @@ WITH ins_art______________230______2025__________2 AS (
  العاملة في مصر .
  الوقائع المصریة – العدد ٢٤٧تابع )ج( فى ٤نوفمبر سنة ٢٠٢٥ ٨$b707$
   FROM laws WHERE law_no = 230 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29950,7 +29950,7 @@ WITH ins_art______________230______2025__________3 AS (
  وكذا بيانات التواصل مع المعيد .
  -٦أي مستندات أو بيانات تطلبها الهيئة للبت في الطلب .$b708$
   FROM laws WHERE law_no = 230 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -29993,7 +29993,7 @@ WITH ins_art______________230______2025__________4 AS (
  على النحو المشار إليه بهذا القرار .
  -٧موافاة الهيئة بأي بيانات أو مستندات تطلبها خلال الأجل الذي تحدده .$b709$
   FROM laws WHERE law_no = 230 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30059,7 +30059,7 @@ WITH ins_art______________230______2025__________5 AS (
  وتقبلها الهيئة .
 ١١ الوقائع المصریة – العدد ٢٤٧تابع )ج( فى ٤نوفمبر سنة ٢٠٢٥$b710$
   FROM laws WHERE law_no = 230 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30119,7 +30119,7 @@ WITH ins_art______________230______2025__________6 AS (
 وفي جميع الأحوال ،يجوز في حال صدور قرار بالشطب أن يتم تقديم طلب
  بإعادة القيد بالقائمة شريطة زوال سبب الشطب .$b711$
   FROM laws WHERE law_no = 230 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30147,7 +30147,7 @@ WITH ins_art______________230______2025__________7 AS (
  يبرر استمرار قيده لدى الهيئة .
  الوقائع المصریة – العدد ٢٤٧تابع )ج( فى ٤نوفمبر سنة ٢٠٢٥ ١٢$b712$
   FROM laws WHERE law_no = 230 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30165,7 +30165,7 @@ WITH ins_art______________230______2025__________8 AS (
   SELECT id, 8, NULL, $b713$يلغي قرار مجلس إدارة الهيئة رقم ١٢٢لسنة ۲۰۱٤المشار إليه ،كما يلغى كل
  حكم يخالف أحكام هذا القرار .$b713$
   FROM laws WHERE law_no = 230 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30179,7 +30179,7 @@ WITH ins_art______________230______2025__________9 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b714$
   FROM laws WHERE law_no = 230 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30467,7 +30467,7 @@ WITH ins_art______________247______2025__________002_1 AS (
  - 4تاريخ اإلخطار بالتعثر.
  12الوقائع املصرية -العدد 271تابع (ب) فى 2ديسمبر سنة 2025$b716$
   FROM laws WHERE law_no = 247 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30746,7 +30746,7 @@ WITH ins_art______________247______2025__________002_2 AS (
   SELECT id, 2, NULL, $b717$تلتزم شركات التأمني بتوفيق أوضاعها وف ًقا ألحكام هذا القرار خالل شهر من تاريخ
  العمل به .$b717$
   FROM laws WHERE law_no = 247 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30766,7 +30766,7 @@ WITH ins_art______________247______2025__________002_3 AS (
  ل عند ا
  تداول$b718$
   FROM laws WHERE law_no = 247 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30801,7 +30801,7 @@ WITH ins_art______________254______2025__________1 AS (
  - ٥مجمعات التأمين .
  الوقائع المصریة – العدد ٢٥٤تابع )ب( فى ١٢نوفمبر سنة ٢٠٢٥ ١٤٤$b720$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30846,7 +30846,7 @@ WITH ins_art______________254______2025__________2 AS (
  بالنسبة للمسائل الفنية التي تدخل ضمن اختصاصها .
 ١٤٥ الوقائع المصریة – العدد ٢٥٤تابع )ب( فى ١٢نوفمبر سنة ٢٠٢٥$b721$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30894,7 +30894,7 @@ WITH ins_art______________254______2025__________3 AS (
  ولا يتجاوز خمسة ملايين جنيه .
  - ٣عشرون ألف جنيه إذا تجاوزت قيمة المبلغ المتنازع عليه خمسة ملايين جنيه .$b722$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30923,7 +30923,7 @@ WITH ins_art______________254______2025__________4 AS (
 أمام اللجنة بشخصه أو بوكيل عنه ،ويجوز للجنة الاكتفاء بما تم تقديمه من مستندات
  أو مذكرات دون الحاجة لعقد اجتماع .$b723$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30946,7 +30946,7 @@ WITH ins_art______________254______2025__________5 AS (
  الأحوال الإفصاح عن أي من هذه الحالات لرئيس اللجنة حال وجودها .
  الوقائع المصریة – العدد ٢٥٤تابع )ب( فى ١٢نوفمبر سنة ٢٠٢٥ ١٤٦$b724$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30966,7 +30966,7 @@ WITH ins_art______________254______2025__________6 AS (
 أعماله ورأيه والأوجه التي استند إليها خلال الموعد الذي حددته اللجنة ،وللجنة
  مناقشته في تقريره .$b725$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -30982,7 +30982,7 @@ WITH ins_art______________254______2025__________7 AS (
 المستقرة في النظام القانوني المصري ،وفى حالة إتمام التسوية وديا يتم إثباتها
  في محضر اللجنة ويوقع علي المحضر الأطراف أو وكلائهم .$b726$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31005,7 +31005,7 @@ WITH ins_art______________254______2025__________8 AS (
  المعني مبررات مقبولة .
 ١٤٧ الوقائع المصریة – العدد ٢٥٤تابع )ب( فى ١٢نوفمبر سنة ٢٠٢٥$b727$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31030,7 +31030,7 @@ WITH ins_art______________254______2025__________9 AS (
 الإخلال بالحالات التي يلزم فيها تقديم معلومات محددة وفق ًا لما تفرضه التشريعات
  المعمول بها في هذا الشأن .$b728$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31045,7 +31045,7 @@ WITH ins_art______________254______2025__________10 AS (
   SELECT id, 10, NULL, $b729$يلغي قرار رئيس الهيئة رقم ٩٢٦لسنة ۲۰۱۸المشار إليه ،كما يلغى كل حكم
  يخالف أحكام هذا القرار .$b729$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31060,7 +31060,7 @@ WITH ins_art______________254______2025__________11 AS (
  د /محمد فريد صالح
   $b730$
   FROM laws WHERE law_no = 254 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31084,7 +31084,7 @@ WITH ins_art______________255______2024__________1 AS (
  رقم ١٥٥لسنة ٢٠٢٤
  الوقائع المصریة – العدد ١٩٦تابع )ج( فى ٣سبتمبر سنة ٢٠٢٥ ٤$b732$
   FROM laws WHERE law_no = 255 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31101,7 +31101,7 @@ WITH ins_art______________255______2024__________2 AS (
 ولا يجوز للمجمعة تحميل المؤمن عليهم أي مبالغ إضافية كمصاريف إصدار
  بخلاف الأسعار المرافقة لهذا القرار .$b733$
   FROM laws WHERE law_no = 255 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31115,7 +31115,7 @@ WITH ins_art______________255______2024__________3 AS (
   SELECT id, 3, NULL, $b734$يلغى قراري مجلس إدارة الهيئة رقمي ٧٠لسنة ٢٠١٩و ٢١لسنة ٢٠٢٠
  المشار إليهما ،كما يلغى كل حكم يخالف أحكام هذا القرار .$b734$
   FROM laws WHERE law_no = 255 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31513,7 +31513,7 @@ WITH ins_art______________255______2024__________4 AS (
 الدراجات النارية( التي تحمل لوحات جمركية ذات المعاملة للمركبات غير الكهربائية
  ويطبق عليها ذات الأسعار .$b735$
   FROM laws WHERE law_no = 255 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31925,7 +31925,7 @@ WITH ins_art______________266______2025__________1 AS (
  أيهما أقل.
  ة ال يع$b737$
   FROM laws WHERE law_no = 266 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31945,7 +31945,7 @@ WITH ins_art______________266______2025__________2 AS (
  تد بها
  أوضاعها وف ًقا ألحكامه.$b738$
   FROM laws WHERE law_no = 266 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -31963,7 +31963,7 @@ WITH ins_art______________266______2025__________3 AS (
  الهيئة العامة للرقابة املالية
  د .محمد فريد صالح$b739$
   FROM laws WHERE law_no = 266 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32013,7 +32013,7 @@ WITH ins_art______________267______2025__________1 AS (
  بالمتطلبات الرقابية للملاءة المالية للشركة أو الإجحاف بمصلحة حملة الوثائق .
  الوقائع المصریة – العدد ) ٢٥٨تابع( فى ١٧نوفمبر سنة ٢٠٢٥ ٤$b741$
   FROM laws WHERE law_no = 267 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32062,7 +32062,7 @@ WITH ins_art______________267______2025__________2 AS (
  للأرباح المستقبلية المتوقعة من الوثائق الجديدة المصدرة .
  )د( التأثير سلبا ً على الملاءة المالية لشركة التأمين.$b742$
   FROM laws WHERE law_no = 267 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32099,7 +32099,7 @@ WITH ins_art______________267______2025__________3 AS (
  رقم الإيداع بدار الكتب ٢٦٨لسنة ٢٠٢٥
  ٥٠٩ - ٢٠٢٥/١١/١٨ - ٢٠٢٥ / ٢٥٤٧٩$b743$
   FROM laws WHERE law_no = 267 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32132,7 +32132,7 @@ WITH ins_art______________271______2024__________1 AS (
 وصناديق التأمين الخاصة والاتحادات والأجهزة المعاونة على الموقع الالكترونى الذى
  تخصصه الهيئة لهذا الغرض .$b745$
   FROM laws WHERE law_no = 271 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32156,7 +32156,7 @@ WITH ins_art______________271______2024__________2 AS (
  -٥المسافة البينية للأسطر ١,٥٠) :سم( ). (Line Spacing
  -٦عدد الأسطر بالورقة الواحدة :تتراوح بين ) (٢٠إلى ) (٢٥سطر .$b746$
   FROM laws WHERE law_no = 271 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32184,7 +32184,7 @@ WITH ins_art______________271______2024__________3 AS (
  -٢ألف جنيه مصرى فى حالة النشر لأربع صفحات وحتى سبع صفحات .
  -٣ألف وخمسمائة جنيه مصرى فى حالة النشر لما يزيد على السبع صفحات .$b747$
   FROM laws WHERE law_no = 271 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32203,7 +32203,7 @@ WITH ins_art______________271______2024__________4 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b748$
   FROM laws WHERE law_no = 271 AND law_year = 2024
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32239,7 +32239,7 @@ WITH ins_art______________271______2025__________1 AS (
 فيج���ب تق���دمي توكيل خاص مصدق عليه متضمنًا قيمة مبلغ التأمني وما يخول للوكيل
  حق استالمه من الصندوق.$b750$
   FROM laws WHERE law_no = 271 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32277,7 +32277,7 @@ WITH ins_art______________271______2025__________2 AS (
  ببيانات احلساب البنكى لتحويل مبلغ التأمني املستحق لهم).
  ة ال يع$b751$
   FROM laws WHERE law_no = 271 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32310,7 +32310,7 @@ WITH ins_art______________271______2025__________3 AS (
  موضحا به توصيف حلالة العجز ونسبته. ً - 3تقرير اجلهة الطبية املختصة
  23 الوقائع املصرية -العدد 271تابع (ب) فى 2ديسمبر سنة 2025$b752$
   FROM laws WHERE law_no = 271 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32336,7 +32336,7 @@ WITH ins_art______________271______2025__________4 AS (
  - 1صورة رسمية من محضر احلادث.
  -٢تقرير من اخلبير املعاين لتقدير قيمه األضرار املادية.$b753$
   FROM laws WHERE law_no = 271 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32352,7 +32352,7 @@ WITH ins_art______________271______2025__________5 AS (
  صورة إ
  تقدميه مستوف ًيا املستندات املؤيدة له .$b754$
   FROM laws WHERE law_no = 271 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32375,7 +32375,7 @@ WITH ins_art______________271______2025__________6 AS (
  ل
  تداول$b755$
   FROM laws WHERE law_no = 271 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32404,7 +32404,7 @@ WITH ins_art______________303______2025__________1 AS (
  للتأمين ضد األخطار الناجمة عن األخطاء الطبية وف ًقا للجداول المرافقة لهذا القرار.
  3 الوقائع املصرية -العدد 11تابع (أ) فى 14يناير سنة 2026$b757$
   FROM laws WHERE law_no = 303 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32420,7 +32420,7 @@ WITH ins_art______________303______2025__________2 AS (
 إجراء الدراس���ة المش���ار إليها كلما اقتضى األمر ذلك ،وذلك لتحديد األسعار المناسبة
  فى هذا الشأن.$b758$
   FROM laws WHERE law_no = 303 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32440,7 +32440,7 @@ WITH ins_art______________303______2025__________3 AS (
  د .محمد فريد صالح
 الوقائع املصرية -العدد 11تابع (أ) فى 14يناير سنة 2026 4$b759$
   FROM laws WHERE law_no = 303 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32463,7 +32463,7 @@ WITH ins_art______________319______2025__________1 AS (
 تس���رى أحكام هذا القرار فى ش���أن الش���روط والقواعد الحاكمة لنش���اط التأمين
  متناهى الصغر.$b761$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32478,7 +32478,7 @@ WITH ins_art______________319______2025__________2 AS (
 س���داد أقساط تتناسب مع طبيعة الخطر المؤمن عليه ،وبحد أقصى للتغطية التأمينية
  يتحدد وف ًقا للقرار الصادر عن مجلس إدارة الهيئة فى هذا الشأن.$b762$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32512,7 +32512,7 @@ WITH ins_art______________319______2025__________3 AS (
  - ۹تأمينات العالج الطبى قصير األجل.
  - 10أى فروع تأمين أخرى توافق عليها الهيئة.$b763$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32598,7 +32598,7 @@ WITH ins_art______________319______2025__________4 AS (
  الموافقة عليه.
  الوقائع املصرية -العدد 29فى 5فبراير سنة 2026 14$b764$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32680,7 +32680,7 @@ WITH ins_art______________319______2025__________5 AS (
  - ۱۳ما يفيد إمهال المؤمن له فترة السماح المناسبة لسداد األقساط.
  15 الوقائع املصرية -العدد 29فى 5فبراير سنة 2026$b765$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32718,7 +32718,7 @@ WITH ins_art______________319______2025__________6 AS (
 إدارة الهيئ���ة رق���م 199لس���نة ٢٠٢٥عن���د التعاقد مع أى من الفئات المش���ار إليها
  بهذه المادة.$b766$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32753,7 +32753,7 @@ WITH ins_art______________319______2025__________7 AS (
  وخصوصية معلوماتهم.
  - 5إجراءات تقديم وفحص وتسوية الشكاوى المقدمة من العمالء.$b767$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32788,7 +32788,7 @@ WITH ins_art______________319______2025__________8 AS (
  - 9المطالبات .
  17 الوقائع املصرية -العدد 29فى 5فبراير سنة 2026$b768$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32818,7 +32818,7 @@ WITH ins_art______________319______2025__________9 AS (
 ويج���ب الحص���ول عل���ى موافق���ة الهيئ���ة المس���بقة عل���ى الم���واد المس���تخدمة
  لتثقيف وطرقها.$b769$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32838,7 +32838,7 @@ WITH ins_art______________319______2025__________10 AS (
 تلتزم الشركات المخاطبة بأحكام هذا القرار بتوفيق أوضاعها وف ًقا ألحكامه خالل
  ستة أشهر من تاريخ العمل به.$b770$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32850,7 +32850,7 @@ WITH ins_art______________319______2025__________11 AS (
   SELECT id, 11, NULL, $b771$يلغى قرار رئيس الهيئة رقم 902لس���نة ٢٠١٦المشار إليه ،كما ُيلغى كل حكم
  يخالف أحكام هذا القرار.$b771$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32864,7 +32864,7 @@ WITH ins_art______________319______2025__________12 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b772$
   FROM laws WHERE law_no = 319 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32886,7 +32886,7 @@ WITH ins_art______________320______2025__________1 AS (
  والمسئوليات لمزاولة نشاط التأمين متناهى الصغر فى سوق التأمين المصري.
  19 الوقائع املصرية -العدد 29فى 5فبراير سنة 2026$b774$
   FROM laws WHERE law_no = 320 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32920,7 +32920,7 @@ WITH ins_art______________320______2025__________2 AS (
  تنفيذا له بالنسبة للحد األدنى ومدى كفاية رأس المال المخاطر. ً والقرارات الصادرة
  الوقائع املصرية -العدد 29فى 5فبراير سنة 2026 20$b775$
   FROM laws WHERE law_no = 320 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -32981,7 +32981,7 @@ WITH ins_art______________320______2025__________3 AS (
  (د) خطة التدريب والتطوير للعاملين بالشركة.
  - 7نسخة من الهيكل التنظيمى المعدل للشركة ،إذا ما اقتضى األمر ذلك.$b776$
   FROM laws WHERE law_no = 320 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33026,7 +33026,7 @@ WITH ins_art______________320______2025__________4 AS (
 فى تعديل ترخيصها .ويتم إعداد تقرير فى هذا الشأن للعرض على مجلس إدارة الهيئة
  للنظر فى إصدار قرار بعدم ممانعته على تعديل الترخيص.$b777$
   FROM laws WHERE law_no = 320 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33074,7 +33074,7 @@ WITH ins_art______________320______2025__________5 AS (
  يوما على األكثر من تاريخ تقديم المستندات مستوفاة.
  خالل ثالثين ً$b778$
   FROM laws WHERE law_no = 320 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33120,7 +33120,7 @@ WITH ins_art______________320______2025__________6 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b779$
   FROM laws WHERE law_no = 320 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33142,7 +33142,7 @@ WITH ins_art______________321______2025__________1 AS (
 فى مصر للشركات األجنبية التى تعمل فى مجال التأمين أو إعادة التأمين أو األنشطة
  والخدمات المرتبطة بها.$b781$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33171,7 +33171,7 @@ WITH ins_art______________321______2025__________2 AS (
 أخ���رى بخ�ل�اف مكتب التمثيل المرخص لها بإنش���ائه فى مصر للقي���ام بالدور المنوط
  بتلك المكاتب.$b782$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33221,7 +33221,7 @@ WITH ins_art______________321______2025__________3 AS (
  - ٩ما يفيد س���داد رس���م التس���جيل بواقع مبلغ قدره خمسة آالف دوالر أمريكى
  أو ما يعادله بالعمالت األجنبية الحرة التى يقبلها البنك المركزى المصري.$b783$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33261,7 +33261,7 @@ WITH ins_art______________321______2025__________4 AS (
  المكتب لنشاطه.
  27 الوقائع املصرية -العدد 29فى 5فبراير سنة 2026$b784$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33284,7 +33284,7 @@ WITH ins_art______________321______2025__________5 AS (
  - 3تاريخ بدء نشاط المكتب فى مصر ،وتاريخ التجديد.
  - 4البيانات الخاصة بالمسئول عن إدارة المكتب.$b785$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33307,7 +33307,7 @@ WITH ins_art______________321______2025__________6 AS (
 ويكون رس���م تجدي���د القيد بواقع مبلغ ق���دره ألف دوالر أو م���ا يعادله بالعمالت
  األجنبية الحرة التى يقبلها البنك المركزي المصري.$b786$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33337,7 +33337,7 @@ WITH ins_art______________321______2025__________7 AS (
 الهيئة فى حالة رغبة الش���ركة فى وقف نش���اط المكتب فى مصر سواء بصورة مؤقتة أو
  نهائية وذلك قبل الوقف بشهرين مع توضيح السبب والمدة فى حال الوقف المؤقت.$b787$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33363,7 +33363,7 @@ WITH ins_art______________321______2025__________8 AS (
 البيانات والمعلومات الالزمة للفحص ،وكذا أى بيانات أو مستندات أخرى ترى الهيئة
  ضرورة تقديمها فى هذا الشأن.$b788$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33384,7 +33384,7 @@ WITH ins_art______________321______2025__________9 AS (
  - 3عدم تجديد الموافقة على تسجيل المكتب لدى الهيئة.
  29 الوقائع املصرية -العدد 29فى 5فبراير سنة 2026$b789$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33404,7 +33404,7 @@ WITH ins_art______________321______2025__________10 AS (
 تلت���زم الش���ركات األجنبية ومكاتب التمثيل التابعة له���ا القائمة وقت العمل بهذا
  القرار بتوفيق أوضاعها وف ًقا ألحكامه خالل ستة أشهر من تاريخ العمل به.$b790$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33419,7 +33419,7 @@ WITH ins_art______________321______2025__________11 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b791$
   FROM laws WHERE law_no = 321 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33441,7 +33441,7 @@ WITH ins_art______________326______2025__________1 AS (
  صندوق التأمين الحكومى على طالب التعليم األزهرى .
  25 الوقائع املصرية -العدد 30فى 7فبراير سنة 2026$b793$
   FROM laws WHERE law_no = 326 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33462,7 +33462,7 @@ WITH ins_art______________326______2025__________2 AS (
 االش���تراكات ،كما يحل األزهر الشريف محل الحاالت المستثناة فى سداد االشتراكات
  حال وجودها.$b794$
   FROM laws WHERE law_no = 326 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33490,7 +33490,7 @@ WITH ins_art______________326______2025__________3 AS (
  نسبة العجز بقرار من الجهة الطبية المختصة التى يحددها مجلس إدارة الصندوق.
  الوقائع املصرية -العدد 30فى 7فبراير سنة 2026 26$b795$
   FROM laws WHERE law_no = 326 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33513,7 +33513,7 @@ WITH ins_art______________326______2025__________4 AS (
  للصندوق ،وذلك ً
  بها فور إعدادها.$b796$
   FROM laws WHERE law_no = 326 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33530,7 +33530,7 @@ WITH ins_art______________326______2025__________5 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b797$
   FROM laws WHERE law_no = 326 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33557,7 +33557,7 @@ WITH ins_art______________331______2025__________1 AS (
 المس���تثنون من سداد المصروفات الدراسية أو أقساط التأمين على النحو الوارد بقرار
  رئيس مجلس الوزراء رقم 1583لسنة ٢٠١٩المشار إليه.$b799$
   FROM laws WHERE law_no = 331 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33576,7 +33576,7 @@ WITH ins_art______________331______2025__________2 AS (
 يكون مقابل االشتراك السنوى بالصندوق بواقع مبلغ 10٫60جنيه مصرى (عشرة
  جنيهات وستون قر ًشا) عن كل طالب،تسدد مع المصروفات الدراسية.$b800$
   FROM laws WHERE law_no = 331 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33654,7 +33654,7 @@ WITH ins_art______________331______2025__________3 AS (
 التأمي���ن الصح���ي ،وذلك بحد أقصى قيمة مبلغ التأمين المقرر وفقا للبند أولاً ،ولمرة
  واحدة خالل فترة الدراسة.$b801$
   FROM laws WHERE law_no = 331 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33734,7 +33734,7 @@ WITH ins_art______________331______2025__________4 AS (
  للصندوق ،وذلك ً
  بها فور إعدادها.$b802$
   FROM laws WHERE law_no = 331 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33752,7 +33752,7 @@ WITH ins_art______________331______2025__________5 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b803$
   FROM laws WHERE law_no = 331 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33781,7 +33781,7 @@ WITH ins_art______________4______2025__________1_1 AS (
  -٤مخصص التقلبات العكسية .
  الوقائع المصریة – العدد ) ٤٦تابع( فى ٢٥فبرایر سنة ٢٠٢٥ ٤$b805$
   FROM laws WHERE law_no = 4 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33813,7 +33813,7 @@ WITH ins_art______________4______2025__________1_2 AS (
 زيادة معدل الخسارة التجميعي لتلك العقود على ) (٪١٠٠ويتم تكوينه بزيادة التزامات
  تلك العقود بنسبة الزيادة في معدل الخسارة التجميعي عن تلك النسبة .$b806$
   FROM laws WHERE law_no = 4 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33851,7 +33851,7 @@ WITH ins_art______________4______2025__________1_3 AS (
 يتم تكوين هذا المخصص وفق ًا لأحد الطرق الإحصائية والاكتوارية المتعارف
  عليها ووفق ًا لتقديرات الخبير الاكتواري للشركة .$b807$
   FROM laws WHERE law_no = 4 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33905,7 +33905,7 @@ WITH ins_art______________4______2025__________1_4 AS (
 ويتم تحميل حسابات نتيجة الفروع التأمينية بقيمة المكون من مخصص التقلبات
  العكسية المنصوص عليها بالمادة ) (١٧٤من قانون التأمين الموحد .$b808$
   FROM laws WHERE law_no = 4 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33954,7 +33954,7 @@ WITH ins_art______________4______2025__________1_5 AS (
 من الأحوال التصرف أو استخدام هذا الاحتياطي إلا بعد الحصول على موافقة كتابية
  مسبقة من الهيئة بذلك .$b809$
   FROM laws WHERE law_no = 4 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33978,7 +33978,7 @@ WITH ins_art______________4______2025__________1_6 AS (
  القابلة للتوزيع وفق ًا لما تحدده الهيئة في هذا الشأن .
 ٧ الوقائع المصریة – العدد ) ٤٦تابع( فى ٢٥فبرایر سنة ٢٠٢٥$b810$
   FROM laws WHERE law_no = 4 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -33996,7 +33996,7 @@ WITH ins_art______________4______2025__________1_7 AS (
 وكذا مستويات الثقة ) (Confidence Levelعند تقدير المخصصات المطلوبة لتحمل المخاطر
  غير المالية ) (Risk Adjustmentالمرتبطة بالمخاطر الناشئة عن عقود التأمين .$b811$
   FROM laws WHERE law_no = 4 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34013,7 +34013,7 @@ WITH ins_art______________4______2025__________1_8 AS (
  الهيئة العامة للرقابة المالية
  د /محمد فريد صالح$b812$
   FROM laws WHERE law_no = 4 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34038,7 +34038,7 @@ WITH ins_art______________58______2025__________1 AS (
 المشار إليها على المنصة خلال خمسة أيام على الأكثر من تاريخ اتخاذ الإجراء
  لدى الشركة .$b814$
   FROM laws WHERE law_no = 58 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34070,7 +34070,7 @@ WITH ins_art______________58______2025__________2 AS (
 للمؤمن عليهم خلال مدة لا تجاوز ستة أشهر من تاريخ العمل بهذا القرار مع تقديم
  تقرير شهرى للهيئة بما قامت به الشركة من أعمال التسجيل .$b815$
   FROM laws WHERE law_no = 58 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34100,7 +34100,7 @@ WITH ins_art______________58______2025__________3 AS (
 الهيئة العامة للرقابة المالية
  د.محمد فريد صالح$b816$
   FROM laws WHERE law_no = 58 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34128,7 +34128,7 @@ WITH ins_art______________62______2025__________1 AS (
  المواقع الإلكترونية لأى من المخاطبين بأحكام هذا القرار وفق ًا للضوابط الواردة به .
  الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥ ٤$b818$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34164,7 +34164,7 @@ WITH ins_art______________62______2025__________2 AS (
 الحية( ،على أن يتم تقديم الدعم الفنى فى حالة وجود أى مشاكل تقنية فى استخدام
  الموقع والرد على الاستفسارات فى أسرع وقت ممكن .$b819$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34205,7 +34205,7 @@ WITH ins_art______________62______2025__________3 AS (
 والمعلومات المتاحة بالموقع ،وإجراء مراجعة دورية له للتأكد من حسن أدائه وامتثاله
  للتشريعات والضوابط الفنية المعمول بها .$b820$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34262,7 +34262,7 @@ WITH ins_art______________62______2025__________4 AS (
 التجهيزات والبنية التكنولوجية وأنظمة المعلومات ووسائل الحماية والتأمين( المرفق
  بقرار مجلس إدارة الهيئة رقم ١٣٩لسنة ٢٠٢٣المشار إليه .$b821$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34329,7 +34329,7 @@ WITH ins_art______________62______2025__________5 AS (
  أو هجمات سيبرانية قد يتعرض لها الموقع الإلكترونى .
 ٧ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥$b822$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34374,7 +34374,7 @@ WITH ins_art______________62______2025__________6 AS (
 مسئولا ً عن أداء نتائج أعمال الجهة المعهود إليها من الناحية القانونية والفنية ،
  وعليه التأكد من التزامها بكافة التشريعات الصادرة عن الهيئة فى هذا الشأن .$b823$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34418,7 +34418,7 @@ WITH ins_art______________62______2025__________7 AS (
 )ج( خمسة آلاف جنيه للأشخاص الطبيعيين وصناديق التأمين الخاصة التى
  لا يتجاوز حجم أموالها عشرة ملايين جنيه .$b824$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34452,7 +34452,7 @@ WITH ins_art______________62______2025__________8 AS (
 تتولى الهيئة البت فى طلب الترخيص خلال خمسة عشر يوما من تاريخ تقديمه
  مستوفيا البيانات والمستندات المتطلبة للبت فيه .$b825$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34466,7 +34466,7 @@ WITH ins_art______________62______2025__________9 AS (
  عليه اتخاذه خلال الفترة الزمنية التى تحددها الهيئة لإزالة أسباب المخالفة .
 ٩ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥$b826$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34479,7 +34479,7 @@ WITH ins_art______________62______2025__________10 AS (
   SELECT id, 10, NULL, $b827$يمنح المخاطبون بأحكام هذا القرار مهلة لتوفيق أوضاعهم وفق ًا لأحكامه خلال
  ثلاثة أشهر من تاريخ العمل به .$b827$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34493,7 +34493,7 @@ WITH ins_art______________62______2025__________11 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b828$
   FROM laws WHERE law_no = 62 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34530,7 +34530,7 @@ WITH ins_art______________69______2023__________1 AS (
 وتكون البيانات والمعلومات الخاصة بالعملاء والشركات أعلاه سرية ولا يجوز
 إتاحتها إلا للهيئة » وتضع الهيئة الضوابط الخاصة بالتعامل عليها .$b830$
   FROM laws WHERE law_no = 69 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34560,7 +34560,7 @@ WITH ins_art______________69______2023__________2 AS (
 للبنود (" 5٠ 56 16) الواردة بالمادة الأولى من هذا القرار » وذلك فى ضوء
 المبررات التى تقدمها الشركة وتقبلها الهيئة .$b831$
   FROM laws WHERE law_no = 69 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34576,7 +34576,7 @@ WITH ins_art______________69______2023__________3 AS (
 الهيئة العامة للرقابة المالية
 د/ محمد فريد صالح$b832$
   FROM laws WHERE law_no = 69 AND law_year = 2023
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34606,7 +34606,7 @@ WITH ins_art______________69______2025__________1 AS (
 كما تسرى الأحكام الواردة فى هذا القرار بشأن تنظيم ممارسة نشاط الوساطة فى
  التأمين أو إعادة التأمين .$b834$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34653,7 +34653,7 @@ WITH ins_art______________69______2025__________2 AS (
 الانتقال والضيافة أو البدلات أو الحوافز السنوية أو أى عمولات أو مصروفات تحت
  أى مسمى .$b835$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34700,7 +34700,7 @@ WITH ins_art______________69______2025__________3 AS (
 الهيئة بشأن المخالفين للتشريعات المنظمة للأنشطة المالية غير المصرفية قبل تعيين
  أحد الوسطاء للعمل لديها .$b836$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34733,7 +34733,7 @@ WITH ins_art______________69______2025__________4 AS (
  التأسيس والترخيص والقيد بالسجل
  أولاً :تأسيس وترخيص وقيد الأشخاص الاعتبارية$b837$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34802,7 +34802,7 @@ WITH ins_art______________69______2025__________5 AS (
  -٧فتح فرعين على الأقل خلال مدة لا تجاوز ثلاث سنوات من تاريخ بدء
 مزاولة النشاط ،على أن يتولى إدارة كل فرع أحد وسطاء التأمين المقيدين فى السجل .$b838$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34900,7 +34900,7 @@ WITH ins_art______________69______2025__________6 AS (
  عن الهيئة .
  -١٣أى بيانات أو مستندات أخرى ترى الهيئة ضرورة تقديمها للبت فى الطلب .$b839$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34956,7 +34956,7 @@ WITH ins_art______________69______2025__________7 AS (
 المستندات المتطلبة للبت فى الطلب ،ويتم إخطار وكيل المؤسسين بالقرار خلال
  أسبوع من تاريخ صدوره .$b840$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -34988,7 +34988,7 @@ WITH ins_art______________69______2025__________8 AS (
  الهيئة الصادر فى هذا الشأن .
  -٩أى بيانات أو مستندات أخرى ترى الهيئة ضرورة تقديمها للبت فى الطلب .$b841$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35021,7 +35021,7 @@ WITH ins_art______________69______2025__________9 AS (
 وينشر القرار على الموقع الإلكترونى للشركة وكذا الموقع الإلكترونى الذى تخصصه
  الهيئة لهذا الغرض .$b842$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35048,7 +35048,7 @@ WITH ins_art______________69______2025__________10 AS (
 ١٩ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥
  ثانيًا :قيد الأشخاص الطبيعيين فى السجل$b843$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35099,7 +35099,7 @@ WITH ins_art______________69______2025__________11 AS (
 ويشترط لتجديد أو إعادة قيد وسيط التأمين بالسجل توافر الشروط المنصوص
  عليها بالبنود ) (١٠ ، ٩ ، ٨ ، ٧ ، ٦ ، ٤ ، ٣ ، ٢من هذه المادة .$b844$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35156,7 +35156,7 @@ WITH ins_art______________69______2025__________12 AS (
  المنصوص عليها بالبنود ) (٥ ، ٤ ، ٣ ، ٢من هذه المادة .
 ٢١ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥$b845$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35228,7 +35228,7 @@ WITH ins_art______________69______2025__________13 AS (
 وتبت الهيئة فى الطلب خلال ثلاثين يوما على الأكثر من تاريخ تقديمه مستوفيا
  المستندات المتطلبة للبت فيه .$b846$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35322,7 +35322,7 @@ WITH ins_art______________69______2025__________14 AS (
 التنفيذية بأن يتم تغطيتهم من خلال وثيقة مسئولية مهنية شاملة وفق البند )(١
  من هذه المادة .$b847$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35380,7 +35380,7 @@ WITH ins_art______________69______2025__________15 AS (
 وتقوم الهيئة بالبت فى الطلب خلال عشرة أيام من تاريخ استيفاء المستندات
  المطلوبة .$b848$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35410,7 +35410,7 @@ WITH ins_art______________69______2025__________16 AS (
  فتح أو إيقاف أو غلق أو نقل أى فرع من فروع الشركة .
 ٢٥ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥$b849$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35439,7 +35439,7 @@ WITH ins_art______________69______2025__________17 AS (
  الفصل الثالث
  قواعد مزاولة نشاط الوساطة فى التأمين وإعادة التأمين$b850$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35466,7 +35466,7 @@ WITH ins_art______________69______2025__________18 AS (
  وبين أى وظيفة أخرى داخل أو خارج الشركة .
  -٤اجتياز الاختبار الذى تعقده الهيئة فى هذا الشأن .$b851$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35499,7 +35499,7 @@ WITH ins_art______________69______2025__________19 AS (
  وبين أى وظيفة أخرى داخل وخارج الشركة .
  -٤اجتياز الاختبار الذى تعقده الهيئة فى هذا الشأن .$b852$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35536,7 +35536,7 @@ WITH ins_art______________69______2025__________20 AS (
  أخرى بناء على مبررات تقدمها الشركة وتقبلها الهيئة .
 ٢٧ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥$b853$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35569,7 +35569,7 @@ WITH ins_art______________69______2025__________21 AS (
 ويسرى على خبراء التأمين الاستشاريين ذات الأحكام السارية فى شأن القائمين
  بالإدارة التنفيذية الواردة بهذا القرار .$b854$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35601,7 +35601,7 @@ WITH ins_art______________69______2025__________22 AS (
  حضور ممثل عن الهيئة .
  الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥ ٢٨$b855$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35642,7 +35642,7 @@ WITH ins_art______________69______2025__________23 AS (
  -٤أسماء شركات التأمين أو إعادة التأمين التى تعاملت معها خلال السنة
  المالية المنقضية .$b856$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35682,7 +35682,7 @@ WITH ins_art______________69______2025__________24 AS (
 ويتعين أن تتضمن كل إدارة موظف ًا واحدا على الأقل ،وألا يقل عدد الوسطاء
  العاملين بإدارة الوسطاء عن اثنين .$b857$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35747,7 +35747,7 @@ WITH ins_art______________69______2025__________25 AS (
  -٦أى سجلات أخرى تحددها الهيئة .
 ٣١ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥$b858$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35832,7 +35832,7 @@ WITH ins_art______________69______2025__________26 AS (
  الدورات التدريبية الحاصل عليها الوسيط فى مجال إعادة التأمين .
  -٥أى سجلات أخرى تحددها الهيئة .$b859$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35878,7 +35878,7 @@ WITH ins_art______________69______2025__________27 AS (
  التزامات وسطاء التأمين وإعادة التأمين
  التزامات عامة$b860$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -35931,7 +35931,7 @@ WITH ins_art______________69______2025__________28 AS (
  العميل أو الانسحاب من تقديم الخدمة مع إخطار العميل بذلك كتابة .
  الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥ ٣٤$b861$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36010,7 +36010,7 @@ WITH ins_art______________69______2025__________29 AS (
 )ب( تسجيل أو إدخال أى عمليات إنتاجية على أنها إنتاج فردى ،ويتعين دائما
  أن تكون باسم ولحساب الشركة الملتحقين للعمل بها .$b862$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36101,7 +36101,7 @@ WITH ins_art______________69______2025__________30 AS (
 أو غير دقيقة أو أن المستندات المرفقة غير سليمة أو غير مستوفاة فعليه إبلاغ الشركة
  بذلك فورا .$b863$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36217,7 +36217,7 @@ WITH ins_art______________69______2025__________31 AS (
 مخالفة ذلك فى حال تحقق الخطر المؤمن ضده ،كما يجب على الوسيط تنبيه العميل
  فى حال إغفال بعض البيانات وتوجيه إلى ضرورة استكمالها .$b864$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36321,7 +36321,7 @@ WITH ins_art______________69______2025__________32 AS (
  الفصل الخامس
  التزامات شركات التأمين وإعادة التأمين$b865$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36394,7 +36394,7 @@ WITH ins_art______________69______2025__________33 AS (
  الفصل السادس
  وقف القيد والتدابير الإدارية$b866$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36441,7 +36441,7 @@ WITH ins_art______________69______2025__________34 AS (
  قيده بالسجل ،واستيفاء أى شروط متطلبة لذلك .
  ويشطب الوسيط فى حال انتهاء مدة قيده دون قيامه بتعديل بياناته .$b867$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36477,7 +36477,7 @@ WITH ins_art______________69______2025__________35 AS (
  -٣إذا ثبت أنه قام بأعمال مخالفة للتشريعات أو ما يجب عليه الالتزام به
  المتعلقة بمهنته أو تنطوى على غش أو خطأ جسيم .$b868$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36502,7 +36502,7 @@ WITH ins_art______________69______2025__________36 AS (
  من هذا القرار وذلك خلال سنة من تاريخ العمل به .
 ٤٣ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥$b869$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36514,7 +36514,7 @@ WITH ins_art______________69______2025__________37 AS (
   SELECT id, 37, NULL, $b870$يلغى قرارا مجلس إدارة الهيئة رقما ٢٣لسنة ٢٠١٤و ١١٤لسنة ٢٠٢١المشار
  إليهما ،كما يلغى كل حكم يخالف أحكام هذا القرار .$b870$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36528,7 +36528,7 @@ WITH ins_art______________69______2025__________38 AS (
  الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b871$
   FROM laws WHERE law_no = 69 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36562,7 +36562,7 @@ WITH ins_art______________77______2025__________1 AS (
  ) الفصل الأول (
  ضوابط حماية المتعاملين مع شركات التأمين$b873$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36687,7 +36687,7 @@ WITH ins_art______________77______2025__________2 AS (
 المخصص لتلقي الشكاوى ،مع إحاطة العملاء كتابة بحقهم في التوجه إلى الإدارة
  المختصة بالهيئة في حال عدم قبولهم التسوية المقدمة من الشركة بخصوص شكواهم .$b874$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36824,7 +36824,7 @@ WITH ins_art______________77______2025__________3 AS (
  -٧تسليم العملاء كافة مستندات وثائق التأمين فور إبرامها ،دون تأخير .
  الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥ ٨$b875$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36881,7 +36881,7 @@ WITH ins_art______________77______2025__________4 AS (
 كما تلتزم شركات التأمين بإثبات أي تعديلات تطرأ على وثائق التأمين كتابة ،
  مع بيان واضح لأي مبالغ إضافية قد تترتب على المؤمن لهم نتيجة هذه التعديلات .$b876$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -36947,7 +36947,7 @@ WITH ins_art______________77______2025__________5 AS (
 الحساب الاستثماري وفق ًا لشروط الوثيقة ،على أن يكتفى بالإخطار الدوري بعد تنفيذ
  اختيار العميل .$b877$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37011,7 +37011,7 @@ WITH ins_art______________77______2025__________6 AS (
 للمؤمن له إلغاء أو تصفية التأمين واسترداد جزء نسبي من الأقساط أو الاشتراكات
  )التأمين التكافلي( المدفوعة عن المدة غير المنقضية من التأمين الملغي .$b878$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37051,7 +37051,7 @@ WITH ins_art______________77______2025__________7 AS (
  -٣أن تقدم للهيئة طرق التسعير التي سبق للعملاء الموافقة عليها كجزء من
  طلبات الموافقة على المنتجات والخدمات التأمينية .$b879$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37098,7 +37098,7 @@ WITH ins_art______________77______2025__________8 AS (
  المبررات اللازمة في حال التخفيض أو رفض جزء من المطالبة .
  تروني$b880$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37182,7 +37182,7 @@ WITH ins_art______________77______2025__________9 AS (
  التغطية التأمينية أو الأقساط المقررة أو أي تبعات ضريبية على ذلك .
 ١٣ الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥$b881$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37272,7 +37272,7 @@ WITH ins_art______________77______2025__________10 AS (
  أو الامتناع أو اتخاذ إجراءات الإنهاء .
  الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥ ١٤$b882$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37345,7 +37345,7 @@ WITH ins_art______________77______2025__________11 AS (
  من الوسائل الفنية .
 ١٥ الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥$b883$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37444,7 +37444,7 @@ WITH ins_art______________77______2025__________12 AS (
  الممارسة متصلة بمناقصة عامة أو محدودة لا تزال قائمة .
  عند ا$b884$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37566,7 +37566,7 @@ WITH ins_art______________77______2025__________13 AS (
  تروني
  خلال مدة لا تتجاوز سبعة أيام عمل من تاريخ تقديم الطلب .$b885$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37651,7 +37651,7 @@ WITH ins_art______________77______2025__________14 AS (
  ) الفصل الثانى (
  ضوابط حماية المتعاملين مع شركات إدارة برامج التأمين الطبي$b886$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37704,7 +37704,7 @@ WITH ins_art______________77______2025__________15 AS (
  المقدمة من إدارة الشكاوى بالشركة .
  الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥ ٢٠$b887$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37749,7 +37749,7 @@ WITH ins_art______________77______2025__________16 AS (
 مع العملاء وتوفير أحدث التقنيات والبرامج لضمان حماية وسلامة عمليات
  الدفع الإلكتروني .$b888$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37813,7 +37813,7 @@ WITH ins_art______________77______2025__________17 AS (
  ضوابط حماية المتعاملين مع صناديق التأمين الحكومية وصناديق التأمين الخاصة
  أولا ً -أحكام مشتركة بين صناديق التأمين الحكومية وصناديق التأمين الخاصة$b889$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37899,7 +37899,7 @@ WITH ins_art______________77______2025__________18 AS (
  ة ال يع
  الهيئة ورقم قيده بسجلات الهيئة .$b890$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -37974,7 +37974,7 @@ WITH ins_art______________77______2025__________19 AS (
  لها أو لأي جهة أخرى .
  ة ال يع$b891$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -38039,7 +38039,7 @@ WITH ins_art______________77______2025__________20 AS (
  صورة إ
  الصندوق أو المزايا التأمينية أو الأقساط أو الاشتراكات .$b892$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -38092,7 +38092,7 @@ WITH ins_art______________77______2025__________21 AS (
  النظام الأساسي للصندوق .
 ٢٥ الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥$b893$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -38148,7 +38148,7 @@ WITH ins_art______________77______2025__________22 AS (
  في هذا الشأن .
  الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥ ٢٦$b894$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -38232,7 +38232,7 @@ WITH ins_art______________77______2025__________23 AS (
  لك
  تروني$b895$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -38302,7 +38302,7 @@ WITH ins_art______________77______2025__________24 AS (
  معلومات مضللة أو غير حقيقة بها .
  الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥ ٢٨$b896$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -38423,7 +38423,7 @@ WITH ins_art______________77______2025__________25 AS (
 ٣١ الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥
  ثالث ًا -أحكام تتعلق بصناديق التأمين الخاصة$b897$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -38549,7 +38549,7 @@ WITH ins_art______________77______2025__________26 AS (
  ة ال يع
  الأساسي للصندوق على المتقدم بطلب الانضمام .$b898$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -38730,7 +38730,7 @@ WITH ins_art______________77______2025__________27 AS (
 لأعضائها ،تلتزم الصناديق بإخطار العضو بأسباب الرفض بشكل واضح ،مع أحقية
  العضو في استرداد كافة المستندات الأصلية التي سبق تقديمها للصندوق .$b899$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -38913,7 +38913,7 @@ WITH ins_art______________77______2025__________28 AS (
  الأساسي للصندوق .
 ٣٧ الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥$b900$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -38979,7 +38979,7 @@ WITH ins_art______________77______2025__________29 AS (
  القواعد المنظمة لنظر وفحص شكاوى المتعاملين
  مع الشركات والجهات العاملة في قطاع التأمين$b901$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39049,7 +39049,7 @@ WITH ins_art______________77______2025__________30 AS (
  -٦شركات إدارة برامج التأمين الطبي .
 ٣٩ الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥$b902$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39101,7 +39101,7 @@ WITH ins_art______________77______2025__________31 AS (
  ة ال يع
  ب »القائمين على دراسة الشكاوى« .$b903$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39149,7 +39149,7 @@ WITH ins_art______________77______2025__________32 AS (
 الالتزام بتقديم التدريب اللازم لهم بما يؤهلهم على إدارة نظر الشكوى والبت فيها
  بشكل صحيح .$b904$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39211,7 +39211,7 @@ WITH ins_art______________77______2025__________33 AS (
 بحسب الأحوال ،بتلك الجهات بمتابعة كافة السياسات والإجراءات التي يتبعها مسئول
  الشكاوى وإعداد تقارير بشأنها والعرض بصفة دورية على مجلس إدارة الجهة .$b905$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39308,7 +39308,7 @@ WITH ins_art______________77______2025__________34 AS (
  برد الجهة أو الصندوق ،فيكون له تقديم شكوى إلى الهيئة .
 ٤٣ الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥$b906$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39412,7 +39412,7 @@ WITH ins_art______________77______2025__________35 AS (
 أو الجهة ،التقدم للهيئة بطلب لنظر شكواه على أن يتضمن الطلب موضوع الشكوى
  ورقمها المرجعي وكافة المستندات التي قدمها الشاكي للشركة ،ورد الشركة عليه .$b907$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39482,7 +39482,7 @@ WITH ins_art______________77______2025__________36 AS (
  خلال المدة المشار إليها أو عدم اقتناعه بالرد المقدم إليه .
 ٤٥ الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥$b908$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39544,7 +39544,7 @@ WITH ins_art______________77______2025__________37 AS (
  من الهيئة حال طلبها .
  الوقائع المصریة – العدد ) ١٣٩تابع( فى ٢٥یونیة سنة ٢٠٢٥ ٤٦$b909$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39599,7 +39599,7 @@ WITH ins_art______________77______2025__________38 AS (
  مستوفاة للمستندات المتطلبة للبت فيها .
  تروني$b910$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39631,7 +39631,7 @@ WITH ins_art______________77______2025__________39 AS (
  ل عند ا
  تداول$b911$
   FROM laws WHERE law_no = 77 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39656,7 +39656,7 @@ WITH ins_art______________78______2025__________1 AS (
 المرتبطة بمزاولة نشاطها وفق ًا لأحكام قانون التأمين الموحد ،وذلك على النحو المبين
  بالجدول المرفق بهذا القرار .$b913$
   FROM laws WHERE law_no = 78 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39791,7 +39791,7 @@ WITH ins_art______________78______2025__________2 AS (
  -خمسون ألف جنيه . -١رسم تسجيل الأجهزة المعاونة )مثل :
  المعاهد التأمينية – مراكز التدريب( .$b914$
   FROM laws WHERE law_no = 78 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39932,7 +39932,7 @@ WITH ins_art______________79______2025__________1 AS (
 البيانات الواردة بالمادتين ) (٧٤ ،٧٣من قانون التأمين الموحد المشار إليه والقرارات
  الصادرة تنفيذ ًا له ،وذلك بواقع خمسين جنيه عن كل مستند .$b916$
   FROM laws WHERE law_no = 79 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39947,7 +39947,7 @@ WITH ins_art______________79______2025__________2 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b917$
   FROM laws WHERE law_no = 79 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -39971,7 +39971,7 @@ WITH ins_art______________89______2025__________1 AS (
 الفنية بتلك الشركات ،وكذا فى شأن أى جهات أو أشخاص أخرى يسرى فى شأنهم
  ذات الشروط والمعايير .$b919$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40048,7 +40048,7 @@ WITH ins_art______________89______2025__________2 AS (
 عضويته بمجلس إدارة الشركة ،ويتعين على مجلس إدارة الشركة اتخاذ الإجراءات
  اللازمة حيال ذلك .$b920$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40141,7 +40141,7 @@ WITH ins_art______________89______2025__________3 AS (
  تاريخ انعقاد الجمعية العامة .
 ٥٥ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥$b921$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40188,7 +40188,7 @@ WITH ins_art______________89______2025__________4 AS (
 منصبى رئيس المجلس والعضو المنتدب ،ترشيح عضو آخر وفق ًا للإجراءات
  المنصوص عليها بالفقرة السابقة .$b922$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40231,7 +40231,7 @@ WITH ins_art______________89______2025__________5 AS (
 التعويضات بين مهامه والمهام المقررة للمسئول عن تعويضات فروع التأمين المختلفة ،
 وذلك شريطة موافاة الهيئة بمهام واختصاصات كل وظيفة ودورة العمل لها على حدة .$b923$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40276,7 +40276,7 @@ WITH ins_art______________89______2025__________6 AS (
 وتسرى فى شأن مسئول مكافحة غسل الأموال وتمويل الإرهاب الأحكام
  المنصوص عليها بقرار مجلس إدارة الهيئة رقم ١٦١لسنة ٢٠٢٤المشار إليه .$b924$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40320,7 +40320,7 @@ WITH ins_art______________89______2025__________7 AS (
  موافاة الهيئة بأسماء المرشحين لشغل أى من الوظائف المشار إليها .
  الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥ ٥٨$b925$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40355,7 +40355,7 @@ WITH ins_art______________89______2025__________8 AS (
 المشار إليها من إجراء المقابلة الشخصية معهم ،حال انتقالهم إلى شركة أخرى خلال
  مدة الثلاث سنوات الصادر بشأنها موافقة الهيئة على شغل الوظيفة .$b926$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40383,7 +40383,7 @@ WITH ins_art______________89______2025__________9 AS (
  فى المجالات والتخصصات وفق ًا لما تحدده الهيئة .
 ٥٩ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥$b927$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40406,7 +40406,7 @@ WITH ins_art______________89______2025__________10 AS (
 تلك الوظائف فى حال خلو من يشغلها ،وكذا برامج تدريب وتأهيل العناصر البشرية
  المؤهلة لشغل تلك الوظائف .$b928$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40435,7 +40435,7 @@ WITH ins_art______________89______2025__________11 AS (
  طلبها منها .
  الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥ ٦٠$b929$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40467,7 +40467,7 @@ WITH ins_art______________89______2025__________12 AS (
 وفى جميع الأحوال ،تلتزم الشركة بإخطار الهيئة فى حالة خلو الوظيفة خلال
  عشرة أيام من تاريخ حدوثها وكذا الإجراءات التى ستتخذها لاختيار البديل .$b930$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40494,7 +40494,7 @@ WITH ins_art______________89______2025__________13 AS (
  أو قبول استقالته .
 ٦١ الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥$b931$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40528,7 +40528,7 @@ WITH ins_art______________89______2025__________14 AS (
 ويجوز أن يقترن القرار الصادر بتوقيع أى من التدابير المشار إليها ،وجوب
  اجتياز الشخص للدورات التدريبية التى تحددها الهيئة فى هذا الشأن .$b932$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40565,7 +40565,7 @@ WITH ins_art______________89______2025__________15 AS (
 عن الشركات التى يشغلون عضوية مجالس إدارتها ،وذلك خلال شهر من تاريخ
  العمل بهذا القرار .$b933$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40591,7 +40591,7 @@ WITH ins_art______________89______2025__________16 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b934$
   FROM laws WHERE law_no = 89 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40612,7 +40612,7 @@ WITH ins_art______________90______2025__________1 AS (
  الرعاية الصحية الراغبة فى الحصول على ترخيص مؤقت من الهيئة بمزاولة النشاط .
  الوقائع المصریة – العدد ) ١٢٨تابع( فى ١٢یونیة سنة ٢٠٢٥ ٦٤$b936$
   FROM laws WHERE law_no = 90 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40651,7 +40651,7 @@ WITH ins_art______________90______2025__________2 AS (
 الصحية مراقب حسابات من مراقبى الحسابات المقيدين بالقسم الأول أو القسم الثانى
  ) أ ( من السجل المذكور .$b937$
   FROM laws WHERE law_no = 90 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40716,7 +40716,7 @@ WITH ins_art______________90______2025__________3 AS (
 أى بيانات أو مستندات أخرى ترى الهيئة ضرورة تقديمها للبت فى طلب
  الترخيص المؤقت .$b938$
   FROM laws WHERE law_no = 90 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40757,7 +40757,7 @@ WITH ins_art______________90______2025__________4 AS (
 ويعد الترخيص المؤقت لاغيا فى حال عدم قيام الشركة بتوفيق أوضاعها خلال
  المدد المنصوص عليها بالقانون أو بالقرارات الصادرة عن مجلس إدارة الهيئة .$b939$
   FROM laws WHERE law_no = 90 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
@@ -40774,7 +40774,7 @@ WITH ins_art______________90______2025__________5 AS (
 الهيئة العامة للرقابة المالية
  د .محمد فريد صالح$b940$
   FROM laws WHERE law_no = 90 AND law_year = 2025
-  ON CONFLICT (law_id, article_no) DO NOTHING
+  ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status)
