@@ -64,6 +64,14 @@ export class ReviewsService {
     review.reviewerId = reviewerId;
     review.reviewNote = dto.review_note ?? null;
     review.reviewedAt = new Date();
+    // migrations/031: حقول التصحيح الأربعة مستقلة عن بعضها ولا تُفرَض —
+    // undefined فى الـDTO يبقى null فى الصف (لا "يمسح" قيمة قديمة لأن الصف
+    // pending دائماً هنا، فلا قيمة سابقة أصلاً لتُمسَح).
+    review.correctedAnswer = dto.corrected_answer ?? null;
+    review.correctedLawNo = dto.corrected_law_no ?? null;
+    review.correctedLawYear = dto.corrected_law_year ?? null;
+    review.correctedArticleNo = dto.corrected_article_no ?? null;
+    review.promoteToGoldenSet = dto.promote_to_golden_set ?? false;
     await this.reviewRepository.save(review);
 
     // إعادة الجلب بالعلاقات حتى يعيد الرد نفس شكل القائمة (context متضمّن دائماً)
@@ -77,6 +85,30 @@ export class ReviewsService {
     return this.toResponse(updated);
   }
 
+  /**
+   * migrations/031: يأخذ عيّنة عشوائية من إجابات مُجاب عليها فعلاً (غير
+   * مرفوضة) وليس لها صف مراجعة بعد، ويُدخلها طابور المراجعة بنفس آلية
+   * الرفض التلقائى (EP-06) لكن بسبب مختلف (trigger_reason='random_sample').
+   * يُستدعى من لوحة تحكم/إجراء إدارى يدوى — وليس تلقائياً على كل سؤال (كلفة
+   * مراجعة بشرية محدودة، يجب أن تبقى بقرار صريح من رجل الأعمال متى وكم).
+   * راجع تصور-تقنى-محترف-ثلاث-خدمات-ذكاء-اصطناعى، القسم 2.3، بند (ب).
+   */
+  async sampleAnswered(count: number): Promise<{ inserted: number }> {
+    const bounded = Math.min(Math.max(Math.trunc(count), 1), 200);
+    const rows: Array<{ id: string }> = await this.reviewRepository.manager.query(
+      `INSERT INTO reviews (answer_id, status, trigger_reason)
+       SELECT a.id, 'pending', 'random_sample'
+       FROM answers a
+       WHERE a.refused = false
+         AND NOT EXISTS (SELECT 1 FROM reviews r WHERE r.answer_id = a.id)
+       ORDER BY random()
+       LIMIT $1
+       RETURNING id`,
+      [bounded],
+    );
+    return { inserted: rows.length };
+  }
+
   private toResponse(review: Review): ReviewResponseDto {
     return {
       id: review.id,
@@ -85,6 +117,12 @@ export class ReviewsService {
       status: review.status,
       review_note: review.reviewNote,
       reviewed_at: review.reviewedAt ? review.reviewedAt.toISOString() : null,
+      trigger_reason: review.triggerReason,
+      corrected_answer: review.correctedAnswer,
+      corrected_law_no: review.correctedLawNo,
+      corrected_law_year: review.correctedLawYear,
+      corrected_article_no: review.correctedArticleNo,
+      promote_to_golden_set: review.promoteToGoldenSet,
       created_at: review.createdAt.toISOString(),
       // FK إلزامي (reviews.answer_id NOT NULL + CASCADE) — الإجابة موجودة دائماً.
       context: review.answer ? this.toContext(review.answer) : undefined,

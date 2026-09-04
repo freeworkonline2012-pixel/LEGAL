@@ -1,0 +1,10 @@
+# اكتشاف صريح (2026-09-04): لم يكن هذا الملف موجوداً إطلاقاً فى المستودع —
+# كل npm ci/npm run build محلى كان يترك node_modules/ وdist/ كملفات
+# untracked تظهر فى كل git status لاحق (بما فى ذلك فحوصات stop-hook
+# الآلية). إضافة قياسية بلا أى أثر جانبي على الكود أو السلوك.
+
+node_modules/
+dist/
+.env
+.env.local
+npm-debug.log*
