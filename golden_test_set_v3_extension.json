@@ -1,0 +1,746 @@
+{
+  "meta": {
+    "created_at": "2026-09-04",
+    "purpose": "دفعة أولى (batch) نحو هدف توسيع Golden Test Set إلى 300-500 سؤال (البند رقم 5 فى خارطة الطريق، تقييم 2026-08-26) — استجابةً لطلب رجل الأعمال الصريح 2026-09-04. تغطى 5 قوانين كانت بلا أى تغطية اختبارية إطلاقاً قبل هذه الدفعة: 80/2002، 94/2015، 11/2017، 22/2018 (aml_cft) و20/2024 (consumer_protection). هذه ليست اكتمال الهدف الكامل، بل خطوة تالية عليه — golden_test_set_v2.json يغطى 4 مجموعات قوانين فقط من أصل ~30+ مجموعة موجودة فعلياً فى قاعدة البيانات.",
+    "methodology": "نفس منهجية v1/v2 بالحرف: كل مادة إيجابية بثلاث صياغات (رسمية كاملة/عامية قصيرة/إعادة صياغة بمرادفات)، جميعها مبنية على نص المادة الفعلى كما قرأته مباشرة من قاعدة legal_test (نفس النصوص التى أدخلتها migrations/026-030، وتحقَّقت من تطابقها مع ملفات migrations نفسها قبل صياغة أى سؤال — راجع تقرير-تدقيق-نطاق-الحوكمة-والالتزام-والمخاطر-2026-09-04.md للتفاصيل). الأسئلة السلبية عن مجالات قانونية غير مُفهرَسة إطلاقاً فى القاعدة (جواز السفر، صحيفة الحالة الجنائية، القتل الخطأ، الزواج العرفى، رخصة البناء، فواتير الكهرباء). تم التحقق فعلياً بحث نصى (ILIKE) عن كل موضوع سلبى قبل اعتماده — أحد المرشحات الأولى (إجازة الوضع) استُبعِد لأنه ظهر فعلاً فى قانون العمل 14/2025 (مادة 55) رغم صياغته عن «الموظفة الحكومية»، تجنباً لأى لبس فى تقييم السلوك الصحيح.",
+    "total": 72,
+    "positive_count": 66,
+    "negative_count": 6,
+    "positive_by_law": {
+      "80/2002": 15,
+      "94/2015": 15,
+      "11/2017": 15,
+      "22/2018": 15,
+      "20/2024": 6
+    },
+    "positive_by_phrasing_style": {
+      "full": 22,
+      "short": 22,
+      "paraphrase": 22
+    },
+    "run_status": "لم يُشغَّل بعد ضد الإنتاج الحى — نفس القيد المعروف (لا اتصال شبكى مباشر لـRailway من هذه الحاوية السحابية). يحتاج تشغيلاً عبر run_golden_eval_v2.js من جهاز له اتصال فعلى.",
+    "next_step": "بعد التشغيل والتحقق: دمج هذا الملف مع golden_test_set_v2.json عبر merge_golden_sets.py لإنتاج golden_test_set_v3.json (137 + 72 = 209 سؤالاً)."
+  },
+  "items": [
+    {
+      "id": "g138",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "من الذى يُعد مرتكبًا لجريمة غسل الأموال وفقًا للمادة الثانية من قانون مكافحة غسل الأموال رقم 80 لسنة 2002؟"
+    },
+    {
+      "id": "g139",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "مين اللى بيتعتبر مرتكب لجريمة غسل أموال؟"
+    },
+    {
+      "id": "g140",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إيه الأفعال اللى لو حد عملها وهو عارف إن الفلوس دى جاية من جريمة، بيبقى مرتكب جريمة غسل أموال؟"
+    },
+    {
+      "id": "g141",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "أين تُنشأ وحدة مكافحة غسل الأموال وتمويل الإرهاب، ومن يرأس مجلس أمنائها وفقًا للقانون 80 لسنة 2002؟"
+    },
+    {
+      "id": "g142",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "وحدة غسيل الأموال تابعة لمين؟"
+    },
+    {
+      "id": "g143",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "الجهة المسؤولة عن مكافحة غسل الأموال فى مصر تابعة لأنهى جهة، ومين اللى بيرأس مجلس أمنائها؟"
+    },
+    {
+      "id": "g144",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما الالتزام المفروض على المؤسسات المالية وأصحاب المهن غير المالية تجاه وحدة مكافحة غسل الأموال عند الاشتباه فى عملية مالية معينة؟"
+    },
+    {
+      "id": "g145",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو البنك اشتبه فى عملية غسيل أموال، لازم يعمل إيه؟"
+    },
+    {
+      "id": "g146",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إيه اللى مفروض على المؤسسة المالية تعمله لو حسّت إن فيه عملية مشبوهة ممكن تكون غسيل أموال أو تمويل إرهاب؟"
+    },
+    {
+      "id": "g147",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 11,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز للمؤسسة المالية إبلاغ العميل بأنها أخطرت وحدة مكافحة غسل الأموال بشأن عملياته المشبوهة؟"
+    },
+    {
+      "id": "g148",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 11,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "ينفع تقول للعميل إننا بلّغنا عنه؟"
+    },
+    {
+      "id": "g149",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 11,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو بنك اشتبه فى عميل وبلّغ عنه وحدة مكافحة غسل الأموال، يجوز يقول للعميل ده حصل ولا ممنوع؟"
+    },
+    {
+      "id": "g150",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 21,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هى مهمة الوحدة فيما يتعلق بتنفيذ التزامات مصر الدولية المتعلقة بتمويل الإرهاب وانتشار أسلحة الدمار الشامل؟"
+    },
+    {
+      "id": "g151",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 21,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "الوحدة ليها دور فى تنفيذ قرارات مجلس الأمن الدولى؟"
+    },
+    {
+      "id": "g152",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 21,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل الوحدة مسؤولة عن تنفيذ اتفاقيات ومعاهدات مصر الدولية الخاصة بتمويل الإرهاب؟"
+    },
+    {
+      "id": "g153",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هو تعريف تمويل الإرهاب وفقًا لقانون مكافحة الإرهاب رقم 94 لسنة 2015؟"
+    },
+    {
+      "id": "g154",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "تمويل الإرهاب معناه إيه فى القانون؟"
+    },
+    {
+      "id": "g155",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إيه اللى بيعتبره القانون تمويل للإرهاب؟"
+    },
+    {
+      "id": "g156",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما عقوبة الشروع فى ارتكاب جريمة إرهابية وفقًا لقانون مكافحة الإرهاب؟"
+    },
+    {
+      "id": "g157",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو حد حاول يعمل جريمة إرهابية وماكملهاش، عقوبته إيه؟"
+    },
+    {
+      "id": "g158",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل عقوبة محاولة ارتكاب جريمة إرهابية أقل من عقوبة تنفيذها فعليًا؟"
+    },
+    {
+      "id": "g159",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما عقوبة التحريض على ارتكاب جريمة إرهابية؟"
+    },
+    {
+      "id": "g160",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "التحريض على الإرهاب عقوبته إيه؟"
+    },
+    {
+      "id": "g161",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو حد حرّض على جريمة إرهابية بس محدش نفذها، هل بيتعاقب برضه؟"
+    },
+    {
+      "id": "g162",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 13,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما عقوبة تمويل الإرهاب وفقًا للمادة 13 من قانون مكافحة الإرهاب؟"
+    },
+    {
+      "id": "g163",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 13,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "تمويل الإرهاب عقوبته إيه؟"
+    },
+    {
+      "id": "g164",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 13,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو حد موّل إرهابى أو جماعة إرهابية، هيتحاكم بإيه؟"
+    },
+    {
+      "id": "g165",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يُسأل جنائيًا القائمون على تنفيذ قانون مكافحة الإرهاب إذا استخدموا القوة أثناء أداء واجباتهم؟"
+    },
+    {
+      "id": "g166",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "رجال الأمن بيتحاسبوا لو استخدموا القوة وهما بينفذوا القانون؟"
+    },
+    {
+      "id": "g167",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو موظف مسؤول عن تنفيذ قانون مكافحة الإرهاب استخدم القوة عشان يحمى نفسه من خطر، بيتحاسب جنائيًا؟"
+    },
+    {
+      "id": "g168",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما أقصى مدة لإدراج شخص أو كيان على قوائم الكيانات الإرهابية والإرهابيين وفقًا للتعديل الذى أدخله القانون 11 لسنة 2017؟"
+    },
+    {
+      "id": "g169",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "مدة الإدراج على قوائم الإرهاب كام سنة؟"
+    },
+    {
+      "id": "g170",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو حد اتحط على قايمة الإرهابيين، ده بيفضل عليها لحد إمتى؟"
+    },
+    {
+      "id": "g171",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 4,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما الحكم الجديد الذى أضافه القانون 11 لسنة 2017 بخصوص الأنشطة الأهلية أو الدعوية للمدرجين على قوائم الإرهاب؟"
+    },
+    {
+      "id": "g172",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 4,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "المدرج على قايمة الإرهاب ينفع يمارس نشاط أهلى أو دعوى؟"
+    },
+    {
+      "id": "g173",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 4,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل يُحظر على الشخص المدرج على قوائم الكيانات الإرهابية ممارسة أى نشاط أهلى تحت أى مسمى؟"
+    },
+    {
+      "id": "g174",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما السلطة التى منحها القانون 11 لسنة 2017 للنائب العام بخصوص أموال الإرهابيين أو الكيانات الإرهابية؟"
+    },
+    {
+      "id": "g175",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "النائب العام يقدر يجمّد فلوس الإرهابيين؟"
+    },
+    {
+      "id": "g176",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو فيه دلائل إن فلوس معينة متحصلة من نشاط إرهابى، مين اللى يقدر يأمر بالتحفظ عليها ومنع التصرف فيها؟"
+    },
+    {
+      "id": "g177",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 7,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "كم المبلغ الذى يلتزم طالب رد القاضى بإيداعه كتأمين وفقًا للمادة المضافة بموجب القانون 11 لسنة 2017 إلى قانون مكافحة الإرهاب؟"
+    },
+    {
+      "id": "g178",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 7,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "طلب رد القاضى فى قضايا الإرهاب بكام؟"
+    },
+    {
+      "id": "g179",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 7,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو حد عايز يقدم طلب رد قاضى فى قضية إرهاب، لازم يدفع كام كفالة؟"
+    },
+    {
+      "id": "g180",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى بدأ العمل بأحكام القانون 11 لسنة 2017، وهل جميع مواده سرت من نفس التاريخ؟"
+    },
+    {
+      "id": "g181",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "القانون 11 لسنة 2017 اتنفذ إمتى؟"
+    },
+    {
+      "id": "g182",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل كل مواد القانون 11 لسنة 2017 بدأ العمل بيها من نفس تاريخ النشر؟"
+    },
+    {
+      "id": "g183",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما الجهة المختصة دون غيرها بتنفيذ الأحكام القضائية الخاصة بمصادرة أو حصر أموال الجماعات الإرهابية والإرهابيين وفقًا للقانون 22 لسنة 2018؟"
+    },
+    {
+      "id": "g184",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "مين المسؤول عن تنفيذ أحكام مصادرة أموال الإرهابيين؟"
+    },
+    {
+      "id": "g185",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "فيه لجنة معينة مختصة بتنفيذ أحكام القضاء الخاصة بأموال الإرهابيين، ده صح؟"
+    },
+    {
+      "id": "g186",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "من كم عضوًا تتشكل لجنة إجراءات التحفظ والإدارة والتصرف فى أموال الجماعات الإرهابية والإرهابيين؟"
+    },
+    {
+      "id": "g187",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "اللجنة دى فيها كام عضو؟"
+    },
+    {
+      "id": "g188",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "أعضاء اللجنة المختصة بأموال الإرهابيين مين هما وعددهم كام؟"
+    },
+    {
+      "id": "g189",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "خلال كم يوم يجوز التظلم من قرار اللجنة الصادر بشأن التحفظ على الأموال أمام المحكمة المختصة؟"
+    },
+    {
+      "id": "g190",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "التظلم من قرار اللجنة مدته كام يوم؟"
+    },
+    {
+      "id": "g191",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو حد عايز يتظلم من قرار لجنة أموال الإرهابيين، عنده كام يوم يقدم التظلم؟"
+    },
+    {
+      "id": "g192",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "من يتولى إدارة الأموال المتحفظ عليها وفقًا للقانون 22 لسنة 2018؟"
+    },
+    {
+      "id": "g193",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "مين اللى بيدير الفلوس المتحفظ عليها؟"
+    },
+    {
+      "id": "g194",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو اتحفظ على أموال شخص متهم بالإرهاب، مين المسؤول عن إدارتها؟"
+    },
+    {
+      "id": "g195",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 15,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما عقوبة الامتناع عن إمداد اللجنة بالمعلومات أو البيانات أو المستندات اللازمة لأداء عملها؟"
+    },
+    {
+      "id": "g196",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 15,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو حد رفض يدّى اللجنة معلومات، عقوبته إيه؟"
+    },
+    {
+      "id": "g197",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 15,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إيه العقوبة المقررة لموظف امتنع عن تزويد اللجنة ببيانات مطلوبة منه؟"
+    },
+    {
+      "id": "g198",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 1,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما العقوبة المقررة لمخالفة حكم المادة الثامنة من قانون حماية المستهلك بعد التعديل بالقانون رقم 20 لسنة 2024؟"
+    },
+    {
+      "id": "g199",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 1,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "عقوبة مخالفة المادة 8 من قانون حماية المستهلك بقت إيه بعد التعديل؟"
+    },
+    {
+      "id": "g200",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 1,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "بعد تعديل قانون حماية المستهلك بالقانون 20 لسنة 2024، إيه العقوبة لو حد خالف المادة التامنة؟"
+    },
+    {
+      "id": "g201",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 2,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى يبدأ العمل بالقانون رقم 20 لسنة 2024 المعدل لقانون حماية المستهلك؟"
+    },
+    {
+      "id": "g202",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 2,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "القانون 20 لسنة 2024 اتنفذ إمتى؟"
+    },
+    {
+      "id": "g203",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 2,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "من تاريخ إيه بدأ سريان تعديلات قانون حماية المستهلك اللى جابها القانون 20 لسنة 2024؟"
+    },
+    {
+      "id": "g204",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي مدة صلاحية جواز السفر المصري؟"
+    },
+    {
+      "id": "g205",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "كم رسوم استخراج صحيفة الحالة الجنائية؟"
+    },
+    {
+      "id": "g206",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي عقوبة القتل الخطأ نتيجة حادث سيارة؟"
+    },
+    {
+      "id": "g207",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "هل يجوز فسخ عقد الزواج العرفي بدون محكمة؟"
+    },
+    {
+      "id": "g208",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي شروط الحصول على رخصة بناء فى مصر؟"
+    },
+    {
+      "id": "g209",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي غرامة التأخير فى سداد فاتورة الكهرباء؟"
+    }
+  ]
+}

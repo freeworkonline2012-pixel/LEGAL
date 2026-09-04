@@ -1,0 +1,2126 @@
+{
+  "meta": {
+    "created_at": "2026-09-04",
+    "purpose": "دمج golden_test_set_v2.json (137، حتى 2026-09-02) مع golden_test_set_v3_extension.json (دفعة 2026-09-04، 72 سؤالاً تغطى 5 قوانين aml_cft/consumer_protection كانت بلا تغطية إطلاقاً). لا يزال هدف 300-500 (البند رقم 5 فى خارطة الطريق) غير مكتمل — هذا تجميع تراكمى، لا نهاية المسار.",
+    "methodology": "راجع meta فى كل من الملفين المصدر للتفاصيل الكاملة لكل دفعة.",
+    "total": 209,
+    "positive_count": 185,
+    "negative_count": 24,
+    "positive_by_law": {
+      "14/2025": 48,
+      "155/2024": 36,
+      "25/1929": 17,
+      "77/1943": 18,
+      "80/2002": 15,
+      "94/2015": 15,
+      "11/2017": 15,
+      "22/2018": 15,
+      "20/2024": 6
+    },
+    "positive_by_phrasing_style": {
+      "full": 63,
+      "short": 61,
+      "paraphrase": 61
+    },
+    "run_status": "لم يُشغَّل بعد ضد الإنتاج الحى — هذه الحاوية السحابية لا تملك اتصالاً شبكياً بـRailway. يحتاج تشغيلاً عبر run_golden_eval_v2.js من جهاز له اتصال فعلى.",
+    "source_files": [
+      "golden_test_set_v2.json",
+      "golden_test_set_v3_extension.json"
+    ]
+  },
+  "items": [
+    {
+      "id": "g001",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 1,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هو تعريف الأجر وفقاً لقانون العمل رقم 14 لسنة 2025؟"
+    },
+    {
+      "id": "g002",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 1,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "تعريف الأجر ايه؟"
+    },
+    {
+      "id": "g003",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 1,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إيه اللي بيتحسب ضمن مستحقات العامل المالية من صاحب العمل نقداً أو عيناً؟"
+    },
+    {
+      "id": "g004",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 7,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل تُعفى دعاوى العمال المتعلقة بأحكام قانون العمل من الرسوم والمصاريف القضائية؟"
+    },
+    {
+      "id": "g005",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 7,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "دعاوي العمال ليها رسوم؟"
+    },
+    {
+      "id": "g006",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 7,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو رفعت قضية ضد صاحب الشغل بخصوص حقوقي، هل هدفع مصاريف محكمة؟"
+    },
+    {
+      "id": "g007",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 43,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز لجهات التوظيف تقاضي مبالغ مالية من العامل مقابل إلحاقه بالعمل؟"
+    },
+    {
+      "id": "g008",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 43,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "مكتب التوظيف يقدر ياخد فلوس مني؟"
+    },
+    {
+      "id": "g009",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 43,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل يحق لشركات التوريد العمالي فرض عمولة على الباحث عن وظيفة نظير تشغيله؟"
+    },
+    {
+      "id": "g010",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 55,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز فصل العاملة أو إنهاء خدمتها أثناء إجازة الوضع أو عقب عودتها منها؟"
+    },
+    {
+      "id": "g011",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 55,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "ينفع يفصلوني وانا فى إجازة الوضع؟"
+    },
+    {
+      "id": "g012",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 55,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل هناك حماية قانونية للأم العاملة من الفصل التعسفي بسبب الحمل والولادة؟"
+    },
+    {
+      "id": "g013",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 61,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هي السن التي يُعتبر بموجبها الشخص طفلاً في تطبيق أحكام قانون العمل؟"
+    },
+    {
+      "id": "g014",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 61,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "الطفل فى قانون العمل سنه كام؟"
+    },
+    {
+      "id": "g015",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 61,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما هو الحد العمري الفاصل بين اعتبار العامل قاصراً أو بالغاً وفقاً لقانون العمل؟"
+    },
+    {
+      "id": "g016",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 79,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هي اختصاصات صندوق دعم وتنمية العمالة غير المنتظمة؟"
+    },
+    {
+      "id": "g017",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 79,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "صندوق العمالة الغير منتظمة بيعمل ايه؟"
+    },
+    {
+      "id": "g018",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 79,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما الجهة المسؤولة عن صرف إعانات الطوارئ للعمال غير المنتظمين وقت الأزمات؟"
+    },
+    {
+      "id": "g019",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 91,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز لصاحب العمل تكليف العامل بعمل غير متفق عليه فى عقد العمل؟"
+    },
+    {
+      "id": "g020",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 91,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "صاحب الشغل يقدر يكلفني بشغلانة مش متفق عليها؟"
+    },
+    {
+      "id": "g021",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 91,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "متى يكون لرب العمل الحق فى تغيير طبيعة عمل الموظف بشكل مؤقت خارج بنود العقد؟"
+    },
+    {
+      "id": "g022",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 109,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "كيف يُحسب متوسط الأجر اليومي لعمال الإنتاج الذين يتقاضون عمولة أو نسبة مئوية؟"
+    },
+    {
+      "id": "g023",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 109,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "الاجر اليومي بيتحسب ازاي لعمال الانتاج؟"
+    },
+    {
+      "id": "g024",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 109,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما هي طريقة احتساب الدخل اليومي المتوسط للعامل الذى يتقاضى أجراً متغيراً؟"
+    },
+    {
+      "id": "g025",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 115,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى تبرأ ذمة صاحب العمل من التزامه بدفع الأجر؟"
+    },
+    {
+      "id": "g026",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 115,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "امتى صاحب الشغل يبقى خلص ذمته من الأجر؟"
+    },
+    {
+      "id": "g027",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 115,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما الدليل الذى يُثبت استلام العامل لمستحقاته المالية قانوناً؟"
+    },
+    {
+      "id": "g028",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 121,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز لصاحب العمل تشغيل العامل ساعات إضافية دون التقيد بالحدود القانونية العادية فى الظروف الاستثنائية؟"
+    },
+    {
+      "id": "g029",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 121,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "ينفع اشتغل ساعات زيادة فى ظروف طارئة؟"
+    },
+    {
+      "id": "g030",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 121,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما هى الشروط التى تسمح بتجاوز الحد الأقصى المعتاد لساعات العمل عند حدوث ضرورة عمل غير عادية؟"
+    },
+    {
+      "id": "g031",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 124,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "كم يوماً تبلغ الإجازة السنوية المستحقة للعامل فى السنة الأولى من عمله؟"
+    },
+    {
+      "id": "g032",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 124,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "الاجازة السنوية للعامل كام يوم؟"
+    },
+    {
+      "id": "g033",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 124,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما هو رصيد العطلة المدفوعة الأجر الذى يحصل عليه الموظف حديث التعيين خلال أول عام؟"
+    },
+    {
+      "id": "g034",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 131,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هي حقوق العامل المريض الذى يثبت مرضه بشكل يمنعه من أداء عمله؟"
+    },
+    {
+      "id": "g035",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 131,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو مرضت اعمل ايه، فيه اجازة مرضية؟"
+    },
+    {
+      "id": "g036",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 131,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما التعويض المستحق للموظف أثناء فترة توقفه عن العمل بسبب حالة صحية موثقة؟"
+    },
+    {
+      "id": "g037",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 139,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هي الجزاءات التأديبية التى يجوز توقيعها على العامل وفقاً للوائح تنظيم العمل؟"
+    },
+    {
+      "id": "g038",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 139,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "العقوبات اللي ممكن تتوقع عليا فى الشغل ايه؟"
+    },
+    {
+      "id": "g039",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 139,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما هى العقوبات الإدارية المتدرجة التى يمكن لصاحب العمل تطبيقها على الموظف المخالف؟"
+    },
+    {
+      "id": "g040",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 145,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى يجوز لصاحب العمل إيقاف العامل عن عمله مؤقتاً مع صرف أجره كاملاً؟"
+    },
+    {
+      "id": "g041",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 145,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "يقدروا يوقفوني عن الشغل وانا لسه بحقق معايا؟"
+    },
+    {
+      "id": "g042",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 145,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "فى أى الحالات يحق لرب العمل تعليق مباشرة الموظف لعمله بشكل مؤقت ريثما ينتهى التحقيق؟"
+    },
+    {
+      "id": "g043",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 169,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ماذا يستحق ورثة العامل الذى يتوفى أثناء الخدمة؟"
+    },
+    {
+      "id": "g044",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 169,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو العامل مات وهو شغال، اهله ياخدوا حاجة؟"
+    },
+    {
+      "id": "g045",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 169,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما هى المستحقات المالية التى تُصرف لأسرة الموظف المتوفى لمواجهة نفقات الجنازة؟"
+    },
+    {
+      "id": "g046",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 175,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يلتزم صاحب العمل بمنح العامل شهادة خبرة عند انتهاء علاقة العمل؟"
+    },
+    {
+      "id": "g047",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 175,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لما اسيب الشغل هاخد شهادة خبرة؟"
+    },
+    {
+      "id": "g048",
+      "law_no": 14,
+      "law_year": 2025,
+      "category": "labor",
+      "expected_article_no": 175,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما هو التزام رب العمل تجاه الموظف المُنهية خدمته من حيث توثيق مدة وخبرة عمله؟"
+    },
+    {
+      "id": "g049",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 1,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هو التعريف القانوني لعقد التأمين وفقاً لقانون التأمين الموحد؟"
+    },
+    {
+      "id": "g050",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 1,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "عقد التأمين معناه ايه؟"
+    },
+    {
+      "id": "g051",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 13,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما الالتزام الذى يقع على شركة التأمين تجاه المستفيد عند تحقق الخطر المؤمَّن ضده؟"
+    },
+    {
+      "id": "g052",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 6,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى تسقط بالتقادم الدعاوى الناشئة عن نشاط التأمين وإعادة التأمين؟"
+    },
+    {
+      "id": "g053",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 6,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "دعاوي التأمين بتتقادم امتى؟"
+    },
+    {
+      "id": "g054",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 6,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما هى المدة القانونية التى إذا انقضت دون رفع دعوى تأمينية يسقط الحق فى المطالبة؟"
+    },
+    {
+      "id": "g055",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 26,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل تضمن شركة التأمين تعويض أضرار الحريق حتى لو نشأ عن عيب فى الشيء المؤمَّن عليه؟"
+    },
+    {
+      "id": "g056",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 26,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو البيت اتحرق بسبب عيب فيه، التأمين بيغطي؟"
+    },
+    {
+      "id": "g057",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 26,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما مدى مسؤولية شركة التأمين عن الحريق الناتج عن خلل ذاتي فى المال المؤمَّن؟"
+    },
+    {
+      "id": "g058",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 51,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "خلال كم يوماً يلتزم المؤمَّن له بإبلاغ مجمعة التأمين عن حادث السيارة؟"
+    },
+    {
+      "id": "g059",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 51,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لازم ابلغ عن حادث العربية خلال قد ايه؟"
+    },
+    {
+      "id": "g060",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 51,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما المهلة الزمنية المحددة قانوناً لإخطار جهة التأمين بواقعة حادث مروري موجب للتعويض؟"
+    },
+    {
+      "id": "g061",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 56,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى يجوز لمجمعة التأمين الرجوع على المؤمَّن له بقيمة ما دفعته من تعويض؟"
+    },
+    {
+      "id": "g062",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 56,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "شركة التأمين تقدر تاخد الفلوس اللي دفعتها مني تاني امتى؟"
+    },
+    {
+      "id": "g063",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 56,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "فى أى حالات يحق لجهة التأمين استرداد مبلغ التعويض من صاحب البوليصة بعد سداده؟"
+    },
+    {
+      "id": "g064",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 61,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هى الحالات التى يقوم فيها الصندوق الحكومي بتغطية أضرار حوادث مركبات النقل السريع؟"
+    },
+    {
+      "id": "g065",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 61,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "مفيش تأمين على العربية اللي عملت الحادث، مين بيدفع؟"
+    },
+    {
+      "id": "g066",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 61,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "متى يتدخل صندوق التعويضات الحكومي لتغطية ضرر حادث سيارة بدل شركة التأمين؟"
+    },
+    {
+      "id": "g067",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 165,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هو القيد المفروض على حق التصويت لمن يملك 10% أو أكثر من رأس مال شركة التأمين دون موافقة الهيئة؟",
+      "_correction_note": "EP-06 (2026-08-22): كان 166 غلط — 165 هى القاعدة العامة (لا يجوز تجاوز 10%+ من الأسهم/حقوق التصويت إلا بموافقة مسبقة من مجلس إدارة الهيئة، وإلا تتوقف حقوق التصويت). 166 حالة فرعية أضيق (ميراث/وصية تحديداً) لا علاقة لها بنص السؤال. النظام كان صح، الملف كان غلط."
+    },
+    {
+      "id": "g068",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 165,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو معايا اكتر من 10% من اسهم شركة تأمين، اقدر اصوت عادي؟",
+      "_correction_note": "EP-06 (2026-08-22): نفس تصحيح g067 — 165 مش 166."
+    },
+    {
+      "id": "g069",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 165,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "كيف تُقيَّد صلاحية المساهم صاحب الحصة الكبيرة فى التصويت داخل شركة تأمين دون إذن الجهة الرقابية؟",
+      "_correction_note": "EP-10 (2026-08-25): نفس تصحيح g067/g068 من EP-06 — كان 166 غلط، فاتت وقتها. السؤال عام (دون إذن الجهة الرقابية) بلا أى ذكر ميراث/وصية، فينطبق عليه 165 (القاعدة العامة) لا 166 (حالة الميراث/الوصية الفرعية الضيقة). النظام كان صح، الملف كان غلط."
+    },
+    {
+      "id": "g070",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 176,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز لشركة التأمين أن تتولى التأمين على مقراتها أو فروعها الخاصة؟"
+    },
+    {
+      "id": "g071",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 176,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "شركة التأمين تقدر تأمن على مبناها هي؟"
+    },
+    {
+      "id": "g072",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 176,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل هناك حظر قانوني على شركات التأمين من تغطية ممتلكاتها الخاصة بنفسها؟"
+    },
+    {
+      "id": "g073",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 206,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز التعاقد على تأمين الممتلكات داخل مصر مع شركة تأمين غير خاضعة لأحكام هذا القانون؟"
+    },
+    {
+      "id": "g074",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 206,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "اقدر امن على حاجاتي مع شركة اجنبية مش مرخصة فى مصر؟"
+    },
+    {
+      "id": "g075",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 206,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما القيد القانوني على التعاقد مع جهات تأمين غير مرخصة من الهيئة المصرية؟"
+    },
+    {
+      "id": "g076",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 216,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما عقوبة عرقلة أعمال موظفي الهيئة العامة للرقابة المالية أثناء الإشراف والرقابة؟"
+    },
+    {
+      "id": "g077",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 216,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو حد عطل شغل مراقبي هيئة الرقابة المالية، عقوبته ايه؟"
+    },
+    {
+      "id": "g078",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 216,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما الغرامة المقررة على من يمتنع عن تقديم السجلات لمندوبي جهة الرقابة على التأمين؟"
+    },
+    {
+      "id": "g079",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 221,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما الغرامة المفروضة على شركة التأمين عند التأخر فى تسليم قوائمها المالية للهيئة؟"
+    },
+    {
+      "id": "g080",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 221,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو شركة التأمين اتأخرت تسلم قوائمها المالية، هتتغرم قد ايه؟"
+    },
+    {
+      "id": "g081",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 221,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما الجزاء المالي اليومي المستحق على جهة تأمين تتأخر فى تقديم بياناتها المالية السنوية؟"
+    },
+    {
+      "id": "g082",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 11,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز للهيئة الترخيص لشركات التأمين بعمل سحب يانصيب؟"
+    },
+    {
+      "id": "g083",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 11,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "شركات التأمين تقدر تعمل يانصيب؟"
+    },
+    {
+      "id": "g084",
+      "law_no": 155,
+      "law_year": 2024,
+      "category": "insurance",
+      "expected_article_no": 11,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما الجهة المخوَّلة بمنح شركات التأمين إذن تنظيم سحوبات اليانصيب؟"
+    },
+    {
+      "id": "g085",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي مدة عقد إيجار الأماكن غير السكنية وفقاً للقانون المصري؟"
+    },
+    {
+      "id": "g086",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "إيه حكم الإيجار القديم لو المستأجر مات؟"
+    },
+    {
+      "id": "g087",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 6,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هي إجراءات رفع دعوى الطلاق للضرر فى قانون الأحوال الشخصية؟"
+    },
+    {
+      "id": "g088",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 20,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يحق للأم الحضانة بعد سن معينة لأولادها؟"
+    },
+    {
+      "id": "g089",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي عقوبة قيادة السيارة تحت تأثير الكحول وفقاً لقانون المرور؟"
+    },
+    {
+      "id": "g090",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "كام رسوم تجديد رخصة القيادة الخاصة؟"
+    },
+    {
+      "id": "g091",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي نسبة ضريبة القيمة المضافة على السلع الغذائية؟"
+    },
+    {
+      "id": "g092",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "هل تُعفى الشركات الناشئة من الضريبة على الأرباح فى أول 3 سنوات؟"
+    },
+    {
+      "id": "g093",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما حقوق المستهلك عند شراء منتج معيب من متجر إلكتروني؟"
+    },
+    {
+      "id": "g094",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "إزاي أرجع منتج اشتريته أونلاين ومش عاجبني؟"
+    },
+    {
+      "id": "g095",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي عقوبة جريمة النصب والاحتيال فى قانون العقوبات المصري؟"
+    },
+    {
+      "id": "g096",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "هل يجوز للمالك إخلاء المستأجر قبل انتهاء مدة العقد بدون سبب؟"
+    },
+    {
+      "id": "g097",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما إجراءات تسجيل علامة تجارية جديدة فى مصر؟"
+    },
+    {
+      "id": "g098",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "كام مدة الحبس الاحتياطي القصوى المسموح بها قانوناً؟"
+    },
+    {
+      "id": "g099",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي شروط الحصول على تصريح بناء لعقار سكني؟"
+    },
+    {
+      "id": "g100",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 3,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما حكم الطلاق المقترن بعدد لفظاً أو إشارة وفقاً لقانون الأحوال الشخصية رقم 25 لسنة 1929؟"
+    },
+    {
+      "id": "g101",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 3,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "الطلاق بعدد يقع كام؟"
+    },
+    {
+      "id": "g102",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 3,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إذا طلّق الزوج زوجته وذكر عدداً معيناً من الطلقات دفعة واحدة، كم طلقة تقع قانوناً؟"
+    },
+    {
+      "id": "g103",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 9,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يؤثر امتناع أحد الزوجين عن حضور مجلس التحكيم على سير عمل الحكمين وفقاً لقانون 25 لسنة 1929؟"
+    },
+    {
+      "id": "g104",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 9,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو الزوج ما حضرش جلسة التحكيم يبقى ايه؟"
+    },
+    {
+      "id": "g105",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 9,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إذا رفض أحد الطرفين الحضور أمام الحكمين رغم إخطاره بذلك، هل يوقف هذا إجراءات التحكيم؟"
+    },
+    {
+      "id": "g106",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 12,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى يجوز للزوجة طلب التطليق بسبب غياب الزوج وفقاً لقانون الأحوال الشخصية 25/1929؟"
+    },
+    {
+      "id": "g107",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 12,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "جوزي غايب من سنة أقدر اطلب طلاق؟"
+    },
+    {
+      "id": "g108",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 12,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إذا سافر الزوج وغاب عن زوجته لمدة عام كامل دون عذر مقبول، هل يحق لها اللجوء للقضاء لإنهاء الزواج؟"
+    },
+    {
+      "id": "g109",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 14,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى يحق لزوجة المحبوس طلب التطليق للضرر وفقاً لقانون 25 لسنة 1929؟"
+    },
+    {
+      "id": "g110",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 14,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "جوزي محبوس 3 سنين اقدر اتطلق منه امتى؟"
+    },
+    {
+      "id": "g111",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 14,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إذا صدر حكم نهائى بسجن الزوج ثلاث سنوات أو أكثر، بعد مرور كم من الوقت يمكن لزوجته طلب التطليق؟"
+    },
+    {
+      "id": "g112",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 16,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "على أى أساس تُقدَّر نفقة الزوجة وفقاً لقانون الأحوال الشخصية 25 لسنة 1929؟"
+    },
+    {
+      "id": "g113",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 16,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "نفقة الزوجة بتتحسب ازاي؟"
+    },
+    {
+      "id": "g114",
+      "law_no": 25,
+      "law_year": 1929,
+      "category": "personal_status",
+      "expected_article_no": 16,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل يُراعى الوضع المادى للزوج (غنى أو فقر) عند تحديد قيمة نفقة زوجته؟"
+    },
+    {
+      "id": "g115",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 1,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى يُستحق الإرث وفقاً لقانون المواريث رقم 77 لسنة 1943؟"
+    },
+    {
+      "id": "g116",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 1,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "الإرث بيستحق امتى؟"
+    },
+    {
+      "id": "g117",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 1,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما السبب الذى يترتب عليه ثبوت حق الورثة فى التركة؟"
+    },
+    {
+      "id": "g118",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 3,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما الحكم إذا مات شخصان ولم يُعرف أيهما مات أولاً وفقاً لقانون المواريث 77/1943؟"
+    },
+    {
+      "id": "g119",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 3,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو اتنين ماتوا مع بعض مين بيرث التانى؟"
+    },
+    {
+      "id": "g120",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 3,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "فى حالة وفاة قريبين معاً دون معرفة الترتيب الزمنى للوفاة، هل يرث أحدهما من الآخر؟"
+    },
+    {
+      "id": "g121",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 6,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز التوارث بين مسلم وغير مسلم وفقاً لقانون المواريث المصرى 77/1943؟"
+    },
+    {
+      "id": "g122",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 6,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "المسلم يورث النصرانى؟"
+    },
+    {
+      "id": "g123",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 6,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل يمنع اختلاف الدين بين الوارث والمورث حق الإرث؟"
+    },
+    {
+      "id": "g124",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 15,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ماذا يحدث إذا زادت أنصبة أصحاب الفروض عن قيمة التركة وفقاً لقانون المواريث 77/1943؟"
+    },
+    {
+      "id": "g125",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 15,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو الفروض زادت عن التركة يتوزع ازاي؟"
+    },
+    {
+      "id": "g126",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 15,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "عند تجاوز مجموع الأنصبة الشرعية قيمة التركة الفعلية، كيف يتم التوزيع بين الورثة؟"
+    },
+    {
+      "id": "g127",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 23,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما تعريف الحجب فى الميراث وفقاً لقانون 77 لسنة 1943؟"
+    },
+    {
+      "id": "g128",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 23,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "الحجب فى الميراث يعنى ايه؟"
+    },
+    {
+      "id": "g129",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 23,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "ما المقصود بحرمان أحد الورثة المستحقين من الميراث بسبب وجود وارث آخر أولى منه؟"
+    },
+    {
+      "id": "g130",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 24,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يحجب الوارث الممنوع من الإرث غيره من الورثة وفقاً لقانون المواريث 77/1943؟"
+    },
+    {
+      "id": "g131",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 24,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "اللى اتحرم من الميراث بيحجب حد؟"
+    },
+    {
+      "id": "g132",
+      "law_no": 77,
+      "law_year": 1943,
+      "category": "personal_status",
+      "expected_article_no": 24,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إذا مُنع شخص من الميراث لسبب من الموانع الشرعية، هل يمنع ذلك غيره من الورثة من نصيبهم؟"
+    },
+    {
+      "id": "g133",
+      "law_no": null,
+      "law_year": null,
+      "category": null,
+      "expected_article_no": null,
+      "phrasing_style": "full",
+      "expected_behavior": "refuse",
+      "question": "ما عقوبة القيادة تحت تأثير الكحول وفقاً لقانون المرور المصرى؟"
+    },
+    {
+      "id": "g134",
+      "law_no": null,
+      "law_year": null,
+      "category": null,
+      "expected_article_no": null,
+      "phrasing_style": "full",
+      "expected_behavior": "refuse",
+      "question": "كم تبلغ نسبة الضريبة على الدخل الشخصى فى مصر لعام 2026؟"
+    },
+    {
+      "id": "g135",
+      "law_no": null,
+      "law_year": null,
+      "category": null,
+      "expected_article_no": null,
+      "phrasing_style": "full",
+      "expected_behavior": "refuse",
+      "question": "ما عقوبة جريمة القتل العمد وفقاً لقانون العقوبات المصرى؟"
+    },
+    {
+      "id": "g136",
+      "law_no": null,
+      "law_year": null,
+      "category": null,
+      "expected_article_no": null,
+      "phrasing_style": "full",
+      "expected_behavior": "refuse",
+      "question": "هل يجوز للشركة الأجنبية فتح فرع فى السعودية بدون كفيل محلى؟"
+    },
+    {
+      "id": "g137",
+      "law_no": null,
+      "law_year": null,
+      "category": null,
+      "expected_article_no": null,
+      "phrasing_style": "full",
+      "expected_behavior": "refuse",
+      "question": "ما هى إجراءات تسجيل العلامة التجارية فى الاتحاد الأوروبى؟"
+    },
+    {
+      "id": "g138",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "من الذى يُعد مرتكبًا لجريمة غسل الأموال وفقًا للمادة الثانية من قانون مكافحة غسل الأموال رقم 80 لسنة 2002؟"
+    },
+    {
+      "id": "g139",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "مين اللى بيتعتبر مرتكب لجريمة غسل أموال؟"
+    },
+    {
+      "id": "g140",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إيه الأفعال اللى لو حد عملها وهو عارف إن الفلوس دى جاية من جريمة، بيبقى مرتكب جريمة غسل أموال؟"
+    },
+    {
+      "id": "g141",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "أين تُنشأ وحدة مكافحة غسل الأموال وتمويل الإرهاب، ومن يرأس مجلس أمنائها وفقًا للقانون 80 لسنة 2002؟"
+    },
+    {
+      "id": "g142",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "وحدة غسيل الأموال تابعة لمين؟"
+    },
+    {
+      "id": "g143",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "الجهة المسؤولة عن مكافحة غسل الأموال فى مصر تابعة لأنهى جهة، ومين اللى بيرأس مجلس أمنائها؟"
+    },
+    {
+      "id": "g144",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما الالتزام المفروض على المؤسسات المالية وأصحاب المهن غير المالية تجاه وحدة مكافحة غسل الأموال عند الاشتباه فى عملية مالية معينة؟"
+    },
+    {
+      "id": "g145",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو البنك اشتبه فى عملية غسيل أموال، لازم يعمل إيه؟"
+    },
+    {
+      "id": "g146",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إيه اللى مفروض على المؤسسة المالية تعمله لو حسّت إن فيه عملية مشبوهة ممكن تكون غسيل أموال أو تمويل إرهاب؟"
+    },
+    {
+      "id": "g147",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 11,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يجوز للمؤسسة المالية إبلاغ العميل بأنها أخطرت وحدة مكافحة غسل الأموال بشأن عملياته المشبوهة؟"
+    },
+    {
+      "id": "g148",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 11,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "ينفع تقول للعميل إننا بلّغنا عنه؟"
+    },
+    {
+      "id": "g149",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 11,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو بنك اشتبه فى عميل وبلّغ عنه وحدة مكافحة غسل الأموال، يجوز يقول للعميل ده حصل ولا ممنوع؟"
+    },
+    {
+      "id": "g150",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 21,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هى مهمة الوحدة فيما يتعلق بتنفيذ التزامات مصر الدولية المتعلقة بتمويل الإرهاب وانتشار أسلحة الدمار الشامل؟"
+    },
+    {
+      "id": "g151",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 21,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "الوحدة ليها دور فى تنفيذ قرارات مجلس الأمن الدولى؟"
+    },
+    {
+      "id": "g152",
+      "law_no": 80,
+      "law_year": 2002,
+      "category": "aml_cft",
+      "expected_article_no": 21,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل الوحدة مسؤولة عن تنفيذ اتفاقيات ومعاهدات مصر الدولية الخاصة بتمويل الإرهاب؟"
+    },
+    {
+      "id": "g153",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما هو تعريف تمويل الإرهاب وفقًا لقانون مكافحة الإرهاب رقم 94 لسنة 2015؟"
+    },
+    {
+      "id": "g154",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "تمويل الإرهاب معناه إيه فى القانون؟"
+    },
+    {
+      "id": "g155",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إيه اللى بيعتبره القانون تمويل للإرهاب؟"
+    },
+    {
+      "id": "g156",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما عقوبة الشروع فى ارتكاب جريمة إرهابية وفقًا لقانون مكافحة الإرهاب؟"
+    },
+    {
+      "id": "g157",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو حد حاول يعمل جريمة إرهابية وماكملهاش، عقوبته إيه؟"
+    },
+    {
+      "id": "g158",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل عقوبة محاولة ارتكاب جريمة إرهابية أقل من عقوبة تنفيذها فعليًا؟"
+    },
+    {
+      "id": "g159",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما عقوبة التحريض على ارتكاب جريمة إرهابية؟"
+    },
+    {
+      "id": "g160",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "التحريض على الإرهاب عقوبته إيه؟"
+    },
+    {
+      "id": "g161",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو حد حرّض على جريمة إرهابية بس محدش نفذها، هل بيتعاقب برضه؟"
+    },
+    {
+      "id": "g162",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 13,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما عقوبة تمويل الإرهاب وفقًا للمادة 13 من قانون مكافحة الإرهاب؟"
+    },
+    {
+      "id": "g163",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 13,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "تمويل الإرهاب عقوبته إيه؟"
+    },
+    {
+      "id": "g164",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 13,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو حد موّل إرهابى أو جماعة إرهابية، هيتحاكم بإيه؟"
+    },
+    {
+      "id": "g165",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "هل يُسأل جنائيًا القائمون على تنفيذ قانون مكافحة الإرهاب إذا استخدموا القوة أثناء أداء واجباتهم؟"
+    },
+    {
+      "id": "g166",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "رجال الأمن بيتحاسبوا لو استخدموا القوة وهما بينفذوا القانون؟"
+    },
+    {
+      "id": "g167",
+      "law_no": 94,
+      "law_year": 2015,
+      "category": "aml_cft",
+      "expected_article_no": 8,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو موظف مسؤول عن تنفيذ قانون مكافحة الإرهاب استخدم القوة عشان يحمى نفسه من خطر، بيتحاسب جنائيًا؟"
+    },
+    {
+      "id": "g168",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما أقصى مدة لإدراج شخص أو كيان على قوائم الكيانات الإرهابية والإرهابيين وفقًا للتعديل الذى أدخله القانون 11 لسنة 2017؟"
+    },
+    {
+      "id": "g169",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "مدة الإدراج على قوائم الإرهاب كام سنة؟"
+    },
+    {
+      "id": "g170",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو حد اتحط على قايمة الإرهابيين، ده بيفضل عليها لحد إمتى؟"
+    },
+    {
+      "id": "g171",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 4,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما الحكم الجديد الذى أضافه القانون 11 لسنة 2017 بخصوص الأنشطة الأهلية أو الدعوية للمدرجين على قوائم الإرهاب؟"
+    },
+    {
+      "id": "g172",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 4,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "المدرج على قايمة الإرهاب ينفع يمارس نشاط أهلى أو دعوى؟"
+    },
+    {
+      "id": "g173",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 4,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل يُحظر على الشخص المدرج على قوائم الكيانات الإرهابية ممارسة أى نشاط أهلى تحت أى مسمى؟"
+    },
+    {
+      "id": "g174",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما السلطة التى منحها القانون 11 لسنة 2017 للنائب العام بخصوص أموال الإرهابيين أو الكيانات الإرهابية؟"
+    },
+    {
+      "id": "g175",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "النائب العام يقدر يجمّد فلوس الإرهابيين؟"
+    },
+    {
+      "id": "g176",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 5,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو فيه دلائل إن فلوس معينة متحصلة من نشاط إرهابى، مين اللى يقدر يأمر بالتحفظ عليها ومنع التصرف فيها؟"
+    },
+    {
+      "id": "g177",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 7,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "كم المبلغ الذى يلتزم طالب رد القاضى بإيداعه كتأمين وفقًا للمادة المضافة بموجب القانون 11 لسنة 2017 إلى قانون مكافحة الإرهاب؟"
+    },
+    {
+      "id": "g178",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 7,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "طلب رد القاضى فى قضايا الإرهاب بكام؟"
+    },
+    {
+      "id": "g179",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 7,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو حد عايز يقدم طلب رد قاضى فى قضية إرهاب، لازم يدفع كام كفالة؟"
+    },
+    {
+      "id": "g180",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى بدأ العمل بأحكام القانون 11 لسنة 2017، وهل جميع مواده سرت من نفس التاريخ؟"
+    },
+    {
+      "id": "g181",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "القانون 11 لسنة 2017 اتنفذ إمتى؟"
+    },
+    {
+      "id": "g182",
+      "law_no": 11,
+      "law_year": 2017,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "هل كل مواد القانون 11 لسنة 2017 بدأ العمل بيها من نفس تاريخ النشر؟"
+    },
+    {
+      "id": "g183",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما الجهة المختصة دون غيرها بتنفيذ الأحكام القضائية الخاصة بمصادرة أو حصر أموال الجماعات الإرهابية والإرهابيين وفقًا للقانون 22 لسنة 2018؟"
+    },
+    {
+      "id": "g184",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "مين المسؤول عن تنفيذ أحكام مصادرة أموال الإرهابيين؟"
+    },
+    {
+      "id": "g185",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 2,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "فيه لجنة معينة مختصة بتنفيذ أحكام القضاء الخاصة بأموال الإرهابيين، ده صح؟"
+    },
+    {
+      "id": "g186",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "من كم عضوًا تتشكل لجنة إجراءات التحفظ والإدارة والتصرف فى أموال الجماعات الإرهابية والإرهابيين؟"
+    },
+    {
+      "id": "g187",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "اللجنة دى فيها كام عضو؟"
+    },
+    {
+      "id": "g188",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 3,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "أعضاء اللجنة المختصة بأموال الإرهابيين مين هما وعددهم كام؟"
+    },
+    {
+      "id": "g189",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "خلال كم يوم يجوز التظلم من قرار اللجنة الصادر بشأن التحفظ على الأموال أمام المحكمة المختصة؟"
+    },
+    {
+      "id": "g190",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "التظلم من قرار اللجنة مدته كام يوم؟"
+    },
+    {
+      "id": "g191",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 6,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو حد عايز يتظلم من قرار لجنة أموال الإرهابيين، عنده كام يوم يقدم التظلم؟"
+    },
+    {
+      "id": "g192",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "من يتولى إدارة الأموال المتحفظ عليها وفقًا للقانون 22 لسنة 2018؟"
+    },
+    {
+      "id": "g193",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "مين اللى بيدير الفلوس المتحفظ عليها؟"
+    },
+    {
+      "id": "g194",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 9,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "لو اتحفظ على أموال شخص متهم بالإرهاب، مين المسؤول عن إدارتها؟"
+    },
+    {
+      "id": "g195",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 15,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما عقوبة الامتناع عن إمداد اللجنة بالمعلومات أو البيانات أو المستندات اللازمة لأداء عملها؟"
+    },
+    {
+      "id": "g196",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 15,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "لو حد رفض يدّى اللجنة معلومات، عقوبته إيه؟"
+    },
+    {
+      "id": "g197",
+      "law_no": 22,
+      "law_year": 2018,
+      "category": "aml_cft",
+      "expected_article_no": 15,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "إيه العقوبة المقررة لموظف امتنع عن تزويد اللجنة ببيانات مطلوبة منه؟"
+    },
+    {
+      "id": "g198",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 1,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "ما العقوبة المقررة لمخالفة حكم المادة الثامنة من قانون حماية المستهلك بعد التعديل بالقانون رقم 20 لسنة 2024؟"
+    },
+    {
+      "id": "g199",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 1,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "عقوبة مخالفة المادة 8 من قانون حماية المستهلك بقت إيه بعد التعديل؟"
+    },
+    {
+      "id": "g200",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 1,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "بعد تعديل قانون حماية المستهلك بالقانون 20 لسنة 2024، إيه العقوبة لو حد خالف المادة التامنة؟"
+    },
+    {
+      "id": "g201",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 2,
+      "phrasing_style": "full",
+      "expected_behavior": "answer",
+      "question": "متى يبدأ العمل بالقانون رقم 20 لسنة 2024 المعدل لقانون حماية المستهلك؟"
+    },
+    {
+      "id": "g202",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 2,
+      "phrasing_style": "short",
+      "expected_behavior": "answer",
+      "question": "القانون 20 لسنة 2024 اتنفذ إمتى؟"
+    },
+    {
+      "id": "g203",
+      "law_no": 20,
+      "law_year": 2024,
+      "category": "consumer_protection",
+      "expected_article_no": 2,
+      "phrasing_style": "paraphrase",
+      "expected_behavior": "answer",
+      "question": "من تاريخ إيه بدأ سريان تعديلات قانون حماية المستهلك اللى جابها القانون 20 لسنة 2024؟"
+    },
+    {
+      "id": "g204",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي مدة صلاحية جواز السفر المصري؟"
+    },
+    {
+      "id": "g205",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "كم رسوم استخراج صحيفة الحالة الجنائية؟"
+    },
+    {
+      "id": "g206",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي عقوبة القتل الخطأ نتيجة حادث سيارة؟"
+    },
+    {
+      "id": "g207",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "هل يجوز فسخ عقد الزواج العرفي بدون محكمة؟"
+    },
+    {
+      "id": "g208",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي شروط الحصول على رخصة بناء فى مصر؟"
+    },
+    {
+      "id": "g209",
+      "law_no": null,
+      "law_year": null,
+      "category": "out_of_scope",
+      "expected_article_no": null,
+      "phrasing_style": "n/a",
+      "expected_behavior": "refuse",
+      "question": "ما هي غرامة التأخير فى سداد فاتورة الكهرباء؟"
+    }
+  ]
+}
