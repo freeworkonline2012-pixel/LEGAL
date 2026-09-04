@@ -1,0 +1,50 @@
+name: Structural Integrity Check (merged-article bug)
+
+# فحص محتوى دورى — منفصل تماماً عن ci.yml (الذى يفحص صحة الكود). هذا الملف
+# يفحص صحة البيانات القانونية المخزَّنة فعلياً على الإنتاج: يمنع تكرار عيب
+# "دمج كل مواد المستند فى صف مادة واحدة" (راجع تقرير-تدقيق-عيب-دمج-المواد-
+# وخطة-الإصلاح-2026-09-03.md فى مشروع المستخدم على claude.ai، القسم 16) دون
+# أن يُلاحَظ عند إضافة محتوى قانونى جديد مستقبلاً.
+#
+# يتطلب سرّاً باسم PRODUCTION_DATABASE_URL فى إعدادات المستودع (Settings →
+# Secrets and variables → Actions → New repository secret) يحمل connection
+# string لقاعدة بيانات الإنتاج على Railway. لم يُضَف هذا السرّ من هذا الملف —
+# يجب إضافته يدوياً من واجهة GitHub، ولن يظهر لأى شخص (بما فى ذلك Claude) بعد
+# إضافته.
+
+on:
+  schedule:
+    # 6:00 صباحاً بتوقيت UTC يومياً (8:00 صباحاً بتوقيت القاهرة تقريباً)
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'migrations/**'
+      - 'scripts/structural_integrity_check.js'
+
+jobs:
+  structural-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run structural integrity check against production
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::PRODUCTION_DATABASE_URL secret غير مُعرَّف — تخطّى الفحص. أضِفه من Settings > Secrets and variables > Actions لتفعيل هذا الفحص."
+            exit 0
+          fi
+          node scripts/structural_integrity_check.js
