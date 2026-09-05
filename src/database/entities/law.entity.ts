@@ -54,6 +54,17 @@ export class Law {
   @Column({ type: 'text', default: 'in_force' })
   status: LawStatus;
 
+  /**
+   * وسم نطاق "الحوكمة والالتزام والمخاطر" (Service 3) — مُضاف فى
+   * migrations/032، مبنى على تدقيق النطاق الموثَّق فى project doc
+   * (تقرير-تدقيق-نطاق-الحوكمة-والالتزام-والمخاطر-2026-09-04.md)، مع استبعاد
+   * صريح للقوانين ذات النص التالف (951/2003، 205/2021) — راجع تعليق تلك
+   * الهجرة. تصنيف أولى (title-keyword triage) لا تصنيف قانونى نهائى؛ يُستخدم
+   * حصراً لتضييق نطاق استرجاع GovernanceService، لا كمصدر وحيد للحقيقة.
+   */
+  @Column({ name: 'governance_scope', type: 'boolean', default: false })
+  governanceScope: boolean;
+
   @Column({ name: 'official_url', type: 'text', nullable: true })
   officialUrl: string | null;
 
