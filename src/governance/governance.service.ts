@@ -18,6 +18,7 @@ interface GovernanceCitation {
   lawYear: number;
   articleNo: number;
   snippet: string;
+  officialUrl: string | null;
 }
 
 interface GovernanceCandidate {
@@ -165,7 +166,14 @@ export class GovernanceService {
           : selection.verdict;
       const basis: GovernanceLegalBasisDto[] = validIndices.map((i) => {
         const c = topCandidates[i].citation;
-        return { law: c.law, law_no: c.lawNo, law_year: c.lawYear, article_no: c.articleNo, snippet: c.snippet };
+        return {
+          law: c.law,
+          law_no: c.lawNo,
+          law_year: c.lawYear,
+          article_no: c.articleNo,
+          snippet: c.snippet,
+          official_url: c.officialUrl,
+        };
       });
       result = this.buildResult(verdict, basis, selection.riskNote, selection.confidence);
     }
@@ -270,11 +278,12 @@ export class GovernanceService {
       law_no: number;
       law_year: number;
       body: string;
+      official_url: string | null;
       similarity: number;
     }> = await this.dataSource.query(
       `SELECT
          a.article_no,
-         l.short_title, l.title, l.law_no, l.law_year,
+         l.short_title, l.title, l.law_no, l.law_year, l.official_url,
          av.body,
          1 - (a.embedding <=> $1::vector) AS similarity
        FROM articles a
@@ -293,6 +302,7 @@ export class GovernanceService {
         lawYear: row.law_year,
         articleNo: row.article_no,
         snippet: row.body,
+        officialUrl: row.official_url,
       },
       confidence: Math.min(1, Math.max(0, Number(row.similarity))),
       source: 'semantic' as const,
@@ -321,6 +331,7 @@ export class GovernanceService {
       lawYear: version.article.law.lawYear,
       articleNo: version.article.articleNo,
       snippet: version.body,
+      officialUrl: version.article.law.officialUrl,
     };
   }
 }
