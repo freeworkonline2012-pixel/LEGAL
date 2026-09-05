@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
-import { DatabaseHealth, HealthService } from './health.service';
+import { DatabaseHealth, HealthService, VoyageHealth } from './health.service';
 
 export interface HealthResponse {
   status: string;
@@ -43,5 +43,27 @@ export class HealthController {
   })
   checkDatabase(): Promise<DatabaseHealth> {
     return this.healthService.checkDatabase();
+  }
+
+  @Get('voyage')
+  @ApiOkResponse({
+    description:
+      'عدّادات تدهور Voyage AI (embeddings/rerank) — تكشف تكرار 429 (غالباً بسبب ' +
+      'غياب وسيلة دفع مسجَّلة فى حساب Voyage) الذى يُسقط الاسترجاع لـFTS الخام ' +
+      'بلا بحث دلالى أو rerank دون أى أثر ظاهر غير سجلّات الخادم الخام.',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', example: 'ok' },
+        configured: { type: 'boolean', example: true },
+        rerank_rate_limit_count: { type: 'number', example: 0 },
+        rerank_failure_count: { type: 'number', example: 0 },
+        embed_rate_limit_count: { type: 'number', example: 0 },
+        embed_failure_count: { type: 'number', example: 0 },
+      },
+    },
+  })
+  checkVoyage(): VoyageHealth {
+    return this.healthService.checkVoyage();
   }
 }

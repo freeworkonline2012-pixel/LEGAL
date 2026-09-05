@@ -31,12 +31,84 @@ export class VoyageEmbeddingsService {
   // توكن مجاناً شهرياً — عملياً بلا تكلفة على حجم الاستخدام الحالي.
   private readonly rerankModel = process.env.VOYAGE_RERANK_MODEL ?? 'rerank-2.5';
 
+  // 2026-09-05: القياس الفعلى لخدمة الحوكمة (36 استدعاء) كشف أن حساب Voyage
+  // بلا وسيلة دفع مسجَّلة يُقيَّد بـ 3 RPM/10K TPM — سقف ينخرق بمجرد أى انفجار
+  // طلبات (نفس المستخدم يسأل بسرعة، عدة مستخدمين فى نفس الدقيقة، أو أى سكريبت
+  // قياس)، فيرجع embed()/rerank() هنا null، فيتراجع الاسترجاع لـFTS الخام
+  // فقط بلا أى ترتيب دلالى/rerank — وهذا (مؤكَّد من سجلّات Railway لتلك
+  // التجربة، لا افتراضاً) هو السبب الجذرى وراء إخفاق 44%/29% فى دقة الحوكمة،
+  // وليس عيباً فى منطق LLM القرار نفسه. الحل الجذرى الحقيقى (لا يمكن تنفيذه من
+  // هنا) هو تسجيل وسيلة دفع فى https://dashboard.voyageai.com — هذا يرفع السقف
+  // فوراً تقريباً. هذا التعديل هو تحصين دائم مستقل عن ذلك القرار: (1) إعادة
+  // محاولة محدودة تحترم توجيه الـ429 نفسه بدل الاستسلام لأول رفض — تمتص أى
+  // انفجار طلبات عابر حتى بعد حل مشكلة الفوترة نهائياً؛ (2) عدّادات تدهور
+  // مرئية (بدل الاعتماد فقط على سطر سجلّ خام لا يراقبه أحد) — مكشوفة عبر
+  // GET /health/voyage — حتى لا يتكرر هذا الاكتشاف صدفة أثناء قياس دقة مرة أخرى.
+  private readonly maxRetries = 2;
+  private readonly retryBaseDelayMs = 1200;
+  private rerankRateLimitCount = 0;
+  private rerankFailureCount = 0;
+  private embedRateLimitCount = 0;
+  private embedFailureCount = 0;
+
   get isConfigured(): boolean {
     return Boolean(this.apiKey);
   }
 
   get dimension(): number {
     return this.outputDimension;
+  }
+
+  /** عدّادات تدهور مرئية لـ GET /health/voyage — راجع تعليق أعلى الكلاس. */
+  getDegradationStats() {
+    return {
+      configured: this.isConfigured,
+      rerank_rate_limit_count: this.rerankRateLimitCount,
+      rerank_failure_count: this.rerankFailureCount,
+      embed_rate_limit_count: this.embedRateLimitCount,
+      embed_failure_count: this.embedFailureCount,
+    };
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * ينفّذ طلب Voyage مع إعادة محاولة محدودة (حتى maxRetries) عند 429 تحديداً
+   * (وليس أى خطأ آخر — أخطاء 4xx/5xx الأخرى تُرجَع فوراً كما كانت، لا داعى
+   * لإعادة محاولة عطل غير مؤقت). يحترم رأس Retry-After إن وُجد، وإلا تراجع
+   * أُسّى (exponential backoff) بسيط — محدود إجمالاً بثوانٍ معدودة حتى لا
+   * يُطيل زمن استجابة المستخدم النهائى بشكل غير مقبول.
+   */
+  private async fetchWithRetry429(url: string, body: unknown): Promise<Response> {
+    let attempt = 0;
+    for (;;) {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (res.status !== 429 || attempt >= this.maxRetries) {
+        return res;
+      }
+
+      const retryAfterHeader = res.headers.get('retry-after');
+      const retryAfterMs = retryAfterHeader ? Number(retryAfterHeader) * 1000 : NaN;
+      const delayMs = Number.isFinite(retryAfterMs)
+        ? retryAfterMs
+        : this.retryBaseDelayMs * Math.pow(2, attempt);
+
+      this.logger.warn(
+        `Voyage 429 (محاولة ${attempt + 1}/${this.maxRetries}) — إعادة محاولة بعد ${delayMs}ms: ${url}`,
+      );
+      await this.sleep(delayMs);
+      attempt += 1;
+    }
   }
 
   /** يُستخدم عند فهرسة نص مادة قانونية أثناء الاستيراد (ingestion). */
@@ -72,17 +144,10 @@ export class VoyageEmbeddingsService {
     }
 
     try {
-      const res = await fetch('https://api.voyageai.com/v1/rerank', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          query,
-          documents,
-          model: this.rerankModel,
-        }),
+      const res = await this.fetchWithRetry429('https://api.voyageai.com/v1/rerank', {
+        query,
+        documents,
+        model: this.rerankModel,
       });
 
       // نقرأ الجسم كنص خام أولاً (بدل res.json() مباشرة) لسببين: (1) نتجنّب
@@ -97,7 +162,17 @@ export class VoyageEmbeddingsService {
       const rawText = await res.text();
 
       if (!res.ok) {
-        this.logger.error(`Voyage rerank API error ${res.status}: ${rawText.slice(0, 500)}`);
+        if (res.status === 429) {
+          this.rerankRateLimitCount += 1;
+          this.logger.error(
+            `Voyage rerank: استُنفدت إعادات المحاولة عند 429 (تراكمى: ${this.rerankRateLimitCount}) — ` +
+              `الحساب على الأرجح بلا وسيلة دفع مسجَّلة (راجع dashboard.voyageai.com). ` +
+              `الاسترجاع سيتراجع لترتيب FTS/الدلالى الخام بلا rerank لهذا الطلب.`,
+          );
+        } else {
+          this.rerankFailureCount += 1;
+          this.logger.error(`Voyage rerank API error ${res.status}: ${rawText.slice(0, 500)}`);
+        }
         return null;
       }
 
@@ -105,6 +180,7 @@ export class VoyageEmbeddingsService {
       try {
         parsed = JSON.parse(rawText);
       } catch (parseErr) {
+        this.rerankFailureCount += 1;
         this.logger.error(
           `Voyage rerank: فشل تحليل JSON للاستجابة (status ${res.status}): ` +
             `${(parseErr as Error).message} — الجسم الخام: ${rawText.slice(0, 500)}`,
@@ -121,6 +197,7 @@ export class VoyageEmbeddingsService {
       // تغيّر شكل الاستجابة مستقبلاً، نعرف فوراً من السجلّ بدل تدهور صامت.
       const results = data.results ?? data.data;
       if (!results) {
+        this.rerankFailureCount += 1;
         this.logger.error(
           `Voyage rerank: استجابة 200 لكن بلا حقل results/data معروف. المفاتيح الفعلية: ` +
             `[${Object.keys(data).join(', ')}] — الجسم الخام: ${rawText.slice(0, 500)}`,
@@ -134,6 +211,7 @@ export class VoyageEmbeddingsService {
       }
       return results.map((r) => ({ index: r.index, relevanceScore: r.relevance_score }));
     } catch (err) {
+      this.rerankFailureCount += 1;
       this.logger.error(`Voyage rerank call failed: ${(err as Error).message}`);
       return null;
     }
@@ -148,32 +226,37 @@ export class VoyageEmbeddingsService {
     }
 
     try {
-      const res = await fetch('https://api.voyageai.com/v1/embeddings', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          input: texts,
-          model: this.model,
-          input_type: inputType,
-          output_dimension: this.outputDimension,
-        }),
+      const res = await this.fetchWithRetry429('https://api.voyageai.com/v1/embeddings', {
+        input: texts,
+        model: this.model,
+        input_type: inputType,
+        output_dimension: this.outputDimension,
       });
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
-        this.logger.error(`Voyage embeddings API error ${res.status}: ${errText}`);
+        if (res.status === 429) {
+          this.embedRateLimitCount += 1;
+          this.logger.error(
+            `Voyage embeddings: استُنفدت إعادات المحاولة عند 429 (تراكمى: ${this.embedRateLimitCount}) — ` +
+              `الحساب على الأرجح بلا وسيلة دفع مسجَّلة (راجع dashboard.voyageai.com). ` +
+              `الاسترجاع سيتراجع لـFTS فقط لهذا الطلب (بلا بحث دلالى إطلاقاً).`,
+          );
+        } else {
+          this.embedFailureCount += 1;
+          this.logger.error(`Voyage embeddings API error ${res.status}: ${errText}`);
+        }
         return null;
       }
 
       const data = (await res.json()) as { data?: Array<{ embedding: number[] }> };
       if (!data.data) {
+        this.embedFailureCount += 1;
         return null;
       }
       return data.data.map((d) => d.embedding ?? null);
     } catch (err) {
+      this.embedFailureCount += 1;
       this.logger.error(`Voyage embeddings call failed: ${(err as Error).message}`);
       return null;
     }
