@@ -21,6 +21,21 @@ export class GovernanceLegalBasisDto {
 
   @ApiProperty({ example: 'تلتزم المؤسسات المالية بالإبلاغ عن العمليات المشبوهة...' })
   snippet: string;
+
+  /**
+   * رابط المصدر الرسمى للقانون/القرار (من laws.official_url) — خطوة ثقة
+   * إضافية تتيح للمستخدم مراجعة النص الكامل من مصدره الرسمى مباشرة، بدل
+   * الاكتفاء بالمقتطف المعروض. null إن لم يكن الرابط مسجَّلاً لهذا القانون
+   * تحديداً (نادر: 151 من 153 قانوناً فى القاعدة، و18/18 فى نطاق الحوكمة
+   * تحديداً، تحمل رابطاً وقت كتابة هذا — راجع project doc ذات الصلة).
+   * هذا لا يُغنى عن التحقق الداخلى من `snippet` نفسه — الرابط للمستخدم
+   * البشرى، لا بديل عن استرجاع/تحقق النص الذى يبنى عليه النظام حكمه.
+   */
+  @ApiPropertyOptional({
+    example: 'https://fra.gov.eg/wp-content/uploads/2023/10/كتاب-دوري-4.pdf',
+    nullable: true,
+  })
+  official_url: string | null;
 }
 
 export class GovernanceVerdictResponseDto {
