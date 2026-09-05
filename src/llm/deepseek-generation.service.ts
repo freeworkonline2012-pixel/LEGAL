@@ -432,9 +432,201 @@ export class DeepseekGenerationService {
       return { status: 'error', detail: (err as Error).message };
     }
   }
+
+  /**
+   * Service 2 — المدقق القانونى للعقود (Phase 2 الأساسية، 2026-09-05).
+   * تقييم أولى لبند عقد واحد مقابل مواد قانونية مصرية مرشَّحة (من استرجاع
+   * عام غير مقيَّد بنطاق كالحوكمة — أى قانون مفهرَس صالح كأساس).
+   *
+   * ثلاث حالات فقط، لا أربع كالحوكمة، لأن هذه Phase 2 لا تصنّف مخاطر بعد
+   * (Phase 3 مؤجَّلة عمداً — راجع migrations/034):
+   *   - "سليم": متن البند لا يخالف المادة/المواد المعتمَدة.
+   *   - "يحتاج مراجعة": يخالفها صراحة أو جزئياً، أو يتضمن ثغرة/غموضاً يستحق
+   *     نظر محامٍ.
+   *   - "لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة": لا مرشح كافٍ — حالة
+   *     متوقَّعة وصحيحة (لا عطل) لبنود تخص نظرية العقد العامة (مسؤولية، شرط
+   *     جزائى، قوة قاهرة) طالما القانون المدنى 131/1943 غير مفهرَس بعد (راجع
+   *     تعليق migrations/034) — لا يجوز إجبار حكم "سليم/يحتاج مراجعة" بلا
+   *     أساس قانونى حقيقى، بنفس مبدأ "معلومات غير كافية" فى الحوكمة تماماً.
+   */
+  async assessClause(input: {
+    clauseText: string;
+    candidates: Array<{
+      lawTitle: string;
+      lawNo: number;
+      lawYear: number;
+      articleNo: number;
+      articleText: string;
+    }>;
+  }): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | {
+        status: 'ok';
+        assessment: ClauseAssessmentStatus;
+        selectedIndices: number[];
+        reasoning: string;
+        confidence: number;
+      }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+    if (input.candidates.length === 0) {
+      return {
+        status: 'ok',
+        assessment: 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة',
+        selectedIndices: [],
+        reasoning: 'لا توجد مادة قانونية مصرية مفهرَسة ذات صلة مباشرة بموضوع هذا البند حتى الآن.',
+        confidence: 0,
+      };
+    }
+
+    const system =
+      'أنت محامٍ مصرى صارم ومتشكك يراجع بنود عقد بندًا بندًا. أمامك متن بند واحد ' +
+      'من عقد، وعدة مواد قانونية مصرية مرشَّحة من قوانين مختلفة (لا نطاق مقيَّد). ' +
+      'ترتيب عرض المرشحين لا يعكس دقتها إطلاقاً.\n\n' +
+      'مهمتك بخطوتين إلزاميتين قبل أى حكم:\n' +
+      '(1) هل نص المرشح يحكم فعلاً نفس نوع العلاقة التعاقدية التى يتناولها هذا ' +
+      'البند تحديداً (لا مجرد تشابه لفظى فى الكلمات)؟ إن لم يكن كذلك استبعده كلياً.\n' +
+      '(2) إن كان ذا صلة فعلاً: هل متن البند يخالفه صراحة، يخالفه جزئياً، أم لا ' +
+      'يخالفه؟\n\n' +
+      'أصدر حكماً واحداً من ثلاثة بالضبط: "سليم" (لا مخالفة لأى مرشح مُعتمَد)، ' +
+      '"يحتاج مراجعة" (مخالفة صريحة أو جزئية، أو صياغة فضفاضة/مجحفة تستحق نظر ' +
+      'محامٍ)، أو "لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة" (لا مرشح واحد ' +
+      'يحكم فعلاً هذا النوع من البنود — هذا خيار آمن صحيح، ولا يُعَد فشلاً، ' +
+      'ويجب اختياره كلما كان هناك شك حقيقى بدل التخمين).\n\n' +
+      'أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى، بالضبط بهذا الشكل: ' +
+      '{"assessment": "سليم أو يحتاج مراجعة أو لا يوجد نص قانونى مصرى مفهرَس ' +
+      'ذو صلة مباشرة", "selected": [أرقام المرشحين المعتمَدين فعلاً كأساس، من 1 ' +
+      'إلى عدد المرشحين، مصفوفة فارغة [] إن لم يوجد مرشح ذو صلة], "reasoning": ' +
+      '"جملة أو جملتان بالعربية تشرح الحكم", "confidence": رقم عشرى بين 0 و1}';
+
+    const candidatesText = input.candidates
+      .map(
+        (c, i) =>
+          `${i + 1}) المادة ${c.articleNo} من ${c.lawTitle} (رقم ${c.lawNo} لسنة ${c.lawYear}):\n"""${c.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `متن البند المُراد فحصه: """${input.clauseText}"""\n\n` +
+      `المرشحون:\n${candidatesText}\n\n` +
+      'افحص أولاً هل كل مرشح يحكم فعلاً نفس نوع العلاقة التعاقدية، ثم أصدر ' +
+      'الحكم. رد بـJSON فقط كما هو محدد.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 500,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek assessClause API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek assessClause: content فارغ رغم thinking:disabled — reasoning_content length=${reasoningLen}`,
+        );
+        return { status: 'error', detail: 'empty_response' };
+      }
+
+      const parsed = parseClauseJson(text, input.candidates.length);
+      if (!parsed) {
+        this.logger.warn(`DeepSeek assessClause: could not parse JSON from response: ${text}`);
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+
+      return {
+        status: 'ok',
+        assessment: parsed.assessment,
+        selectedIndices: parsed.selected.map((n) => n - 1),
+        reasoning: parsed.reasoning,
+        confidence: parsed.confidence,
+      };
+    } catch (err) {
+      this.logger.warn(`DeepSeek assessClause call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
 }
 
 export type GovernanceVerdict = 'متوافق' | 'غير متوافق' | 'متوافق جزئياً' | 'معلومات غير كافية';
+
+export type ClauseAssessmentStatus =
+  | 'سليم'
+  | 'يحتاج مراجعة'
+  | 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';
+
+const CLAUSE_ASSESSMENT_STATUSES: readonly ClauseAssessmentStatus[] = [
+  'سليم',
+  'يحتاج مراجعة',
+  'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة',
+];
+
+/** تحليل دفاعي لرد assessClause — نفس منهجية parseVerdictJson بالضبط. */
+function parseClauseJson(
+  text: string,
+  maxIndex: number,
+): { assessment: ClauseAssessmentStatus; selected: number[]; reasoning: string; confidence: number } | null {
+  const attempts = [text];
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    attempts.push(match[0]);
+  }
+
+  const isValidAssessment = (v: unknown): v is ClauseAssessmentStatus =>
+    typeof v === 'string' && (CLAUSE_ASSESSMENT_STATUSES as readonly string[]).includes(v);
+
+  const isValidSelected = (v: unknown): v is number[] =>
+    Array.isArray(v) &&
+    v.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= maxIndex);
+
+  for (const attempt of attempts) {
+    try {
+      const parsed = JSON.parse(attempt) as {
+        assessment?: unknown;
+        selected?: unknown;
+        reasoning?: unknown;
+        confidence?: unknown;
+      };
+      if (isValidAssessment(parsed.assessment) && isValidSelected(parsed.selected)) {
+        const confidenceRaw = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
+        return {
+          assessment: parsed.assessment,
+          selected: Array.from(new Set(parsed.selected)),
+          reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : '',
+          confidence: Math.min(1, Math.max(0, confidenceRaw)),
+        };
+      }
+    } catch {
+      // جرّب المحاولة التالية
+    }
+  }
+
+  return null;
+}
 
 const GOVERNANCE_VERDICTS: readonly GovernanceVerdict[] = [
   'متوافق',
