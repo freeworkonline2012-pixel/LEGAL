@@ -74,9 +74,22 @@ export class GovernanceService {
     const question = dto.action_description;
     const qHash = this.hashQuestion(question);
 
+    // ⚠️ 2026-09-06: كان الحد هنا 8/8 (16 مرشحاً كحد أقصى قبل الترتيب النهائى).
+    // تشخيص مباشر لسجلات الإنتاج (قياس فعلى لـ36 بنداً، انظر تقرير القياس
+    // بنفس التاريخ) أثبت أن المادة الصحيحة أحياناً لا تدخل مجمع المرشحين
+    // إطلاقاً رغم وجودها ومطابقتها فعلياً (مثال موثَّق: قانون 22/2018 م.6 —
+    // "يتظلم" فعلاً مقابل "تظلم/بتظلم" اسماً فى نص السؤال؛ بحث FTS بإعداد
+    // 'simple' بلا اشتقاق عربى لا يطابق صيغاً صرفية مختلفة من نفس الجذر، والترتيب
+    // الدلالى الخام لم يكفِ وحده لإدخالها ضمن أفضل 8 وسط تنافس مكثف من قرارات
+    // أطول مثل 161/2024). الحل الجذرى الصحيح هندسياً (لا حل مؤقت): توسيع مجمع
+    // الاسترجاع الخام قبل إعادة الترتيب (Retrieve-then-Rerank) بدل تضييقه مبكراً
+    // — Voyage rerank (نموذج مطابقة دلالية دقيق) قادر على ترقية المادة الصحيحة
+    // للمقدمة لو دخلت المجمع أصلاً، فالعطل الفعلى فى مرحلة السحب الأولى لا
+    // الترتيب النهائى. تعديل معزول هنا فقط (لا لمس لـbuildFtsQuery أو
+    // retrieval.ts المشترك الموثَّق كهش — راجع تعليق الوحدة أعلى الملف).
     const [ftsCandidates, semanticCandidates] = await Promise.all([
-      this.ftsCandidates(question, 8),
-      this.semanticCandidates(question, 8),
+      this.ftsCandidates(question, 15),
+      this.semanticCandidates(question, 15),
     ]);
 
     const merged = this.mergeCandidates(ftsCandidates, semanticCandidates);
