@@ -17,6 +17,9 @@ interface GovernanceCitation {
   lawNo: number;
   lawYear: number;
   articleNo: number;
+  // ⚠️ 2026-09-07: إضافة جوهرية لا تجميلية — انظر تعليق mergeCandidates
+  // أدناه للتبرير الكامل (دليل مباشر من الإنتاج: بند gov-024).
+  articleSuffixOrder: number;
   snippet: string;
   officialUrl: string | null;
 }
@@ -97,7 +100,12 @@ export class GovernanceService {
     this.logger.log(
       `governance pool: qHash=${qHash} مرشحون=${merged.length} → ` +
         merged
-          .map((c) => `${c.citation.lawNo}/${c.citation.articleNo}(${c.source},${c.confidence.toFixed(3)})`)
+          .map(
+            (c) =>
+              `${c.citation.lawNo}/${c.citation.articleNo}` +
+              (c.citation.articleSuffixOrder !== 0 ? `.${c.citation.articleSuffixOrder}` : '') +
+              `(${c.source},${c.confidence.toFixed(3)})`,
+          )
           .join(', '),
     );
 
@@ -153,7 +161,12 @@ export class GovernanceService {
     this.logger.log(
       `governance select: qHash=${qHash} مرشحون=` +
         topCandidates
-          .map((c) => `${c.citation.lawNo}/${c.citation.articleNo}(rerank=${c.rerankScore?.toFixed(4) ?? 'n/a'})`)
+          .map(
+            (c) =>
+              `${c.citation.lawNo}/${c.citation.articleNo}` +
+              (c.citation.articleSuffixOrder !== 0 ? `.${c.citation.articleSuffixOrder}` : '') +
+              `(rerank=${c.rerankScore?.toFixed(4) ?? 'n/a'})`,
+          )
           .join(', ') +
         ` → ${JSON.stringify(selection)}`,
     );
@@ -299,6 +312,7 @@ export class GovernanceService {
 
     const rows: Array<{
       article_no: number;
+      article_suffix_order: number;
       short_title: string | null;
       title: string;
       law_no: number;
@@ -308,7 +322,7 @@ export class GovernanceService {
       similarity: number;
     }> = await this.dataSource.query(
       `SELECT
-         a.article_no,
+         a.article_no, a.article_suffix_order,
          l.short_title, l.title, l.law_no, l.law_year, l.official_url,
          av.body,
          1 - (a.embedding <=> $1::vector) AS similarity
@@ -327,6 +341,7 @@ export class GovernanceService {
         lawNo: row.law_no,
         lawYear: row.law_year,
         articleNo: row.article_no,
+        articleSuffixOrder: row.article_suffix_order,
         snippet: row.body,
         officialUrl: row.official_url,
       },
@@ -339,9 +354,24 @@ export class GovernanceService {
     ftsCandidates: GovernanceCandidate[],
     semanticCandidates: GovernanceCandidate[],
   ): GovernanceCandidate[] {
+    // ⚠️ 2026-09-07: كان مفتاح الدمج هنا (lawNo-lawYear-articleNo) بلا
+    // articleSuffixOrder. دليل مباشر من الإنتاج (بند gov-024، قرار 101/2020):
+    // article_no=1 يتكرر عمداً كصفّين مختلفين تماماً فى قاعدة البيانات —
+    // "المادة الأولى" الإصدارية (suffix=-1، نص عام بلا أرقام) و"مادة 1"
+    // الموضوعية (suffix=0، تتضمن نص "10%" الحرج لمعيار كفاية رأس المال) —
+    // بالضبط النمط الموثَّق فى تعليق Article.articleSuffixOrder نفسه
+    // (migrations/021، 022). المفتاح القديم كان يُصادم الصفّين معاً، فيُسقِط
+    // الدمج أحدهما عشوائياً بحسب أى الاثنين له confidence أعلى فى تلك
+    // اللحظة — وقد لوحظ فعلياً اختيار النسخة الإصدارية الفارغة من الأرقام
+    // بدل الموضوعية عدة مرات فى اختبار حى متكرر لنفس السؤال. إضافة
+    // articleSuffixOrder للمفتاح تمنع هذا التصادم نهائياً بلا أى أثر جانبى
+    // على القوانين التى لا تحتوى مواد مكررة (suffix=0 دائماً هناك، فالمفتاح
+    // يبقى فريداً كما كان).
     const byKey = new Map<string, GovernanceCandidate>();
     for (const candidate of [...ftsCandidates, ...semanticCandidates]) {
-      const key = `${candidate.citation.lawNo}-${candidate.citation.lawYear}-${candidate.citation.articleNo}`;
+      const key =
+        `${candidate.citation.lawNo}-${candidate.citation.lawYear}-` +
+        `${candidate.citation.articleNo}-${candidate.citation.articleSuffixOrder}`;
       const existing = byKey.get(key);
       if (!existing || candidate.confidence > existing.confidence) {
         byKey.set(key, candidate);
@@ -356,6 +386,7 @@ export class GovernanceService {
       lawNo: version.article.law.lawNo,
       lawYear: version.article.law.lawYear,
       articleNo: version.article.articleNo,
+      articleSuffixOrder: version.article.articleSuffixOrder,
       snippet: version.body,
       officialUrl: version.article.law.officialUrl,
     };

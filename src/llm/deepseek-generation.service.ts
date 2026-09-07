@@ -442,7 +442,12 @@ export class DeepseekGenerationService {
           // إخراج أكبر من selectBestCandidate (verdict + selected[] + risk_note
           // + confidence بدل رقم واحد + سبب قصير) — هامش أمان أوسع يتماشى مع
           // "درس التقطيع الأول" الموثَّق فى selectBestCandidate.
-          max_tokens: 500,
+          // ⚠️ 2026-09-07: رُفع من 500 لـ800 بعد توسيع نافذة المرشحين فى
+          // governance.service.ts من 3 لـ5 (راجع تعليقها) — دليل مباشر من
+          // الإنتاج: مع 5 مرشحين يحتاج risk_note مساحة أطول لمناقشة كل
+          // واحد (فحص جهة/قطاع likely لكل مرشح إضافى)، ولوحظ فعلياً رد
+          // JSON مبتور (`unparseable_json`) عند الحد القديم بمجرد التوسيع.
+          max_tokens: 800,
           temperature: 0,
           thinking: { type: 'disabled' },
           messages: [
