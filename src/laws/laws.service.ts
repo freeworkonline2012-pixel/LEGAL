@@ -56,13 +56,22 @@ export class LawsService {
     // — كان سيرفض بالخطأ قانوناً سعودياً/إماراتياً يحمل نفس الرقم والسنة لقانون
     // مصرى موجود، رغم أنهما ليسا نفس القانون فعلياً. التحقق الآن مركّب مع الدولة،
     // مطابقاً تماماً لقيد uq_laws_country_no_year فى قاعدة البيانات.
+    //
+    // إصلاح جذرى ثانٍ (راجع migrations/002b_widen_laws_kind_uniqueness.sql):
+    // القيد نفسه وُسِّع لاحقاً ليشمل kind أيضاً — بلا هذا، كان هذا التحقق سيرفض
+    // بالخطأ إدخال قانون جديد يتشارك (country_code, law_no, law_year) مع صف من
+    // نوع مختلف تماماً (مثال حقيقى: قانون 5/2022 مقابل كتاب دورى 5/2022 —
+    // تسلسلا ترقيم مستقلان صدفةً يحملان نفس الرقم)، رغم أن القيد الفعلى فى
+    // القاعدة لم يعد يمنع هذه الحالة بالذات. التحقق الآن مركّب مع kind أيضاً،
+    // مطابقاً تماماً للقيد الموسَّع.
     const countryCode = dto.country_code ?? 'EG';
+    const kind = dto.kind ?? 'board_decision';
     const existing = await this.lawRepository.findOne({
-      where: { lawNo: dto.law_no, lawYear: dto.law_year, countryCode },
+      where: { lawNo: dto.law_no, lawYear: dto.law_year, countryCode, kind },
     });
     if (existing) {
       throw new ConflictException(
-        'law with same number, year and country already exists',
+        'law with same number, year, kind and country already exists',
       );
     }
 
@@ -72,7 +81,7 @@ export class LawsService {
       title: dto.title,
       shortTitle: dto.short_title ?? null,
       category: dto.category ?? 'other',
-      kind: dto.kind ?? 'board_decision',
+      kind,
       countryCode,
       status: dto.status ?? 'in_force',
       officialUrl: dto.official_url ?? null,

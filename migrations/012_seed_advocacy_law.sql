@@ -60,16 +60,23 @@ BEGIN;
 -- إعادة تعريفه فى 9 ملفات مختلفة — راجع تعليق migrations/003 الكامل).
 -- مُعرَّف الآن فى migrations/020 فقط.
 
-INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at, last_amended_at)
+-- kind='law' مضاف صراحةً هنا (لم يكن موجوداً أصلاً فى هذا الملف — كان يعتمد على
+-- القيمة الافتراضية 'board_decision' للعمود، ثم يصحّحها UPDATE لاحق فى 008 اعتماداً
+-- على نمط العنوان "قانون رقم%"). إصلاح جذرى (راجع 002b_widen_laws_kind_uniqueness.sql):
+-- بعد توسعة قيد uq_laws_country_no_year ليشمل kind، اكتُشف عملياً (اختبار السلسلة
+-- الكاملة) أن الاعتماد على الافتراضى هنا كان يُنتج صفاً مكرراً عند كل نشر تالٍ —
+-- لأن ON CONFLICT هنا (بقيمة kind الافتراضية) لم يعد يطابق الصف الفعلى بعد أن
+-- صححه 008 إلى 'law'. القيمة هنا الآن صريحة ومطابقة للنتيجة النهائية مباشرة.
+INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
 VALUES (
   17, 1983,
   $lt1$قانون رقم 17 لسنة 1983 بشأن إصدار قانون المحاماة$lt1$,
   $ls1$قانون المحاماة$ls1$,
-  'legal_profession', 'amended',
+  'legal_profession', 'law', 'amended',
   $lu1$https://egyls.com/%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%A7%D9%84%D9%85%D8%AD%D8%A7%D9%85%D8%A7%D8%A9/$lu1$,
   '1983-03-31', '2020-07-08'
 )
-ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING;
 
 
 WITH ins_art_law17_1 AS (

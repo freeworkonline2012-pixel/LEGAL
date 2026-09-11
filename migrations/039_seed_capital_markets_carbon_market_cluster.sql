@@ -108,7 +108,7 @@ WITH ins_law_d4664 AS (
     'https://fra.gov.eg/wp-content/uploads/2023/02/%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D8%A6%D9%8A%D8%B3-%D8%A7%D9%84%D9%88%D8%B2%D8%A7%D8%B1%D8%A7%D8%A1-%D8%B1%D9%82%D9%85-4664-%D9%84%D8%B3%D9%86%D8%A9-2022.pdf',
     '2022-12-25'
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_d4664 AS (
@@ -183,7 +183,7 @@ WITH ins_law_d57 AS (
     'https://fra.gov.eg/wp-content/uploads/2024/09/Done_Decree_No_57_2023_Committee_Final.pdf',
     '2023-03-22'
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_d57 AS (
@@ -274,7 +274,7 @@ WITH ins_law_d163 AS (
     'https://fra.gov.eg/wp-content/uploads/2024/09/Done_Decree_No_163-2023-VVBs.pdf',
     '2023-08-09'
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_d163 AS (
@@ -384,7 +384,7 @@ WITH ins_law_d30 AS (
     'https://fra.gov.eg/wp-content/uploads/2024/09/Done_Decree_No_30_2024.pdf',
     '2024-01-31'
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_d30 AS (
@@ -573,7 +573,7 @@ WITH ins_law_d31 AS (
     'https://fra.gov.eg/wp-content/uploads/2024/09/Done_Decree_No_31_2024.pdf',
     '2024-01-31'
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_d31 AS (
@@ -718,7 +718,7 @@ WITH ins_law_d1732 AS (
     'https://fra.gov.eg/wp-content/uploads/2024/09/Done_Decree_No_1732.pdf',
     '2024-08-17'
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_d1732 AS (
@@ -774,7 +774,7 @@ WITH ins_law_d636 AS (
     'https://fra.gov.eg/wp-content/uploads/2024/09/Done_Decree_No_636-accounting-treatment-29-7.pdf',
     NULL
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_d636 AS (
