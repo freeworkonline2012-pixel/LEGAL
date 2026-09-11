@@ -39,7 +39,7 @@ BEGIN;
 WITH ins_law_cm9 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (9, 2021, 'قرار مجلس إدارة الهيئة رقم 9 لسنة 2021 بتاريخ 31/1/2021 بشأن شروط وضوابط وإجراءات الترخيص بمزاولة عمليات المقاصة والتسوية للعقود التي يجرى التعامل عليها فى بورصات العقود الآجلة (نسخة محدثة حتى آخر تعديل بتاريخ 9/8/2023)', 'ترخيص عمليات المقاصة والتسوية للعقود الآجلة', 'capital_markets', 'board_decision', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2023/08/9-2021-%D8%B9%D9%85%D9%84%D9%8A%D8%A7%D8%AA-%D8%A7%D9%84%D8%AA%D8%B3%D9%88%D9%8A%D8%A9-%D9%88%D8%A7%D9%84%D9%85%D9%82%D8%A7%D8%B5%D9%89-%D9%84%D9%84%D8%B9%D9%82%D9%88%D8%AF-%D8%A7%D9%84%D8%A2%D8%AC%D9%84%D8%A9-%D9%88%D9%81%D9%82%D8%A7%D9%8B-%D9%84%D8%A2%D8%AE%D8%B1-%D8%AA%D8%B9%D8%AF%D9%8A%D9%84-%D9%81%D8%A8%D8%B1%D8%A7%D9%8A%D8%B1-2023-1.pdf', '2021-01-31', '2023-08-09')
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_cm9 AS (
@@ -507,7 +507,7 @@ FROM ins_art_cm9;
 WITH ins_law_nbf101 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (101, 2020, 'قرار مجلس إدارة الهيئة رقم 101 لسنة 2020 بتاريخ 23/6/2020 بشأن معايير الملاءة المالية للشركات العاملة فى نشاط التمويل الاستهلاكى (نسخة محدثة حتى آخر تعديل بتاريخ 12/4/2023)', 'معايير الملاءة المالية - التمويل الاستهلاكى', 'non_bank_finance', 'board_decision', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2020/12/101-2020.pdf', '2020-06-23', '2023-04-12')
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_nbf101 AS (
@@ -2083,7 +2083,7 @@ FROM ins_art_nbf101;
 WITH ins_law_dc7 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (7, 2022, 'كتاب دورى رقم 7 لسنة 2022 بتاريخ 29/12/2022 بشأن حماية العملاء من الممارسات السلبية فى تحصيل المستحقات', 'حماية العملاء من الممارسات السلبية فى تحصيل المستحقات', 'non_bank_finance', 'circular', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2023/01/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%89-%D9%A7.pdf', '2022-12-29', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_dc7 AS (
@@ -2123,7 +2123,7 @@ FROM ins_art_dc7;
 WITH ins_law_dc6 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (6, 2022, 'كتاب دورى رقم 6 لسنة 2022 بتاريخ 7/12/2022 بشأن اعتبارات منح التمويل وتطبيق خيار السداد المُعجل لمواجهة مخاطر التعثر', 'اعتبارات منح التمويل وخيار السداد المُعجل', 'non_bank_finance', 'circular', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2023/01/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%89%D9%A6.pdf', '2022-12-07', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_dc6 AS (
@@ -2203,7 +2203,7 @@ FROM ins_art_dc6;
 WITH ins_law_ar131 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (131, 2023, 'قرار مجلس إدارة الهيئة رقم 131 لسنة 2023 بتاريخ 7/6/2023 بشأن ضوابط القيد بسجل خبراء إعادة تقييم الأصول لدى الهيئة', 'ضوابط القيد بسجل خبراء إعادة تقييم الأصول', 'non_bank_finance', 'board_decision', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2023/08/131-2023-%D8%B6%D9%88%D8%A7%D8%A8%D8%B7-%D8%A7%D9%84%D9%82%D9%8A%D8%AF-%D8%A8%D8%B3%D8%AC%D9%84-%D8%AE%D8%A8%D8%B1%D8%A7%D8%A1-%D8%A5%D8%B9%D8%A7%D8%AF%D8%A9-%D8%AA%D9%82%D9%8A%D9%8A%D9%85-%D8%A7%D9%84%D8%A3%D8%B5%D9%88%D9%84.pdf', '2023-06-07', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_ar131 AS (
@@ -2373,7 +2373,7 @@ FROM ins_art_ar131;
 WITH ins_law_fc2 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (2, 2019, 'كتاب دورى رقم 2 لسنة 2019 بتاريخ 6/5/2019 بشأن تنظيم استخدام وسائل الدفع غير النقدى فى إتمام المعاملات المالية للمؤسسات المالية غير المصرفية', 'تنظيم استخدام وسائل الدفع غير النقدى', 'non_bank_finance', 'circular', 'in_force', NULL, '2019-05-06', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_fc2 AS (

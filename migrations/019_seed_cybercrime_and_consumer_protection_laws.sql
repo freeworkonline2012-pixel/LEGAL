@@ -71,7 +71,7 @@ BEGIN;
 WITH ins_law_cyb175 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (175, 2018, 'القانون رقم 175 لسنة 2018 بشأن مكافحة جرائم تقنية المعلومات', 'مكافحة جرائم تقنية المعلومات', 'other', 'law', 'in_force', 'https://alberonsy.com/1999-2/', '2018-08-14', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_cyb175 AS (
@@ -703,7 +703,7 @@ FROM ins_art_cyb175;
 WITH ins_law_cp181 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (181, 2018, 'القانون رقم 181 لسنة 2018 بإصدار قانون حماية المستهلك (وفقاً لآخر تعديل بالقانون 20/2024)', 'قانون حماية المستهلك', 'consumer_protection', 'law', 'in_force', 'https://sadanykhalifa.com/ar/section-data/%D9%82%D8%A7%D9%86%D9%88%D9%86%20181%20%D9%84%D8%B3%D9%86%D8%A9%202018%20%D8%A8%D8%B4%D8%A3%D9%86%20%D8%AD%D9%85%D8%A7%D9%8A%D8%A9%20%D8%A7%D9%84%D9%85%D8%B3%D8%AA%D9%87%D9%84%D9%83/66', '2018-09-13', '2024-04-05')
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_cp181 AS (
@@ -1661,7 +1661,7 @@ FROM ins_art_cp181;
 WITH ins_law_cp202024 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (20, 2024, 'القانون رقم 20 لسنة 2024 بتعديل بعض أحكام قانون حماية المستهلك الصادر بالقانون رقم 181 لسنة 2018', 'تعديل قانون حماية المستهلك (تشديد عقوبة حجز السلع الاستراتيجية)', 'consumer_protection', 'law', 'in_force', 'https://alberonsy.com/%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%B1%D9%82%D9%85-%DB%B2%DB%B0-%D9%84%D8%B3%D9%86%D8%A9-%DB%B2%DB%B0%DB%B2%D9%A4-%D8%A7%D9%84%D9%85%D9%86%D8%B4%D9%88%D8%B1-%D8%A8%D8%A7%D9%84%D8%AC%D8%B1%D9%8A%D8%AF/', '2024-04-05', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_cp202024 AS (

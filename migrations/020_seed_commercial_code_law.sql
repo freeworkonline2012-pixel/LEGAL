@@ -65,7 +65,7 @@ ALTER TABLE laws ADD CONSTRAINT laws_category_check
 -- ===== law17_1999 =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at)
 VALUES (17, 1999, $cc1$القانون رقم 17 لسنة 1999 بإصدار قانون التجارة$cc1$, $cc2$قانون التجارة$cc2$, 'commercial', 'law', 'in_force', $cc3$https://www.wipo.int/wipolex/en/legislation/details/13558$cc3$, '1999-05-17')
-ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING;
 
 -- 772 مادة (1-772) — تاريخ نفاذ مجزّأ: 1999/10/1 عموماً، وأحكام
 -- الشيك (المواد 472-539) من 2001/10/1
@@ -9938,7 +9938,7 @@ SELECT id, 1, $cc1547$إذا كانت الجريمة تتعلق باتفاق ع�
 -- ===== law0_1883 =====
 INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at)
 VALUES (0, 1883, $cc1548$قانون التجارة الصادر بالأمر العالي في 13 نوفمبر سنة 1883 — الفصل الأول من الباب الثاني (شركات الأشخاص)، السارى فقط بنص المادة الأولى من القانون رقم 17 لسنة 1999$cc1548$, $cc1549$قانون التجارة القديم 1883 (شركات الأشخاص - سارٍ جزئياً)$cc1549$, 'commercial', 'law', 'in_force', NULL, '1883-11-13')
-ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
+ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING;
 
 -- 47 مادة (19-65)
 WITH ins_art_law0_1883_19 AS (

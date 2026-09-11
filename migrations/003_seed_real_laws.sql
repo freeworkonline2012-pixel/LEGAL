@@ -58,9 +58,9 @@ UPDATE laws SET status = 'repealed', updated_at = now()
   WHERE law_no = 12 AND law_year = 2003 AND status <> 'repealed';
 
 -- ===== law14: قانون العمل الصادر بالقانون رقم 14 لسنة 2025 (298 مادة) =====
-INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
-VALUES (14, 2025, $q1$قانون العمل الصادر بالقانون رقم 14 لسنة 2025$q1$, $q2$قانون العمل (2025)$q2$, 'labor', 'in_force', $q3$https://www.eastlaws.com/legislation-full-text/ar/egypt/law/03-05-2025/no-14?type=1&id=2165366&sub=11404110$q3$, '2025-05-03')
-ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
+INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at, kind)
+VALUES (14, 2025, $q1$قانون العمل الصادر بالقانون رقم 14 لسنة 2025$q1$, $q2$قانون العمل (2025)$q2$, 'labor', 'in_force', $q3$https://www.eastlaws.com/legislation-full-text/ar/egypt/law/03-05-2025/no-14?type=1&id=2165366&sub=11404110$q3$, '2025-05-03', 'law')
+ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING;
 
 WITH ins_art_law14_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -3605,9 +3605,9 @@ INSERT INTO article_versions (article_id, version_no, body, effective_from, stat
 SELECT id, 1, $q599$يعاقب المسئول عن الإدارة الفعلية للشخص الاعتبارى بالعقوبة ذاتها المقررة عن الأفعال التى ترتكب بالمخالفة لأحكام هذا القانون إذا ثبت علمه بها وكان إخلاله بالواجبات التى تفرضها عليه تلك الإدارة قد أسهم فى وقوع الجريمة. ويكون الشخص الاعتبارى مسئولا ً بالتضامن عن الوفاء بما يحكم به من عقوبات مالية وتعويضات.$q599$, '2025-09-01', 'active' FROM ins_art_law14_298;
 
 -- ===== law155: قانون التأمين الموحد الصادر بالقانون رقم 155 لسنة 2024 (224 مادة) =====
-INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
-VALUES (155, 2024, $q600$قانون التأمين الموحد الصادر بالقانون رقم 155 لسنة 2024$q600$, $q601$قانون التأمين الموحد$q601$, 'insurance', 'in_force', $q602$https://www.eastlaws.com/legislation-full-text/ar/egypt/law/10-07-2024/no-155?type=1&id=2137149&sub=11127287$q602$, '2024-07-10')
-ON CONFLICT (country_code, law_no, law_year) DO NOTHING;
+INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at, kind)
+VALUES (155, 2024, $q600$قانون التأمين الموحد الصادر بالقانون رقم 155 لسنة 2024$q600$, $q601$قانون التأمين الموحد$q601$, 'insurance', 'in_force', $q602$https://www.eastlaws.com/legislation-full-text/ar/egypt/law/10-07-2024/no-155?type=1&id=2137149&sub=11127287$q602$, '2024-07-10', 'law')
+ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING;
 
 WITH ins_art_law155_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)

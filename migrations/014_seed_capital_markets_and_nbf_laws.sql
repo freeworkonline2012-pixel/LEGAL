@@ -43,7 +43,7 @@ BEGIN;
 WITH ins_law_cm95 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (95, 1992, 'قانون رقم 95 لسنة 1992 بإصدار قانون سوق رأس المال', 'قانون سوق رأس المال', 'capital_markets', 'law', 'in_force', 'https://fra.gov.eg/regulations/%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%B3%D9%88%D9%82-%D8%B1%D8%A3%D8%B3-%D8%A7%D9%84%D9%85%D8%A7%D9%84-%D8%B1%D9%82%D9%85-95-%D9%84%D8%B3%D9%86%D8%A9-1992/', '1992-06-25', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_cm95 AS (
@@ -3377,7 +3377,7 @@ FROM ins_art_cm95;
 WITH ins_law_cm135 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (135, 1993, 'قرار وزير الاقتصاد رقم 135 لسنة 1993 بإصدار اللائحة التنفيذية لقانون سوق رأس المال الصادر بالقانون رقم 95 لسنة 1992 (نسخة محدثة حتى آخر تعديل بتاريخ 30/4/2025)', 'اللائحة التنفيذية لقانون سوق رأس المال', 'capital_markets', 'ministerial_decision', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2024/07/%D9%84%D8%A7%D8%A6%D8%AD%D8%A9-%D8%A7%D9%84%D8%AA%D9%86%D9%81%D9%8A%D8%B0%D9%8A%D8%A9-%D9%85%D9%86-%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%B3%D9%88%D9%82-%D8%A7%D9%84%D9%85%D8%A7%D9%84-%D8%A8%D8%B5%D9%8A%D8%BA%D8%A9-30-4-2025-1.pdf', '1993-04-08', '2025-04-30')
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_cm135 AS (
@@ -15605,7 +15605,7 @@ FROM ins_art_cm135;
 WITH ins_law_cm145 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (145, 2021, 'قرار مجلس إدارة الهيئة رقم 145 لسنة 2021 بشأن ضوابط وإجراءات الطرح العام والخاص للسندات (نسخة محدثة حتى آخر تعديل بتاريخ 8/7/2026)', 'ضوابط الطرح العام والخاص للسندات', 'capital_markets', 'board_decision', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2021/10/145-2021-%D9%88%D9%81%D9%82%D8%A7-%D9%84%D8%A7%D8%AE%D8%B1-%D8%AA%D8%B9%D8%AF%D9%8A%D9%84.pdf', '2021-09-29', '2026-07-08')
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_cm145 AS (
@@ -16093,7 +16093,7 @@ FROM ins_art_cm145;
 WITH ins_law_cm61 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (61, 2017, 'قرار مجلس إدارة الهيئة رقم 61 لسنة 2017 بتاريخ 19/4/2017 بشأن إجراءات تعزيز حماية حسابات المتعاملين مع الشركات العاملة فى مجال الأوراق المالية (نسخة محدثة حتى آخر تعديل بتاريخ 24/9/2025)', 'حماية حسابات المتعاملين فى الأوراق المالية', 'capital_markets', 'board_decision', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2024/09/61-2017-%D9%88%D9%81%D9%82%D8%A7-%D9%84%D8%A7%D8%AE%D8%B1-%D8%AA%D8%B9%D8%AF%D9%8A%D9%8424-9-2025.pdf', '2017-04-19', '2025-09-24')
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_cm61 AS (
@@ -16563,7 +16563,7 @@ FROM ins_art_cm61;
 WITH ins_law_nbf61 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (61, 2023, 'قرار مجلس إدارة الهيئة رقم 61 لسنة 2023 بتاريخ 22/3/2023 بشأن قواعد قيام شركات التمويل الاستهلاكى بتقديم خدمات الدفع باستخدام البطاقات المدفوعة مقدماً نيابة عن البنوك', 'خدمات الدفع بالبطاقات المدفوعة مقدماً - التمويل الاستهلاكى', 'non_bank_finance', 'board_decision', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2024/03/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-61-%D9%84%D8%B3%D9%86%D8%A9-2023-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf', '2023-03-22', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_nbf61 AS (
@@ -16777,7 +16777,7 @@ FROM ins_art_nbf61;
 WITH ins_law_nbf160 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (160, 2023, 'قرار مجلس إدارة الهيئة رقم 160 لسنة 2023 بتاريخ 26/7/2023 بشأن نسبة أقساط التمويل إلى دخل العميل فى نشاط التمويل الاستهلاكى', 'نسبة أقساط التمويل إلى الدخل - التمويل الاستهلاكى', 'non_bank_finance', 'board_decision', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2023/08/alamiria_2023_160.pdf', '2023-07-26', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_nbf160 AS (
@@ -16847,7 +16847,7 @@ FROM ins_art_nbf160;
 WITH ins_law_ft268 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (268, 2023, 'قرار مجلس إدارة الهيئة رقم 268 لسنة 2023 بتاريخ 29/11/2023 بشأن قواعد وإجراءات التأسيس والترخيص للشركات الناشئة فى التكنولوجيا المالية لمزاولة أنشطة التمويل غير المصرفى', 'تأسيس وترخيص الشركات الناشئة للتكنولوجيا المالية', 'non_bank_finance', 'board_decision', 'in_force', 'https://fra.gov.eg/wp-content/uploads/2024/01/alamiria_2023_268.pdf', '2023-11-29', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_ft268 AS (
@@ -17196,8 +17196,16 @@ FROM ins_art_ft268;
 -- ===== real_estate_exec_reg : اللائحة التنفيذية لقانون التمويل العقارى =====
 WITH ins_law_reer1 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
-  VALUES (1, 2001, 'قرار مجلس الوزراء رقم 1 لسنة 2001 بإصدار اللائحة التنفيذية لقانون التمويل العقارى الصادر بالقانون رقم 148 لسنة 2001', 'اللائحة التنفيذية لقانون التمويل العقارى', 'non_bank_finance', 'pm_decision', 'in_force', 'https://fra.gov.eg/regulations/%D8%A7%D9%84%D9%84%D8%A7%D8%A6%D8%AD%D8%A9-%D8%A7%D9%84%D8%AA%D9%86%D9%81%D9%8A%D8%B0%D9%8A%D8%A9-%D9%84%D9%84%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%B1%D9%82%D9%85-148-%D9%84%D8%B3%D9%86%D8%A9-2001-%D9%88/', '2001-12-09', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  -- kind='regulation' (وليس 'pm_decision' كما كان أصلاً): يطابق التصنيف النهائى
+  -- الذى تفرضه migrations/016_reclassify_real_estate_reg.sql عبر UPDATE لاحق —
+  -- إصلاح جذرى (راجع 002b_widen_laws_kind_uniqueness.sql): بعد توسعة قيد
+  -- uq_laws_country_no_year ليشمل kind، فإن إبقاء هذا الإدراج على القيمة القديمة
+  -- 'pm_decision' كان سيُنتج صفاً مكرراً عند كل نشر تالٍ (لأن ON CONFLICT هنا لم
+  -- يعد يطابق الصف الفعلى الذى غيّر 016 نوعه إلى 'regulation')، ثم يفشل 016 نفسه
+  -- بخطأ تكرار مفتاح عند محاولته توحيد الصفّين. القيمة هنا الآن تطابق النتيجة
+  -- النهائية مباشرة، ما يجعل كلا الملفين متّسقين وقابلين لإعادة التشغيل بأمان.
+  VALUES (1, 2001, 'قرار مجلس الوزراء رقم 1 لسنة 2001 بإصدار اللائحة التنفيذية لقانون التمويل العقارى الصادر بالقانون رقم 148 لسنة 2001', 'اللائحة التنفيذية لقانون التمويل العقارى', 'non_bank_finance', 'regulation', 'in_force', 'https://fra.gov.eg/regulations/%D8%A7%D9%84%D9%84%D8%A7%D8%A6%D8%AD%D8%A9-%D8%A7%D9%84%D8%AA%D9%86%D9%81%D9%8A%D8%B0%D9%8A%D8%A9-%D9%84%D9%84%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%B1%D9%82%D9%85-148-%D9%84%D8%B3%D9%86%D8%A9-2001-%D9%88/', '2001-12-09', NULL)
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_reer1 AS (

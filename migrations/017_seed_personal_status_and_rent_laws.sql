@@ -59,7 +59,7 @@ BEGIN;
 WITH ins_law_ps25 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (25, 1929, 'القانون رقم 25 لسنة 1929 فى شأن بعض أحكام الأحوال الشخصية (وفقاً لآخر تعديل)', 'بعض أحكام الأحوال الشخصية (الطلاق، النفقة، الحضانة)', 'personal_status', 'law', 'in_force', 'https://alberonsy.com/%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%B1%D9%82%D9%85-25-%D9%84%D8%B3%D9%86%D8%A9-1929-%D9%81%D9%89-%D8%B4%D8%A3%D9%86-%D8%A8%D8%B9%D8%B6-%D8%A3%D8%AD%D9%83%D8%A7%D9%85-%D8%A7%D9%84%D8%A3%D8%AD%D9%88/', '1929-03-25', '2017-07-22')
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_ps25 AS (
@@ -281,7 +281,7 @@ FROM ins_art_ps25;
 WITH ins_law_ps100 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (100, 1985, 'القانون رقم 100 لسنة 1985 بتعديل بعض أحكام قوانين الأحوال الشخصية', 'تعديل أحكام قوانين الأحوال الشخصية', 'personal_status', 'law', 'in_force', 'https://alberonsy.com/%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%B1%D9%82%D9%85-100-%D9%84%D8%B3%D9%86%D8%A9-1985-%D8%A8%D8%AA%D8%B9%D8%AF%D9%8A%D9%84-%D8%A8%D8%B9%D8%B6-%D8%A3%D8%AD%D9%83%D8%A7%D9%85-%D9%82%D9%88%D8%A7%D9%86/', '1985-07-04', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_ps100 AS (
@@ -345,7 +345,7 @@ FROM ins_art_ps100;
 WITH ins_law_ps10 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (10, 2004, 'القانون رقم 10 لسنة 2004 بإصدار قانون إنشاء محاكم الأسرة (وفقاً لآخر تعديل)', 'إنشاء محاكم الأسرة', 'personal_status', 'law', 'in_force', 'https://alberonsy.com/%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%B1%D9%82%D9%85-10-%D9%84%D8%B3%D9%86%D8%A9-2004-%D8%A8%D8%A5%D8%B5%D8%AF%D8%A7%D8%B1-%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%A5%D9%86%D8%B4%D8%A7%D8%A1-%D9%85%D8%AD%D8%A7/', '2004-03-18', '2017-12-25')
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_ps10 AS (
@@ -493,7 +493,7 @@ FROM ins_art_ps10;
 WITH ins_law_inh77 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (77, 1943, 'القانون رقم 77 لسنة 1943 بشأن المواريث', 'قانون المواريث', 'personal_status', 'law', 'in_force', 'https://lawhub.info/eg/?p=11346', '1943-12-08', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_inh77 AS (
@@ -885,7 +885,7 @@ FROM ins_art_inh77;
 WITH ins_law_rent164 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (164, 2025, 'القانون رقم 164 لسنة 2025 بشأن بعض الأحكام المتعلقة بقوانين إيجار الأماكن وإعادة تنظيم العلاقة بين المؤجر والمستأجر', 'قانون الإيجارات الجديد', 'rent', 'law', 'in_force', 'https://www.eastlaws.com/legislation-full-text/ar/egypt/law/04-08-2025/no-164?type=1&id=2173330', '2025-08-04', NULL)
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_rent164 AS (

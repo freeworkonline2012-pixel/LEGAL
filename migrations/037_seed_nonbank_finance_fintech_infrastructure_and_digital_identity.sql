@@ -51,7 +51,7 @@ WITH ins_law_nbf139 AS (
     'https://fra.gov.eg/wp-content/uploads/2023/07/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-139-%D9%84%D8%B3%D9%86%D8%A9-2023-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf',
     '2023-06-21', NULL
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_nbf139 AS (
@@ -657,7 +657,7 @@ WITH ins_law_nbf140 AS (
     'https://fra.gov.eg/wp-content/uploads/2023/07/%D9%86%D8%B4%D8%B1-%D9%82%D8%B1%D8%A7%D8%B1-%D8%B1%D9%82%D9%85-140-%D9%84%D8%B3%D9%86%D8%A9-2023-%D8%A8%D8%A7%D9%84%D9%88%D9%82%D8%A7%D8%A6%D8%B9.pdf',
     '2023-06-21', NULL
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_nbf140 AS (

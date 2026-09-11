@@ -25,7 +25,7 @@ BEGIN;
 WITH ins_law_ps1 AS (
   INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at, last_amended_at)
   VALUES (1, 2000, 'القانون رقم 1 لسنة 2000 بإصدار قانون تنظيم بعض أوضاع وإجراءات التقاضى فى مسائل الأحوال الشخصية (وفقاً لآخر تعديل)', 'تنظيم إجراءات التقاضى فى مسائل الأحوال الشخصية', 'personal_status', 'law', 'in_force', 'https://alberonsy.com/%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%B1%D9%82%D9%85-1-%D9%84%D8%B3%D9%86%D8%A9-2000-%D8%A8%D8%A5%D8%B5%D8%AF%D8%A7%D8%B1-%D9%82%D8%A7%D9%86%D9%88%D9%86-%D8%AA%D9%86%D8%B8%D9%8A%D9%85-%D8%A8%D8%B9%D8%B6/', '2000-01-29', '2020-09-05')
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_ps1 AS (

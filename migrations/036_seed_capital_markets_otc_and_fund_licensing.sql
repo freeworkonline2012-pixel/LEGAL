@@ -43,7 +43,7 @@ WITH ins_law_cm94 AS (
     'https://fra.gov.eg/wp-content/uploads/2024/12/%D9%82%D8%B1%D8%A7%D8%B1-94-2018-%D9%82%D9%88%D8%A7%D8%B9%D8%AF-%D9%88%D8%A5%D8%AC%D8%B1%D8%A7%D8%A1%D8%A7%D8%AA-%D8%A7%D9%84%D8%AA%D8%B9%D8%A7%D9%85%D9%84-%D9%88%D9%81%D9%82%D8%A7%D9%8B-%D9%84%D8%A2%D8%AE%D8%B1-%D8%AA%D8%B9%D8%AF%D9%8A%D9%84-%D9%85%D8%A7%D9%8A%D9%88-2026.pdf',
     '2018-06-10', '2026-05-20'
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_cm94 AS (
@@ -201,7 +201,7 @@ WITH ins_law_cm58 AS (
     'https://fra.gov.eg/wp-content/uploads/2024/09/%D9%82%D8%B1%D8%A7%D8%B1-58-%D9%84%D8%B3%D9%86%D8%A9-2018.pdf',
     '2018-04-26', '2026-07-08'
   )
-  ON CONFLICT (country_code, law_no, law_year) DO NOTHING
+  ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING
   RETURNING id
 ),
 ins_art_cm58 AS (
