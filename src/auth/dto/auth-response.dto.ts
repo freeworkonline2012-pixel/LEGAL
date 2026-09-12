@@ -16,6 +16,12 @@ export class UserResponseDto {
 
   @ApiProperty({ example: '2026-01-01T10:00:00.000Z' })
   created_at: string;
+
+  @ApiPropertyOptional({ example: '2026-09-12T10:00:00.000Z', nullable: true })
+  consent_given_at: string | null;
+
+  @ApiPropertyOptional({ example: '2026-09-12-draft-v1', nullable: true })
+  consent_version: string | null;
 }
 
 export class AuthResponseDto {
