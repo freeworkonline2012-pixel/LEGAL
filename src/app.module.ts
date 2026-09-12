@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
@@ -18,6 +19,7 @@ import { GuidanceModule } from './guidance/guidance.module';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { LawsModule } from './laws/laws.module';
+import { PrivacyModule } from './privacy/privacy.module';
 import { QuestionsModule } from './questions/questions.module';
 import { ReviewsModule } from './reviews/reviews.module';
 
@@ -27,6 +29,10 @@ import { ReviewsModule } from './reviews/reviews.module';
       isGlobal: true,
       validate,
     }),
+    // مهام Cron داخل التطبيق (حالياً: DataRetentionService فقط) — راجع
+    // src/privacy/data-retention.service.ts والمسار التقنى الأول لحل قانون
+    // حماية البيانات الشخصية 151/2020.
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => buildTypeOrmOptions(config),
@@ -62,6 +68,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     ReviewsModule,
     AuditModule,
     IngestionModule,
+    PrivacyModule,
   ],
   controllers: [AppController],
   providers: [

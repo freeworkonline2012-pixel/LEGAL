@@ -31,6 +31,10 @@ export class AuthController {
     type: UserResponseDto,
   })
   async register(@Body() dto: RegisterDto): Promise<UserResponseDto> {
+    // dto.consent مضمون true هنا (تحقّق @Equals(true) فى RegisterDto يرفض
+    // الطلب بـ400 قبل الوصول لهذا الجسم) — نسجّله صراحة فى سجل التدقيق
+    // كحدث منفصل عن auth.registered لسهولة الاستعلام عن "من وافق ومتى" دون
+    // فرز كل أحداث التسجيل.
     const user = await this.authService.register(dto.email, dto.password, dto.full_name);
     await this.auditService.record({
       actorId: user.id,
@@ -38,6 +42,14 @@ export class AuthController {
       action: 'auth.registered',
       resourceType: 'user',
       resourceId: user.id,
+    });
+    await this.auditService.record({
+      actorId: user.id,
+      actorRole: user.role,
+      action: 'privacy.consent_recorded',
+      resourceType: 'user',
+      resourceId: user.id,
+      metadata: { consent_version: user.consent_version },
     });
     return user;
   }

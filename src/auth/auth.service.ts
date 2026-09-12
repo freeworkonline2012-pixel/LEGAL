@@ -6,6 +6,7 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import type { StringValue } from 'ms';
 import { Repository } from 'typeorm';
+import { PRIVACY_POLICY_VERSION } from '../common/constants/privacy-policy';
 import { RefreshToken } from '../database/entities/refresh-token.entity';
 import { User } from '../database/entities/user.entity';
 import { AuthResponseDto, UserResponseDto } from './dto/auth-response.dto';
@@ -25,7 +26,11 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(email: string, password: string, fullName?: string): Promise<UserResponseDto> {
+  async register(
+    email: string,
+    password: string,
+    fullName?: string,
+  ): Promise<UserResponseDto> {
     const normalizedEmail = email.trim().toLowerCase();
 
     const existing = await this.userRepository.findOne({
@@ -37,12 +42,18 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
+    // consent يُتحقَّق منه بالفعل فى RegisterDto (@Equals(true)) قبل وصوله
+    // هنا — لا فرع "ماذا لو false" لأن الطلب كان سيُرفَض بـ400 قبل استدعاء
+    // هذه الدالة أصلاً. التوقيت المسجَّل هنا (لا وقت الطلب فى الـcontroller)
+    // عمداً لضمان اتساقه مع created_at لنفس الصف.
     const user = this.userRepository.create({
       email: normalizedEmail,
       passwordHash,
       fullName: fullName?.trim() ? fullName.trim() : null,
       role: 'user',
       isActive: true,
+      consentGivenAt: new Date(),
+      consentVersion: PRIVACY_POLICY_VERSION,
     });
     // save (وليس insert): نعتمد على القيم المولّدة من قاعدة البيانات (id, created_at)
     // في toUserResponse — insert لا يعيدها إلى كائن الكيان.
@@ -165,6 +176,8 @@ export class AuthService {
       full_name: user.fullName,
       role: user.role,
       created_at: user.createdAt.toISOString(),
+      consent_given_at: user.consentGivenAt ? user.consentGivenAt.toISOString() : null,
+      consent_version: user.consentVersion,
     };
   }
 

@@ -22,6 +22,12 @@
 
 const { Client } = require('pg');
 const fs = require('fs');
+// ⚠️ q.question مُشفَّر فى قاعدة البيانات منذ المسار التقنى الأول لحل قانون
+// حماية البيانات الشخصية 151/2020 (قرار 2026-09-12، راجع
+// src/database/entities/question.entity.ts) — هذا سكربت pg خام خارج
+// TypeORM، فلا يستفيد من transformer الكيان تلقائياً. راجع
+// scripts/lib/field-encryption.js.
+const { decryptField } = require('./lib/field-encryption');
 
 async function run() {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
@@ -62,7 +68,7 @@ async function run() {
     expected_article_no: row.corrected_article_no ?? row.original_article_no ?? null,
     phrasing_style: null,
     expected_behavior: 'answer',
-    question: row.question,
+    question: decryptField(row.question),
     // حقول مصدر إضافية (ليست جزءاً من بنية Golden Test Set القياسية،
     // تُحذَف عند الدمج الفعلى) — تسهّل تتبع كل مرشح لمراجعته فى reviews.
     _source_review_id: row.review_id,

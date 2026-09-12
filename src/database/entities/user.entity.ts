@@ -31,6 +31,19 @@ export class User {
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive: boolean;
 
+  /**
+   * توثيق موافقة صريحة على سياسة الخصوصية وقت التسجيل (المسار التقنى الأول
+   * لحل قانون حماية البيانات الشخصية 151/2020 — راجع migrations/051 وقرار
+   * 2026-09-12). NULL لمن سجّل قبل وجود هذه الآلية — لا يعنى NULL بالضرورة
+   * عدم موافقة، بل غياب تسجيل رقمى لها؛ التعامل مع هذه الفئة قرار منتج/
+   * قانونى منفصل لم يُحسم بعد.
+   */
+  @Column({ name: 'consent_given_at', type: 'timestamptz', nullable: true })
+  consentGivenAt: Date | null;
+
+  @Column({ name: 'consent_version', type: 'text', nullable: true })
+  consentVersion: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

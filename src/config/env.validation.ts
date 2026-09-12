@@ -1,5 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { IsEnum, IsNumber, IsOptional, IsString, Min, validateSync } from 'class-validator';
+import { DEV_ONLY_ENCRYPTION_KEY } from '../common/crypto/field-encryption';
 
 export enum NodeEnv {
   Development = 'development',
@@ -88,6 +89,44 @@ export class EnvironmentVariables {
   @IsOptional()
   @IsString()
   VOYAGE_EMBEDDING_MODEL?: string;
+
+  // ===== المسار التقنى الأول لحل قانون حماية البيانات الشخصية 151/2020
+  // (قرار 2026-09-12) =====
+
+  /**
+   * مفتاح تشفير حقلى — 64 حرف hex (32 بايت، AES-256-GCM). راجع
+   * src/common/crypto/field-encryption.ts. اختيارى فى التطوير/الاختبار
+   * (يُستخدَم DEV_ONLY_ENCRYPTION_KEY تلقائياً)، لكن حارس boot أدناه يرفض
+   * تشغيل NODE_ENV=production بدونه أو بمفتاح غير 64 حرف hex بالضبط —
+   * بنفس نمط JWT_SECRET تماماً.
+   */
+  @IsOptional()
+  @IsString()
+  ENCRYPTION_KEY?: string;
+
+  /**
+   * بعد كم يوماً من إنشاء السؤال يُفصَل ربطه بحساب المستخدم (user_id → NULL)
+   * تلقائياً عبر DataRetentionService — تقليل بيانات مُعرِّفة بمرور الوقت
+   * (مبدأ تحديد الاحتفاظ). القيمة الافتراضية (730 يوماً ≈ سنتان) تحفظية
+   * مبدئية فقط — يحتاج تأكيداً نهائياً من المحامى (راجع القرار المؤجَّل
+   * لجلسة لاحقة)؛ قابلة للتغيير هنا بلا إعادة نشر كود.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  DATA_RETENTION_LINK_DAYS?: number;
+
+  /**
+   * بعد كم يوماً من تسجيل حدث تدقيق يُخفى عنوان IP وUser-Agent فيه (يبقى
+   * actor_id/action/resource كما هو — القيمة الأمنية فى هوية الفاعل
+   * والإجراء، لا فى IP بعد انتهاء نافذة التحقيق الأمنى المعقولة). افتراضى
+   * أقصر بكثير من DATA_RETENTION_LINK_DAYS عمداً — IP بيانات شخصية أعلى
+   * حساسية تقنياً وأقل فائدة تشغيلية بعد نافذة قصيرة.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  DATA_RETENTION_IP_DAYS?: number;
 }
 
 export function validate(config: Record<string, unknown>): EnvironmentVariables {
@@ -123,6 +162,26 @@ export function validate(config: Record<string, unknown>): EnvironmentVariables 
       'فشل التحقق من متغيرات البيئة:\n' +
         'JWT_SECRET: لا يجوز تشغيل NODE_ENV=production بالسر الافتراضي أو بسر أقصر من 32 حرفاً — ' +
         'عيّن JWT_SECRET قوياً في بيئة الإنتاج (مثال: openssl rand -hex 32).',
+    );
+  }
+
+  // حارس مماثل لـENCRYPTION_KEY (تشفير حقل questions.question — راجع
+  // src/common/crypto/field-encryption.ts): يجب أن يكون 64 حرف hex بالضبط
+  // (32 بايت لـAES-256-GCM)، ومختلفاً عن مفتاح التطوير المعروف علناً فى
+  // الكود المصدرى. HEX_64_PATTERN يتحقق من الصيغة، لا فقط الطول — مفتاح
+  // بطول 64 لكن يحوى أحرفاً غير hex سيفشل صامتاً عند resolveKey() لاحقاً
+  // (Buffer.from(..., 'hex') يقتطع بلا خطأ) لو لم يُرفَض هنا صراحة.
+  const HEX_64_PATTERN = /^[0-9a-fA-F]{64}$/;
+  if (
+    validatedConfig.NODE_ENV === NodeEnv.Production &&
+    (!validatedConfig.ENCRYPTION_KEY ||
+      validatedConfig.ENCRYPTION_KEY === DEV_ONLY_ENCRYPTION_KEY ||
+      !HEX_64_PATTERN.test(validatedConfig.ENCRYPTION_KEY))
+  ) {
+    throw new Error(
+      'فشل التحقق من متغيرات البيئة:\n' +
+        'ENCRYPTION_KEY: لا يجوز تشغيل NODE_ENV=production بمفتاح التطوير الافتراضي أو بصيغة غير صالحة — ' +
+        'عيّن ENCRYPTION_KEY بصيغة 64 حرف hex في بيئة الإنتاج (مثال: openssl rand -hex 32).',
     );
   }
 
