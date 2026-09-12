@@ -39,6 +39,17 @@ export class Answer {
   @Column({ name: 'latency_ms', type: 'int', nullable: true })
   latencyMs: number | null;
 
+  /**
+   * نتيجة احتياطية من WebSearchFallbackService (Tier 2) عندما تفشل الإجابة
+   * الموثَّقة (refused=true) — لا تُستخدَم أبداً كبديل عن استشهاد متحقَّق منه؛
+   * راجع تعليق web-search-fallback.service.ts الكامل للتصميم والمبرر. عمود
+   * إضافى بحت (nullable)، لا يمس أى سلوك سابق. شكل الكائن المخزَّن:
+   * { answer: string, sources: {title,url,snippet}[], provider: string,
+   *   queriedAt: string }.
+   */
+  @Column({ name: 'web_fallback', type: 'jsonb', nullable: true })
+  webFallback: Record<string, unknown> | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

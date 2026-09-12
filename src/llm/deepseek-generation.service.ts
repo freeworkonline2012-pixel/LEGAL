@@ -112,6 +112,69 @@ export class DeepseekGenerationService {
     }
   }
 
+  /**
+   * تستخدمها WebSearchFallbackService حصراً (Tier 2 — راجع تعليق ذلك الملف
+   * الكامل لسياق التصميم). نفس انضباط composeGroundedAnswer أعلاه بالحرف —
+   * ممنوع صراحة إضافة أى معلومة من خارج المقتطفات المُرفَقة، فقط المصدر هنا
+   * مقتطفات بحث ويب مُقيَّدة النطاق بدل مادة قانونية من قاعدة بياناتنا. عند
+   * الشك أو عدم كفاية المقتطفات، يجب أن يصرّح النموذج بذلك بدل التخمين —
+   * التنويه الإلزامى (WEB_FALLBACK_DISCLAIMER) يُضاف برمجياً بعد هذا النص فى
+   * WebSearchFallbackService، لا يعتمد على التزام النموذج بذكره.
+   */
+  async composeWebFallbackAnswer(question: string, sourcesContext: string): Promise<string | null> {
+    if (!this.isConfigured) {
+      return null;
+    }
+
+    const system =
+      'أنت مساعد يصوغ إجابة عربية موجزة بناءً حصراً على مقتطفات نتائج بحث ' +
+      'مرفقة أدناه من مواقع رسمية، وليس من معرفتك العامة. ممنوع منعاً باتاً ' +
+      'إضافة أى معلومة أو رقم أو تاريخ غير موجود حرفياً فى المقتطفات المرفقة. ' +
+      'إن كانت المقتطفات لا تكفى للإجابة بثقة، صرّح بذلك بوضوح بدل التخمين أو ' +
+      'التعميم. اذكر رقم المصدر بين قوسين مربعين [1]/[2] بعد كل معلومة تستند ' +
+      'إليها. لا تذكر أنك ذكاء اصطناعي ولا تعتذر — أجب بإيجاز (فقرتان قصيرتان كحد أقصى).';
+
+    const userMsg =
+      `سؤال المستخدم: ${question}\n\n` +
+      `مقتطفات بحث من مصادر رسمية (مرقَّمة):\n${sourcesContext}\n\n` +
+      'أجب على السؤال بناءً على هذه المقتطفات فقط، مع الإشارة لرقم المصدر ' +
+      'المناسب بين قوسين مربعين.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 500,
+          thinking: { type: 'disabled' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.error(`DeepSeek web-fallback composition error ${res.status}: ${errText}`);
+        return null;
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      return text && text.length > 0 ? text : null;
+    } catch (err) {
+      this.logger.error(`DeepSeek web-fallback composition call failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
   // EP-08 (2026-08-23): جُرِّبت هنا دالة rewriteForSearch() لإعادة صياغة
   // الأسئلة العامية/القصيرة بالفصحى القانونية قبل الاسترجاع. اختبار حي على
   // 43 سؤالاً أثبت صفر تحسّن فعلي (9/28 قبل وبعد بالضبط) مع ثغرة أمان جديدة
