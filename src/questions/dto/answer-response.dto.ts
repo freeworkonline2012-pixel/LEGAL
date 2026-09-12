@@ -29,6 +29,34 @@ export class CitationResponseDto {
   snippet: string;
 }
 
+export class WebFallbackSourceDto {
+  @ApiProperty({ example: 'قرار مجلس إدارة الهيئة رقم 98 لسنة 2023' })
+  title: string;
+
+  @ApiProperty({ example: 'https://fra.gov.eg/...' })
+  url: string;
+
+  @ApiProperty({ example: 'زيادة الحد الأقصى للتمويل...' })
+  snippet: string;
+}
+
+export class WebFallbackResponseDto {
+  @ApiProperty({
+    description:
+      'إجابة غير موثَّقة من قاعدة البيانات القانونية — نتيجة بحث ويب مقيَّد ' +
+      'النطاق (مصادر رسمية فقط)، تتضمن دائماً تنويهاً صريحاً فى نهايتها. لا ' +
+      'تُعامَل بنفس ثقة citations. حقل إضافى يظهر فقط عندما refused=true ' +
+      'وكانت خاصية ENABLE_WEB_FALLBACK مفعَّلة ووُجدت نتائج ضمن النطاق المسموح.',
+  })
+  answer: string;
+
+  @ApiProperty({ type: WebFallbackSourceDto, isArray: true })
+  sources: WebFallbackSourceDto[];
+
+  @ApiProperty({ example: 'serper' })
+  provider: string;
+}
+
 export class AnswerResponseDto {
   @ApiProperty({
     example: 'a-uuid',
@@ -51,4 +79,14 @@ export class AnswerResponseDto {
 
   @ApiProperty({ example: false })
   refused: boolean;
+
+  @ApiPropertyOptional({
+    type: WebFallbackResponseDto,
+    nullable: true,
+    description:
+      'يظهر فقط عندما refused=true وتوفَّرت نتيجة احتياطية من بحث ويب مقيَّد ' +
+      'النطاق (Tier 2 — راجع WebSearchFallbackService). غائب/null فى كل الحالات ' +
+      'الأخرى، بما فيها كل الاستخدام الحالى قبل تفعيل ENABLE_WEB_FALLBACK.',
+  })
+  web_fallback?: WebFallbackResponseDto | null;
 }

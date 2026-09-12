@@ -2,9 +2,11 @@ import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nest
 import { createHash } from 'crypto';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { AuditService } from '../audit/audit.service';
 import { DeepseekGenerationService } from '../llm/deepseek-generation.service';
 import { VoyageEmbeddingsService, toPgVectorLiteral } from '../llm/voyage-embeddings.service';
+import { WebSearchFallbackService } from '../llm/web-search-fallback.service';
 import { Answer } from '../database/entities/answer.entity';
 import { Article } from '../database/entities/article.entity';
 import { ArticleVersion } from '../database/entities/article-version.entity';
@@ -110,6 +112,7 @@ export class QuestionsService {
     private readonly auditService: AuditService,
     private readonly generationService: DeepseekGenerationService,
     private readonly embeddingsService: VoyageEmbeddingsService,
+    private readonly webFallbackService: WebSearchFallbackService,
   ) {
     this.questionRepository = this.dataSource.getRepository(Question);
     this.answerRepository = this.dataSource.getRepository(Answer);
@@ -155,6 +158,21 @@ export class QuestionsService {
       answerText = REFUSED_ANSWER_TEXT;
     }
 
+    // Tier 2 (بناءً على طلب صريح: "فى حالة عدم وجود اجابة يتم البحث على
+    // الإنترنت والرد على المستخدم") — يُحاوَل فقط بعد فشل الاسترجاع الموثوق
+    // تماماً (retrieval.citation === null، أى نفس الحالة التى كانت تُنتج
+    // REFUSED_ANSWER_TEXT وحدها فقط قبل هذا التغيير). راجع تعليق
+    // WebSearchFallbackService الكامل للتصميم والضوابط. لا يُغيّر answerText/
+    // refused إطلاقاً — answer.refused تبقى true دائماً هنا (لا استشهاد
+    // موثَّق)، فتستمر فى دخول طابور المراجعة البشرية كما كانت بالضبط؛ النتيجة
+    // (إن وُجدت) تُرفَق فى حقل webFallback الإضافي المنفصل فقط.
+    let webFallbackResult: Awaited<ReturnType<WebSearchFallbackService['tryWebFallback']>> = null;
+    if (!retrieval.citation && this.webFallbackService.isConfigured) {
+      webFallbackResult = await this.webFallbackService.tryWebFallback(dto.question, (context) =>
+        this.generationService.composeWebFallbackAnswer(dto.question, context),
+      );
+    }
+
     const answer: AnswerResponseDto = retrieval.citation
       ? {
           answer: answerText,
@@ -167,6 +185,13 @@ export class QuestionsService {
           confidence: retrieval.confidence,
           citations: [],
           refused: true,
+          web_fallback: webFallbackResult
+            ? {
+                answer: webFallbackResult.answer,
+                sources: webFallbackResult.sources,
+                provider: webFallbackResult.provider,
+              }
+            : null,
         };
 
     const latencyMs = Date.now() - startedAt;
@@ -189,6 +214,14 @@ export class QuestionsService {
         refused: answer.refused,
         modelVersion,
         latencyMs,
+        webFallback: webFallbackResult
+          ? {
+              answer: webFallbackResult.answer,
+              sources: webFallbackResult.sources,
+              provider: webFallbackResult.provider,
+              queriedAt: webFallbackResult.queriedAt,
+            }
+          : null,
       });
       // save: نحتاج answerEntity.id لربط الاستشهاد.
       const savedAnswer = await manager.getRepository(Answer).save(answerEntity);
@@ -196,7 +229,18 @@ export class QuestionsService {
       answer.id = savedAnswer.id;
 
       if (retrieval.citation) {
-        const citationEntity = manager.getRepository(Citation).create({
+        // ملاحظة تقنية (اكتُشفت 2026-09-12 أثناء إضافة عمود Answer.webFallback):
+        // تمرير كائن كامل من Repository.create() إلى .insert() يجبر TypeScript
+        // على مطابقة بنيوية عميقة عبر كل شجرة العلاقات (Citation → Answer →
+        // Question → answers: Answer[] → ...)، وهى مطابقة دورية هشة أصلاً —
+        // أى تعديل بسيط فى Answer (كإضافة عمود جديد) قد يكسرها فجأة بخطأ
+        // تجميع (TS2345) لا علاقة له فعلياً بالتغيير. الحل الجذرى: كائن حرفى
+        // مُصرَّح بنوعه صراحة كـQueryDeepPartialEntity<Citation> بدل المرور عبر
+        // create() — لا حاجة له أصلاً هنا (insert() لا يطبّق أى منطق افتراضات
+        // على مستوى JS، فقط قيم الأعمدة نفسها؛ القيم الافتراضية DB-level مثل
+        // status/position تُطبَّق من قِبل قاعدة البيانات بغض النظر). سلوك
+        // مطابق تماماً للسابق، فقط بلا هشاشة نوعية.
+        const citationPayload: QueryDeepPartialEntity<Citation> = {
           answerId: savedAnswer.id,
           // ربط FK داخلي (EP-05): يربط الاستشهاد بالمقالة/الإصدار الفعليين اللذين
           // استُرجعت منهما الإجابة — أساس فحص «هل المادة موجودة فعلاً» في مدقق
@@ -212,8 +256,8 @@ export class QuestionsService {
           officialUrl: retrieval.citation.officialUrl,
           snippet: retrieval.citation.snippet,
           position: 0,
-        });
-        await manager.getRepository(Citation).insert(citationEntity);
+        };
+        await manager.getRepository(Citation).insert(citationPayload);
       }
 
       // EP-06: كل إجابة مرفوضة (ثقة منخفضة / لا نص موثّق كافٍ) تدخل طابور
@@ -250,6 +294,26 @@ export class QuestionsService {
       userAgent: context.userAgent ?? null,
       metadata: { modelVersion, latencyMs },
     });
+
+    if (webFallbackResult) {
+      // تسجيل تدقيقى منفصل ومخصَّص (لا يُدمَج مع answer.generated) — يسهّل
+      // رصد تكلفة/تكرار استخدام الطبقة الاحتياطية بمعزل عن الاستخدام العادى،
+      // ويغذّى لاحقاً نفس منطق "أسئلة بلا إجابة كافية" الذى يُرشِّح أولويات
+      // توسيع المحتوى القانونى الموثَّق (بدل الاعتماد الدائم على بحث الويب
+      // لنفس السؤال المتكرر).
+      await this.auditService.record({
+        actorId: context.userId,
+        actorRole: context.role ?? null,
+        action: 'answer.web_fallback_used',
+        resourceType: 'answer',
+        ipAddress: context.ipAddress ?? null,
+        userAgent: context.userAgent ?? null,
+        metadata: {
+          provider: webFallbackResult.provider,
+          sourceCount: webFallbackResult.sources.length,
+        },
+      });
+    }
 
     return answer;
   }
