@@ -63,8 +63,8 @@ describe('WebSearchFallbackService', () => {
 
     global.fetch = jest.fn().mockResolvedValue(
       jsonResponse(200, {
-        organic: [
-          { title: 'نتيجة غير موثوقة', link: 'https://random-blog.example.com/post', snippet: 'نص' },
+        results: [
+          { title: 'نتيجة غير موثوقة', url: 'https://random-blog.example.com/post', content: 'نص' },
         ],
       }),
     ) as unknown as typeof fetch;
@@ -84,13 +84,13 @@ describe('WebSearchFallbackService', () => {
 
     global.fetch = jest.fn().mockResolvedValue(
       jsonResponse(200, {
-        organic: [
+        results: [
           {
             title: 'قرار مجلس إدارة الهيئة رقم 98 لسنة 2023',
-            link: 'https://fra.gov.eg/portals/microfinance/companies/pdf/FBD-2023-98-ar.pdf',
-            snippet: 'زيادة الحد الأقصى للتمويل...',
+            url: 'https://fra.gov.eg/portals/microfinance/companies/pdf/FBD-2023-98-ar.pdf',
+            content: 'زيادة الحد الأقصى للتمويل...',
           },
-          { title: 'نتيجة غير موثوقة', link: 'https://random-blog.example.com/post', snippet: 'نص' },
+          { title: 'نتيجة غير موثوقة', url: 'https://random-blog.example.com/post', content: 'نص' },
         ],
       }),
     ) as unknown as typeof fetch;
@@ -124,7 +124,7 @@ describe('WebSearchFallbackService', () => {
 
     global.fetch = jest.fn().mockResolvedValue(
       jsonResponse(200, {
-        organic: [{ title: 'قرار', link: 'https://fra.gov.eg/x.pdf', snippet: 'نص' }],
+        results: [{ title: 'قرار', url: 'https://fra.gov.eg/x.pdf', content: 'نص' }],
       }),
     ) as unknown as typeof fetch;
 

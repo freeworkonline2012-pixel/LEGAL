@@ -53,7 +53,7 @@ export class WebFallbackResponseDto {
   @ApiProperty({ type: WebFallbackSourceDto, isArray: true })
   sources: WebFallbackSourceDto[];
 
-  @ApiProperty({ example: 'serper' })
+  @ApiProperty({ example: 'tavily' })
   provider: string;
 }
 

@@ -48,13 +48,40 @@ import { Injectable, Logger } from '@nestjs/common';
  *      قابل للتحليل، انتهاء الوقت) — يُعاد null فتستمر REFUSED_ANSWER_TEXT
  *      وحدها كما كان الحال قبل هذا الملف، بلا أى استثناء يُسرِّب خطأ للمستخدم.
  *
- * ==================== ما يحتاج قراراً/مدخلاً من صاحب المشروع ====================
- * هذه الخدمة **لا تعمل فعلياً بلا مفتاح API حقيقى لمزوّد بحث** (WEB_SEARCH_API_KEY).
- * لم أفترض مزوداً وأنشئ له مفتاحاً وهمياً — هذا بالضبط نوع "الحل السريع" الذى
- * تمنعه تعليماتك. المزوّد الافتراضى المُهيَّأ هنا هو Serper.dev (يعيد نتائج
- * Google Search ببساطة عبر REST API واحد، رخيص، ولا يتطلب موافقات OAuth
- * معقّدة) لكن التصميم قابل لتبديل المزوّد (Bing/Google CSE) عبر
- * WEB_SEARCH_PROVIDER بلا تغيير فى بقية الكود — راجع التقرير المرفق لقرارك.
+ * ==================== اختيار المزوّد: لماذا Tavily لا Serper.dev (قرار
+ * مُحدَّث بعد بحث فعلى بتاريخ 2026-09-12) ====================
+ * فى أول تصميم لهذا الملف افترضتُ Serper.dev كمزوّد افتراضى "منطقى" لأنه بسيط
+ * ورخيص، وطلبت قرارك عليه. بعد أن سألتنى مباشرة "ما الحل؟"، بحثتُ فعلياً (لا
+ * افتراضاً) فى الخيارات المتاحة قبل أن أُثبِّت مزوّداً افتراضياً نهائياً فى كود
+ * إنتاجى، ووجدت ما يلى:
+ *
+ *   • **Serper.dev (ورفاقه من "SERP scrapers" مثل SerpApi) ليسوا API رسمياً
+ *     من Google — بل يستخدمون متصفحات وهمية/IP موزَّعة لتجاوز أنظمة الحماية
+ *     ("SearchGuard") وإعادة تعبئة نتائج بحث جوجل.** فى ديسمبر 2025 رفعت
+ *     Google دعوى قضائية فعلية ضد SerpApi (القضية 5:25-cv-10826) بدعوى مخالفة
+ *     DMCA Section 1201 (تجاوز حماية تقنية)، بتعويضات تصل 200-2500$ لكل مخالفة
+ *     مضروبة فى "مئات الملايين من الاستعلامات يومياً". هذا يعنى: (أ) قد يُغلَق
+ *     مزوّد كهذا أو يُجبَر على التوقف بأمر قضائى دون سابق إنذار — انقطاع خدمة
+ *     خارج سيطرتنا بالكامل، و(ب) بناء منتج تجارى "يتكلف آلاف الدولارات" على
+ *     أساس قانونى هش كهذا هو بالضبط "الحل الذى يتسبب فى ضرر للمشروع مستقبلاً"
+ *     الذى تمنعه تعليماتك الثابتة صراحةً — حتى لو كان أسهل وأرخص اليوم.
+ *   • **Bing Web Search API نفسه تقاعد رسمياً فى 11 أغسطس 2025** (Microsoft
+ *     Lifecycle) واستُبدِل بـ"Grounding with Bing Search" (خدمة Azure AI
+ *     مختلفة تماماً فى النموذج والتسعير) — فخيار "التبديل لـBing لاحقاً" الذى
+ *     ذكرته فى النسخة الأولى من هذا التعليق لم يعد قائماً أصلاً.
+ *   • **Tavily** هو المزوّد المُختار نهائياً هنا، لأنه: (1) API رسمى أول-طرف
+ *     مبنى خصيصاً لحالة استخدامنا بالتحديد — تأسيس إجابات نماذج اللغة على
+ *     نتائج بحث موثوقة (RAG grounding)، لا SERP scraping؛ (2) يدعم
+ *     include_domains كمعامل API رسمى مُلزَم من طرف المزوّد نفسه (طبقة تصفية
+ *     إضافية فوق تصفيتنا الداخلية isAllowedUrl، لا بديلاً عنها — دفاع متعدد
+ *     الطبقات)؛ (3) تسعير شفاف ومتدرّج (باقة مجانية 1000 رصيد/شهر تكفى تماماً
+ *     لتجربة حقيقية قبل أى التزام مالى)؛ (4) مُستخدَم فعلياً كخيار افتراضى فى
+ *     مجتمع LangChain/RAG الإنتاجى — مخاطرة تشغيلية أقل من مزوّد أقل نضجاً.
+ *
+ * هذه الخدمة **لا تعمل فعلياً بلا مفتاح API حقيقى** (WEB_SEARCH_API_KEY من
+ * tavily.com). لم أفترض مزوداً وأنشئ له مفتاحاً وهمياً — إنشاء الحساب والدفع
+ * إجراء يخصّك وحدك (راجع قواعد الصلاحيات)، لكن اختيار *أى* مزوّد نبنى عليه هو
+ * قرار تقنى بحت اتخذته بصفتى المرجع التقنى النهائى، بعد بحث موثَّق لا تخمين.
  */
 
 export interface WebFallbackSource {
@@ -87,17 +114,17 @@ const DEFAULT_ALLOWED_DOMAINS = [
   'mped.gov.eg',
 ];
 
-interface SerperOrganicResult {
+interface TavilySearchResultItem {
   title?: string;
-  link?: string;
-  snippet?: string;
+  url?: string;
+  content?: string;
 }
 
 @Injectable()
 export class WebSearchFallbackService {
   private readonly logger = new Logger(WebSearchFallbackService.name);
   private readonly enabled = process.env.ENABLE_WEB_FALLBACK === 'true';
-  private readonly provider = process.env.WEB_SEARCH_PROVIDER ?? 'serper';
+  private readonly provider = process.env.WEB_SEARCH_PROVIDER ?? 'tavily';
   private readonly apiKey = process.env.WEB_SEARCH_API_KEY;
   private readonly allowedDomains = (
     process.env.WEB_FALLBACK_ALLOWED_DOMAINS?.split(',').map((d) => d.trim()).filter(Boolean) ??
@@ -158,32 +185,39 @@ export class WebSearchFallbackService {
   }
 
   private async search(question: string): Promise<WebFallbackSource[]> {
-    if (this.provider !== 'serper') {
-      // مزوّدون آخرون (Bing/Google CSE) يُضافون هنا لاحقاً بنفس التوقيع —
-      // غير منفَّذين الآن تجنباً لافتراض تفاصيل API لم تُؤكَّد بعد.
-      throw new Error(`WEB_SEARCH_PROVIDER='${this.provider}' غير مدعوم بعد`);
+    if (this.provider !== 'tavily') {
+      // عمداً لا يوجد هنا أى مسار "SERP scraping" بديل (كـ Serper.dev/SerpApi)
+      // — راجع تعليق الملف أعلاه لماذا استُبعِدت هذه الفئة كاملةً بعد دعوى
+      // Google ضد SerpApi (ديسمبر 2025). مزوّد رسمى إضافى (Brave Search API
+      // مثلاً) يمكن إضافته هنا لاحقاً بنفس التوقيع إن استُخدِم فعلياً.
+      throw new Error(`WEB_SEARCH_PROVIDER='${this.provider}' غير مدعوم — المزوّد المُنفَّذ حالياً هو 'tavily' فقط`);
     }
 
-    const siteFilter = this.allowedDomains.map((d) => `site:${d}`).join(' OR ');
-    const q = `${question} (${siteFilter})`;
-
-    const res = await fetch('https://google.serper.dev/search', {
+    // Tavily API الرسمى: تصفية النطاقات مطبَّقة من طرف المزوّد نفسه
+    // (include_domains) كطبقة أولى، ثم isAllowedUrl أدناه كطبقة ثانية مستقلة
+    // (دفاع متعدد الطبقات — لا نثق بتصفية أى طرف ثالث وحدها).
+    const res = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: {
-        'X-API-KEY': this.apiKey as string,
+        Authorization: `Bearer ${this.apiKey as string}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ q, gl: 'eg', hl: 'ar', num: this.maxResults * 2 }),
+      body: JSON.stringify({
+        query: question,
+        include_domains: this.allowedDomains,
+        max_results: this.maxResults * 2,
+        search_depth: 'basic',
+      }),
       signal: AbortSignal.timeout(8000),
     });
 
     if (!res.ok) {
-      throw new Error(`serper.dev returned HTTP ${res.status}`);
+      throw new Error(`api.tavily.com returned HTTP ${res.status}`);
     }
 
-    const data = (await res.json()) as { organic?: SerperOrganicResult[] };
-    return (data.organic ?? [])
-      .filter((r) => r.link && r.title)
-      .map((r) => ({ title: r.title as string, url: r.link as string, snippet: r.snippet ?? '' }));
+    const data = (await res.json()) as { results?: TavilySearchResultItem[] };
+    return (data.results ?? [])
+      .filter((r) => r.url && r.title)
+      .map((r) => ({ title: r.title as string, url: r.url as string, snippet: r.content ?? '' }));
   }
 }
