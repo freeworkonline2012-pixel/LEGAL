@@ -432,6 +432,15 @@ export class GovernanceService {
 
     const vectorLiteral = toPgVectorLiteral(questionEmbedding);
 
+    // ⚠️ 2026-09-13: نجلب أكثر من limit المستخدَم فعلياً (+10 هامش تشخيصى
+    // ثابت) لتسجيل الترتيب الحقيقى المحسوب مباشرة **داخل نفس مسار الإنتاج**
+    // — لا سكربت خارجى منفصل يعيد بناء نفس الاستعلام يدوياً (وقد ثبت فعلاً
+    // فى هذا التحقيق أن نسخة معاد بناؤها يدوياً أعطت رتبة (#6) لمادة
+    // 22/2018 م15 لم تظهر إطلاقاً فى سجلّ الإنتاج الحقيقى لنفس اللحظة —
+    // تناقض غير محسوم يحتاج دليلاً من الكود الفعلى نفسه لا من محاكاة
+    // خارجية قد تحمل انحرافاً دقيقاً غير مكتشَف). لا تغيير فى limit
+    // المُستخدَم فعلياً لبناء المرشحين (سطر slice أدناه) — تسجيل إضافى فقط.
+    const debugFetchLimit = limit + 10;
     const rows: Array<{
       article_no: number;
       article_suffix_order: number;
@@ -454,10 +463,22 @@ export class GovernanceService {
        WHERE a.embedding IS NOT NULL AND l.governance_scope = true
        ORDER BY a.embedding <=> $1::vector
        LIMIT $2`,
-      [vectorLiteral, limit],
+      [vectorLiteral, debugFetchLimit],
     );
 
-    return rows.map((row) => ({
+    this.logger.log(
+      `[DIAG-SEMANTIC-RAW] qHash=${this.hashQuestion(questionText)} أفضل(${rows.length})=` +
+        rows
+          .map(
+            (r, i) =>
+              `#${i + 1}:${r.law_no}/${r.law_year}م${r.article_no}` +
+              (r.article_suffix_order !== 0 ? `.${r.article_suffix_order}` : '') +
+              `(${Number(r.similarity).toFixed(4)})`,
+          )
+          .join(', '),
+    );
+
+    return rows.slice(0, limit).map((row) => ({
       citation: {
         law: row.short_title ?? row.title,
         lawNo: row.law_no,
