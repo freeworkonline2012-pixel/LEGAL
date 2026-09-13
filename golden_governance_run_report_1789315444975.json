@@ -1,0 +1,3008 @@
+{
+  "summary": {
+    "generated_at": "2026-09-13T16:04:04.925Z",
+    "endpoint": "https://backend-production-3faf.up.railway.app/api/governance/assess",
+    "dataset_status": "draft_pending_business_owner_confirmation",
+    "total_items": 246,
+    "http_errors": 0,
+    "verdict_accuracy": 0.6748,
+    "legal_basis_accuracy_when_applicable": 0.7025,
+    "verdict_matches": 166,
+    "basis_matches": 170,
+    "basis_applicable_count": 242
+  },
+  "results": [
+    {
+      "id": "gov-001",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "80/2002",
+      "actual_legal_basis": [
+        "80/2002 م8"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-002",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "80/2002",
+      "actual_legal_basis": [
+        "80/2002 م11",
+        "161/2024 م6"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-003",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "94/2015",
+      "actual_legal_basis": [
+        "94/2015 م13",
+        "80/2002 م8",
+        "94/2015 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-004",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "22/2018",
+      "actual_legal_basis": [
+        "22/2018 م6"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-005",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "17/2021",
+      "actual_legal_basis": [
+        "48/2022 م1",
+        "17/2021 م1",
+        "53/2018 م4"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-006",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "48/2022",
+      "actual_legal_basis": [
+        "48/2022 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-007",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "48/2022",
+      "actual_legal_basis": [
+        "48/2022 م2",
+        "48/2022 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-008",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "59/2021",
+      "actual_legal_basis": [
+        "59/2021 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-009",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "59/2021",
+      "actual_legal_basis": [
+        "59/2021 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-010",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "3/2023",
+      "actual_legal_basis": [
+        "155/2024 م199",
+        "3/2023 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-011",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "3/2023",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-012",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "4/2023",
+      "actual_legal_basis": [
+        "4/2023 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-013",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "4/2023",
+      "actual_legal_basis": [
+        "4/2023 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-014",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "2036/2026",
+      "actual_legal_basis": [
+        "2036/2026 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-015",
+      "expected_verdict": "معلومات غير كافية",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": true,
+      "expected_law": "2036/2026",
+      "actual_legal_basis": [
+        "2036/2026 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-016",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "2036/2026",
+      "actual_legal_basis": [
+        "2036/2026 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-017",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "53/2018",
+      "actual_legal_basis": [
+        "53/2018 م4",
+        "17/2021 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-018",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "53/2018",
+      "actual_legal_basis": [
+        "53/2018 م4"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-019",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "1/2024",
+      "actual_legal_basis": [
+        "161/2024 م13",
+        "80/2002 م9",
+        "1/2024 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-020",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "1/2024",
+      "actual_legal_basis": [
+        "161/2024 م13",
+        "1/2024 م1",
+        "80/2002 م9"
+      ],
+      "basis_match": true,
+      "confidence": 0.93
+    },
+    {
+      "id": "gov-021",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "161/2024",
+      "actual_legal_basis": [
+        "161/2024 م14"
+      ],
+      "basis_match": true,
+      "confidence": 0.93
+    },
+    {
+      "id": "gov-022",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "161/2024",
+      "actual_legal_basis": [
+        "161/2024 م19"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-023",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "161/2024",
+      "actual_legal_basis": [
+        "161/2024 م20",
+        "161/2024 م16",
+        "161/2024 م15"
+      ],
+      "basis_match": true,
+      "confidence": 0.55
+    },
+    {
+      "id": "gov-024",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "101/2020",
+      "actual_legal_basis": [
+        "101/2020 م1",
+        "101/2020 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-025",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "89/2025",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-026",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "89/2025",
+      "actual_legal_basis": [
+        "89/2025 م4"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-027",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "200/2025",
+      "actual_legal_basis": [
+        "200/2025 م3",
+        "200/2025 م39",
+        "200/2025 م35"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-028",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "200/2025",
+      "actual_legal_basis": [
+        "200/2025 م4"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-029",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "200/2025",
+      "actual_legal_basis": [
+        "200/2025 م6",
+        "200/2025 م5"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-030",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "200/2025",
+      "actual_legal_basis": [
+        "200/2025 م6",
+        "200/2025 م5"
+      ],
+      "basis_match": true,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-031",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "89/2025",
+      "actual_legal_basis": [
+        "89/2025 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-032",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "200/2025",
+      "actual_legal_basis": [
+        "200/2025 م4",
+        "200/2025 م43",
+        "200/2025 م7"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-033",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "59/2021",
+      "actual_legal_basis": [
+        "59/2021 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-034",
+      "expected_verdict": "معلومات غير كافية",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": true,
+      "expected_law": null,
+      "actual_legal_basis": [],
+      "basis_match": null,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-035",
+      "expected_verdict": "معلومات غير كافية",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": true,
+      "expected_law": null,
+      "actual_legal_basis": [],
+      "basis_match": null,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-036",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": true,
+      "expected_law": "22/2018",
+      "actual_legal_basis": [
+        "22/2018 م6"
+      ],
+      "basis_match": true,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-037",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "42/2019",
+      "actual_legal_basis": [
+        "135/1993 م16"
+      ],
+      "basis_match": false,
+      "confidence": 0.72
+    },
+    {
+      "id": "gov-038",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "42/2019",
+      "actual_legal_basis": [
+        "70/2026 م7",
+        "70/2026 م6",
+        "70/2026 م8"
+      ],
+      "basis_match": false,
+      "confidence": 0.82
+    },
+    {
+      "id": "gov-039",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "58/2018",
+      "actual_legal_basis": [
+        "53/2018 م4"
+      ],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-040",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "58/2018",
+      "actual_legal_basis": [
+        "135/1993 م163"
+      ],
+      "basis_match": false,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-041",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "9/2021",
+      "actual_legal_basis": [
+        "9/2021 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-042",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "11/2014",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-043",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "11/2014",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-044",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "11/2014",
+      "actual_legal_basis": [
+        "200/2025 م46"
+      ],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-045",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "95/1992",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-046",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "95/1992",
+      "actual_legal_basis": [
+        "95/1992 م29",
+        "135/1993 م135"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-047",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "135/1993",
+      "actual_legal_basis": [
+        "135/1993 م220"
+      ],
+      "basis_match": true,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-048",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "135/1993",
+      "actual_legal_basis": [
+        "135/1993 م220"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-049",
+      "expected_verdict": "معلومات غير كافية",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": true,
+      "expected_law": null,
+      "actual_legal_basis": [],
+      "basis_match": null,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-050",
+      "expected_verdict": "معلومات غير كافية",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": true,
+      "expected_law": null,
+      "actual_legal_basis": [],
+      "basis_match": null,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-051",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "1/2001",
+      "actual_legal_basis": [
+        "1/2001 م30"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-052",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "1/2001",
+      "actual_legal_basis": [
+        "1/2001 م30"
+      ],
+      "basis_match": true,
+      "confidence": 0.72
+    },
+    {
+      "id": "gov-053",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [
+        "53/2018 م4",
+        "53/2018 م9"
+      ],
+      "basis_match": false,
+      "confidence": 0.72
+    },
+    {
+      "id": "gov-054",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "18/2020",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-055",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "141/2014",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-056",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "148/2001",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-057",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "148/2001",
+      "actual_legal_basis": [
+        "1/2001 م30"
+      ],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-058",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "176/2018",
+      "actual_legal_basis": [
+        "1/2001 م30"
+      ],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-059",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "176/2018",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-060",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "177/2024",
+      "actual_legal_basis": [
+        "53/2018 م4"
+      ],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-061",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "177/2024",
+      "actual_legal_basis": [
+        "17/2021 م1",
+        "53/2018 م4"
+      ],
+      "basis_match": false,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-062",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "177/2024",
+      "actual_legal_basis": [
+        "53/2018 م4"
+      ],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-063",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "155/2024",
+      "actual_legal_basis": [
+        "200/2025 م6"
+      ],
+      "basis_match": false,
+      "confidence": 0.6
+    },
+    {
+      "id": "gov-064",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "15/2025",
+      "actual_legal_basis": [
+        "200/2025 م11"
+      ],
+      "basis_match": false,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-065",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "15/2025",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-066",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "69/2025",
+      "actual_legal_basis": [
+        "114/2021 م1",
+        "69/2025 م5"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-067",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "70/2026",
+      "actual_legal_basis": [
+        "70/2026 م6"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-068",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "70/2026",
+      "actual_legal_basis": [
+        "70/2026 م6"
+      ],
+      "basis_match": true,
+      "confidence": 0.6
+    },
+    {
+      "id": "gov-069",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "90/2025",
+      "actual_legal_basis": [
+        "90/2025 م2",
+        "90/2025 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-070",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "114/2021",
+      "actual_legal_basis": [
+        "114/2021 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-071",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "229/2025",
+      "actual_legal_basis": [
+        "229/2025 م7"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-072",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "229/2025",
+      "actual_legal_basis": [
+        "229/2025 م7"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-073",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "236/2024",
+      "actual_legal_basis": [
+        "236/2024 م38"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-074",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "237/2024",
+      "actual_legal_basis": [
+        "237/2024 م2",
+        "237/2024 م3",
+        "236/2024 م39"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-075",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "265/2025",
+      "actual_legal_basis": [
+        "265/2025 م10"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-076",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "278/2024",
+      "actual_legal_basis": [
+        "278/2024 م3",
+        "278/2024 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-077",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "320/2025",
+      "actual_legal_basis": [
+        "320/2025 م3",
+        "320/2025 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-078",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "3973/2025",
+      "actual_legal_basis": [
+        "3973/2025 م14"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-079",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "3973/2025",
+      "actual_legal_basis": [
+        "3973/2025 م14"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-080",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "3973/2025",
+      "actual_legal_basis": [
+        "3973/2025 م14",
+        "3973/2025 م12"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-081",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "80/2002",
+      "actual_legal_basis": [
+        "80/2002 م9",
+        "161/2024 م9"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-082",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "80/2002",
+      "actual_legal_basis": [
+        "80/2002 م9"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-083",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "80/2002",
+      "actual_legal_basis": [
+        "161/2024 م13",
+        "80/2002 م9"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-084",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "80/2002",
+      "actual_legal_basis": [
+        "80/2002 م7"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-085",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "80/2002",
+      "actual_legal_basis": [
+        "80/2002 م12"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-086",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "94/2015",
+      "actual_legal_basis": [
+        "80/2002 م8",
+        "161/2024 م6",
+        "94/2015 م33",
+        "161/2024 م20"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-087",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "94/2015",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-088",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "22/2018",
+      "actual_legal_basis": [
+        "22/2018 م8"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-089",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "22/2018",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-090",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "22/2018",
+      "actual_legal_basis": [
+        "22/2018 م14"
+      ],
+      "basis_match": true,
+      "confidence": 0.6
+    },
+    {
+      "id": "gov-091",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "53/2018",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-092",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "53/2018",
+      "actual_legal_basis": [
+        "200/2025 م5",
+        "53/2018 م8"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-093",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "53/2018",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.55
+    },
+    {
+      "id": "gov-094",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "53/2018",
+      "actual_legal_basis": [
+        "53/2018 م4",
+        "53/2018 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-095",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "53/2018",
+      "actual_legal_basis": [
+        "53/2018 م6"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-096",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "53/2018",
+      "actual_legal_basis": [
+        "155/2024 م161",
+        "155/2024 م172"
+      ],
+      "basis_match": false,
+      "confidence": 0.93
+    },
+    {
+      "id": "gov-097",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "1/2024",
+      "actual_legal_basis": [
+        "1/2024 م1",
+        "161/2024 م13"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-098",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "1/2024",
+      "actual_legal_basis": [
+        "161/2024 م13",
+        "161/2024 م20",
+        "161/2024 م8",
+        "161/2024 م5",
+        "1/2024 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-099",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "161/2024",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-100",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "161/2024",
+      "actual_legal_basis": [
+        "161/2024 م5",
+        "161/2024 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-101",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "161/2024",
+      "actual_legal_basis": [
+        "200/2025 م25",
+        "161/2024 م5"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-102",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "161/2024",
+      "actual_legal_basis": [
+        "161/2024 م6"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-103",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "161/2024",
+      "actual_legal_basis": [
+        "161/2024 م7",
+        "161/2024 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-104",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "161/2024",
+      "actual_legal_basis": [
+        "161/2024 م8",
+        "161/2024 م9",
+        "161/2024 م13"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-105",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "161/2024",
+      "actual_legal_basis": [
+        "161/2024 م8",
+        "161/2024 م9"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-106",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "42/2019",
+      "actual_legal_basis": [
+        "95/1992 م14",
+        "135/1993 م15"
+      ],
+      "basis_match": false,
+      "confidence": 0.55
+    },
+    {
+      "id": "gov-107",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "42/2019",
+      "actual_legal_basis": [
+        "155/2024 م193",
+        "70/2026 م6"
+      ],
+      "basis_match": false,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-108",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "42/2019",
+      "actual_legal_basis": [
+        "70/2026 م6"
+      ],
+      "basis_match": false,
+      "confidence": 0.55
+    },
+    {
+      "id": "gov-109",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "58/2018",
+      "actual_legal_basis": [
+        "53/2018 م4"
+      ],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-110",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "58/2018",
+      "actual_legal_basis": [
+        "135/1993 م168"
+      ],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-111",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "58/2018",
+      "actual_legal_basis": [
+        "95/1992 م40"
+      ],
+      "basis_match": false,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-112",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "58/2018",
+      "actual_legal_basis": [
+        "135/1993 م183",
+        "135/1993 م183"
+      ],
+      "basis_match": false,
+      "confidence": 0.55
+    },
+    {
+      "id": "gov-113",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "9/2021",
+      "actual_legal_basis": [
+        "9/2021 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-114",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "9/2021",
+      "actual_legal_basis": [
+        "9/2021 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-115",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "9/2021",
+      "actual_legal_basis": [
+        "9/2021 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-116",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "9/2021",
+      "actual_legal_basis": [
+        "9/2021 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-117",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "9/2021",
+      "actual_legal_basis": [
+        "9/2021 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-118",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-119",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-120",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "11/2014",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-121",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "11/2014",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-122",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "11/2014",
+      "actual_legal_basis": [
+        "135/1993 م32"
+      ],
+      "basis_match": false,
+      "confidence": 0.55
+    },
+    {
+      "id": "gov-123",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "11/2014",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-124",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "95/1992",
+      "actual_legal_basis": [
+        "95/1992 م20",
+        "135/1993 م244"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-125",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "95/1992",
+      "actual_legal_basis": [
+        "95/1992 م30"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-126",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "95/1992",
+      "actual_legal_basis": [
+        "95/1992 م31"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-127",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "135/1993",
+      "actual_legal_basis": [
+        "135/1993 م215",
+        "135/1993 م217",
+        "135/1993 م285"
+      ],
+      "basis_match": true,
+      "confidence": 0.93
+    },
+    {
+      "id": "gov-128",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "135/1993",
+      "actual_legal_basis": [
+        "135/1993 م216"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-129",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": true,
+      "expected_law": "135/1993",
+      "actual_legal_basis": [
+        "135/1993 م217"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-130",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "135/1993",
+      "actual_legal_basis": [
+        "135/1993 م218"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-131",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "101/2020",
+      "actual_legal_basis": [
+        "101/2020 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-132",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "101/2020",
+      "actual_legal_basis": [
+        "101/2020 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-133",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "101/2020",
+      "actual_legal_basis": [
+        "101/2020 م4"
+      ],
+      "basis_match": true,
+      "confidence": 0.55
+    },
+    {
+      "id": "gov-134",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "101/2020",
+      "actual_legal_basis": [
+        "101/2020 م6"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-135",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "1/2001",
+      "actual_legal_basis": [
+        "1/2001 م27"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-136",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "1/2001",
+      "actual_legal_basis": [
+        "1/2001 م30",
+        "53/2018 م13"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-137",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "1/2001",
+      "actual_legal_basis": [
+        "1/2001 م30"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-138",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-139",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-140",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [
+        "135/1993 م230",
+        "4/2023 م1"
+      ],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-141",
+      "expected_verdict": "معلومات غير كافية",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": true,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-142",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "18/2020",
+      "actual_legal_basis": [
+        "53/2018 م4",
+        "53/2018 م2"
+      ],
+      "basis_match": false,
+      "confidence": 0.6
+    },
+    {
+      "id": "gov-143",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "18/2020",
+      "actual_legal_basis": [
+        "161/2024 م12"
+      ],
+      "basis_match": false,
+      "confidence": 0.55
+    },
+    {
+      "id": "gov-144",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "18/2020",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-145",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "141/2014",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-146",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "141/2014",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-147",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "141/2014",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-148",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "148/2001",
+      "actual_legal_basis": [
+        "1/2001 م36"
+      ],
+      "basis_match": false,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-149",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "148/2001",
+      "actual_legal_basis": [
+        "1/2001 م28"
+      ],
+      "basis_match": false,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-150",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "148/2001",
+      "actual_legal_basis": [
+        "1/2001 م35"
+      ],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-151",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "176/2018",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-152",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "176/2018",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-153",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "176/2018",
+      "actual_legal_basis": [
+        "53/2018 م6"
+      ],
+      "basis_match": false,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-154",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "177/2024",
+      "actual_legal_basis": [
+        "53/2018 م4"
+      ],
+      "basis_match": false,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-155",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "177/2024",
+      "actual_legal_basis": [
+        "53/2018 م13",
+        "53/2018 م4"
+      ],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-156",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "17/2021",
+      "actual_legal_basis": [
+        "17/2021 م1",
+        "200/2025 م11"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-157",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "17/2021",
+      "actual_legal_basis": [
+        "17/2021 م1",
+        "200/2025 م11"
+      ],
+      "basis_match": true,
+      "confidence": 0.72
+    },
+    {
+      "id": "gov-158",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-159",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [
+        "5/2022 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-160",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "48/2022",
+      "actual_legal_basis": [
+        "48/2022 م1",
+        "48/2022 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-161",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "48/2022",
+      "actual_legal_basis": [
+        "48/2022 م2",
+        "48/2022 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-162",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "4/2023",
+      "actual_legal_basis": [
+        "3/2023 م1"
+      ],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-163",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "4/2023",
+      "actual_legal_basis": [
+        "4/2023 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.82
+    },
+    {
+      "id": "gov-164",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "4/2023",
+      "actual_legal_basis": [
+        "4/2023 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-165",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "148/2025",
+      "actual_legal_basis": [
+        "148/2025 م5",
+        "155/2024 م201",
+        "148/2025 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-166",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "148/2025",
+      "actual_legal_basis": [
+        "148/2025 م5",
+        "148/2025 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-167",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "148/2025",
+      "actual_legal_basis": [
+        "148/2025 م5"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-168",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "148/2025",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-169",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "148/2025",
+      "actual_legal_basis": [
+        "148/2025 م5"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-170",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "59/2021",
+      "actual_legal_basis": [
+        "59/2021 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-171",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "3/2023",
+      "actual_legal_basis": [
+        "3/2023 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-172",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "3/2023",
+      "actual_legal_basis": [
+        "3/2023 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-173",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "3/2023",
+      "actual_legal_basis": [
+        "3/2023 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.72
+    },
+    {
+      "id": "gov-174",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "89/2025",
+      "actual_legal_basis": [
+        "89/2025 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-175",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "89/2025",
+      "actual_legal_basis": [
+        "89/2025 م2",
+        "200/2025 م11"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-176",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "89/2025",
+      "actual_legal_basis": [
+        "89/2025 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-177",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "89/2025",
+      "actual_legal_basis": [
+        "155/2024 م172",
+        "89/2025 م8"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-178",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "89/2025",
+      "actual_legal_basis": [
+        "89/2025 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-179",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "200/2025",
+      "actual_legal_basis": [
+        "200/2025 م46",
+        "200/2025 م11",
+        "200/2025 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-180",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "200/2025",
+      "actual_legal_basis": [
+        "200/2025 م11",
+        "200/2025 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.72
+    },
+    {
+      "id": "gov-181",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "2036/2026",
+      "actual_legal_basis": [
+        "2036/2026 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-182",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "2036/2026",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-183",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "155/2024",
+      "actual_legal_basis": [
+        "155/2024 م172",
+        "89/2025 م7"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-184",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "155/2024",
+      "actual_legal_basis": [
+        "155/2024 م172",
+        "89/2025 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-185",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "155/2024",
+      "actual_legal_basis": [
+        "155/2024 م172",
+        "89/2025 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.7
+    },
+    {
+      "id": "gov-186",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "155/2024",
+      "actual_legal_basis": [
+        "200/2025 م46"
+      ],
+      "basis_match": false,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-187",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "155/2024",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-188",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "155/2024",
+      "actual_legal_basis": [
+        "236/2024 م41",
+        "155/2024 م87"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-189",
+      "expected_verdict": "معلومات غير كافية",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": true,
+      "expected_law": "155/2024",
+      "actual_legal_basis": [
+        "200/2025 م2"
+      ],
+      "basis_match": false,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-190",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "15/2025",
+      "actual_legal_basis": [
+        "15/2025 م4",
+        "155/2024 م156"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-191",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "15/2025",
+      "actual_legal_basis": [
+        "15/2025 م5",
+        "53/2018 م4"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-192",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "15/2025",
+      "actual_legal_basis": [
+        "15/2025 م5",
+        "155/2024 م158"
+      ],
+      "basis_match": true,
+      "confidence": 0.72
+    },
+    {
+      "id": "gov-196",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "69/2025",
+      "actual_legal_basis": [
+        "69/2025 م5",
+        "114/2021 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-197",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "69/2025",
+      "actual_legal_basis": [
+        "114/2021 م1",
+        "69/2025 م5"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-198",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "69/2025",
+      "actual_legal_basis": [
+        "69/2025 م8",
+        "114/2021 م1",
+        "69/2025 م6"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-199",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "70/2026",
+      "actual_legal_basis": [
+        "70/2026 م7"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-200",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "70/2026",
+      "actual_legal_basis": [
+        "70/2026 م7",
+        "200/2025 م7"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-201",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "70/2026",
+      "actual_legal_basis": [
+        "70/2026 م6",
+        "155/2024 م193"
+      ],
+      "basis_match": true,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-202",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "90/2025",
+      "actual_legal_basis": [
+        "90/2025 م2",
+        "229/2025 م8"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-203",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "90/2025",
+      "actual_legal_basis": [
+        "90/2025 م2",
+        "89/2025 م5",
+        "155/2024 م172"
+      ],
+      "basis_match": true,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-204",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "90/2025",
+      "actual_legal_basis": [
+        "90/2025 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-205",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "114/2021",
+      "actual_legal_basis": [
+        "69/2025 م5",
+        "114/2021 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.7
+    },
+    {
+      "id": "gov-206",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "114/2021",
+      "actual_legal_basis": [
+        "200/2025 م46"
+      ],
+      "basis_match": false,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-207",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "114/2021",
+      "actual_legal_basis": [
+        "114/2021 م1",
+        "53/2018 م9",
+        "69/2025 م5"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-208",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "229/2025",
+      "actual_legal_basis": [
+        "229/2025 م7"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-209",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "229/2025",
+      "actual_legal_basis": [
+        "229/2025 م7"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-210",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "229/2025",
+      "actual_legal_basis": [
+        "229/2025 م7"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-211",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "229/2025",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-212",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "236/2024",
+      "actual_legal_basis": [
+        "236/2024 م36",
+        "155/2024 م86"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-213",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "236/2024",
+      "actual_legal_basis": [
+        "236/2024 م41",
+        "155/2024 م87"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-214",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "236/2024",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-215",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "237/2024",
+      "actual_legal_basis": [
+        "237/2024 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-216",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "237/2024",
+      "actual_legal_basis": [
+        "237/2024 م3",
+        "236/2024 م17",
+        "236/2024 م28"
+      ],
+      "basis_match": true,
+      "confidence": 0.7
+    },
+    {
+      "id": "gov-217",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "237/2024",
+      "actual_legal_basis": [
+        "237/2024 م4",
+        "236/2024 م33",
+        "155/2024 م84"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-218",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "265/2025",
+      "actual_legal_basis": [
+        "265/2025 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.93
+    },
+    {
+      "id": "gov-219",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "265/2025",
+      "actual_legal_basis": [
+        "265/2025 م4"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-220",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "265/2025",
+      "actual_legal_basis": [
+        "265/2025 م6"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-221",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "278/2024",
+      "actual_legal_basis": [
+        "155/2024 م87",
+        "278/2024 م2"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-222",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "278/2024",
+      "actual_legal_basis": [
+        "278/2024 م2",
+        "155/2024 م87",
+        "236/2024 م41"
+      ],
+      "basis_match": true,
+      "confidence": 0.93
+    },
+    {
+      "id": "gov-223",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "278/2024",
+      "actual_legal_basis": [
+        "278/2024 م3",
+        "278/2024 م2",
+        "278/2024 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-224",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "320/2025",
+      "actual_legal_basis": [
+        "320/2025 م2",
+        "320/2025 م3",
+        "70/2026 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-225",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "320/2025",
+      "actual_legal_basis": [
+        "320/2025 م2",
+        "320/2025 م3"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-226",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "320/2025",
+      "actual_legal_basis": [
+        "320/2025 م5",
+        "155/2024 م161"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-227",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "3973/2025",
+      "actual_legal_basis": [
+        "3973/2025 م10"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-228",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "3973/2025",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-229",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "3973/2025",
+      "actual_legal_basis": [
+        "3973/2025 م16",
+        "155/2024 م90"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-230",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "3973/2025",
+      "actual_legal_basis": [
+        "3973/2025 م12",
+        "265/2025 م6",
+        "3973/2025 م14"
+      ],
+      "basis_match": true,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-231",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "معلومات غير كافية",
+      "verdict_match": false,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [],
+      "basis_match": false,
+      "confidence": 0
+    },
+    {
+      "id": "gov-232",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [
+        "5/2022 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-233",
+      "expected_verdict": "متوافق جزئياً",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [
+        "5/2022 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-234",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "5/2022",
+      "actual_legal_basis": [
+        "114/2021 م1",
+        "155/2024 م141",
+        "69/2025 م28",
+        "69/2025 م3",
+        "69/2025 م5"
+      ],
+      "basis_match": false,
+      "confidence": 0.85
+    },
+    {
+      "id": "gov-235",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "4/2023",
+      "actual_legal_basis": [
+        "4/2023 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-236",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق جزئياً",
+      "verdict_match": false,
+      "expected_law": "4/2023",
+      "actual_legal_basis": [
+        "155/2024 م179"
+      ],
+      "basis_match": false,
+      "confidence": 0.75
+    },
+    {
+      "id": "gov-237",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "148/2025",
+      "actual_legal_basis": [
+        "148/2025 م1",
+        "148/2025 م5"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-238",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "94/2015",
+      "actual_legal_basis": [
+        "94/2015 م35"
+      ],
+      "basis_match": true,
+      "confidence": 0.97
+    },
+    {
+      "id": "gov-239",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "94/2015",
+      "actual_legal_basis": [
+        "94/2015 م54"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-240",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": false,
+      "expected_law": "94/2015",
+      "actual_legal_basis": [
+        "94/2015 م33"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-241",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-242",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-243",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-244",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-245",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1",
+        "135/1993 م261"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-246",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-247",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.9
+    },
+    {
+      "id": "gov-248",
+      "expected_verdict": "متوافق",
+      "actual_verdict": "متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    },
+    {
+      "id": "gov-249",
+      "expected_verdict": "غير متوافق",
+      "actual_verdict": "غير متوافق",
+      "verdict_match": true,
+      "expected_law": "61/2017",
+      "actual_legal_basis": [
+        "61/2017 م1",
+        "135/1993 م296"
+      ],
+      "basis_match": true,
+      "confidence": 0.95
+    }
+  ]
+}
