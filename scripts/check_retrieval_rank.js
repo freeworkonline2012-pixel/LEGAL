@@ -114,11 +114,17 @@ async function main() {
     }
     const embedding = await voyageEmbed(voyageKey, t.question);
     const vecLiteral = toPgVectorLiteral(embedding);
+    // ⚠️ يجب مطابقة semanticCandidates() فى governance.service.ts حرفياً —
+    // بما فى ذلك JOIN article_versions (av.effective_to IS NULL). محاولة
+    // أولى سابقة نسيت هذا الـJOIN فأعطت رتباً متفائلة زائفة (تحسب مواد
+    // بإصدار غير سارٍ ضمن المنافسة، رغم أن الاستعلام الفعلى فى الإنتاج
+    // يستبعدها بـINNER JOIN) — هذا الإصلاح يطابق واقع الإنتاج تماماً.
     const semRows = await client.query(
       `SELECT a.article_no, a.article_suffix_order, l.law_no, l.law_year,
               1 - (a.embedding <=> $1::vector) AS similarity
        FROM articles a
        JOIN laws l ON l.id = a.law_id
+       JOIN article_versions av ON av.article_id = a.id AND av.effective_to IS NULL
        WHERE a.embedding IS NOT NULL AND l.governance_scope = true
        ORDER BY similarity DESC`,
       [vecLiteral],
