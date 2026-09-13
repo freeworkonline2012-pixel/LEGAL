@@ -137,6 +137,22 @@ async function main() {
         semPos === -1 ? 'لم تُوجَد (غير متوقَّع، راجع يدوياً)' : `#${semPos + 1}`
       }${semPos !== -1 ? ` (similarity=${Number(semRows.rows[semPos].similarity).toFixed(4)})` : ''}`,
     );
+    // ⚠️ 2026-09-13: طباعة أفضل 15 نتيجة دلالية بالكامل — للمقارنة المباشرة
+    // مع سجلّ "governance pool" الفعلى على Railway لنفس qHash (تناقض ظاهرى
+    // لوحظ: رتبة محسوبة هنا #6 لم تظهر إطلاقاً فى ذلك السجلّ رغم أن الحد
+    // فيه 15 أيضاً — يجب حسمه بالمقارنة المباشرة قبل أى استنتاج نهائى).
+    console.log(
+      `  [دلالى top-15]: ` +
+        semRows.rows
+          .slice(0, 15)
+          .map(
+            (r, i) =>
+              `#${i + 1}:${r.law_no}/${r.law_year}م${r.article_no}` +
+              (r.article_suffix_order !== 0 ? `.${r.article_suffix_order}` : '') +
+              `(${Number(r.similarity).toFixed(4)})`,
+          )
+          .join(', '),
+    );
   }
 
   await client.end();
