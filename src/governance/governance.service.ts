@@ -170,7 +170,28 @@ export class GovernanceService {
     // لاستبعاد أى مرشح خارج النطاق بصرف النظر عن عدد المرشحين المعروضين.
     const topCandidates = ordered.slice(0, 5);
 
-    const selection = await this.generationService.assessCompliance({
+    // ⚠️ 2026-09-13: إصلاح جذرى لعدم-حتمية DeepSeek (لا إعادة قياس متكررة
+    // للالتفاف حولها) — راجع تقرير-تراجع-غير-متوقع-فى-دقة-الحوكمة... فى
+    // توثيق المشروع للتحقيق الكامل. دليل مباشر من الإنتاج: استدعاء نفس
+    // الاستعلام بنفس المرشحين تماماً (temperature=0 صراحةً) أعطى أحكاماً
+    // مختلفة بين محاولة وأخرى فى 15 من 21 حالة مُختبَرة. DeepSeek لا يوفر
+    // معامل seed (تحقَّق من توثيقها الرسمى مباشرة، api-docs.deepseek.com) —
+    // فلا توجد وسيلة API لفرض حتمية تامة. الحل الهندسى الصحيح المعمول به
+    // فى الصناعة لهذه الحالة تحديداً هو self-consistency (تصويت أغلبية على
+    // عيّنات متعددة مستقلة لنفس المدخل — Wang et al. 2022)، لا قبول عيّنة
+    // واحدة كحكم نهائى على قرار امتثال قد يُبنى عليه قرار عمل حقيقى.
+    //
+    // التكلفة الصريحة: 3 نداءات DeepSeek بدل نداء واحد لكل تقييم حوكمة
+    // (لا تُضاعِف زمن الاستجابة فعلياً — Promise.all متوازٍ — لكنها تُضاعِف
+    // تكلفة الـAPI ×3 على هذا المسار تحديداً). هذا تبادل واعٍ ومُفصَح عنه:
+    // الدقة والاتساق فى منتج امتثال قانونى تبرر التكلفة، ويمكن ضبط العدد
+    // عبر GOVERNANCE_CONSENSUS_SAMPLES لو استدعى الأمر لاحقاً.
+    const consensusSamples = Math.max(
+      1,
+      Number(process.env.GOVERNANCE_CONSENSUS_SAMPLES) || 3,
+    );
+
+    const requestPayload = {
       question,
       candidates: topCandidates.map((c) => ({
         lawTitle: c.citation.law,
@@ -179,7 +200,15 @@ export class GovernanceService {
         articleNo: c.citation.articleNo,
         articleText: c.citation.snippet,
       })),
-    });
+    };
+
+    const samples = await Promise.all(
+      Array.from({ length: consensusSamples }, () =>
+        this.generationService.assessCompliance(requestPayload),
+      ),
+    );
+
+    const { selection, consensusDetail } = this.resolveConsensus(samples);
 
     this.logger.log(
       `governance select: qHash=${qHash} مرشحون=` +
@@ -192,6 +221,12 @@ export class GovernanceService {
           )
           .join(', ') +
         ` → ${JSON.stringify(selection)}`,
+    );
+
+    this.logger.log(
+      `governance consensus: qHash=${qHash} عينات(${samples.length})=` +
+        samples.map((s) => (s.status === 'ok' ? s.verdict : s.status)).join(' | ') +
+        ` → ${consensusDetail}`,
     );
 
     let result: GovernanceVerdictResponseDto;
@@ -256,6 +291,70 @@ export class GovernanceService {
     );
 
     return result;
+  }
+
+  /**
+   * تصويت أغلبية (self-consistency) على عيّنات assessCompliance المستقلة
+   * لنفس السؤال — راجع تعليق استدعائها فى assess() أعلاه للتبرير الكامل
+   * (عدم-حتمية DeepSeek رغم temperature=0، ولا معامل seed متاح فى واجهتها).
+   * سياسة fail-closed بلا استثناء عند الغموض: لا أغلبية واضحة (>النصف) →
+   * "معلومات غير كافية" الآمنة صراحةً، لا تخمين أو اختيار عشوائى بين أحكام
+   * متعارضة على قرار قد يُبنى عليه قرار عمل حقيقى.
+   */
+  private resolveConsensus(
+    samples: Array<Awaited<ReturnType<DeepseekGenerationService['assessCompliance']>>>,
+  ): {
+    selection: Awaited<ReturnType<DeepseekGenerationService['assessCompliance']>>;
+    consensusDetail: string;
+  } {
+    const okSamples = samples.filter(
+      (s): s is Extract<typeof s, { status: 'ok' }> => s.status === 'ok',
+    );
+
+    if (okSamples.length === 0) {
+      // كل العيّنات فشلت (not_configured/error) — تُمرَّر أول عيّنة كما هى؛
+      // المسارات الحالية أسفل assess() تتعامل معها بنفس فشل-مغلق القديم
+      // (not_configured/error) دون أى تعديل مطلوب هناك.
+      return { selection: samples[0], consensusDetail: `0/${samples.length} عيّنات صالحة` };
+    }
+
+    const groups = new Map<GovernanceVerdict, typeof okSamples>();
+    for (const s of okSamples) {
+      const list = groups.get(s.verdict) ?? [];
+      list.push(s);
+      groups.set(s.verdict, list);
+    }
+
+    const ranked = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+    const [majorityVerdict, majorityGroup] = ranked[0];
+    const hasClearMajority = majorityGroup.length > okSamples.length / 2;
+
+    if (hasClearMajority) {
+      // من بين العيّنات المتفقة على الحكم الأغلب، تُختار الأعلى ثقة كممثل
+      // (بدل الأولى عشوائياً) — استشهادها/تحليلها هو ما يُعرض فعلياً.
+      const best = majorityGroup.reduce((a, b) => (b.confidence > a.confidence ? b : a));
+      return {
+        selection: best,
+        consensusDetail: `${majorityGroup.length}/${okSamples.length} اتفقت على "${majorityVerdict}"`,
+      };
+    }
+
+    // لا أغلبية واضحة (مثال: 3 عيّنات، 3 أحكام مختلفة) — لا تخمين. تُرجَع
+    // "معلومات غير كافية" الآمنة صراحةً، ويبقى الانقسام مرئياً بالكامل فى
+    // سجلّ "governance consensus" (أعلاه فى assess()) لمراجعة يدوية لاحقة.
+    return {
+      selection: {
+        status: 'ok',
+        verdict: INSUFFICIENT_INFO,
+        selectedIndices: [],
+        riskNote:
+          'تباينت أحكام النموذج عبر عيّنات مستقلة متعددة لنفس السؤال دون أغلبية واضحة — يلزم مراجعة مستشار قانونى مباشرة.',
+        confidence: 0,
+      },
+      consensusDetail: `انقسام بلا أغلبية (${[...groups.entries()]
+        .map(([v, g]) => `${v}×${g.length}`)
+        .join(', ')})`,
+    };
   }
 
   private buildResult(

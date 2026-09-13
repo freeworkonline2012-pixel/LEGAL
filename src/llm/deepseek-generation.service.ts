@@ -513,6 +513,15 @@ export class DeepseekGenerationService {
           max_tokens: 800,
           temperature: 0,
           thinking: { type: 'disabled' },
+          // ⚠️ 2026-09-13: إصلاح جذرى لفئة كاملة من الأعطال (وليس ترقيعاً) —
+          // حادثة gov-231 (`unparseable_json` فى إعادة قياس 246 بنداً) كشفت
+          // أن الاعتماد فقط على تعليمات نصية فى الـprompt ("رد بـJSON فقط")
+          // لا يضمن صيغة صالحة دائماً. توثيق DeepSeek الرسمى
+          // (api-docs.deepseek.com/guides/json_mode) يوفر آلية مُلزِمة على
+          // مستوى الـAPI نفسه بدل الاعتماد على انضباط النموذج النصى وحده.
+          // الشرطان المطلوبان فى التوثيق الرسمى محقَّقان فعلاً فى system
+          // أعلاه: كلمة "JSON" صراحةً + مثال حرفى لشكل الحقول المطلوبة.
+          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: userMsg },
