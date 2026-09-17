@@ -32,6 +32,27 @@ interface GovernanceCandidate {
 
 const INSUFFICIENT_INFO: GovernanceVerdict = 'معلومات غير كافية';
 
+// ⚠️ 2026-09-17: إصلاح جذرى مؤكَّد تجريبياً (لا قيمة افتراضية عشوائية) —
+// راجع تعليق semanticCandidates() أدناه للتفاصيل الكاملة والدليل. القيمة
+// هنا نتيجة تحقيق مباشر لتناقض gov-090 (22/2018 م15): articles.embedding
+// مُفهرَس بفهرس pgvector HNSW التقريبى (migrations/001_init.sql،
+// 002_embeddings_dimension.sql)، وthis.dataSource.query() الأصلى كان
+// يعمل بـhnsw.ef_search الافتراضى (40) — أُعيد إنتاج عطل الإنتاج حرفياً عبر
+// سكربت تحقُّق (scripts/validate_hnsw_ef_search_hypothesis.js، نفس نمط
+// الاستعلام تماماً بما فيه LIMIT): عند الإعداد الافتراضى (40)، مرشح حقيقى
+// صحيح (رتبته الفعلية #6 من 1355 مرشحاً ضمن نطاق الحوكمة، مؤكَّدة مرتين
+// بنداءى Voyage مستقلين) غائب تماماً عن نتيجة LIMIT=25 — وهو بالضبط ما
+// شُوهد فى سجلّ [DIAG-SEMANTIC-RAW] الحى وقتها. رُفع الإعداد تجريبياً إلى
+// 100/200/400 — الثلاثة استعادت المرشح بنجاح؛ اختير 200 تحديداً (لا 100 ولا
+// 400): هامش أمان كبير (33x فوق الرتبة الحقيقية المؤكَّدة #6) يحمى من حالات
+// أخرى غير مكتشَفة بعد بنفس النمط، مع بقاء فهرس HNSW مُستخدَماً فعلياً حسب
+// EXPLAIN (لا يدفع مخطِّط الاستعلام لمسح تسلسلى كامل كما لوحظ عند 400 —
+// فيُحافَظ على الغرض المعمارى من الفهرس أصلاً بدل تعطيله ضمناً). مُطبَّق عبر
+// SET LOCAL داخل معاملة قصيرة العمر تلف هذا الاستعلام فقط (QueryRunner مخصَّص
+// أدناه) — لا تعديل دائم على أى إعداد جلسة أو قاعدة بيانات، ولا تأثير على أى
+// استعلام آخر فى الخدمة.
+const HNSW_EF_SEARCH_GOVERNANCE = 200;
+
 /**
  * Service 3 — مساعد الحوكمة والالتزام والمخاطر (2026-09-04، Phase 1-3 من
  * خطة القسم 4.4 فى project doc تصور-تقنى-محترف-ثلاث-خدمات-ذكاء-اصطناعى-
@@ -441,7 +462,18 @@ export class GovernanceService {
     // خارجية قد تحمل انحرافاً دقيقاً غير مكتشَف). لا تغيير فى limit
     // المُستخدَم فعلياً لبناء المرشحين (سطر slice أدناه) — تسجيل إضافى فقط.
     const debugFetchLimit = limit + 10;
-    const rows: Array<{
+
+    // ⚠️ 2026-09-17: SET LOCAL hnsw.ef_search يجب أن يُنفَّذ على نفس اتصال
+    // Postgres وداخل نفس المعاملة التى تُنفَّذ فيها استعلام SELECT التالى —
+    // this.dataSource.query() العادى (المُستخدَم فى بقية الملف) لا يضمن ذلك
+    // إطلاقاً: كل نداء منفصل له قد يسحب اتصالاً مختلفاً من تجمع الاتصالات
+    // (connection pool)، فلو نُفِّذ SET LOCAL فى اتصال ثم SELECT فى اتصال آخر
+    // لن يكون لأى منهما أثر (تجربة فعلية موثَّقة أعلاه). QueryRunner مخصَّص هنا
+    // يضمن اتصالاً واحداً ثابتاً + معاملة صريحة (BEGIN...COMMIT) تُنهى تلقائياً
+    // فور اكتمال هذا الاستعلام — تماماً كما اختُبِر ونجح فى
+    // scripts/validate_hnsw_ef_search_hypothesis.js.
+    const queryRunner = this.dataSource.createQueryRunner();
+    let rows: Array<{
       article_no: number;
       article_suffix_order: number;
       short_title: string | null;
@@ -451,20 +483,32 @@ export class GovernanceService {
       body: string;
       official_url: string | null;
       similarity: number;
-    }> = await this.dataSource.query(
-      `SELECT
-         a.article_no, a.article_suffix_order,
-         l.short_title, l.title, l.law_no, l.law_year, l.official_url,
-         av.body,
-         1 - (a.embedding <=> $1::vector) AS similarity
-       FROM articles a
-       JOIN laws l ON l.id = a.law_id
-       JOIN article_versions av ON av.article_id = a.id AND av.effective_to IS NULL
-       WHERE a.embedding IS NOT NULL AND l.governance_scope = true
-       ORDER BY a.embedding <=> $1::vector
-       LIMIT $2`,
-      [vectorLiteral, debugFetchLimit],
-    );
+    }>;
+    await queryRunner.connect();
+    try {
+      await queryRunner.startTransaction();
+      await queryRunner.query(`SET LOCAL hnsw.ef_search = ${HNSW_EF_SEARCH_GOVERNANCE}`);
+      rows = await queryRunner.query(
+        `SELECT
+           a.article_no, a.article_suffix_order,
+           l.short_title, l.title, l.law_no, l.law_year, l.official_url,
+           av.body,
+           1 - (a.embedding <=> $1::vector) AS similarity
+         FROM articles a
+         JOIN laws l ON l.id = a.law_id
+         JOIN article_versions av ON av.article_id = a.id AND av.effective_to IS NULL
+         WHERE a.embedding IS NOT NULL AND l.governance_scope = true
+         ORDER BY a.embedding <=> $1::vector
+         LIMIT $2`,
+        [vectorLiteral, debugFetchLimit],
+      );
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction().catch(() => undefined);
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
 
     this.logger.log(
       `[DIAG-SEMANTIC-RAW] qHash=${this.hashQuestion(questionText)} أفضل(${rows.length})=` +
