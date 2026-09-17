@@ -111,12 +111,21 @@ async function main() {
   const embedding = await voyageEmbed(voyageKey, QUESTION);
   const vecLiteral = toPgVectorLiteral(embedding);
 
-  console.log('=== الإعداد الحالى (ef_search الافتراضى) ===');
-  const curSetting = await client.query('SHOW hnsw.ef_search');
-  console.log(`hnsw.ef_search الحالى = ${curSetting.rows[0].hnsw_ef_search}`);
-
-  console.log('\n=== اختبار 1: نفس نمط استعلام semanticCandidates() تماماً (limit=25) بالإعداد الافتراضى ===');
+  // ⚠️ 2026-09-17: SHOW/SET لمعامل GUC خاص بامتداد (hnsw.ef_search) يفشل
+  // بخطأ guc.c/find_option لو نُفِّذ قبل أى استعلام حقيقى يستخدم عامل
+  // pgvector فى نفس الجلسة (المعامل لا يُسجَّل إلا بعد تحميل مكتبة
+  // الامتداد ضمنياً عبر أول استخدام فعلى له) — لذلك ننفّذ الاستعلام الحقيقى
+  // (اختبار 1) أولاً، ثم SHOW بعده بأمان (ومحاط بـtry/catch احتياطاً، فهو
+  // معلوماتى بحت ولا يجب أن يوقف بقية الاختبارات الحاسمة لو فشل لأى سبب).
+  console.log('=== اختبار 1: نفس نمط استعلام semanticCandidates() تماماً (limit=25) بالإعداد الافتراضى ===');
   await runLimitedQuery(client, vecLiteral, 25, 'افتراضى');
+
+  try {
+    const curSetting = await client.query('SHOW hnsw.ef_search');
+    console.log(`\n[معلومة] hnsw.ef_search الحالى (بعد تحميل الامتداد) = ${curSetting.rows[0].hnsw_ef_search}`);
+  } catch (err) {
+    console.log(`\n[معلومة] تعذّر قراءة hnsw.ef_search الحالى (غير حاسم): ${err.message}`);
+  }
 
   for (const efSearch of [100, 200, 400]) {
     await client.query('BEGIN');
