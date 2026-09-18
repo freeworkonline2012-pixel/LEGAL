@@ -293,3 +293,107 @@ describe('GovernanceService.attemptWebAdvisory (طبقة النصيحة التك
     expect((result?.disclaimer as string).length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * اختبار وحدة لـ attemptPenaltyCitation (طبقة استشهاد العقوبة — مشروع
+ * منفصل، 2026-09-18) — راجع تعليقها الكامل فى governance.service.ts.
+ * التركيز هنا تحديداً على ضمانى fail-closed (أى فشل/غياب مرشحين/عدم تطابق
+ * → null بهدوء) والتحقق الدلالى الإلزامى (لا يُقبَل أى عقوبة لم يختَرها
+ * generationService صراحةً، حتى لو وُجدت مرشحات).
+ */
+describe('GovernanceService.attemptPenaltyCitation (طبقة استشهاد العقوبة — fail-closed)', () => {
+  const sampleBasis = [
+    { law: 'قانون مكافحة غسل الأموال', law_no: 80, law_year: 2002, article_no: 8, snippet: 'يلتزم بالإخطار الفورى', official_url: null },
+  ];
+
+  function buildService(overrides: {
+    query?: jest.Mock;
+    selectApplicablePenalties?: jest.Mock;
+  }): GovernanceService {
+    const dataSource = { getRepository: () => ({}), query: overrides.query ?? jest.fn() } as never;
+    const auditService = {} as never;
+    const generationService = {
+      selectApplicablePenalties: overrides.selectApplicablePenalties ?? jest.fn(),
+    } as never;
+    const embeddingsService = {} as never;
+    const webFallbackService = {} as never;
+    return new GovernanceService(dataSource, auditService, generationService, embeddingsService, webFallbackService);
+  }
+
+  function attempt(overrides: { query?: jest.Mock; selectApplicablePenalties?: jest.Mock }) {
+    const service = buildService(overrides) as unknown as {
+      attemptPenaltyCitation: (
+        verdict: string,
+        legalBasis: typeof sampleBasis,
+        riskNote: string,
+        qHash: string,
+      ) => Promise<{ applicablePenalties: unknown[] | null; penaltyNote: string | null }>;
+    };
+    return service.attemptPenaltyCitation('غير متوافق', sampleBasis, 'يخالف الإخطار الفورى', 'hash1234');
+  }
+
+  it('legal_basis فارغة → null فوراً، بلا أى استعلام قاعدة بيانات', async () => {
+    const query = jest.fn();
+    const service = buildService({ query }) as unknown as {
+      attemptPenaltyCitation: (
+        v: string,
+        lb: unknown[],
+        rn: string,
+        h: string,
+      ) => Promise<{ applicablePenalties: unknown[] | null; penaltyNote: string | null }>;
+    };
+    const result = await service.attemptPenaltyCitation('غير متوافق', [], 'note', 'h1');
+    expect(result).toEqual({ applicablePenalties: null, penaltyNote: null });
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('لا مرشحو عقوبة مسترجَعون (query تُعيد صفوفاً فارغة) → null', async () => {
+    const result = await attempt({ query: jest.fn().mockResolvedValue([]) });
+    expect(result).toEqual({ applicablePenalties: null, penaltyNote: null });
+  });
+
+  it('النموذج لا يجد أى عقوبة مطابقة تحديداً (selectedIndices=[]) → null رغم وجود مرشحين', async () => {
+    const query = jest.fn().mockResolvedValue([
+      { article_no: 14, article_suffix_order: 0, short_title: 'قانون 80/2002', title: 'قانون 80/2002', law_no: 80, law_year: 2002, official_url: null, body: 'يعاقب بالسجن...' },
+    ]);
+    const selectApplicablePenalties = jest.fn().mockResolvedValue({ status: 'ok', selectedIndices: [], note: '' });
+    const result = await attempt({ query, selectApplicablePenalties });
+    expect(result).toEqual({ applicablePenalties: null, penaltyNote: null });
+  });
+
+  it('فشل تقنى فى selectApplicablePenalties (status=error) → fail-closed (null)، لا استثناء يتسرَّب', async () => {
+    const query = jest.fn().mockResolvedValue([
+      { article_no: 14, article_suffix_order: 0, short_title: 'قانون 80/2002', title: 'قانون 80/2002', law_no: 80, law_year: 2002, official_url: null, body: 'يعاقب بالسجن...' },
+    ]);
+    const selectApplicablePenalties = jest.fn().mockResolvedValue({ status: 'error', detail: 'http_500' });
+    const result = await attempt({ query, selectApplicablePenalties });
+    expect(result).toEqual({ applicablePenalties: null, penaltyNote: null });
+  });
+
+  it('استثناء غير متوقَّع فى الاستعلام → fail-closed (null)', async () => {
+    const result = await attempt({ query: jest.fn().mockRejectedValue(new Error('db down')) });
+    expect(result).toEqual({ applicablePenalties: null, penaltyNote: null });
+  });
+
+  it('مسار النجاح: النموذج يختار مرشحاً محدداً → applicable_penalties مبنية من نفس المرشح، وpenalty_note من note النموذج', async () => {
+    const rows = [
+      { article_no: 13, article_suffix_order: 0, short_title: 'قانون 80/2002', title: 'قانون مكافحة غسل الأموال', law_no: 80, law_year: 2002, official_url: null, body: 'يعاقب على الجرائم المبينة فى المواد التالية' },
+      { article_no: 14, article_suffix_order: 0, short_title: 'قانون 80/2002', title: 'قانون مكافحة غسل الأموال', law_no: 80, law_year: 2002, official_url: null, body: 'يعاقب بالسجن مدة لا تجاوز سبع سنوات' },
+    ];
+    const query = jest.fn().mockResolvedValue(rows);
+    const selectApplicablePenalties = jest
+      .fn()
+      .mockResolvedValue({ status: 'ok', selectedIndices: [1], note: 'عقوبة السجن سبع سنوات' });
+    const result = await attempt({ query, selectApplicablePenalties });
+    expect(result.penaltyNote).toBe('عقوبة السجن سبع سنوات');
+    expect(result.applicablePenalties).toEqual([
+      { law: 'قانون 80/2002', law_no: 80, law_year: 2002, article_no: 14, snippet: 'يعاقب بالسجن مدة لا تجاوز سبع سنوات', official_url: null },
+    ]);
+    // ✅ يتحقق من أن الاختيار جاء من التحقق الدلالى للنموذج (selectedIndices=[1]،
+    // أى المادة 14) لا اختياراً تلقائياً لأول مرشح (المادة 13، وهى مادة عامة
+    // تمهيدية لا عقوبة فعلية) — هذا بالضبط ما يمنع "ربط قانون بعقوبته الوحيدة".
+    expect(selectApplicablePenalties).toHaveBeenCalledWith(
+      expect.objectContaining({ violation: 'يخالف الإخطار الفورى' }),
+    );
+  });
+});
