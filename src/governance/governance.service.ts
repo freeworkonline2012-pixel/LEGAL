@@ -91,6 +91,19 @@ const GOVERNANCE_WEB_ADVISORY_DISCLAIMER =
  * (بما فى ذلك مصر: هذه الطبقة التكميلية تبقى استشارية فقط، لا مصدراً للمواد
  * القانونية المفهرَسة أو legal_basis الرسمى).
  *
+ * ⚠️ 2026-09-18 — طبقة استشهاد العقوبة (مشروع منفصل، بُنى فوق طبقة النصيحة
+ * أعلاه): اكتُشفت الحاجة إليها من مراجعة حية لإجابة فعلية (سؤال تستُّر شركة
+ * تمويل استهلاكى عن غسل أموال) — الحكم "غير متوافق" كان دقيقاً لكن دون ذكر
+ * الجزاء الفعلى المترتب. تحقَّق أن مواد العقوبة **موجودة بالفعل** فى قاعدتنا
+ * لمعظم قوانين نطاق الحوكمة (ingestion سابق كامل يشمل فصول العقوبات) — فلا
+ * حاجة لأى محتوى قانونى جديد أو تعديل مخطط قاعدة بيانات، فقط استرجاع FTS
+ * مقيَّد بنفس قوانين legal_basis + تحقق دلالى إلزامى (راجع
+ * DeepseekGenerationService.selectApplicablePenalties لتبرير التحقق —
+ * قوانين مثل 80/2002 تحوى عدة مواد عقوبة منفصلة لجرائم مختلفة، فربط "قانون →
+ * عقوبته الوحيدة" كان سيُخطئ). تُحاوَل فقط عند verdict="غير متوافق" أو
+ * "متوافق جزئياً"؛ fail-closed بلا استثناء (null لا يعنى غياب عقوبة، بل عدم
+ * تحديدها آلياً بثقة كافية).
+ *
  * قرار إعادة استخدام مدروس (لا نسخ أعمى ولا إعادة بناء غير ضرورية): يُعاد
  * استخدام VoyageEmbeddingsService وDeepseekGenerationService وAuditService
  * مباشرة (نفس الحقن فى LlmModule/AuditModule — بلا تعديل عليهم سوى إضافة
@@ -349,6 +362,25 @@ export class GovernanceService {
     // إطلاقاً — فقط قد يملأ result.recommendation إن نجحت.
     if (result.verdict === INSUFFICIENT_INFO) {
       result.recommendation = await this.attemptWebAdvisory(question, qHash);
+    } else if (
+      (result.verdict === 'غير متوافق' || result.verdict === 'متوافق جزئياً') &&
+      result.recommendation
+    ) {
+      // ⚠️ طبقة استشهاد العقوبة (مشروع منفصل — 2026-09-18، راجع تقريره
+      // الخاص) — تُحاوَل فقط هنا (الحكمان اللذان تهم فيهما العقوبة فعلياً
+      // لقرار عمل حقيقى). معزولة تماماً بنفس فلسفة attemptWebAdvisory: لا
+      // تُغيِّر verdict/legal_basis/risk_note/confidence إطلاقاً، فقط قد
+      // تملأ applicable_penalties/penalty_note داخل recommendation الموجودة
+      // بالفعل (result.recommendation مضمونة non-null هنا — buildRecommendation
+      // تُعيد كائناً حقيقياً دائماً لهذين الحكمين تحديداً).
+      const { applicablePenalties, penaltyNote } = await this.attemptPenaltyCitation(
+        result.verdict,
+        result.legal_basis,
+        result.risk_note,
+        qHash,
+      );
+      result.recommendation.applicable_penalties = applicablePenalties;
+      result.recommendation.penalty_note = penaltyNote;
     }
 
     await this.audit(
@@ -483,6 +515,8 @@ export class GovernanceService {
         violated_provisions: null,
         web_sources: null,
         disclaimer: null,
+        applicable_penalties: null,
+        penalty_note: null,
       };
     }
     if (verdict === 'غير متوافق') {
@@ -495,6 +529,10 @@ export class GovernanceService {
         violated_provisions: legalBasis.length > 0 ? legalBasis : null,
         web_sources: null,
         disclaimer: null,
+        // ⚠️ تُملأ لاحقاً (إن أمكن) عبر attemptPenaltyCitation فى assess() —
+        // null هنا هو القيمة الافتراضية قبل تلك المحاولة، لا نتيجتها.
+        applicable_penalties: null,
+        penalty_note: null,
       };
     }
     if (verdict === 'متوافق جزئياً') {
@@ -507,6 +545,9 @@ export class GovernanceService {
         violated_provisions: null,
         web_sources: null,
         disclaimer: null,
+        // ⚠️ نفس ملاحظة "غير متوافق" أعلاه — تُملأ لاحقاً إن أمكن.
+        applicable_penalties: null,
+        penalty_note: null,
       };
     }
     return null; // معلومات غير كافية — راجع attemptWebAdvisory
@@ -561,6 +602,11 @@ export class GovernanceService {
         violated_provisions: null,
         web_sources: sources.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
         disclaimer: GOVERNANCE_WEB_ADVISORY_DISCLAIMER,
+        // طبقة استشهاد العقوبة تعمل فقط فوق legal_basis من قاعدتنا (verdict
+        // "غير متوافق"/"متوافق جزئياً" المبنيَّين على database) — لا معنى لها
+        // هنا (basis_type=web_supplementary لا يملك legal_basis أصلاً).
+        applicable_penalties: null,
+        penalty_note: null,
       };
     } catch (err) {
       this.logger.warn(`governance web-advisory failed safely (fail-closed): ${(err as Error)?.message}`);
@@ -600,6 +646,155 @@ export class GovernanceService {
       .catch((err) => {
         this.logger.warn(`governance audit log failed (non-fatal): ${(err as Error).message}`);
       });
+  }
+
+  // ===== طبقة استشهاد العقوبة (مشروع منفصل — 2026-09-18) =====
+
+  /**
+   * استرجاع FTS مباشر (بلا rerank — مجموعة النتائج صغيرة أصلاً ومُقيَّدة
+   * بقوانين معدودة، والتحقق الدلالى الحقيقى مؤجَّل لـselectApplicablePenalties
+   * حيث السياق الكامل للمخالفة متاح) لمواد "شكلها عقوبة" (تحوى كلمات دلالة
+   * العقوبة) ضمن **نفس القوانين المستشهَد بها بالفعل فى legal_basis** فقط —
+   * لا بحث عام، فلا خطر تسرّب مادة من قانون غير ذى صلة بالمخالفة أصلاً.
+   *
+   * ⚠️ لا اشتقاق عربى فى to_tsquery('simple', ...) (نفس قيد buildFtsQuery
+   * الموثَّق فى retrieval.ts) — لذلك القائمة أدناه تضم صوراً معرَّفة ومنكَّرة
+   * صراحة (الحبس/حبس، السجن/سجن، الغرامة/غرامة) بدل الاعتماد على اشتقاق غير
+   * متاح فعلياً فى إعداد 'simple'. اتساع الاسترجاع هنا مقصود (لا دقة زائدة
+   * مطلوبة فى هذه المرحلة) — الدقة الفعلية تُفرَض لاحقاً بالتحقق الدلالى
+   * الإلزامى فى selectApplicablePenalties، لا هنا.
+   */
+  private async fetchPenaltyCandidates(
+    lawRefs: Array<{ lawNo: number; lawYear: number }>,
+  ): Promise<GovernanceCitation[]> {
+    if (lawRefs.length === 0) {
+      return [];
+    }
+    const uniqueRefs = Array.from(
+      new Map(lawRefs.map((r) => [`${r.lawNo}-${r.lawYear}`, r])).values(),
+    );
+    const conditions = uniqueRefs
+      .map((_, i) => `(l.law_no = $${i * 2 + 1} AND l.law_year = $${i * 2 + 2})`)
+      .join(' OR ');
+    const params = uniqueRefs.flatMap((r) => [r.lawNo, r.lawYear]);
+
+    const rows: Array<{
+      article_no: number;
+      article_suffix_order: number;
+      short_title: string | null;
+      title: string;
+      law_no: number;
+      law_year: number;
+      official_url: string | null;
+      body: string;
+    }> = await this.dataSource.query(
+      `SELECT
+         a.article_no, a.article_suffix_order,
+         l.short_title, l.title, l.law_no, l.law_year, l.official_url,
+         av.body
+       FROM article_versions av
+       JOIN articles a ON a.id = av.article_id
+       JOIN laws l ON l.id = a.law_id
+       WHERE av.effective_to IS NULL
+         AND (${conditions})
+         AND to_tsvector('simple', arabic_normalize(av.body)) @@
+             to_tsquery('simple', 'يعاقب | عقوبة | عقوبات | غرامة | الغرامة | حبس | الحبس | سجن | السجن | جزاء | جزاءات | مصادرة')
+       LIMIT 12`,
+      params,
+    );
+
+    return rows.map((row) => ({
+      law: row.short_title ?? row.title,
+      lawNo: row.law_no,
+      lawYear: row.law_year,
+      articleNo: row.article_no,
+      articleSuffixOrder: row.article_suffix_order,
+      snippet: row.body,
+      officialUrl: row.official_url,
+    }));
+  }
+
+  /**
+   * طبقة استشهاد العقوبة — تُستدعى **فقط** من نقطة الاستدعاء الصريحة الوحيدة
+   * فى assess() (بعد استقرار verdict على "غير متوافق"/"متوافق جزئياً"
+   * تحديداً). راجع تعليق DeepseekGenerationService.selectApplicablePenalties
+   * للتصميم الكامل وتبرير التحقق الدلالى الإلزامى (قوانين متعددة العقوبات).
+   *
+   * fail-closed بلا استثناء (بنفس فلسفة attemptWebAdvisory تماماً): أى خطأ
+   * أو عدم يقين يُعيد {null, null} بهدوء — لا يمس result.verdict/legal_basis/
+   * risk_note/confidence بأى حال، ولا يُسقِط استجابة /api/governance/assess
+   * الأساسية.
+   */
+  private async attemptPenaltyCitation(
+    verdict: GovernanceVerdict,
+    legalBasis: GovernanceLegalBasisDto[],
+    riskNote: string,
+    qHash: string,
+  ): Promise<{ applicablePenalties: GovernanceLegalBasisDto[] | null; penaltyNote: string | null }> {
+    const NONE = { applicablePenalties: null, penaltyNote: null };
+    if (legalBasis.length === 0) {
+      return NONE;
+    }
+    try {
+      const penaltyCandidates = await this.fetchPenaltyCandidates(
+        legalBasis.map((b) => ({ lawNo: b.law_no, lawYear: b.law_year })),
+      );
+      if (penaltyCandidates.length === 0) {
+        this.logger.log(`governance penalty-citation: qHash=${qHash} — لا مرشحو عقوبة مسترجَعون`);
+        return NONE;
+      }
+
+      const selection = await this.generationService.selectApplicablePenalties({
+        violation: riskNote,
+        violatedProvisions: legalBasis.map((b) => ({
+          lawTitle: b.law,
+          lawNo: b.law_no,
+          lawYear: b.law_year,
+          articleNo: b.article_no,
+          articleText: b.snippet,
+        })),
+        penaltyCandidates: penaltyCandidates.map((c) => ({
+          lawTitle: c.law,
+          lawNo: c.lawNo,
+          lawYear: c.lawYear,
+          articleNo: c.articleNo,
+          articleText: c.snippet,
+        })),
+      });
+
+      if (selection.status !== 'ok' || selection.selectedIndices.length === 0) {
+        this.logger.log(
+          `governance penalty-citation: qHash=${qHash} — لا عقوبة مطابقة محددة (status=${selection.status})`,
+        );
+        return NONE;
+      }
+
+      const applicablePenalties: GovernanceLegalBasisDto[] = selection.selectedIndices
+        .filter((i) => penaltyCandidates[i] !== undefined)
+        .map((i) => {
+          const c = penaltyCandidates[i];
+          return {
+            law: c.law,
+            law_no: c.lawNo,
+            law_year: c.lawYear,
+            article_no: c.articleNo,
+            snippet: c.snippet,
+            official_url: c.officialUrl,
+          };
+        });
+
+      if (applicablePenalties.length === 0) {
+        return NONE;
+      }
+
+      this.logger.log(
+        `governance penalty-citation: qHash=${qHash} → ${applicablePenalties.length} مادة عقوبة مطابقة`,
+      );
+      return { applicablePenalties, penaltyNote: selection.note || null };
+    } catch (err) {
+      this.logger.warn(`governance penalty-citation failed safely (fail-closed): ${(err as Error)?.message}`);
+      return NONE;
+    }
   }
 
   // ===== استرجاع مُقيَّد بـ governance_scope=true (راجع تعليق الوحدة أعلاه) =====

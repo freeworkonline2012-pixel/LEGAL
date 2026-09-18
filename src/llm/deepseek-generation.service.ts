@@ -704,6 +704,146 @@ export class DeepseekGenerationService {
   }
 
   /**
+   * طبقة استشهاد العقوبة (مشروع منفصل — 2026-09-18، راجع تقرير بنائه بنفس
+   * التاريخ للتصميم الكامل). تُستدعى **فقط** من
+   * GovernanceService.attemptPenaltyCitation() بعد استقرار الحكم النهائى على
+   * "غير متوافق" أو "متوافق جزئياً" تحديداً — حيث تهم العقوبة فعلياً لقرار
+   * عمل حقيقى، بخلاف "متوافق"/"معلومات غير كافية" حيث لا معنى لعقوبة.
+   *
+   * المرشحون هنا **مسترجَعون فعلياً من قاعدة بياناتنا** (استرجاع FTS بكلمات
+   * دلالة العقوبة داخل نفس القوانين المستشهَد بها بالفعل فى legal_basis —
+   * راجع GovernanceService.fetchPenaltyCandidates) — لا بحث ويب ولا محتوى
+   * خارجى، فلا تعارض مع سياسة "لا اختلاق" حتى لهذه الطبقة.
+   *
+   * ⚠️ تحدٍّ جوهرى دفع لهذا التصميم تحديداً (لا تعيين ساذج "مادة عقوبة واحدة
+   * لكل قانون"): القوانين المصرية غالباً تحوى **عدة مواد عقوبة منفصلة لجرائم/
+   * مخالفات مختلفة تماماً** ضمن نفس النص (مثال مباشر من قاعدتنا: قانون
+   * مكافحة غسل الأموال 80/2002 — المادة 14 عقوبة جريمة غسل الأموال نفسها
+   * [م.2]، بينما مواد أخرى تالية تعاقب على الإخلال بواجب الإخطار تحديداً —
+   * عقوبتان مختلفتان تماماً لمخالفتين مختلفتين فى نفس القانون). ربط "قانون
+   * X → عقوبته الوحيدة Y" كان سيُنتج استشهاداً بعقوبة خاطئة فى حالات كثيرة —
+   * **أخطر من عدم ذكر عقوبة إطلاقاً** لمنتج امتثال قانونى. الحل: تحقق دلالى
+   * صريح من النموذج نفسه (بنفس فلسفة "افحص كل مرشح قبل الحكم" فى
+   * assessCompliance) — أى مرشح عقوبة يطابق **تحديداً** المخالفة الموصوفة،
+   * لا أى عقوبة أخرى فى نفس القانون. لا تخمين: مصفوفة فارغة لو لم يطابق أى
+   * مرشح بوضوح كافٍ — هذا خيار صحيح ومتوقَّع، لا فشل.
+   */
+  async selectApplicablePenalties(input: {
+    violation: string;
+    violatedProvisions: Array<{
+      lawTitle: string;
+      lawNo: number;
+      lawYear: number;
+      articleNo: number;
+      articleText: string;
+    }>;
+    penaltyCandidates: Array<{
+      lawTitle: string;
+      lawNo: number;
+      lawYear: number;
+      articleNo: number;
+      articleText: string;
+    }>;
+  }): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | { status: 'ok'; selectedIndices: number[]; note: string }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+    if (input.penaltyCandidates.length === 0) {
+      return { status: 'ok', selectedIndices: [], note: '' };
+    }
+
+    const system =
+      'أنت مدقق قانونى تتحقق تحديداً من العقوبة المنطبقة على مخالفة محدَّدة ' +
+      'سبق تحديدها بالفعل (ليست مهمتك إعادة تقييم المخالفة نفسها). أمامك: ' +
+      '(أ) المادة/المواد القانونية التى تأسَّست عليها المخالفة، و(ب) مرشحو ' +
+      'مواد عقوبة مُسترجَعون آلياً من نفس القوانين. ⚠️ تحذير جوهرى: قد يخص كل ' +
+      'مرشح عقوبة جريمة/مخالفة **مختلفة تماماً** ضمن نفس القانون — القوانين ' +
+      'المصرية كثيراً ما تحوى عدة مواد عقوبة منفصلة لأفعال مختلفة تماماً فى ' +
+      'نفس النص، فلا تفترض أن أى مادة عقوبة من نفس القانون تنطبق تلقائياً.\n\n' +
+      'مهمتك: حدد أى مرشحى العقوبة (إن وُجد) ينطبق **تحديداً** على نفس ' +
+      'المخالفة الموصوفة فى (أ) أعلاه، لا أى عقوبة أخرى فى نفس القانون تخص ' +
+      'فعلاً مختلفاً. إن لم يطابق أى مرشح المخالفة بوضوح كافٍ، أرجع مصفوفة ' +
+      'فارغة — هذا الخيار الصحيح والآمن هنا، ولا يُعَد فشلاً؛ عقوبة خاطئة ' +
+      'أسوأ بكثير من غياب استشهاد بعقوبة.\n\n' +
+      'أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى: {"note": "جملة عربية ' +
+      'واحدة مبسَّطة تشرح العقوبة المُختارة بلغة يفهمها غير المتخصص (نوع ' +
+      'العقوبة ومقدارها كما وردت حرفياً فى نصها)، أو نص فارغ \\"\\" لو لم ' +
+      'تُختر أى عقوبة", "selected": [أرقام مرشحى العقوبة المنطبقين تحديداً، ' +
+      'من 1 إلى عدد المرشحين، أو مصفوفة فارغة [] لو لا شىء ينطبق]}';
+
+    const provisionsText = input.violatedProvisions
+      .map(
+        (p) =>
+          `المادة ${p.articleNo} من ${p.lawTitle} (رقم ${p.lawNo} لسنة ${p.lawYear}):\n"""${p.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const candidatesText = input.penaltyCandidates
+      .map(
+        (c, i) =>
+          `${i + 1}) المادة ${c.articleNo} من ${c.lawTitle} (رقم ${c.lawNo} لسنة ${c.lawYear}):\n"""${c.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `المخالفة المؤسَّسة على:\n${provisionsText}\n\n` +
+      `وصف المخالفة (من التحليل الأصلى): ${input.violation}\n\n` +
+      `مرشحو مواد العقوبة (من نفس القوانين):\n${candidatesText}\n\n` +
+      'حدد المرشح(ين) المنطبق(ين) تحديداً فقط على هذه المخالفة بالذات. رد ' +
+      'بـJSON فقط كما هو محدد.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 400,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek penalty-citation API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        return { status: 'error', detail: 'empty_response' };
+      }
+
+      const parsed = parsePenaltySelectionJson(text, input.penaltyCandidates.length);
+      if (!parsed) {
+        this.logger.warn(`DeepSeek penalty-citation: could not parse JSON from response: ${text}`);
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+
+      return { status: 'ok', selectedIndices: parsed.selected.map((n) => n - 1), note: parsed.note };
+    } catch (err) {
+      this.logger.warn(`DeepSeek penalty-citation call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
+
+  /**
    * Service 2 — المدقق القانونى للعقود (Phase 2 الأساسية، 2026-09-05).
    * تقييم أولى لبند عقد واحد مقابل مواد قانونية مصرية مرشَّحة (من استرجاع
    * عام غير مقيَّد بنطاق كالحوكمة — أى قانون مفهرَس صالح كأساس).
@@ -1015,6 +1155,43 @@ function parseGovernanceWebAdvisoryJson(
         reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : '',
         confidence: Math.min(1, Math.max(0, confidenceRaw)),
       };
+    } catch {
+      // جرّب المحاولة التالية
+    }
+  }
+
+  return null;
+}
+
+/**
+ * تحليل دفاعي لرد selectApplicablePenalties — نفس منهجية parseVerdictJson
+ * (محاولتان: JSON.parse مباشر، ثم استخراج أول substring على شكل {...})، مع
+ * نفس تحقق "رقم خارج المدى = هلوسة تُسقط الحكم بالكامل" المُطبَّق فى
+ * parseVerdictJson (لا رقم عقوبة خاطئ يُقبَل جزئياً).
+ */
+function parsePenaltySelectionJson(
+  text: string,
+  maxIndex: number,
+): { selected: number[]; note: string } | null {
+  const attempts = [text];
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    attempts.push(match[0]);
+  }
+
+  const isValidSelected = (v: unknown): v is number[] =>
+    Array.isArray(v) &&
+    v.every((n) => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= maxIndex);
+
+  for (const attempt of attempts) {
+    try {
+      const parsed = JSON.parse(attempt) as { selected?: unknown; note?: unknown };
+      if (isValidSelected(parsed.selected)) {
+        return {
+          selected: Array.from(new Set(parsed.selected)),
+          note: typeof parsed.note === 'string' ? parsed.note : '',
+        };
+      }
     } catch {
       // جرّب المحاولة التالية
     }

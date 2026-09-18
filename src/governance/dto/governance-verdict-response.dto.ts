@@ -132,6 +132,33 @@ export class GovernanceRecommendationDto {
     nullable: true,
   })
   disclaimer: string | null;
+
+  /**
+   * طبقة استشهاد العقوبة (مشروع منفصل — 2026-09-18، راجع تقريره الخاص).
+   * مبنية على استرجاع + تحقق دلالى من نفس قوانين legal_basis أعلاه (لا بحث
+   * ويب) — تُحاوَل فقط عندما verdict="غير متوافق" أو "متوافق جزئياً".
+   */
+  @ApiPropertyOptional({
+    type: GovernanceLegalBasisDto,
+    isArray: true,
+    description:
+      'مادة (مواد) العقوبة المنطبقة تحديداً على هذه المخالفة (لا أى عقوبة ' +
+      'أخرى فى نفس القانون تخص فعلاً مختلفاً — القوانين المصرية كثيراً ما ' +
+      'تحوى عدة مواد عقوبة منفصلة) — موجودة فقط عندما verdict="غير متوافق" ' +
+      'أو "متوافق جزئياً" ووُجدت عقوبة مطابقة تحديداً وبثقة كافية. **null لا ' +
+      'يعنى عدم وجود عقوبة أصلاً** — فقط أن النظام لم يحدد واحدة بثقة كافية ' +
+      'آلياً؛ يلزم مراجعة مستشار قانونى للتأكد فى كل الأحوال.',
+    nullable: true,
+  })
+  applicable_penalties: GovernanceLegalBasisDto[] | null;
+
+  @ApiPropertyOptional({
+    example:
+      'يُعاقَب على هذه المخالفة بالسجن مدة لا تجاوز سبع سنوات وبغرامة تعادل مثلى الأموال محل الجريمة (المادة 14).',
+    description: 'شرح مبسَّط بلغة غير متخصصة لمضمون applicable_penalties أعلاه — موجود فقط معها، وإلا null.',
+    nullable: true,
+  })
+  penalty_note: string | null;
 }
 
 export class GovernanceVerdictResponseDto {
