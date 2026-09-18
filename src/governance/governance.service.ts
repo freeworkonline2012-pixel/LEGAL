@@ -5,12 +5,17 @@ import { DataSource, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { DeepseekGenerationService, GovernanceVerdict } from '../llm/deepseek-generation.service';
 import { VoyageEmbeddingsService, toPgVectorLiteral } from '../llm/voyage-embeddings.service';
+import { WebSearchFallbackService } from '../llm/web-search-fallback.service';
 import { Article } from '../database/entities/article.entity';
 import { ArticleVersion } from '../database/entities/article-version.entity';
 import { Law } from '../database/entities/law.entity';
 import { buildFtsQuery, confidenceFromRank } from '../questions/retrieval';
 import { AssessGovernanceDto } from './dto/assess-governance.dto';
-import { GovernanceLegalBasisDto, GovernanceVerdictResponseDto } from './dto/governance-verdict-response.dto';
+import {
+  GovernanceLegalBasisDto,
+  GovernanceRecommendationDto,
+  GovernanceVerdictResponseDto,
+} from './dto/governance-verdict-response.dto';
 
 interface GovernanceCitation {
   law: string;
@@ -53,11 +58,38 @@ const INSUFFICIENT_INFO: GovernanceVerdict = 'معلومات غير كافية';
 // استعلام آخر فى الخدمة.
 const HNSW_EF_SEARCH_GOVERNANCE = 200;
 
+// ⚠️ 2026-09-18 (طبقة النصيحة): تنويه إلزامى مُلحَق برمجياً — لا يعتمد على
+// التزام النموذج بذكره — بكل توصية basis_type='web_supplementary'. نص مستقل
+// عمداً عن WEB_FALLBACK_DISCLAIMER العام (web-search-fallback.service.ts):
+// هذا السياق أكثر حساسية (قرار امتثال قد يُبنى عليه قرار عمل حقيقى، لا سؤال
+// عام)، فيصرِّح صراحة أن الحكم الأساسى fail-closed لم يتغيَّر ولا يزال قائماً
+// بصرف النظر عن هذه التوصية التكميلية.
+const GOVERNANCE_WEB_ADVISORY_DISCLAIMER =
+  '⚠️ هذه توصية تكميلية مبنية على بحث ويب عام فى مصادر رسمية، وليست مبنية على ' +
+  'قاعدة بياناتنا القانونية المُراجَعة داخلياً — الحكم الرسمى لهذا السؤال يبقى ' +
+  '"معلومات غير كافية" (verdict أعلاه) بصرف النظر عن هذه التوصية. لا تُعتمَد ' +
+  'هذه التوصية وحدها فى أى قرار تنظيمى أو تعاقدى دون مراجعة مستشار قانونى ' +
+  'مباشرة يتحقق من المصادر المذكورة ومن سريانها حالياً.';
+
 /**
  * Service 3 — مساعد الحوكمة والالتزام والمخاطر (2026-09-04، Phase 1-3 من
  * خطة القسم 4.4 فى project doc تصور-تقنى-محترف-ثلاث-خدمات-ذكاء-اصطناعى-
  * 2026-09-02.md). Phase 4 (Golden Test Set مخصَّص 30-50 سؤال) وواجهة العرض
  * المخصَّصة (جزء من Phase 3) مؤجَّلتان عمداً — راجع تقرير التسليم.
+ *
+ * ⚠️ 2026-09-18 — طبقة النصيحة (مصر فقط؛ راجع تقرير بناء طبقة النصيحة بنفس
+ * التاريخ للقرار الكامل): يُضاف حقل `recommendation` فوق العقد الأساسى
+ * {verdict, legal_basis, risk_note, confidence} دون أى تعديل على منطق هذا
+ * الأخير — موصى به/غير موصى به/موصى به بشرط مُشتقَّة مباشرة من legal_basis
+ * المتحقَّق منه لثلاثة الأحكام الحاسمة (متوافق/غير متوافق/متوافق جزئياً)، أو
+ * من طبقة بحث ويب تكميلية منفصلة الثقة (basis_type='web_supplementary')
+ * تحديداً عند "معلومات غير كافية" فقط — بقرار صريح مؤكَّد مع صاحب المشروع أن
+ * هذه الطبقة **لا تتجاوز أبداً** سياسة fail-closed الأساسية (لا تُبدِّل
+ * verdict، ولا تُعامَل بنفس ثقة استشهاد قاعدة البيانات). دعم دول أخرى (السعودية/
+ * البحرين/قطر) مؤجَّل عمداً لمشروعات منفصلة لاحقة، كل منها مبنى على مستندات
+ * رسمية يرفعها صاحب المشروع بنفسه — لا محتوى قانونى مُستخرَج من الويب لأى دولة
+ * (بما فى ذلك مصر: هذه الطبقة التكميلية تبقى استشارية فقط، لا مصدراً للمواد
+ * القانونية المفهرَسة أو legal_basis الرسمى).
  *
  * قرار إعادة استخدام مدروس (لا نسخ أعمى ولا إعادة بناء غير ضرورية): يُعاد
  * استخدام VoyageEmbeddingsService وDeepseekGenerationService وAuditService
@@ -81,6 +113,7 @@ export class GovernanceService {
     private readonly auditService: AuditService,
     private readonly generationService: DeepseekGenerationService,
     private readonly embeddingsService: VoyageEmbeddingsService,
+    private readonly webFallbackService: WebSearchFallbackService,
   ) {
     this.versionRepository = this.dataSource.getRepository(ArticleVersion);
   }
@@ -135,8 +168,10 @@ export class GovernanceService {
         INSUFFICIENT_INFO,
         [],
         'لا توجد مادة قانونية مفهرَسة ذات صلة ضمن نطاق الحوكمة والالتزام والمخاطر الحالى (مكافحة غسل أموال/تمويل إرهاب، تأمين، تمويل غير مصرفى) — يلزم مراجعة مستشار قانونى مباشرة.',
+        [],
         0,
       );
+      result.recommendation = await this.attemptWebAdvisory(question, qHash);
       await this.audit(context, qHash, [], { status: 'no_candidates' }, result);
       return result;
     }
@@ -262,6 +297,7 @@ export class GovernanceService {
         INSUFFICIENT_INFO,
         [],
         'خدمة التقييم الآلى غير مُفعَّلة حالياً على هذه البيئة — يلزم مراجعة مستشار قانونى مباشرة قبل اتخاذ أى قرار.',
+        [],
         0,
       );
     } else if (selection.status === 'error') {
@@ -269,6 +305,7 @@ export class GovernanceService {
         INSUFFICIENT_INFO,
         [],
         'تعذَّر إجراء التقييم الآلى تقنياً فى هذه اللحظة — يلزم مراجعة مستشار قانونى مباشرة قبل اتخاذ أى قرار.',
+        [],
         0,
       );
     } else {
@@ -293,7 +330,25 @@ export class GovernanceService {
           official_url: c.officialUrl,
         };
       });
-      result = this.buildResult(verdict, basis, selection.riskNote, selection.confidence);
+      result = this.buildResult(
+        verdict,
+        basis,
+        selection.riskNote,
+        verdict === 'متوافق جزئياً' ? selection.conditions : [],
+        selection.confidence,
+      );
+    }
+
+    // ⚠️ 2026-09-18 (طبقة النصيحة): يُحاوَل فقط بعد أن استقر verdict النهائى
+    // (بعد تصويت الأغلبية وكل قيود fail-closed أعلاه) على "معلومات غير كافية"
+    // تحديداً — فى الحالات الثلاث الأخرى recommendation مبنية بالفعل داخل
+    // buildResult من legal_basis/risk_note/conditions مباشرة (basis_type=
+    // 'database')، فلا حاجة ولا معنى لاستدعاء بحث ويب. هذا الاستدعاء معزول
+    // تماماً (طبقة تكميلية اختيارية بعد نهاية منطق fail-closed الأساسى، لا
+    // تعديل عليه) ولا يُغيِّر result.verdict/legal_basis/risk_note/confidence
+    // إطلاقاً — فقط قد يملأ result.recommendation إن نجحت.
+    if (result.verdict === INSUFFICIENT_INFO) {
+      result.recommendation = await this.attemptWebAdvisory(question, qHash);
     }
 
     await this.audit(
@@ -370,6 +425,7 @@ export class GovernanceService {
         selectedIndices: [],
         riskNote:
           'تباينت أحكام النموذج عبر عيّنات مستقلة متعددة لنفس السؤال دون أغلبية واضحة — يلزم مراجعة مستشار قانونى مباشرة.',
+        conditions: [],
         confidence: 0,
       },
       consensusDetail: `انقسام بلا أغلبية (${[...groups.entries()]
@@ -382,9 +438,134 @@ export class GovernanceService {
     verdict: GovernanceVerdict,
     legalBasis: GovernanceLegalBasisDto[],
     riskNote: string,
+    conditions: string[],
     confidence: number,
   ): GovernanceVerdictResponseDto {
-    return { verdict, legal_basis: legalBasis, risk_note: riskNote, confidence };
+    return {
+      verdict,
+      legal_basis: legalBasis,
+      risk_note: riskNote,
+      confidence,
+      recommendation: this.buildRecommendation(verdict, legalBasis, riskNote, conditions, confidence),
+    };
+  }
+
+  /**
+   * طبقة النصيحة — الجزء البنيوى المشتق مباشرة من verdict الأساسى وlegal_basis
+   * وrisk_note وconditions المُنتَجة بالفعل من assessCompliance (لا نداء LLM
+   * إضافى هنا، ولا أى منطق غير حتمى — دالة خالصة بلا I/O). راجع تعليق
+   * GovernanceRecommendationDto فى الـDTO لتفاصيل كل حقل.
+   *
+   * لماذا "متوافق جزئياً" → "موصى به بشرط" لا "غير موصى به": الإجراء الجزئى
+   * قد يكون معقولاً للمضى فيه فعلياً أثناء استيفاء الشروط الباقية (قرار تجارى
+   * يخص صاحب المشروع لا هذه الدالة) — تصنيفه القسرى "غير موصى به" كان سيُخفى
+   * هذا الفارق الجوهرى عن التصنيف الثنائى الحاد لـ"غير متوافق" الكامل.
+   *
+   * "معلومات غير كافية" تُعيد null دائماً من هنا — لا أساس قاعدة بيانات كافٍ
+   * أصلاً لبناء أى توصية؛ التوصية الوحيدة الممكنة لهذا الحكم (إن وُجدت) تُبنى
+   * لاحقاً حصراً عبر attemptWebAdvisory (basis_type='web_supplementary')، لا
+   * من هنا.
+   */
+  private buildRecommendation(
+    verdict: GovernanceVerdict,
+    legalBasis: GovernanceLegalBasisDto[],
+    riskNote: string,
+    conditions: string[],
+    confidence: number,
+  ): GovernanceRecommendationDto | null {
+    if (verdict === 'متوافق') {
+      return {
+        advice: 'موصى به',
+        reasoning: riskNote,
+        basis_type: 'database',
+        confidence,
+        conditions_for_compliance: null,
+        violated_provisions: null,
+        web_sources: null,
+        disclaimer: null,
+      };
+    }
+    if (verdict === 'غير متوافق') {
+      return {
+        advice: 'غير موصى به',
+        reasoning: riskNote,
+        basis_type: 'database',
+        confidence,
+        conditions_for_compliance: null,
+        violated_provisions: legalBasis.length > 0 ? legalBasis : null,
+        web_sources: null,
+        disclaimer: null,
+      };
+    }
+    if (verdict === 'متوافق جزئياً') {
+      return {
+        advice: 'موصى به بشرط',
+        reasoning: riskNote,
+        basis_type: 'database',
+        confidence,
+        conditions_for_compliance: conditions.length > 0 ? conditions : null,
+        violated_provisions: null,
+        web_sources: null,
+        disclaimer: null,
+      };
+    }
+    return null; // معلومات غير كافية — راجع attemptWebAdvisory
+  }
+
+  /**
+   * طبقة النصيحة التكميلية عبر بحث الويب — تُستدعى **فقط** من الاستدعاءات
+   * الصريحة فى assess() بعد استقرار verdict النهائى على "معلومات غير كافية"
+   * (راجع تعليقات نقاط الاستدعاء). القرار المعمارى المؤكَّد مع صاحب المشروع
+   * 2026-09-18: هذه طبقة توصية تكميلية منفصلة الثقة فقط — **لا تُغيِّر ولا
+   * تتجاوز أبداً** سياسة fail-closed الأساسية لـGovernanceService (بخلاف
+   * questions.service.ts الذى يسمح لـWebSearchFallbackService بأن يكون
+   * الإجابة المعروضة الوحيدة عند فشل الاسترجاع — هنا verdict يبقى "معلومات
+   * غير كافية" دائماً بصرف النظر عن نتيجة هذه الدالة).
+   *
+   * fail-closed بلا استثناء على أى خطأ (غير مُفعَّلة، لا مصادر مسموحة، فشل
+   * شبكة/تحليل، أو قرار النموذج نفسه بعدم كفاية مقتطفات الويب) — يُعاد null
+   * فى كل هذه الحالات، فيبقى result.recommendation = null (لا توصية) دون أى
+   * استثناء يتسرَّب أو يُبطئ الاستجابة الأساسية.
+   */
+  private async attemptWebAdvisory(
+    question: string,
+    qHash: string,
+  ): Promise<GovernanceRecommendationDto | null> {
+    if (!this.webFallbackService.isConfigured) {
+      return null;
+    }
+    try {
+      const sources = await this.webFallbackService.searchAllowlisted(question);
+      if (!sources) {
+        return null;
+      }
+      const context = sources
+        .map((s, i) => `[${i + 1}] ${s.title}\nالرابط: ${s.url}\nمقتطف: ${s.snippet}`)
+        .join('\n\n');
+      const advisory = await this.generationService.composeGovernanceWebAdvisory(question, context);
+      if (!advisory) {
+        this.logger.log(
+          `governance web-advisory: qHash=${qHash} — لا توصية (معطَّلة/بلا مصادر مسموحة/النموذج قرَّر عدم الكفاية)`,
+        );
+        return null;
+      }
+      this.logger.log(
+        `governance web-advisory: qHash=${qHash} → ${advisory.advice} (ثقة=${advisory.confidence.toFixed(2)}, مصادر=${sources.length})`,
+      );
+      return {
+        advice: advisory.advice,
+        reasoning: advisory.reasoning,
+        basis_type: 'web_supplementary',
+        confidence: advisory.confidence,
+        conditions_for_compliance: null,
+        violated_provisions: null,
+        web_sources: sources.map((s) => ({ title: s.title, url: s.url, snippet: s.snippet })),
+        disclaimer: GOVERNANCE_WEB_ADVISORY_DISCLAIMER,
+      };
+    } catch (err) {
+      this.logger.warn(`governance web-advisory failed safely (fail-closed): ${(err as Error)?.message}`);
+      return null;
+    }
   }
 
   private async audit(
@@ -401,7 +582,20 @@ export class GovernanceService {
         resourceType: 'governance_verdict',
         ipAddress: context.ipAddress,
         userAgent: context.userAgent,
-        metadata: { qHash, candidates, selection, verdict: result.verdict, confidence: result.confidence },
+        metadata: {
+          qHash,
+          candidates,
+          selection,
+          verdict: result.verdict,
+          confidence: result.confidence,
+          // ⚠️ 2026-09-18: recommendation.advice/basis_type فقط (لا web_sources
+          // الكاملة ولا النص الكامل) — كافٍ لرصد معدَّل استخدام طبقة النصيحة
+          // التكميلية (web_supplementary) بمعزل عن الاستخدام العادى، بنفس
+          // فلسفة answer.web_fallback_used فى questions.service.ts، دون تضخيم
+          // حجم سجل التدقيق بمحتوى مكرَّر موجود بالفعل فى result نفسه.
+          recommendationAdvice: result.recommendation?.advice ?? null,
+          recommendationBasisType: result.recommendation?.basis_type ?? null,
+        },
       })
       .catch((err) => {
         this.logger.warn(`governance audit log failed (non-fatal): ${(err as Error).message}`);

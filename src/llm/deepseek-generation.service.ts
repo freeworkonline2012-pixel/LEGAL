@@ -362,6 +362,15 @@ export class DeepseekGenerationService {
    * الدالة — هذه الدالة تُرجع الحالة الخام فقط)، لأن الحكم البنيوى هنا
    * (متوافق/غير متوافق) يُحتمَل أن يُبنى عليه قرار عمل حقيقى مباشرة، بخلاف
    * إجابة نصية عامة يقرأها المستخدم ويُقيِّمها بنفسه.
+   *
+   * ⚠️ 2026-09-18 (طبقة النصيحة): حقل "conditions" أُضيف لعقد الإخراج —
+   * مصفوفة شروط تصحيحية محدَّدة، مطلوبة حصراً عند verdict="متوافق جزئياً".
+   * هذه إضافة **لنفس النداء الموجود بالفعل** (لا نداء استهلاكى إضافى، ولا
+   * تأثير على تكلفة consensusSamples×3 الحالية فى GovernanceService) — راجع
+   * system prompt أدناه للتفاصيل الكاملة. الهدف: تمكين GovernanceService من
+   * بناء توصية "موصى به/غير موصى به/موصى به بشرط" بنيوياً من نفس التحليل الذى
+   * أنتج verdict وrisk_note أصلاً، بدل استخراج نص حر لاحقاً (استخراج كهذا هش
+   * وغير موثوق، بخلاف حقل JSON مُلزَم بنفس آلية response_format الحالية).
    */
   async assessCompliance(input: {
     question: string;
@@ -380,6 +389,7 @@ export class DeepseekGenerationService {
         verdict: GovernanceVerdict;
         selectedIndices: number[];
         riskNote: string;
+        conditions: string[];
         confidence: number;
       }
   > {
@@ -392,6 +402,7 @@ export class DeepseekGenerationService {
         verdict: 'معلومات غير كافية',
         selectedIndices: [],
         riskNote: 'لا توجد مادة قانونية مفهرَسة ذات صلة ضمن نطاق الحوكمة والالتزام والمخاطر الحالى.',
+        conditions: [],
         confidence: 0,
       };
     }
@@ -471,14 +482,25 @@ export class DeepseekGenerationService {
       '"verdict" مع ما ورد فى "risk_note" نفسه (مثال ممنوع: risk_note يذكر ' +
       '"يخالف المادة كذا" بينما verdict = "متوافق"؛ فى هذه الحالة الحكم لازم ' +
       'يكون "غير متوافق" اتساقاً مع التحليل).\n\n' +
+      '⚠️ حقل "conditions" (طبقة النصيحة — أُضيف 2026-09-18، راجع تقرير بناء ' +
+      'طبقة النصيحة بنفس التاريخ): مطلوب حصراً عندما verdict = "متوافق ' +
+      'جزئياً" — مصفوفة نصوص عربية قصيرة، كل عنصر منها شرط أو إجراء تصحيحى ' +
+      'محدد وقابل للتنفيذ فعلياً (ممنوع عبارات عامة مثل "الالتزام بالقانون" ' +
+      'أو "مراجعة الوضع القانونى") يلزم استيفاؤه تحديداً لينتقل الإجراء من ' +
+      '"متوافق جزئياً" إلى "متوافق" الكامل، مستمَد مباشرة من نص المرشحين ' +
+      'المعتمَدين أنفسهم لا من خارجهم — تماماً بنفس انضباط risk_note وselected ' +
+      'أعلاه (ممنوع أى شرط لا يُستمَد من نص مرشح فعلى). لأى حكم آخر (متوافق، ' +
+      'غير متوافق، معلومات غير كافية) يجب أن يكون "conditions" دائماً مصفوفة ' +
+      'فارغة [] — لا يجوز ملؤه إلا لـ"متوافق جزئياً" تحديداً.\n\n' +
       'أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى قبلها أو بعدها، بالضبط بهذا ' +
       'الترتيب: {"risk_note": "جملة أو جملتان بالعربية تشرح التحليل وأثر عدم ' +
       'التوافق إن وُجد أو سبب عدم كفاية المعلومات", "selected": [أرقام ' +
       'المرشحين المعتمَدين فعلاً كأساس، من 1 إلى عدد المرشحين، مصفوفة فارغة ' +
       '[] لو معلومات غير كافية], "verdict": "متوافق أو غير متوافق أو متوافق ' +
       'جزئياً أو معلومات غير كافية — يجب أن يطابق منطقياً ما ورد فى ' +
-      'risk_note أعلاه بالضبط", "confidence": رقم عشرى بين 0 و1 يعكس ثقتك ' +
-      'الفعلية بالحكم}';
+      'risk_note أعلاه بالضبط", "conditions": [مصفوفة الشروط الموصوفة أعلاه، ' +
+      'أو [] دائماً إن لم يكن verdict = "متوافق جزئياً"], "confidence": رقم ' +
+      'عشرى بين 0 و1 يعكس ثقتك الفعلية بالحكم}';
 
     const candidatesText = input.candidates
       .map(
@@ -510,7 +532,11 @@ export class DeepseekGenerationService {
           // الإنتاج: مع 5 مرشحين يحتاج risk_note مساحة أطول لمناقشة كل
           // واحد (فحص جهة/قطاع likely لكل مرشح إضافى)، ولوحظ فعلياً رد
           // JSON مبتور (`unparseable_json`) عند الحد القديم بمجرد التوسيع.
-          max_tokens: 800,
+          // ⚠️ 2026-09-18: رُفع من 800 لـ1000 بعد إضافة حقل "conditions"
+          // (طبقة النصيحة) — هامش أمان إضافى يحتمل حالة "متوافق جزئياً" مع
+          // عدة شروط تصحيحية مفصَّلة، بنفس منطق الرفع السابق تماماً (تفادى
+          // `unparseable_json` عند حالات الإخراج الأطول لا انتظار عطل فعلى).
+          max_tokens: 1000,
           temperature: 0,
           thinking: { type: 'disabled' },
           // ⚠️ 2026-09-13: إصلاح جذرى لفئة كاملة من الأعطال (وليس ترقيعاً) —
@@ -559,11 +585,109 @@ export class DeepseekGenerationService {
         verdict: parsed.verdict,
         selectedIndices: parsed.selected.map((n) => n - 1),
         riskNote: parsed.riskNote,
+        conditions: parsed.conditions,
         confidence: parsed.confidence,
       };
     } catch (err) {
       this.logger.warn(`DeepSeek assessCompliance call failed: ${(err as Error).message}`);
       return { status: 'error', detail: (err as Error).message };
+    }
+  }
+
+  /**
+   * طبقة النصيحة التكميلية (Tier 2 خاص بالحوكمة — 2026-09-18، راجع تقرير بناء
+   * طبقة النصيحة بنفس التاريخ). تُستدعى **حصراً** من GovernanceService عندما
+   * يكون الحكم الأساسى (assessCompliance أعلاه، بعد تصويت الأغلبية) بالفعل
+   * "معلومات غير كافية" — لا تُستدعى أبداً كبديل أو تحقق مزدوج للأحكام الثلاثة
+   * الأخرى، وناتجها **لا يُغيِّر verdict الأساسى إطلاقاً** فى أى حال (يبقى
+   * "معلومات غير كافية" دائماً، fail-closed بلا استثناء — القرار المعمارى
+   * المؤكَّد صراحة مع صاحب المشروع 2026-09-18: بحث الويب هنا طبقة توصية
+   * تكميلية منفصلة الثقة فقط، لا تجاوز لسياسة fail-closed القائمة).
+   *
+   * نفس انضباط composeWebFallbackAnswer بالحرف (ممنوع إضافة أى معلومة من خارج
+   * المقتطفات المرفقة)، لكن الإخراج هنا JSON بنيوى لا نص حر — لازم لبناء
+   * GovernanceRecommendationDto.basis_type='web_supplementary' فى
+   * GovernanceService دون استخراج نص حر هش. "advice: null" خيار صريح ومقبول
+   * (لا فشل تحليل) عندما تكون مقتطفات البحث نفسها غير كافية للترجيح — تماماً
+   * بنفس فلسفة "معلومات غير كافية" الأساسية: لا تخمين على قرار امتثال.
+   */
+  async composeGovernanceWebAdvisory(
+    question: string,
+    sourcesContext: string,
+  ): Promise<{ advice: 'موصى به' | 'غير موصى به'; reasoning: string; confidence: number } | null> {
+    if (!this.isConfigured) {
+      return null;
+    }
+
+    const system =
+      'أنت مدقق حوكمة والتزام يعمل كطبقة تكميلية ثانوية فقط — تُستدعى حصراً ' +
+      'عندما عجزت قاعدة بياناتنا القانونية المُراجَعة عن الإجابة بثقة كافية. ' +
+      'أمامك وصف إجراء ينوي مستخدم اتخاذه، ومقتطفات بحث مرقَّمة من مواقع ' +
+      'رسمية عامة (لا من قاعدة بياناتنا المُتحقَّق منها داخلياً). ممنوع منعاً ' +
+      'باتاً إضافة أى معلومة أو رقم أو تفسير غير موجود حرفياً فى المقتطفات ' +
+      'المرفقة.\n\n' +
+      'مهمتك: بناءً على هذه المقتطفات فقط، حاول إصدار توصية نهائية ثنائية — ' +
+      '"موصى به" أو "غير موصى به" — مع تعليل موجز يشير لرقم المصدر [1]/[2] ' +
+      'بعد كل معلومة يستند إليها. إن كانت المقتطفات نفسها لا تكفى لترجيح أحد ' +
+      'الخيارين بثقة معقولة (لا مجرد تخمين ظاهرى)، أرجع "advice": null بدل ' +
+      'التخمين — هذا خيار صحيح ومتوقَّع تماماً، وليس فشلاً.\n\n' +
+      'أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى: {"reasoning": "جملة أو ' +
+      'جملتان بالعربية تشرح الأساس المُستمَد من المقتطفات المرقَّمة", ' +
+      '"advice": "موصى به" أو "غير موصى به" أو null, "confidence": رقم عشرى ' +
+      'بين 0 و1 يعكس ثقتك الفعلية — يجب أن تكون هذه القيمة متحفظة دائماً ' +
+      '(بحث ويب عام أقل موثوقية من مادة قانونية موثَّقة فى قاعدة بياناتنا)}';
+
+    const userMsg =
+      `وصف الإجراء/القرار المُراد فحص مطابقته: ${question}\n\n` +
+      `مقتطفات بحث من مصادر رسمية (مرقَّمة):\n${sourcesContext}\n\n` +
+      'أصدر توصيتك بناءً على هذه المقتطفات فقط. رد بـJSON فقط كما هو محدد.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 500,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek governance web-advisory API error ${res.status}: ${errText}`);
+        return null;
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string } }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        return null;
+      }
+
+      const parsed = parseGovernanceWebAdvisoryJson(text);
+      if (!parsed || parsed.advice === null) {
+        // إما فشل تحليل JSON، أو النموذج نفسه قرَّر أن المقتطفات غير كافية —
+        // كلاهما fail-closed بلا توصية (لا فرق فى الأثر على GovernanceService:
+        // recommendation تبقى null فى الحالتين).
+        return null;
+      }
+
+      return { advice: parsed.advice, reasoning: parsed.reasoning, confidence: parsed.confidence };
+    } catch (err) {
+      this.logger.warn(`DeepSeek governance web-advisory call failed: ${(err as Error).message}`);
+      return null;
     }
   }
 
@@ -781,11 +905,21 @@ const GOVERNANCE_VERDICTS: readonly GovernanceVerdict[] = [
  *     parseSelectionJson).
  *   - confidence يُطبَّق (clamp) لـ[0, 1] بدل رفضه لو جاء خارج المدى قليلاً
  *     (خطأ تقريب طبيعى فى نموذج لغوى، لا هلوسة بنيوية كرقم مرشح خاطئ).
+ *   - conditions (2026-09-18، طبقة النصيحة): مصفوفة نصوص إن وُجدت وصالحة،
+ *     وإلا [] بصمت (لا رفض الحكم كله لأجل حقل ثانوى غير حاسم لـverdict نفسه
+ *     — بخلاف verdict/selected اللذين يُسقطان الحكم بالكامل لو فسدا، لأنهما
+ *     العقد الأساسى الموجود قبل هذه الإضافة وتوقيعه أكثر حساسية).
  */
 function parseVerdictJson(
   text: string,
   maxIndex: number,
-): { verdict: GovernanceVerdict; selected: number[]; riskNote: string; confidence: number } | null {
+): {
+  verdict: GovernanceVerdict;
+  selected: number[];
+  riskNote: string;
+  conditions: string[];
+  confidence: number;
+} | null {
   const attempts = [text];
   const match = text.match(/\{[\s\S]*\}/);
   if (match) {
@@ -805,17 +939,70 @@ function parseVerdictJson(
         verdict?: unknown;
         selected?: unknown;
         risk_note?: unknown;
+        conditions?: unknown;
         confidence?: unknown;
       };
       if (isValidVerdict(parsed.verdict) && isValidSelected(parsed.selected)) {
         const confidenceRaw = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
+        const conditions =
+          Array.isArray(parsed.conditions) && parsed.conditions.every((c) => typeof c === 'string')
+            ? (parsed.conditions as string[]).filter((c) => c.trim().length > 0)
+            : [];
         return {
           verdict: parsed.verdict,
           selected: Array.from(new Set(parsed.selected)),
           riskNote: typeof parsed.risk_note === 'string' ? parsed.risk_note : '',
+          conditions,
           confidence: Math.min(1, Math.max(0, confidenceRaw)),
         };
       }
+    } catch {
+      // جرّب المحاولة التالية
+    }
+  }
+
+  return null;
+}
+
+/**
+ * تحليل دفاعي لرد composeGovernanceWebAdvisory — نفس منهجية parseVerdictJson
+ * (محاولتان: JSON.parse مباشر، ثم استخراج أول substring على شكل {...}).
+ * advice=null صراحةً (سواء من النموذج أو لغياب/فساد الحقل) يُعامَل كنتيجة
+ * صالحة — لا فشل تحليل — لأن composeGovernanceWebAdvisory نفسها تُعامله
+ * كـ"لا توصية" (fail-closed) لا كخطأ. فقط تعذُّر تحليل JSON بالكامل، أو
+ * advice بقيمة غير معروفة (لا 'موصى به' ولا 'غير موصى به' ولا null)، يُرجع
+ * null من هذه الدالة (فشل تحليل حقيقى).
+ */
+function parseGovernanceWebAdvisoryJson(
+  text: string,
+): { advice: 'موصى به' | 'غير موصى به' | null; reasoning: string; confidence: number } | null {
+  const attempts = [text];
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    attempts.push(match[0]);
+  }
+
+  for (const attempt of attempts) {
+    try {
+      const parsed = JSON.parse(attempt) as {
+        advice?: unknown;
+        reasoning?: unknown;
+        confidence?: unknown;
+      };
+      const advice =
+        parsed.advice === 'موصى به' || parsed.advice === 'غير موصى به' ? parsed.advice : null;
+      if (advice === null && parsed.advice !== null && parsed.advice !== undefined) {
+        // قيمة غير معروفة صراحةً (لا null حقيقى ولا واحدة من القيمتين
+        // الصالحتين) — هذه هلوسة صيغة، لا "لا توصية" مقصودة، فتُعامَل كفشل
+        // تحليل حقيقى تُجرَّب بعده المحاولة التالية (substring) إن وُجدت.
+        continue;
+      }
+      const confidenceRaw = typeof parsed.confidence === 'number' ? parsed.confidence : 0;
+      return {
+        advice,
+        reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : '',
+        confidence: Math.min(1, Math.max(0, confidenceRaw)),
+      };
     } catch {
       // جرّب المحاولة التالية
     }
