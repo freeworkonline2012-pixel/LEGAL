@@ -175,6 +175,37 @@ export class WebSearchFallbackService {
     }
   }
 
+  /**
+   * نسخة "خام" من tryWebFallback — تُعيد المصادر المُصفَّاة (allowlist) فقط
+   * دون توليد أى إجابة نصية حرة، لمستهلكين يحتاجون بناء استدعاء توليد مخصَّص
+   * بإخراج بنيوى خاص بهم (مثال: GovernanceService.attemptWebAdvisory تحتاج
+   * JSON منظَّماً {advice, reasoning, confidence} عبر composeGovernanceWebAdvisory
+   * فى deepseek-generation.service.ts، لا نصاً حراً كـtryWebFallback). نفس
+   * ضوابط fail-closed/allowlist/معطَّلة افتراضياً بالضبط (تُعيد استخدام
+   * search()/isAllowedUrl() الخاصّتين نفسهما، لا تكرار منطق) — إضافة صرفة، لا
+   * تعديل على tryWebFallback أو أى مسار يستخدمه questions.service.ts حالياً.
+   */
+  async searchAllowlisted(question: string): Promise<WebFallbackSource[] | null> {
+    if (!this.isConfigured) {
+      return null;
+    }
+
+    try {
+      const results = await this.search(question);
+      const filtered = results.filter((r) => this.isAllowedUrl(r.url)).slice(0, this.maxResults);
+
+      if (filtered.length === 0) {
+        this.logger.log(`web fallback (raw): no allowlisted results for question (len=${question.length})`);
+        return null;
+      }
+
+      return filtered;
+    } catch (err) {
+      this.logger.warn(`web fallback (raw) failed safely (fail-closed): ${(err as Error)?.message}`);
+      return null;
+    }
+  }
+
   private isAllowedUrl(url: string): boolean {
     try {
       const host = new URL(url).hostname.replace(/^www\./, '');
