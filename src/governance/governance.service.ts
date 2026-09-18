@@ -760,9 +760,27 @@ export class GovernanceService {
         legalBasis.map((b) => ({ lawNo: b.law_no, lawYear: b.law_year })),
       );
       if (penaltyCandidates.length === 0) {
-        this.logger.log(`governance penalty-citation: qHash=${qHash} — لا مرشحو عقوبة مسترجَعون`);
+        this.logger.log(`governance penalty-citation: qHash=${qHash} — لا نصوص عقوبة مسترجَعة`);
         return NONE;
       }
+
+      // ⚠️ تسجيل تشخيصى (2026-09-18 — إصلاح ثالث فى نفس اليوم): لا رؤية
+      // سابقة على قائمة مرشحى العقوبة الفعلية ولا على رد النموذج الخام هنا
+      // (بخلاف خط أنابيب الحكم الأساسى الذى يسجّل [DIAG-RERANK-FULL] و
+      // "governance select" بالتفصيل) — هذا بالضبط ما منع تشخيص اختبار حى
+      // سابق أرجع applicable_penalties=null رغم توفّر مادة مطابقة تقريباً
+      // حرفياً (15/0 لقانون 80/2002). هذا السطر وحده يسجّل ترتيب المرشحين
+      // كاملاً كما وصل النموذج فعلاً — لا تأثير على السلوك أو الاستجابة.
+      this.logger.log(
+        `[DIAG-PENALTY-CANDIDATES] qHash=${qHash} مرشحون(${penaltyCandidates.length})=` +
+          penaltyCandidates
+            .map(
+              (c, i) =>
+                `#${i + 1}:${c.lawNo}/${c.lawYear}م${c.articleNo}` +
+                (c.articleSuffixOrder !== 0 ? `.${c.articleSuffixOrder}` : ''),
+            )
+            .join(', '),
+      );
 
       const selection = await this.generationService.selectApplicablePenalties({
         violation: riskNote,
@@ -778,9 +796,19 @@ export class GovernanceService {
           lawNo: c.lawNo,
           lawYear: c.lawYear,
           articleNo: c.articleNo,
+          // ⚠️ إصلاح جذرى 2026-09-18 (إصلاح ثالث): كان هذا الحقل مُسقَطاً هنا
+          // رغم توفّره فى fetchPenaltyCandidates — راجع تعليق articleSuffixOrder
+          // فى تعريف نوع selectApplicablePenalties لتشخيص الأثر الفعلى المرصود حياً.
+          articleSuffixOrder: c.articleSuffixOrder,
           articleText: c.snippet,
         })),
       });
+
+      // ⚠️ نفس التسجيل التشخيصى أعلاه — الرد الخام الكامل من النموذج (status
+      // + selectedIndices + note) بلا تصفية، مهما كانت النتيجة، مطابقاً تماماً
+      // لأسلوب "governance select" فى خط أنابيب الحكم الأساسى (راجع أعلاه فى
+      // نفس الملف). يلزم لتشخيص لماذا لم يختر النموذج مرشحاً رغم توفره.
+      this.logger.log(`governance penalty-select: qHash=${qHash} → ${JSON.stringify(selection)}`);
 
       if (selection.status !== 'ok' || selection.selectedIndices.length === 0) {
         this.logger.log(

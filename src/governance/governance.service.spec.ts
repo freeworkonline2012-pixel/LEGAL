@@ -398,6 +398,38 @@ describe('GovernanceService.attemptPenaltyCitation (طبقة استشهاد ال
   });
 
   /**
+   * إصلاح جذرى 2026-09-18 (إصلاح ثالث فى نفس اليوم — اكتشاف حى مباشر بعد
+   * نشر الإصلاح الثانى): تحقُّق من أن article_suffix_order يصل فعلياً إلى
+   * selectApplicablePenalties لكل مرشح، لا يُسقَط فى الطريق كما كان يحدث
+   * سابقاً. السيناريو الحى الفعلى الذى كشف هذا: مادة 15 من قانون 80/2002
+   * لها فقرتان منفصلتان تماماً (15/0 تغطى المواد 8،9،11 — الصحيحة لهذه
+   * المخالفة؛ 15/1 تخص مادة أخرى لا صلة لها) كانتا تظهران للنموذج بعنوان
+   * متطابق حرفياً "المادة 15" فلا يميّز بينهما سوى نصهما الكامل — ما
+   * ترجَّح أنه أسهم فى تردد النموذج وعدم اختيار أى منهما. هذا الاختبار لا
+   * يغطى سلوك النموذج نفسه (مُغطى بمسار النجاح أعلاه) بل تحديداً **شرط عدم
+   * إسقاط بيانات التمييز بين الفقرات فى طريقها للنموذج**.
+   */
+  it('article_suffix_order يصل selectApplicablePenalties لكل مرشح بلا إسقاط (يمنع تكرار خلل تمييز الفقرات)', async () => {
+    const rows = [
+      { article_no: 15, article_suffix_order: 0, short_title: 'قانون 80/2002', title: 'قانون مكافحة غسل الأموال', law_no: 80, law_year: 2002, official_url: null, body: 'يُعاقب... كل من يخالف أيًا من أحكام المواد أرقام (8، 9، 11)' },
+      { article_no: 15, article_suffix_order: 1, short_title: 'قانون 80/2002', title: 'قانون مكافحة غسل الأموال', law_no: 80, law_year: 2002, official_url: null, body: 'يعاقب... كل من خالف أحكام المادة 9 مكرراً1' },
+    ];
+    const query = jest.fn().mockResolvedValue(rows);
+    const selectApplicablePenalties = jest
+      .fn()
+      .mockResolvedValue({ status: 'ok', selectedIndices: [0], note: 'عقوبة الحبس والغرامة' });
+    await attempt({ query, selectApplicablePenalties });
+    expect(selectApplicablePenalties).toHaveBeenCalledWith(
+      expect.objectContaining({
+        penaltyCandidates: [
+          expect.objectContaining({ articleNo: 15, articleSuffixOrder: 0 }),
+          expect.objectContaining({ articleNo: 15, articleSuffixOrder: 1 }),
+        ],
+      }),
+    );
+  });
+
+  /**
    * إصلاح جذرى 2026-09-18 (اكتشاف حى ثانٍ بعد النشر — راجع تقرير الإصلاح
    * الثانى بنفس التاريخ): الاستعلام الأصلى فى fetchPenaltyCandidates كان
    * LIMIT 12 بلا ORDER BY — تحقُّق مباشر من ملفات الهجرة أثبت أن قانونين
