@@ -396,4 +396,28 @@ describe('GovernanceService.attemptPenaltyCitation (طبقة استشهاد ال
       expect.objectContaining({ violation: 'يخالف الإخطار الفورى' }),
     );
   });
+
+  /**
+   * إصلاح جذرى 2026-09-18 (اكتشاف حى ثانٍ بعد النشر — راجع تقرير الإصلاح
+   * الثانى بنفس التاريخ): الاستعلام الأصلى فى fetchPenaltyCandidates كان
+   * LIMIT 12 بلا ORDER BY — تحقُّق مباشر من ملفات الهجرة أثبت أن قانونين
+   * فقط (80/2002 + 161/2024) يحويان معاً 14 مادة عقوبة مطابقة، أكثر من
+   * الحد القديم، فسقطت المادة الصحيحة (15/0) بصمت من الاسترجاع قبل وصول
+   * الحكم أصلاً لخطوة التحقق الدلالى. هذا الاختبار لا يغطى منطق التحقق
+   * الدلالى نفسه (مُغطى أعلاه) بل تحديداً **شرط عدم سقوط مرشحين صمتاً من
+   * طبقة الاسترجاع** — يتحقق من نص SQL الفعلى المُرسَل لقاعدة البيانات.
+   */
+  it('SQL استرجاع مرشحى العقوبة يحمل ORDER BY حتمياً وحداً سخياً (لا LIMIT 12 القديم بلا ترتيب)', async () => {
+    const query = jest.fn().mockResolvedValue([]);
+    await attempt({ query, selectApplicablePenalties: jest.fn() });
+    expect(query).toHaveBeenCalledTimes(1);
+    const [sql] = query.mock.calls[0] as [string, unknown[]];
+    // ✅ ORDER BY حتمى موجود — يمنع اعتماد ترتيب Postgres الداخلى غير
+    // المضمون عند وجود أكثر من صف واحد يطابق نفس الحد.
+    expect(sql).toMatch(/ORDER BY/i);
+    // ✅ الحد رُفع فعلياً من 12 القديم (المثبَت أنه غير كافٍ فى الإنتاج) —
+    // نتحقق تحديداً أنه لم يعد 12، لا مجرد وجود أى LIMIT.
+    expect(sql).not.toMatch(/LIMIT\s+12\b/i);
+    expect(sql).toMatch(/LIMIT\s+60\b/i);
+  });
 });
