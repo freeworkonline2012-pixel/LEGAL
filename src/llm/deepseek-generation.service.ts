@@ -307,21 +307,28 @@ export class DeepseekGenerationService {
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
       };
+      // راجع تعليق finishReason فى assessCompliance أعلاه للسياق الكامل.
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) {
         const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
         this.logger.warn(
           `DeepSeek selectBestCandidate: content فارغ رغم thinking:disabled — reasoning_content ` +
-            `length=${reasoningLen}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
         return { status: 'error', detail: 'empty_response' };
       }
 
       const parsed = parseSelectionJson(text, input.candidates.length);
       if (!parsed) {
-        this.logger.warn(`DeepSeek selectBestCandidate: could not parse JSON from response: ${text}`);
+        this.logger.warn(
+          `DeepSeek selectBestCandidate: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
         return { status: 'error', detail: 'unparseable_json' };
       }
       // "selected" مبني على 1..N من DeepSeek؛ 0 يعني لا أحد. نحوّله هنا
@@ -571,7 +578,28 @@ export class DeepseekGenerationService {
           // (طبقة النصيحة) — هامش أمان إضافى يحتمل حالة "متوافق جزئياً" مع
           // عدة شروط تصحيحية مفصَّلة، بنفس منطق الرفع السابق تماماً (تفادى
           // `unparseable_json` عند حالات الإخراج الأطول لا انتظار عطل فعلى).
-          max_tokens: 1000,
+          // ⚠️ 2026-09-19: رُفع من 1000 لـ2500 بعد دليل قاطع من إنتاج حى، لا
+          // تخمين — عيّنة تشخيصية من 13 بند متنوع (استبعدت gov-182 المُشخَّص
+          // سابقاً على حدة) أظهرت معدل فشل unparseable_json ≈18% من العيّنات
+          // (7 من 39)، وسجلّات Railway الخام لكل حالة فشل أثبتت السبب بدقة:
+          // الرد كان دائماً JSON صالح تركيبياً لكن يحتوى حقل "risk_note" فقط
+          // (بلا "selected"/"verdict"/"conditions"/"confidence") — أى أن
+          // النموذج استهلك كامل حد 1000 توكِن فى كتابة risk_note وحده (بعض
+          // العينات الحقيقية تجاوزت 1200-1400 حرفاً عربياً) ولم يتبقَّ له
+          // مساحة لبقية الحقول قبل أن يُغلِق response_format:json_object
+          // الكائن قسراً. **لم يُعدَّل ترتيب الحقول لحل هذا** — الترتيب
+          // (risk_note وselected أولاً، verdict أخيراً) قرار متعمَّد موثَّق فى
+          // الـsystem prompt أدناه لمنع تناقض verdict مع risk_note، وقلبه كان
+          // سيُصلح فجوة الترميز على حساب إعادة فجوة الاتساق المنطقى التى حُلَّت
+          // من أجلها هذه الصياغة أصلاً — حل جذرى واحد لا يستبدل عطلاً بعطل.
+          // الرفع لـ2500 لا يكلّف شيئاً إضافياً على الاستدعاءات التى كانت
+          // تنجح أصلاً (DeepSeek تُحاسِب على التوكنز المُولَّدة فعلياً لا الحد
+          // الأقصى المسموح)، ويمنح هامش أمان حقيقى (~×2.5 أطول ملاحظ) لباقى
+          // الحالات. راجع finishReason المُضاف أدناه لأى تكرار مستقبلى —
+          // يحسم فوراً هل السبب توكِنز غير كافية (finish_reason="length") أم
+          // مشكلة صياغة حقيقية مختلفة، بدل أرشفة يدوية فى السجلّات كما استغرق
+          // هذا التشخيص.
+          max_tokens: 2500,
           temperature: 0,
           thinking: { type: 'disabled' },
           // ⚠️ 2026-09-13: إصلاح جذرى لفئة كاملة من الأعطال (وليس ترقيعاً) —
@@ -597,21 +625,32 @@ export class DeepseekGenerationService {
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
       };
+      // ⚠️ 2026-09-19: finish_reason مُلتقَط الآن صراحة (كان مفقوداً تماماً
+      // من النوع والسجلّات قبل ذلك) — يحسم فوراً هل أى unparseable_json
+      // مستقبلى سببه نفاد التوكنز (finish_reason="length"، راجع تعليق
+      // max_tokens أعلاه) أم عطل صياغة حقيقى مختلف (finish_reason="stop"
+      // مع JSON فعلاً غير صالح)، بدل أرشفة يدوية للسجلّات الخام فى كل مرة.
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) {
         const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
         this.logger.warn(
           `DeepSeek assessCompliance: content فارغ رغم thinking:disabled — reasoning_content ` +
-            `length=${reasoningLen}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
         return { status: 'error', detail: 'empty_response' };
       }
 
       const parsed = parseVerdictJson(text, input.candidates.length);
       if (!parsed) {
-        this.logger.warn(`DeepSeek assessCompliance: could not parse JSON from response: ${text}`);
+        this.logger.warn(
+          `DeepSeek assessCompliance: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
         return { status: 'error', detail: 'unparseable_json' };
       }
 
@@ -886,8 +925,10 @@ export class DeepseekGenerationService {
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
       };
+      // راجع تعليق finishReason فى assessCompliance أعلاه للسياق الكامل.
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) {
         return { status: 'error', detail: 'empty_response' };
@@ -895,7 +936,9 @@ export class DeepseekGenerationService {
 
       const parsed = parsePenaltySelectionJson(text, input.penaltyCandidates.length);
       if (!parsed) {
-        this.logger.warn(`DeepSeek penalty-citation: could not parse JSON from response: ${text}`);
+        this.logger.warn(
+          `DeepSeek penalty-citation: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
         return { status: 'error', detail: 'unparseable_json' };
       }
 
@@ -1014,20 +1057,27 @@ export class DeepseekGenerationService {
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
       };
+      // راجع تعليق finishReason فى assessCompliance أعلاه للسياق الكامل.
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) {
         const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
         this.logger.warn(
-          `DeepSeek assessClause: content فارغ رغم thinking:disabled — reasoning_content length=${reasoningLen}`,
+          `DeepSeek assessClause: content فارغ رغم thinking:disabled — reasoning_content length=${reasoningLen}, finish_reason=${finishReason}`,
         );
         return { status: 'error', detail: 'empty_response' };
       }
 
       const parsed = parseClauseJson(text, input.candidates.length);
       if (!parsed) {
-        this.logger.warn(`DeepSeek assessClause: could not parse JSON from response: ${text}`);
+        this.logger.warn(
+          `DeepSeek assessClause: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
         return { status: 'error', detail: 'unparseable_json' };
       }
 
