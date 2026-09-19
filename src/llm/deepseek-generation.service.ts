@@ -557,6 +557,19 @@ export class DeepseekGenerationService {
       'افحص أولاً هل كل مرشح من نفس الجهة/القطاع الرقابى الذى يقصده الإجراء، ثم ' +
       'أصدر الحكم. رد بـJSON فقط كما هو محدد.';
 
+    // ⚠️ 2026-09-19: إعادة المحاولة الجذرية الفعلية لعطل unparseable_json/
+    // empty_response — راجع تصحيح 2026-09-19 أعلى تعليق max_tokens للدليل
+    // الكامل الذى أوصل لهذا القرار (فرضية نفاد التوكنز ثبت خطؤها تجريبياً،
+    // والسبب الحقيقى عدم-حتمية مؤكَّدة فى خدمة DeepSeek رغم temperature:0).
+    // مقصودة كحلقة محدودة (2 محاولتان كحد أقصى) لا غير محدودة: تكفى لاستغلال
+    // عدم-الحتمية المؤكَّدة (نفس المدخل الحرفى قد ينجح فى محاولة تالية) دون
+    // إبطاء الإنتاج أو مضاعفة تكلفة تصويت الأغلبية الثلاثى بلا داعٍ. فقط
+    // فشل unparseable_json وempty_response يُعاد محاولته — هذان تحديداً هما
+    // ما أثبتته عيّنتا التشخيص أنهما عدم-حتمية طبيعية فى خرج النموذج، لا خطأ
+    // شبكة (catch أدناه) ولا خطأ HTTP من الخادم (لم يُشخَّص كمتكرر، فيُعاد
+    // فوراً كسابقاً بلا إعادة محاولة تجنباً لأى افتراض غير مؤكَّد).
+    const maxAttempts = 2;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const res = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
@@ -599,6 +612,27 @@ export class DeepseekGenerationService {
           // يحسم فوراً هل السبب توكِنز غير كافية (finish_reason="length") أم
           // مشكلة صياغة حقيقية مختلفة، بدل أرشفة يدوية فى السجلّات كما استغرق
           // هذا التشخيص.
+          //
+          // ⚠️ 2026-09-19 (تصحيح لاحق، نفس اليوم — قاعدة الشفافية الكاملة):
+          // الفرضية أعلاه (نفاد التوكنز) ثبت أنها خاطئة، بدليل مباشر لا تخمين:
+          // بعد نشر الرفع لـ2500 وإعادة قياس نفس العيّنة التشخيصية الـ13
+          // حرفياً، معدل الفشل لم ينخفض بل ازداد (25.6% بدل 18%، وبندان
+          // انتقلا من فشل جزئى لفشل كامل 0/3). حقل finish_reason المُضاف
+          // حديثاً (راجعه أدناه) أثبت أن كل حالة فشل فى هذه الإعادة كانت
+          // finish_reason="stop" لا "length" — أى أن النموذج أنهى التوليد
+          // طوعاً بعد كتابة risk_note فقط (600-1400 حرفاً، أقل بكثير من حد
+          // 2500)، لم ينفد توكِنزه إطلاقاً. السبب الحقيقى إذاً: عدم-حتمية
+          // فعلية فى خدمة DeepSeek رغم temperature:0 — مؤكَّد تجريبياً بنفس
+          // المدخل الحرفى (qHash=c6e7d742) الذى أعطى 1/3 عيّنات صالحة فى
+          // تشغيلة وصفر/3 فى تشغيلة لاحقة لنفس السؤال بالضبط، وهى ظاهرة
+          // معروفة فى خدمات LLM الإنتاجية (تأثيرات الدفعات/batching على
+          // مستوى الخادم) لا عطل حتمى فى هذا الطلب أو هذا الـprompt بعينه.
+          // حد 2500 أُبقِى كما هو (غير ضار، وقد يفيد فعلاً حالات إخراج أطول
+          // حقيقية) لكنه لم يَعُد يُعتبَر الإصلاح الجذرى لهذه المشكلة تحديداً
+          // — الإصلاح الفعلى (راجع maxAttempts وحلقة إعادة المحاولة أسفل
+          // هذا الاستدعاء) هو إعادة محاولة محدودة عند unparseable_json أو
+          // empty_response تحديداً، لأن عدم-الحتمية المؤكَّدة تعنى أن نفس
+          // الاستدعاء بالضبط قد ينجح فعلاً فى محاولة ثانية.
           max_tokens: 2500,
           temperature: 0,
           thinking: { type: 'disabled' },
@@ -641,16 +675,24 @@ export class DeepseekGenerationService {
         const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
         this.logger.warn(
           `DeepSeek assessCompliance: content فارغ رغم thinking:disabled — reasoning_content ` +
-            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+            `length=${reasoningLen}, finish_reason=${finishReason}, محاولة ${attempt}/${maxAttempts}, ` +
+            `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
+        if (attempt < maxAttempts) {
+          continue;
+        }
         return { status: 'error', detail: 'empty_response' };
       }
 
       const parsed = parseVerdictJson(text, input.candidates.length);
       if (!parsed) {
         this.logger.warn(
-          `DeepSeek assessCompliance: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+          `DeepSeek assessCompliance: could not parse JSON from response (finish_reason=${finishReason}, ` +
+            `محاولة ${attempt}/${maxAttempts}): ${text}`,
         );
+        if (attempt < maxAttempts) {
+          continue;
+        }
         return { status: 'error', detail: 'unparseable_json' };
       }
 
@@ -666,6 +708,11 @@ export class DeepseekGenerationService {
       this.logger.warn(`DeepSeek assessCompliance call failed: ${(err as Error).message}`);
       return { status: 'error', detail: (err as Error).message };
     }
+    }
+    // غير قابل للوصول عملياً — كل مسار داخل الحلقة أعلاه إما يُرجِع مباشرة أو
+    // يُكمل (continue) حتى المحاولة الأخيرة التى تُرجِع دائماً. موجود فقط
+    // لإرضاء TypeScript، الذى لا يستطيع إثبات استحالة الوصول هنا تلقائياً.
+    return { status: 'error', detail: 'unparseable_json' };
   }
 
   /**
