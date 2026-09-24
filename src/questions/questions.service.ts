@@ -28,7 +28,9 @@ import {
   confidenceFromRank,
   detectArticleReference,
   detectCrossReferencedArticles,
+  END_OF_RELATIONSHIP_BUNDLE_ARTICLES,
   isConfident,
+  isEndOfRelationshipTopic,
   toCitationStatus,
 } from './retrieval';
 import type { ArticleReference } from './retrieval';
@@ -501,7 +503,8 @@ export class QuestionsService {
       // تُطبَّق بعد أي مسار استرجاع نجح (تفصيل بالاسم/direct، rerank+تحقق، أو
       // legacy)، بدل تكرار المنطق فى كل مسار على حدة.
       const expanded = await this.expandWithCrossReferences(base.citations);
-      return { citations: expanded, confidence: base.confidence };
+      const withBundle = await this.expandWithEndOfRelationshipBundle(questionText, expanded);
+      return { citations: withBundle, confidence: base.confidence };
     }
 
     // سؤال مُركَّب فعلياً (>1 سؤال فرعي مُكتشَف): كل سؤال فرعي يمر بكامل
@@ -518,7 +521,8 @@ export class QuestionsService {
       return { citations: [], confidence };
     }
     const expanded = await this.expandWithCrossReferences(merged);
-    return { citations: expanded, confidence };
+    const withBundle = await this.expandWithEndOfRelationshipBundle(questionText, expanded);
+    return { citations: withBundle, confidence };
   }
 
   /** راجع التوثيق الكامل (التشخيص والتصميم وسياسة fail-open) فى تعليق
@@ -1239,6 +1243,105 @@ export class QuestionsService {
     }
 
     return result;
+  }
+
+  // ===== توسيع بحزمة "نهاية علاقة العمل" (2026-09-24) =====
+
+  /**
+   * إصلاح جذري ثالث (2026-09-24 — راجع تعليقَى isEndOfRelationshipTopic
+   * وEND_OF_RELATIONSHIP_BUNDLE_ARTICLES الكاملين فى retrieval.ts للتشخيص
+   * والتصميم الكامل): يُستدعى من retrieve() فى نفس نقطة الاختناق المركزية
+   * بعد expandWithCrossReferences مباشرة (بعد أى مسار استرجاع ناجح). لو كشف
+   * isEndOfRelationshipTopic أن نص السؤال يتعلق بنهاية علاقة العمل (عدم
+   * تجديد، فصل، استقالة)، يجلب حزمة مواد قانون العمل 14/2025 ذات الصلة
+   * (END_OF_RELATIONSHIP_BUNDLE_ARTICLES) بنفس آلية resolveArticleCitation
+   * الحتمية المُستخدَمة أصلاً فى directLookup وexpandWithCrossReferences —
+   * لا تخمين ولا توليد نص، فقط جلب فعلى من قاعدة البيانات.
+   *
+   * ⚠️ الفارق الجوهرى عن expandWithCrossReferences: تلك تُدرِج بلا شرط لأن
+   * المُشرِّع نفسه أحال صراحة داخل نص المادة. هنا العلاقة موضوعية لا نصية —
+   * قد لا يحتاج سؤال محدد فعلياً كل مواد الحزمة (مثال: سؤال بسيط عن مدة
+   * الإخطار لا يحتاج بالضرورة ذكر رسوم التقاضى أو مكتب المساعدة القانونية).
+   * لذلك تمر المواد المُرشَّحة هنا عبر نفس بوابة الحكم القانونى المُثبَتة فعلاً
+   * (selectRelevantCandidates — الآلية المُستخدَمة أصلاً فى retrieveWithRerank
+   * Verification لفرز مرشحى FTS/الدلالي) بدل إدراجها قسراً؛ نداء DeepSeek
+   * إضافى واحد فقط، ويُستدعى فقط حين يُفعَّل الكاشف (لا على كل سؤال).
+   *
+   * fail-open كامل: أى عطل (استعلام DB، نداء DeepSeek، تحليل استجابة) يُرجع
+   * الاستشهادات الأصلية دون تعديل — هذا توسيع إثرائى اختيارى، لا يجوز أن
+   * يُسقط أو يُبطئ مساراً كان يعمل بنجاح من قبل.
+   *
+   * ⚠️ غير مُقاس حياً بعد ضد Golden Test Set الأسئلة (137 سؤالاً) وقت الشحن —
+   * راجع تعليق retrieval.ts للتفاصيل الكاملة. المخاطرة أقل من توسيع
+   * topCandidates/rerank الخام لأنها تمر عبر بوابة حكم قانوني مُختبَرة أصلاً،
+   * لكن هذا لا يُغنى عن القياس الحى قبل اعتمادها نهائياً — لا ادعاء نجاح هنا.
+   */
+  private async expandWithEndOfRelationshipBundle(
+    questionText: string,
+    citations: RetrievedCitation[],
+  ): Promise<RetrievedCitation[]> {
+    if (citations.length >= QuestionsService.MAX_TOTAL_CITATIONS) {
+      return citations;
+    }
+    if (!isEndOfRelationshipTopic(questionText)) {
+      return citations;
+    }
+
+    try {
+      const seenArticleNos = new Set(
+        citations.map((c) => `${c.lawId}-${c.articleNo}`),
+      );
+
+      const law = await this.lawRepository.findOne({ where: { lawNo: 14, lawYear: 2025 } });
+      if (!law) {
+        return citations;
+      }
+
+      const missing = END_OF_RELATIONSHIP_BUNDLE_ARTICLES.filter(
+        (articleNo) => !seenArticleNos.has(`${law.id}-${articleNo}`),
+      );
+      if (missing.length === 0) {
+        return citations;
+      }
+
+      const candidates: RetrievedCitation[] = [];
+      for (const articleNo of missing) {
+        const resolved = await this.resolveArticleCitation(law, articleNo);
+        if (resolved) {
+          candidates.push(resolved);
+        }
+      }
+      if (candidates.length === 0) {
+        return citations;
+      }
+
+      const selection = await this.generationService.selectRelevantCandidates({
+        question: questionText,
+        candidates: candidates.map((c) => ({
+          lawTitle: c.law,
+          lawNo: c.lawNo,
+          articleNo: c.articleNo,
+          articleText: c.snippet,
+        })),
+      });
+
+      if (selection.status !== 'ok' || selection.selectedIndices.length === 0) {
+        return citations;
+      }
+
+      const room = QuestionsService.MAX_TOTAL_CITATIONS - citations.length;
+      const chosen = selection.selectedIndices
+        .map((idx) => candidates[idx])
+        .filter((c): c is RetrievedCitation => c !== undefined)
+        .slice(0, room);
+
+      return [...citations, ...chosen];
+    } catch (err) {
+      this.logger.warn(
+        `expandWithEndOfRelationshipBundle فشل — fail-open بلا تعديل: ${(err as Error).message}`,
+      );
+      return citations;
+    }
   }
 
   /**

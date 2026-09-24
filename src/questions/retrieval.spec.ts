@@ -1,11 +1,13 @@
 import {
   REFUSAL_THRESHOLD,
   MAX_CROSS_REFERENCE_ARTICLES,
+  END_OF_RELATIONSHIP_BUNDLE_ARTICLES,
   buildFtsQuery,
   confidenceFromRank,
   detectArticleReference,
   detectCrossReferencedArticles,
   isConfident,
+  isEndOfRelationshipTopic,
   toCitationStatus,
 } from './retrieval';
 
@@ -214,6 +216,53 @@ describe('detectCrossReferencedArticles', () => {
   it(`يحدّ عدد الإحالات المُستخرَجة بـ${MAX_CROSS_REFERENCE_ARTICLES} كحد أقصى`, () => {
     const body = 'طبقاً للمواد (1، 2، 3، 4، 5، 6، 7، 8، 9، 10)';
     expect(detectCrossReferencedArticles(body)).toHaveLength(MAX_CROSS_REFERENCE_ARTICLES);
+  });
+});
+
+describe('isEndOfRelationshipTopic', () => {
+  it.each([
+    'ما حقوق الموظف عند عدم تجديد العقد المؤقت؟',
+    'هل يجوز فصل العامل بدون سبب؟',
+    'هل يجوز فصل موظف بسبب النشاط النقابي؟',
+    'صاحب العمل فصلني بدون إنذار، ماذا أفعل؟',
+    'تم فصلي من العمل تعسفياً',
+    'قدمت استقالتي، متى تنتهي علاقتي بالعمل؟',
+    'ما هي مدة الإخطار قبل إنهاء عقد العمل؟',
+    'ترك العمل بدون إخطار صاحب العمل',
+    'ما هي حقوقي عند انتهاء خدمتي بالشركة؟',
+  ])('يكتشف أن السؤال "%s" يتعلق بنهاية علاقة العمل', (text) => {
+    expect(isEndOfRelationshipTopic(text)).toBe(true);
+  });
+
+  it.each([
+    'ما هي ساعات العمل الإضافية المسموح بها؟',
+    'هل يحق لي الحصول على ترقية بعد سنتين؟',
+    'كم قيمة بدل الأجازة السنوية إذا لم أستنفدها؟',
+    'ما هو الحد الأدنى للأجور؟',
+    'هل العامل ملزم بتوقيع عقد عمل مكتوب؟',
+    'ما شروط عقد التلمذة الصناعية؟',
+  ])('لا يُفعَّل زائفاً على سؤال عمالي غير متعلق بنهاية العلاقة: "%s"', (text) => {
+    expect(isEndOfRelationshipTopic(text)).toBe(false);
+  });
+
+  it(
+    'لا يُفعَّل زائفاً على كلمة تحتوي جذر "فصل" كجزء من كلمة أخرى غير متعلقة ' +
+      '(حالة حقيقية فحصتها: "المكافأة الفصلية" تحتوي حرفياً على السلسلة "فصلي")',
+    () => {
+      expect(isEndOfRelationshipTopic('ما قيمة المكافأة الفصلية المستحقة للموظف؟')).toBe(false);
+    },
+  );
+});
+
+describe('END_OF_RELATIONSHIP_BUNDLE_ARTICLES', () => {
+  it('يحتوي فقط على أرقام مواد صحيحة موجبة، بلا تكرار', () => {
+    const seen = new Set<number>();
+    for (const n of END_OF_RELATIONSHIP_BUNDLE_ARTICLES) {
+      expect(Number.isInteger(n)).toBe(true);
+      expect(n).toBeGreaterThan(0);
+      expect(seen.has(n)).toBe(false);
+      seen.add(n);
+    }
   });
 });
 
