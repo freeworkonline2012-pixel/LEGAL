@@ -9,6 +9,69 @@ export interface GroundedGenerationInput {
   articleText: string;
 }
 
+/** مادة واحدة ضمن مجموعة المواد المرفقة لـ composeGroundedAnswerMulti. */
+export interface GroundedGenerationArticleInput {
+  lawTitle: string;
+  lawNo: number;
+  lawYear: number;
+  articleNo: number;
+  articleText: string;
+}
+
+export interface GroundedGenerationMultiInput {
+  question: string;
+  articles: GroundedGenerationArticleInput[];
+}
+
+/**
+ * ⚠️ إصلاح جذرى 2026-09-24 (دفعة ثالثة — بعد إصلاحى توسيع الإحالات وتفكيك
+ * الأسئلة المُركَّبة): دليل مباشر من مقارنة حية جديدة (مرجع خبراء أعمق وأدق
+ * من المرجع الأصلى الذى استُخدِم للإغلاق السابق، راجع محادثة المراجعة
+ * 2026-09-24) كشف عيباً من نوع مختلف تماماً عن نقص الاسترجاع: إجابة حية
+ * على نفس السؤال المرجعى (حقوق موظف عند عدم تجديد عقد مؤقت) قالت بثقة
+ * كاملة إن "عدم تجديد الشركة للعقد المؤقت... يُعد إنهاءً من جانب صاحب
+ * العمل" واستحقاق مكافأة المادة 154 تبعاً لذلك — بينما نص المادة 154 نفسه
+ * لا يُعرِّف "عدم التجديد" كصورة من "الإنهاء" إطلاقاً؛ هذا **استنتاج تفسيرى**
+ * من النموذج، وإجابة الخبراء المرجعية توثِّق أن هذه بالتحديد مسألة خلافية
+ * غير محسومة قضائياً (اتجاهان فقهيان متعارضان، والقانون حديث بلا سابقة
+ * قضائية مستقرة). المشكلة هنا ليست "معلومة من خارج النص" (الانضباط الأساسى
+ * أعلاه يمنع هذا بالفعل ويعمل بنجاح) بل **يقين زائف فى تطبيق النص على
+ * واقعة لا يحسمها النص صراحة** — نوع مختلف من الدقة يحتاج تعليمة منفصلة.
+ *
+ * ⚠️ تصحيح 2026-09-24 (لاحقاً فى نفس اليوم — قاعدة "التحقق قبل القول"):
+ * النسخة الأولى من هذه القاعدة (نثرية، تعرض خيارات صياغة بـ"مثل...") نُشرت
+ * واختُبِرت حياً على نفس السؤال المحفِّز بالضبط — **لم يظهر أثرها**: الإجابة
+ * الجديدة تجنَّبت الجملة القطعية الصريحة القديمة لكنها لم تُصرِّح بالمسألة
+ * التفسيرية كما طُلِب، بل تركت الربط ضمنياً غامضاً. لا أُقِرّ بنجاح النسخة
+ * الأولى. هذه نسخة ثانية أكثر إلزاماً وتحديداً بدل الصياغة المرنة: تفرض
+ * خطوة تحقق ذاتى صريحة قبل الإخراج (بنفس منطق إلزام ترتيب risk_note قبل
+ * verdict فى assessCompliance أدناه — نقل الانضباط من "مبدأ عام" إلى "خطوة
+ * إجرائية محددة") وعبارة تنبيه **ثابتة إلزامية الصياغة الحرفية** بدل خيارات
+ * متعددة (أسهل على النموذج الالتزام بها حرفياً من انتقاء صياغة حرة). لا
+ * ضمان أن هذه النسخة تنجح أيضاً — عدم-حتمية DeepSeek الموثَّقة سابقاً
+ * (راجع تعليق assessCompliance) تعنى أن التحقق الحى وحده يحسم هذا، لا
+ * القراءة الثابتة للكود.
+ */
+const GENERATION_INTERPRETIVE_CERTAINTY_RULE =
+  '⚠️ قاعدة إلزامية منفصلة عن قاعدة "ممنوع إضافة معلومة خارج النص" أعلاه — ' +
+  'هذه عن **يقين العرض** لا عن مصدر المعلومة. خطوة تحقق ذاتى إلزامية قبل ' +
+  'كتابة أى جملة تربط بين مصطلح قانونى (كـ"الإنهاء"، "الإخلال"، "التقصير"، ' +
+  '"المبرر المشروع") وواقعة وردت فى سؤال المستخدم: اسأل نفسك — هل النص ' +
+  'المرفق نفسه يذكر صراحة أن هذه الواقعة بالتحديد (بنفس وصفها أو مرادف ' +
+  'مباشر لا لبس فيه) تندرج تحت هذا المصطلح، أم أن هذا استنتاجك أنت من ' +
+  'تشابه أو منطق عام؟ (مثال محسوم: النص يُقرِّر حكماً لحالة "الإنهاء من ' +
+  'جانب صاحب العمل"، والسؤال يصف "عدم تجديد عقد مؤقت عند انتهاء مدته" — ' +
+  'النص لا يذكر "عدم التجديد" بالاسم إطلاقاً، فربطهما استنتاج منك لا نقل ' +
+  'حرفى، حتى لو بدا الربط منطقياً جداً). إن كانت الإجابة أنه استنتاج منك ' +
+  '(الحالة الغالبة فى الأسئلة عن وقائع لا تستخدم ألفاظ القانون حرفياً)، ' +
+  'يجب أن تُضيف بعد تلك الجملة مباشرة، حرفياً وبدون أى تعديل فى الصياغة: ' +
+  '"(ملاحظة: هذا ربط تفسيرى بين واقعة السؤال ونص القانون، لم يُنص عليه ' +
+  'صراحة، وقد يكون محل خلاف قانونى — يُنصح بمراجعة مختص عند الحاجة لقرار ' +
+  'قاطع)". هذه العبارة **إلزامية بنصها الحرفى بلا اختصار أو إعادة صياغة** ' +
+  'كلما انطبق الشرط أعلاه — لا خيار بين عدة صياغات ممكنة. الاستثناء الوحيد: ' +
+  'لا تُكرِّرها أكثر من مرة واحدة فى الإجابة الواحدة حتى لو تكرر الشرط ' +
+  'لعدة جمل مشابهة — أضِفها بعد أول جملة تستوفيه فقط.';
+
 /**
  * تكامل DeepSeek لصياغة الإجابة النهائية (EP-04 — تفعيل الذكاء الاصطناعي،
  * 2026-08-21؛ استُبدل مزوّد Anthropic Claude بـ DeepSeek بناءً على طلب صريح
@@ -57,7 +120,8 @@ export class DeepseekGenerationService {
       'القانونية المرفقة أدناه، ولا شيء غيره. ممنوع منعاً باتاً إضافة أي معلومة أو ' +
       'تفسير أو رأي قانوني أو مثال غير موجود حرفياً في النص المرفق. إن كان النص لا ' +
       'يجيب على سؤال المستخدم مباشرة، صرّح بذلك بوضوح بدل التخمين أو التعميم. لا ' +
-      'تذكر أنك ذكاء اصطناعي ولا تعتذر — أجب مباشرة وبإيجاز (3 فقرات قصيرة كحد أقصى).';
+      'تذكر أنك ذكاء اصطناعي ولا تعتذر — أجب مباشرة وبإيجاز (3 فقرات قصيرة كحد أقصى).\n\n' +
+      GENERATION_INTERPRETIVE_CERTAINTY_RULE;
 
     const userMsg =
       `سؤال المستخدم: ${input.question}\n\n` +
@@ -108,6 +172,140 @@ export class DeepseekGenerationService {
       return text && text.length > 0 ? text : null;
     } catch (err) {
       this.logger.error(`DeepSeek Chat Completions API call failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * إصلاح جذري (2026-09-24 — راجع تقرير "تشخيص وإصلاح فجوة الشمول فى إجابات
+   * الأسئلة العامة" لنفس التاريخ): composeGroundedAnswer أعلاه (وحيد المادة)
+   * كان يُنتج إجابات ناقصة الشمول بنيوياً لأى سؤال يحتاج فعلياً أكثر من نص
+   * قانونى واحد للإجابة الكاملة — وهذه ليست حالة نادرة، بل الأصل فى الأسئلة
+   * المقارنة أو المركَّبة (مثال حى قيَّمه خبراء الشركة 4.5/10: "ما حقوق الموظف
+   * عند عدم تجديد عقد مؤقت، وهل تختلف لو كان العقد غير محدد المدة؟" — يحتاج
+   * مادة الحكم الأساسى + مواد الإحالة الصريحة داخلها + مواد نظام العقد الآخر
+   * المقارَن به بالكامل). الفارق الجوهرى عن composeGroundedAnswer: هذه الدالة
+   * تستقبل **مجموعة** مواد (من مصدرين مجتمعين فى questions.service.ts — راجع
+   * expandWithCrossReferences وselectRelevantCandidates أدناه) وتُلزَم صراحة
+   * بفحص كل واحدة منها ودمج ما هو ذو صلة فعلياً قبل أن تُقرِّر أن جزءاً من
+   * السؤال غير مُجاب — لا الاكتفاء بأقرب نص لفظياً للسؤال والتوقف عنده، وهو
+   * بالضبط العطل الذى أنتج التقييم المنخفض (composeGroundedAnswer القديم
+   * اكتفى بالمادة 154 وحدها وصرَّح أن "النص لا يتضمن حكماً صريحاً" لسؤال
+   * المقارنة رغم أن مواد أخرى مرفقة معه فعلياً كانت تجيب عليه).
+   *
+   * الانضباط الأساسى نفسه بلا أى تخفيف: ممنوع منعاً باتاً إضافة أى معلومة أو
+   * رقم مادة أو تفسير غير موجود حرفياً فى إحدى المواد المرفقة أدناه — التوسّع
+   * هنا فى **عدد المصادر المسموح الاستناد إليها**، لا فى الإذن بالتخمين. لو
+   * ظل جزء من السؤال بلا إجابة رغم فحص كل المواد المرفقة، يجب التصريح بذلك
+   * بوضوح كما كان تماماً (هذا سلوك سليم يُحفَظ، لا عطل يُصحَّح).
+   */
+  async composeGroundedAnswerMulti(input: GroundedGenerationMultiInput): Promise<string | null> {
+    if (!this.isConfigured) {
+      return null;
+    }
+    if (input.articles.length === 0) {
+      return null;
+    }
+    if (input.articles.length === 1) {
+      // مسار وحيد المادة: نفس نوع المُخرَج تماماً كـcomposeGroundedAnswer —
+      // لا داعٍ لتعليمات "التوليف بين عدة نصوص" حين لا يوجد سوى نص واحد.
+      const only = input.articles[0];
+      return this.composeGroundedAnswer({
+        question: input.question,
+        lawTitle: only.lawTitle,
+        lawNo: only.lawNo,
+        lawYear: only.lawYear,
+        articleNo: only.articleNo,
+        articleText: only.articleText,
+      });
+    }
+
+    const system =
+      'أنت مساعد قانوني يصوغ إجابة عربية واضحة وشاملة بناءً حصراً على النصوص ' +
+      'القانونية المرفقة أدناه (أكثر من نص واحد)، ولا شيء غيرها. ممنوع منعاً ' +
+      'باتاً إضافة أى معلومة أو رقم مادة أو تفسير أو مثال غير موجود حرفياً فى ' +
+      'أحد النصوص المرفقة.\n\n' +
+      'مهمتك تحديداً — وهى سبب إرفاق عدة نصوص معاً بدل نص واحد: افحص **كل** ' +
+      'نص مرفق قبل أن تقرر أن جزءاً من سؤال المستخدم بلا إجابة. الأسئلة ' +
+      'المقارنة أو المركَّبة (مثال: "...وهل يختلف الحكم لو كانت الحالة كذا؟") ' +
+      'غالباً ما تحتاج نصين مختلفين معاً — نصاً للحالة الأولى وآخر للحالة ' +
+      'الثانية — ولا يجوز الاكتفاء بالنص الأقرب لفظياً لصياغة السؤال والتوقف ' +
+      'عنده. اجمع كل ما هو ذو صلة فعلية من كل النصوص المرفقة فى إجابة واحدة ' +
+      'متماسكة، ونظّمها بوضوح إن كان السؤال يطرح أكثر من حالة أو يطلب مقارنة ' +
+      '(يجوز استخدام فقرات قصيرة منفصلة لكل حالة، أو نقاط مرقَّمة موجزة عند ' +
+      'الحاجة — لا تُطِل بلا داعٍ، لكن لا تختصر إجابة سؤال مركَّب بفقرة واحدة ' +
+      'عامة). اذكر رقم المادة والقانون داخل الشرح نفسه بجوار كل معلومة ' +
+      'مستنَدة إليها مباشرة — لا فى نهاية الإجابة فقط.\n\n' +
+      'إن كان أحد النصوص المرفقة إحالة صريحة داخل نص آخر (مثال: نص يقول "مع ' +
+      'عدم الإخلال بما نصت عليه المواد كذا وكذا")، فاعتبر تلك المواد المُحال ' +
+      'إليها جزءاً لا يتجزأ من فهم الحكم الأساسى، لا معلومة هامشية منفصلة.\n\n' +
+      'إن ظل جزء محدد من السؤال بلا إجابة **رغم** فحص كل النصوص المرفقة، ' +
+      'صرّح بذلك بوضوح لهذا الجزء تحديداً بدل التخمين أو التعميم — لكن لا ' +
+      'تُصرِّح بعدم وجود إجابة لجزء تُجيب عنه فعلاً إحدى النصوص المرفقة. لا ' +
+      'تذكر أنك ذكاء اصطناعي ولا تعتذر — أجب مباشرة وبإيجاز يتناسب مع عدد ' +
+      'جوانب السؤال (فقرة واحدة لسؤال بسيط، عدة فقرات قصيرة منظَّمة لسؤال ' +
+      'مركَّب أو مقارن — لا حد أقصى صارم لعدد الفقرات، لكن كل جملة يجب أن ' +
+      'تضيف معلومة فعلية من النصوص المرفقة).\n\n' +
+      GENERATION_INTERPRETIVE_CERTAINTY_RULE;
+
+    const articlesText = input.articles
+      .map(
+        (a, i) =>
+          `النص ${i + 1} — المادة ${a.articleNo} من ${a.lawTitle} (رقم ${a.lawNo} لسنة ${a.lawYear}):\n"""${a.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `سؤال المستخدم: ${input.question}\n\n` +
+      `النصوص القانونية المرجعية (${input.articles.length} نصوص):\n${articlesText}\n\n` +
+      'اشرح للمستخدم بعربية طبيعية إجابة شاملة تجمع كل ما هو ذو صلة من النصوص ' +
+      'أعلاه، مع ذكر رقم المادة والقانون داخل الشرح نفسه.';
+
+    // max_tokens يتناسب طردياً مع عدد المواد المرفقة — إجابة تُوَلِّف بين عدة
+    // نصوص (خاصة سؤال مقارن يغطى نظامين قانونيين مختلفين كما فى مثال عقد
+    // العمل محدد/غير محدد المدة) تحتاج مساحة أكبر بكثير من إجابة مادة واحدة.
+    // السقف الأقصى 2500 مطابق لحد assessCompliance الأعلى فى نفس الملف — سقف
+    // مُختبَر بالفعل فى الإنتاج لسلامته مع DeepSeek (راجع تعليقه).
+    const maxTokens = Math.min(2500, 700 + input.articles.length * 260);
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: maxTokens,
+          thinking: { type: 'disabled' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.error(`DeepSeek composeGroundedAnswerMulti API error ${res.status}: ${errText}`);
+        return null;
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek composeGroundedAnswerMulti: content فارغ (reasoning_content length=${reasoningLen}) — ` +
+            `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+      }
+      return text && text.length > 0 ? text : null;
+    } catch (err) {
+      this.logger.error(`DeepSeek composeGroundedAnswerMulti API call failed: ${(err as Error).message}`);
       return null;
     }
   }
@@ -307,21 +505,28 @@ export class DeepseekGenerationService {
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
       };
+      // راجع تعليق finishReason فى assessCompliance أعلاه للسياق الكامل.
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) {
         const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
         this.logger.warn(
           `DeepSeek selectBestCandidate: content فارغ رغم thinking:disabled — reasoning_content ` +
-            `length=${reasoningLen}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
         return { status: 'error', detail: 'empty_response' };
       }
 
       const parsed = parseSelectionJson(text, input.candidates.length);
       if (!parsed) {
-        this.logger.warn(`DeepSeek selectBestCandidate: could not parse JSON from response: ${text}`);
+        this.logger.warn(
+          `DeepSeek selectBestCandidate: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
         return { status: 'error', detail: 'unparseable_json' };
       }
       // "selected" مبني على 1..N من DeepSeek؛ 0 يعني لا أحد. نحوّله هنا
@@ -330,6 +535,260 @@ export class DeepseekGenerationService {
       return { status: 'ok', selectedIndex, reason: parsed.reason };
     } catch (err) {
       this.logger.warn(`DeepSeek selectBestCandidate call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
+
+  /**
+   * إصلاح جذري (2026-09-24): selectBestCandidate أعلاه مصمَّم عمداً لاختيار
+   * مرشح **واحد فقط** — مناسب تماماً لتمييز الأدق بين عدة مواد متشابهة
+   * ظاهرياً لنفس السؤال (وظيفته الأصلية بعد حادثة g051)، لكنه غير مناسب
+   * إطلاقاً لسؤال يحتاج فعلياً أكثر من مادة **معاً** للإجابة الكاملة (سؤال
+   * مقارن بين نظامين، أو سؤال يستدعى قاعدة + استثناء منصوصاً عليه فى مادة
+   * أخرى) — "اختر واحداً" يفرض على النموذج استبعاد مواد صحيحة وضرورية فعلاً
+   * لمجرد أن التصميم لا يسمح له باختيار أكثر من واحدة. هذه الدالة تُستخدَم
+   * فى questions.service.ts (خط الأسئلة العامة) بدل selectBestCandidate،
+   * وتُرجع **مصفوفة** مرشحين مختارين بدل مرشح واحد — نفس نمط الإخراج
+   * المُثبَت أصلاً فى GovernanceService.assessCompliance (selectedIndices:
+   * number[]) الذى يعمل فى الإنتاج بنجاح منذ 2026-09-04، لا تصميماً جديداً
+   * غير مُجرَّب.
+   *
+   * الانضباط نفسه بلا تخفيف: فحص كل مرشح بحثاً عن شرط ضيق غير وارد فى
+   * السؤال (نفس تعليمة selectBestCandidate بالحرف) — الفارق الوحيد هو
+   * السماح باختيار عدة مرشحين **حين تستدعيهم طبيعة السؤال فعلياً**، لا
+   * إدراج كل شىء بلا تمييز. سقف MAX_SELECTED يمنع تضخم السياق المُرسَل
+   * للتوليد لاحقاً بلا داعٍ.
+   */
+  async selectRelevantCandidates(input: {
+    question: string;
+    candidates: Array<{
+      lawTitle: string;
+      lawNo: number;
+      articleNo: number;
+      articleText: string;
+    }>;
+  }): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | { status: 'ok'; selectedIndices: number[]; reason: string }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+    if (input.candidates.length === 0) {
+      return { status: 'ok', selectedIndices: [], reason: 'لا مرشحين' };
+    }
+
+    const MAX_SELECTED = 6;
+
+    const system =
+      'أنت مدقق قانوني صارم ومتشكك. أمامك سؤال مستخدم وعدة نصوص قانونية ' +
+      'مرشحة، ترتيب عرضها لا يعكس دقتها القانونية إطلاقاً. مهمتك: افحص كل ' +
+      'مرشح على حدة قبل الاختيار: هل يتضمن نصه شرطاً أو استثناءً أو حالة ' +
+      'فرعية ضيقة (مثل: ميراث، وصية، فئة معينة، ظرف استثنائي محدد) غير وارد ' +
+      'إطلاقاً فى نص السؤال؟ إن وُجد هذا الشرط الضيق فى مرشح ولم يذكره ' +
+      'السؤال، فهذا المرشح على الأرجح غلط حتى لو بدا الأقرب لفظياً.\n\n' +
+      '⚠️ الفارق عن مهمة "اختر واحداً فقط" المعتادة: هذا السؤال قد يحتاج ' +
+      'فعلياً **أكثر من نص واحد معاً** للإجابة الكاملة — مثال: سؤال يقارن ' +
+      'بين حالتين مختلفتين (كل حالة لها نصها الخاص)، أو سؤال يستدعى قاعدة ' +
+      'عامة ثم استثناء أو تفصيلاً إضافياً منصوصاً عليه فى نص آخر منفصل. ' +
+      'اختر **كل** النصوص الضرورية فعلياً للإجابة الكاملة والدقيقة — لا ' +
+      'تُدرج نصاً غير ذى صلة فعلية فقط لتكثير العدد، ولا تُغفل نصاً ضرورياً ' +
+      'فعلاً لمجرد أنه لا يبدو الأقرب لفظياً لصياغة السؤال. لو لا يوجد أى ' +
+      'نص يجيب فعلياً وبدقة، أرجع مصفوفة فارغة.\n\n' +
+      `أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى قبلها أو بعدها، بحد أقصى ${MAX_SELECTED} ` +
+      'أرقام فى "selected"، بالضبط بهذا الشكل: {"selected": [2, 5], "reason": ' +
+      '"سبب موجز يوضح لماذا هذه النصوص تحديداً معاً، لا نص واحد"}';
+
+    const candidatesText = input.candidates
+      .map(
+        (c, i) =>
+          `${i + 1}) المادة ${c.articleNo} من ${c.lawTitle} (قانون رقم ${c.lawNo}):\n"""${c.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `السؤال: ${input.question}\n\n` +
+      `المرشحون:\n${candidatesText}\n\n` +
+      `اختر كل أرقام المرشحين (من 1 إلى ${input.candidates.length}) الضرورية فعلياً ` +
+      'للإجابة الكاملة، أو مصفوفة فارغة لو لا يوجد مرشح يجيب بدقة. افحص ' +
+      'أولاً هل فى أى مرشح شرط استثنائي ضيق غير وارد فى السؤال. رد بـJSON فقط.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          // أكبر من selectBestCandidate (250) لأن الإخراج قد يتضمن حتى 6
+          // أرقام بدل رقم واحد — نفس منطق هامش الأمان الموثَّق فى الدوال
+          // الأخرى بهذا الملف ("درس التقطيع الأول").
+          max_tokens: 400,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek selectRelevantCandidates API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
+      };
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek selectRelevantCandidates: content فارغ — reasoning_content ` +
+            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+        return { status: 'error', detail: 'empty_response' };
+      }
+
+      const parsed = parsePenaltySelectionJson(text, input.candidates.length);
+      if (!parsed) {
+        this.logger.warn(
+          `DeepSeek selectRelevantCandidates: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+      // "selected" مبني على 1..N من DeepSeek. نحوّله هنا لفهارس 0-based
+      // ونحدّه بـMAX_SELECTED دفاعياً (احتياطاً لو تجاوز النموذج الحد رغم
+      // التعليمة، رغم أن parsePenaltySelectionJson لا يفرض هذا الحد بذاته).
+      const selectedIndices = parsed.selected.map((n) => n - 1).slice(0, MAX_SELECTED);
+      return { status: 'ok', selectedIndices, reason: parsed.note };
+    } catch (err) {
+      this.logger.warn(`DeepSeek selectRelevantCandidates call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
+
+  /**
+   * إصلاح جذري ثانٍ (2026-09-24) — فئة منفصلة تماماً عن expandWithCrossReferences/
+   * selectRelevantCandidates أعلاه: سؤال مُركَّب يطلب حكماً لحالتين قانونيتين
+   * مختلفتين تماماً بلا أى رابط نصى مباشر بينهما (تحقق حى فعلى 2026-09-24 على
+   * نفس السؤال المرجعى: "ما حقوق العامل بعقد مؤقت... وهل تختلف لو كان العقد
+   * غير محدد المدة؟" — شِقّ العقد غير محدد المدة (مواده فى قانون العمل
+   * 14/2025 لا صلة نصية مباشرة لها بالمادة 154 التى يُجيب عنها الشِّق الأول)
+   * ظل بلا إجابة رغم إصلاح الإحالات المرجعية، لأن تلك الآلية تكتشف فقط
+   * إحالات نصية صريحة داخل مادة واحدة مُسترجَعة بالفعل — لا شِقّاً ثانياً
+   * للسؤال ضعيف التشابه الدلالى معه من الأساس).
+   *
+   * الحل هنا مختلف جذرياً عن expandWithCrossReferences: تصنيف صغير (لا
+   * اختيار استشهاد) يحدد فقط هل السؤال يحتوى فعلياً أكثر من استفسار قانونى
+   * منفصل يحتاج نصوصاً مختلفة جذرياً، ولو كان كذلك يُرجع حتى 3 أسئلة فرعية
+   * مستقلة (كل سؤال فرعى يُشغَّل عبر كامل خط الاسترجاع مستقلاً فى
+   * questions.service.ts — راجع decomposeIfCompound هناك — والنتائج تُدمَج
+   * قبل التوليد، فتبقى الإجابة النهائية موحَّدة ومتصلة عبر
+   * composeGroundedAnswerMulti). سؤال بسيط (حتى لو يحتاج عدة مواد مترابطة
+   * صراحة داخل مادة واحدة) يُرجع كما هو بلا تقسيم — التمييز صريح فى تعليمة
+   * النظام أدناه لمنع تقسيم زائد يُضعف الدقة بلا داعٍ.
+   *
+   * fail-open كامل بلا استثناء: 'not_configured'، خطأ شبكة/تحليل، أو مصفوفة
+   * بعنصر واحد أو أقل — كلها تُعامَل فى questions.service.ts كـ"سؤال واحد
+   * بلا تقسيم"، أى بالضبط نفس السلوك قبل هذا الإصلاح، صفر مخاطرة تراجع.
+   */
+  async decomposeQuestion(
+    question: string,
+  ): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | { status: 'ok'; subQuestions: string[] }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+
+    const MAX_SUBQUESTIONS = 3;
+
+    const system =
+      'أنت محلل استفسارات قانونية. مهمتك الوحيدة: تحديد هل السؤال المطروح ' +
+      'يحتوى فعلياً على أكثر من استفسار قانونى منفصل يحتاج كل منهما نصوصاً ' +
+      'قانونية مختلفة جذرياً (لا رابط نصى مباشر بينها) — مثل مقارنة بين ' +
+      'حالتين قانونيتين مختلفتين (عقد محدد المدة مقابل غير محدد المدة، ' +
+      'موظف مقابل عامل، حالة عادية مقابل استثنائية)، أو سؤال يجمع بين ' +
+      'موضوعين قانونيين منفصلين تماماً بصيغة "و" أو "وهل" أو "وماذا لو".\n\n' +
+      '⚠️ لا تُقسِّم سؤالاً بسيطاً واحد الموضوع حتى لو طويلاً أو يحتاج عدة ' +
+      'مواد مترابطة صراحة (كأصل وفرع فى نفس النظام القانونى) — هذه الحالة ' +
+      'يعالجها نظام آخر منفصل ولا علاقة لها بمهمتك هنا. التقسيم الزائد لسؤال ' +
+      'بسيط يُضعف دقة الإجابة، فلا تُقسِّم إلا عند تأكدك من وجود موضوعين ' +
+      'قانونيين مختلفين فعلياً.\n\n' +
+      `أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى، بحد أقصى ${MAX_SUBQUESTIONS} ` +
+      'عناصر فى "subQuestions"، بالضبط بهذا الشكل: ' +
+      '{"subQuestions": ["السؤال الفرعى الأول كاملاً ومستقلاً بذاته", "السؤال الفرعى الثانى..."]} ' +
+      'أو، لو كان السؤال بسيطاً بموضوع واحد فقط: {"subQuestions": ["نفس السؤال الأصلى كاملاً بلا تعديل"]}. ' +
+      'كل سؤال فرعى يجب أن يكون مفهوماً ومستقلاً بذاته (لا يعتمد على سياق سؤال فرعى آخر).';
+
+    const userMsg = `السؤال: ${question}\n\nحلّله وأجب بصيغة JSON فقط كما هو موضَّح.`;
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 500,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek decomposeQuestion API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
+      };
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek decomposeQuestion: content فارغ — reasoning_content ` +
+            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+        return { status: 'error', detail: 'empty_response' };
+      }
+
+      const parsed = parseDecompositionJson(text, MAX_SUBQUESTIONS);
+      if (!parsed) {
+        this.logger.warn(
+          `DeepSeek decomposeQuestion: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+      return { status: 'ok', subQuestions: parsed };
+    } catch (err) {
+      this.logger.warn(`DeepSeek decomposeQuestion call failed: ${(err as Error).message}`);
       return { status: 'error', detail: (err as Error).message };
     }
   }
@@ -371,6 +830,28 @@ export class DeepseekGenerationService {
    * بناء توصية "موصى به/غير موصى به/موصى به بشرط" بنيوياً من نفس التحليل الذى
    * أنتج verdict وrisk_note أصلاً، بدل استخراج نص حر لاحقاً (استخراج كهذا هش
    * وغير موثوق، بخلاف حقل JSON مُلزَم بنفس آلية response_format الحالية).
+   *
+   * ⚠️ إصلاح جذرى 2026-09-24 — إعادة صياغة قاعدتى (أ) و(ب) بدليل مباشر لا
+   * تخميناً: تقرير القياس الحى النهائى (402 بند، 2026-09-19) حدَّد العيب
+   * الجوهرى المتبقى فى دقة الحوكمة (64.93% إجمالاً) بدقة: recall "متوافق
+   * جزئياً" = 15.2% فقط، و74% من حالاته الحقيقية صُنِّفت خطأً "غير متوافق"
+   * كاملاً. فحصت 14 حالة فعلية من هذا النمط (من قياس مطابق سابق، 246 بند/13
+   * سبتمبر — نفس نمط الفشل موثَّق بثلاثة قياسات مستقلة) مباشرة مقابل نص (أ)/
+   * (ب) القديم، فتبيَّن السبب الجذرى الحقيقى: (أ) مصاغة بعمومية تلتقط لفظياً
+   * كل الحالات (بما فيها ما يخص (ب) فعلاً)، و(ب) مقيَّدة حصراً بنمط "مهلة
+   * إخطار لاحقة متأخرة" — فلا تغطى النمط الأكثر شيوعاً فعلياً فى البيانات:
+   * "استيفاء أغلب عناصر منفصلة قابلة للتحقق كل منها بذاتها (مستندات/أدوار
+   * وظيفية/تواقيع/شروط)، مع غياب عنصر منفصل واحد فقط". النموذج، أمام تعارض
+   * لفظى بين قاعدة عامة (أ) وقاعدة ضيقة (ب)، يستقر افتراضياً على (أ) — وهذا
+   * بالضبط النمط المُلاحَظ حياً. **لم يُعثَر على أى حالة عكسية موثَّقة** (لا
+   * توجد حالة فعلية فى مراجعة gov-032/gov-033 الأصليتين — مصدر (أ) نفسه —
+   * تُطابق النمط الموسَّع الجديد لـ(ب) خطأً)، فالتوسيع أدناه مبنى على تمييز
+   * حقيقى فى النصوص القانونية نفسها (المادة تصف وثيقة/فعلاً واحداً يُقيَّم
+   * ككل ← أ، أو عناصر منفصلة قائمة بذاتها ← ب)، لا تخفيفاً عاماً لصرامة (أ).
+   * **لم يُعَد قياس حى بعد هذا التعديل حتى كتابة هذا التعليق** — أى رقم دقة
+   * متوقَّع (بما فيه هدف 95% الذى طرحه صاحب المشروع) يبقى تقديرياً غير مؤكَّد
+   * حتى إعادة القياس الكامل على الـ402 بند؛ راجع تقرير التسليم المرفق لهذا
+   * التعديل للتقدير الصريح وحدوده.
    */
   async assessCompliance(input: {
     question: string;
@@ -422,14 +903,39 @@ export class DeepseekGenerationService {
       'إن وُجد، لا تعتمد عليه كأساس وحيد للحكم.\n\n' +
       'قاعدتان عامتان إضافيتان للتمييز بين "غير متوافق" و"متوافق جزئياً" ' +
       '(مبنيتان على مراجعة قانونية فعلية لحالات سابقة، لا تخميناً):\n' +
-      '(أ) إن نص المرشح على عدة عناصر إلزامية **معاً** كحد أدنى واحد لا يتجزأ ' +
-      '(مثل عناصر إفصاح فى تقرير حوكمة، أو بيانات مطلوبة فى مستند واحد)، فغياب ' +
-      'عنصر إلزامى واحد فقط منها لا يُعَد "متوافق جزئياً" — يُصنَّف "غير ' +
-      'متوافق" كاملاً، إلا لو نص القانون صراحة على تدرّج أو نسبة مقبولة.\n' +
-      '(ب) إن استوفى الإجراء **جوهر الالتزام** فعلاً (بما فى ذلك أى مهلة ' +
-      'جوهرية منصوص عليها) ولم يُخالف إلا فى إجراء أو مهلة إخطار/تبليغ لاحقة ' +
-      'ثانوية تأخّرت بفارق محدود، فهذا عادة "متوافق جزئياً" لا "غير متوافق" ' +
-      'كاملاً — التمييز هو: هل المخالفة فى صميم الالتزام أم فى إجراء تال عليه؟\n' +
+      '(أ) إن كانت العناصر المُلزَمة تشكّل معاً **محتوى وثيقة أو فعل واحد ' +
+      'يصدر دفعة واحدة ويُقيَّم ككل واحد** (مثل محتوى تقرير حوكمة سنوى واحد، ' +
+      'أو بيانات إيصال سداد واحد)، بحيث يكون العنصر الناقص جزءاً من نفس ' +
+      'الوثيقة/الفعل الذى استُوفيت باقى عناصره، فغياب عنصر واحد فقط منه يجعل ' +
+      'تلك الوثيقة/الفعل بذاته ناقصاً وغير مكتمل — يُصنَّف "غير متوافق" ' +
+      'كاملاً، إلا لو نص القانون صراحة على تدرّج أو نسبة مقبولة. مثال محسوم ' +
+      'فعلياً: تقرير حوكمة سنوى موقَّع ومعروض بالشكل الصحيح، لم يتضمن فقط ' +
+      'الإفصاح عن مكافآت أعضاء مجلس الإدارة ← "غير متوافق" (وثيقة واحدة ' +
+      'ناقصة المحتوى، رغم استيفاء معظم بنودها).\n' +
+      '(ب) ⚠️ النمط الأكثر شيوعاً فعلياً فى الممارسة، والأكثر عرضة للخلط ' +
+      'الخاطئ بـ(أ) — دليل مباشر (تقرير القياس الحى 2026-09-19، 402 بند): ' +
+      '74% من حالات "متوافق جزئياً" الحقيقية صُنِّفت خطأً "غير متوافق" ' +
+      'كاملاً بتطبيق (أ) خارج نطاقه. إن كانت العناصر **مستندات أو أدوار ' +
+      'وظيفية أو تواقيع أو مواعيد إخطار أو شروط إجرائية منفصلة، يمكن التحقق ' +
+      'من كل منها بذاته على حدة باستقلال عن الباقى** (حتى لو وردت مُجتمِعة ' +
+      'فى نص مادة واحدة)، واستوفى الإجراء **جوهر الالتزام** فعلاً (أغلب هذه ' +
+      'العناصر المنفصلة أو أهمها موضوعياً) ولم يُخالف إلا فى عنصر منفصل ' +
+      'واحد محدد — فالحكم "متوافق جزئياً"، لا "غير متوافق" الكامل. أمثلة ' +
+      'محسومة فعلياً: شركة رشّحت رئيس مجلس إدارة خلال المهلة القانونية ' +
+      'وتأخّرت 4 أيام فقط عن مهلة إخطار الهيئة بالتشكيل ← متوافق جزئياً. ' +
+      'شركة استوفت شرط خلو السوابق الجنائية لكن لم تقدم مستندات الخبرة ' +
+      'والكفاءة المطلوبة بذات المادة ← متوافق جزئياً. شركة عيَّنت اثنين من ' +
+      'ثلاثة مناصب إلزامية بهيكلها الإدارى، ولم تُعيِّن الثالث بعد ← متوافق ' +
+      'جزئياً. محضر اجتماع موقَّع من توقيعين من ثلاثة تواقيع إلزامية، ناقص ' +
+      'توقيعاً واحداً ← متوافق جزئياً.\n' +
+      '⚠️ الاختبار الفاصل الإلزامى بين (أ) و(ب) عند أى تردد: اسأل نفسك أولاً ' +
+      '— هل العنصر الغائب نقصٌ فى **محتوى ضمن وثيقة أو فعل واحد يُقيَّم ككل ' +
+      'واحد** (فتُطبَّق أ)، أم هو **غياب وثيقة أو دور أو توقيع أو موعد منفصل ' +
+      'قائم بذاته**، يمكن استيفاؤه لاحقاً باستقلال عمّا استُوفى فعلاً من ' +
+      'العناصر الأخرى (فتُطبَّق ب)؟ عند شك حقيقى متبقٍّ بعد هذا الاختبار ' +
+      'تحديداً (لا فى أى حالة أخرى واضحة الانطباق على أ أو ب)، الحكم الآمن ' +
+      'هو (ب) "متوافق جزئياً" — لأن الدليل المباشر من 402 بند حى يثبت أن ميل ' +
+      'النموذج الفعلى هو الإفراط فى تطبيق (أ) على حساب (ب)، لا العكس.\n' +
       '(ج) ⚠️ قاعدة إلزامية بلا استثناء لكل شرط رقمى أو شرطى فيه أكثر من ' +
       'محفّز مستقل بصيغة (أو) — أى أن تحقق أى واحد منها بمفرده يكفى لترتيب ' +
       'الالتزام (مثال حرفى شائع فى القرارات: "...عند مبلغ يبلغ كذا فأكثر، ' +
@@ -550,6 +1056,19 @@ export class DeepseekGenerationService {
       'افحص أولاً هل كل مرشح من نفس الجهة/القطاع الرقابى الذى يقصده الإجراء، ثم ' +
       'أصدر الحكم. رد بـJSON فقط كما هو محدد.';
 
+    // ⚠️ 2026-09-19: إعادة المحاولة الجذرية الفعلية لعطل unparseable_json/
+    // empty_response — راجع تصحيح 2026-09-19 أعلى تعليق max_tokens للدليل
+    // الكامل الذى أوصل لهذا القرار (فرضية نفاد التوكنز ثبت خطؤها تجريبياً،
+    // والسبب الحقيقى عدم-حتمية مؤكَّدة فى خدمة DeepSeek رغم temperature:0).
+    // مقصودة كحلقة محدودة (2 محاولتان كحد أقصى) لا غير محدودة: تكفى لاستغلال
+    // عدم-الحتمية المؤكَّدة (نفس المدخل الحرفى قد ينجح فى محاولة تالية) دون
+    // إبطاء الإنتاج أو مضاعفة تكلفة تصويت الأغلبية الثلاثى بلا داعٍ. فقط
+    // فشل unparseable_json وempty_response يُعاد محاولته — هذان تحديداً هما
+    // ما أثبتته عيّنتا التشخيص أنهما عدم-حتمية طبيعية فى خرج النموذج، لا خطأ
+    // شبكة (catch أدناه) ولا خطأ HTTP من الخادم (لم يُشخَّص كمتكرر، فيُعاد
+    // فوراً كسابقاً بلا إعادة محاولة تجنباً لأى افتراض غير مؤكَّد).
+    const maxAttempts = 2;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const res = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
@@ -571,7 +1090,49 @@ export class DeepseekGenerationService {
           // (طبقة النصيحة) — هامش أمان إضافى يحتمل حالة "متوافق جزئياً" مع
           // عدة شروط تصحيحية مفصَّلة، بنفس منطق الرفع السابق تماماً (تفادى
           // `unparseable_json` عند حالات الإخراج الأطول لا انتظار عطل فعلى).
-          max_tokens: 1000,
+          // ⚠️ 2026-09-19: رُفع من 1000 لـ2500 بعد دليل قاطع من إنتاج حى، لا
+          // تخمين — عيّنة تشخيصية من 13 بند متنوع (استبعدت gov-182 المُشخَّص
+          // سابقاً على حدة) أظهرت معدل فشل unparseable_json ≈18% من العيّنات
+          // (7 من 39)، وسجلّات Railway الخام لكل حالة فشل أثبتت السبب بدقة:
+          // الرد كان دائماً JSON صالح تركيبياً لكن يحتوى حقل "risk_note" فقط
+          // (بلا "selected"/"verdict"/"conditions"/"confidence") — أى أن
+          // النموذج استهلك كامل حد 1000 توكِن فى كتابة risk_note وحده (بعض
+          // العينات الحقيقية تجاوزت 1200-1400 حرفاً عربياً) ولم يتبقَّ له
+          // مساحة لبقية الحقول قبل أن يُغلِق response_format:json_object
+          // الكائن قسراً. **لم يُعدَّل ترتيب الحقول لحل هذا** — الترتيب
+          // (risk_note وselected أولاً، verdict أخيراً) قرار متعمَّد موثَّق فى
+          // الـsystem prompt أدناه لمنع تناقض verdict مع risk_note، وقلبه كان
+          // سيُصلح فجوة الترميز على حساب إعادة فجوة الاتساق المنطقى التى حُلَّت
+          // من أجلها هذه الصياغة أصلاً — حل جذرى واحد لا يستبدل عطلاً بعطل.
+          // الرفع لـ2500 لا يكلّف شيئاً إضافياً على الاستدعاءات التى كانت
+          // تنجح أصلاً (DeepSeek تُحاسِب على التوكنز المُولَّدة فعلياً لا الحد
+          // الأقصى المسموح)، ويمنح هامش أمان حقيقى (~×2.5 أطول ملاحظ) لباقى
+          // الحالات. راجع finishReason المُضاف أدناه لأى تكرار مستقبلى —
+          // يحسم فوراً هل السبب توكِنز غير كافية (finish_reason="length") أم
+          // مشكلة صياغة حقيقية مختلفة، بدل أرشفة يدوية فى السجلّات كما استغرق
+          // هذا التشخيص.
+          //
+          // ⚠️ 2026-09-19 (تصحيح لاحق، نفس اليوم — قاعدة الشفافية الكاملة):
+          // الفرضية أعلاه (نفاد التوكنز) ثبت أنها خاطئة، بدليل مباشر لا تخمين:
+          // بعد نشر الرفع لـ2500 وإعادة قياس نفس العيّنة التشخيصية الـ13
+          // حرفياً، معدل الفشل لم ينخفض بل ازداد (25.6% بدل 18%، وبندان
+          // انتقلا من فشل جزئى لفشل كامل 0/3). حقل finish_reason المُضاف
+          // حديثاً (راجعه أدناه) أثبت أن كل حالة فشل فى هذه الإعادة كانت
+          // finish_reason="stop" لا "length" — أى أن النموذج أنهى التوليد
+          // طوعاً بعد كتابة risk_note فقط (600-1400 حرفاً، أقل بكثير من حد
+          // 2500)، لم ينفد توكِنزه إطلاقاً. السبب الحقيقى إذاً: عدم-حتمية
+          // فعلية فى خدمة DeepSeek رغم temperature:0 — مؤكَّد تجريبياً بنفس
+          // المدخل الحرفى (qHash=c6e7d742) الذى أعطى 1/3 عيّنات صالحة فى
+          // تشغيلة وصفر/3 فى تشغيلة لاحقة لنفس السؤال بالضبط، وهى ظاهرة
+          // معروفة فى خدمات LLM الإنتاجية (تأثيرات الدفعات/batching على
+          // مستوى الخادم) لا عطل حتمى فى هذا الطلب أو هذا الـprompt بعينه.
+          // حد 2500 أُبقِى كما هو (غير ضار، وقد يفيد فعلاً حالات إخراج أطول
+          // حقيقية) لكنه لم يَعُد يُعتبَر الإصلاح الجذرى لهذه المشكلة تحديداً
+          // — الإصلاح الفعلى (راجع maxAttempts وحلقة إعادة المحاولة أسفل
+          // هذا الاستدعاء) هو إعادة محاولة محدودة عند unparseable_json أو
+          // empty_response تحديداً، لأن عدم-الحتمية المؤكَّدة تعنى أن نفس
+          // الاستدعاء بالضبط قد ينجح فعلاً فى محاولة ثانية.
+          max_tokens: 2500,
           temperature: 0,
           thinking: { type: 'disabled' },
           // ⚠️ 2026-09-13: إصلاح جذرى لفئة كاملة من الأعطال (وليس ترقيعاً) —
@@ -597,21 +1158,40 @@ export class DeepseekGenerationService {
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
       };
+      // ⚠️ 2026-09-19: finish_reason مُلتقَط الآن صراحة (كان مفقوداً تماماً
+      // من النوع والسجلّات قبل ذلك) — يحسم فوراً هل أى unparseable_json
+      // مستقبلى سببه نفاد التوكنز (finish_reason="length"، راجع تعليق
+      // max_tokens أعلاه) أم عطل صياغة حقيقى مختلف (finish_reason="stop"
+      // مع JSON فعلاً غير صالح)، بدل أرشفة يدوية للسجلّات الخام فى كل مرة.
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) {
         const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
         this.logger.warn(
           `DeepSeek assessCompliance: content فارغ رغم thinking:disabled — reasoning_content ` +
-            `length=${reasoningLen}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+            `length=${reasoningLen}, finish_reason=${finishReason}, محاولة ${attempt}/${maxAttempts}, ` +
+            `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
+        if (attempt < maxAttempts) {
+          continue;
+        }
         return { status: 'error', detail: 'empty_response' };
       }
 
       const parsed = parseVerdictJson(text, input.candidates.length);
       if (!parsed) {
-        this.logger.warn(`DeepSeek assessCompliance: could not parse JSON from response: ${text}`);
+        this.logger.warn(
+          `DeepSeek assessCompliance: could not parse JSON from response (finish_reason=${finishReason}, ` +
+            `محاولة ${attempt}/${maxAttempts}): ${text}`,
+        );
+        if (attempt < maxAttempts) {
+          continue;
+        }
         return { status: 'error', detail: 'unparseable_json' };
       }
 
@@ -627,6 +1207,11 @@ export class DeepseekGenerationService {
       this.logger.warn(`DeepSeek assessCompliance call failed: ${(err as Error).message}`);
       return { status: 'error', detail: (err as Error).message };
     }
+    }
+    // غير قابل للوصول عملياً — كل مسار داخل الحلقة أعلاه إما يُرجِع مباشرة أو
+    // يُكمل (continue) حتى المحاولة الأخيرة التى تُرجِع دائماً. موجود فقط
+    // لإرضاء TypeScript، الذى لا يستطيع إثبات استحالة الوصول هنا تلقائياً.
+    return { status: 'error', detail: 'unparseable_json' };
   }
 
   /**
@@ -886,8 +1471,10 @@ export class DeepseekGenerationService {
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
       };
+      // راجع تعليق finishReason فى assessCompliance أعلاه للسياق الكامل.
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) {
         return { status: 'error', detail: 'empty_response' };
@@ -895,7 +1482,9 @@ export class DeepseekGenerationService {
 
       const parsed = parsePenaltySelectionJson(text, input.penaltyCandidates.length);
       if (!parsed) {
-        this.logger.warn(`DeepSeek penalty-citation: could not parse JSON from response: ${text}`);
+        this.logger.warn(
+          `DeepSeek penalty-citation: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
         return { status: 'error', detail: 'unparseable_json' };
       }
 
@@ -1014,20 +1603,27 @@ export class DeepseekGenerationService {
       }
 
       const data = (await res.json()) as {
-        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
       };
+      // راجع تعليق finishReason فى assessCompliance أعلاه للسياق الكامل.
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) {
         const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
         this.logger.warn(
-          `DeepSeek assessClause: content فارغ رغم thinking:disabled — reasoning_content length=${reasoningLen}`,
+          `DeepSeek assessClause: content فارغ رغم thinking:disabled — reasoning_content length=${reasoningLen}, finish_reason=${finishReason}`,
         );
         return { status: 'error', detail: 'empty_response' };
       }
 
       const parsed = parseClauseJson(text, input.candidates.length);
       if (!parsed) {
-        this.logger.warn(`DeepSeek assessClause: could not parse JSON from response: ${text}`);
+        this.logger.warn(
+          `DeepSeek assessClause: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
         return { status: 'error', detail: 'unparseable_json' };
       }
 
@@ -1218,6 +1814,42 @@ function parseGovernanceWebAdvisoryJson(
         reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : '',
         confidence: Math.min(1, Math.max(0, confidenceRaw)),
       };
+    } catch {
+      // جرّب المحاولة التالية
+    }
+  }
+
+  return null;
+}
+
+/**
+ * تحليل دفاعي لرد decomposeQuestion — نفس منهجية parsePenaltySelectionJson
+ * (محاولتان: JSON.parse مباشر، ثم استخراج أول substring على شكل {...}).
+ * يتحقق أن subQuestions مصفوفة نصوص غير فارغة (عنصر فارغ أو غير نصى = هلوسة
+ * تُسقط ذلك العنصر تحديداً بلا إسقاط الباقى)، ويحدّها بـmaxItems دفاعياً
+ * (احتياطاً لو تجاوز النموذج الحد رغم التعليمة). مصفوفة فارغة بعد التنقية
+ * تُعامَل كفشل تحليل كامل (null) — نفس سياسة "لا نتيجة جزئية مشكوك فيها"
+ * المُطبَّقة فى بقية دوال هذا الملف.
+ */
+function parseDecompositionJson(text: string, maxItems: number): string[] | null {
+  const attempts = [text];
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    attempts.push(match[0]);
+  }
+
+  for (const attempt of attempts) {
+    try {
+      const parsed = JSON.parse(attempt) as { subQuestions?: unknown };
+      if (Array.isArray(parsed.subQuestions)) {
+        const cleaned = parsed.subQuestions
+          .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
+          .map((q) => q.trim())
+          .slice(0, maxItems);
+        if (cleaned.length > 0) {
+          return cleaned;
+        }
+      }
     } catch {
       // جرّب المحاولة التالية
     }

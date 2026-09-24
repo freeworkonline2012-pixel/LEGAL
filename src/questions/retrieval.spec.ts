@@ -1,9 +1,13 @@
 import {
   REFUSAL_THRESHOLD,
+  MAX_CROSS_REFERENCE_ARTICLES,
+  END_OF_RELATIONSHIP_BUNDLE_ARTICLES,
   buildFtsQuery,
   confidenceFromRank,
   detectArticleReference,
+  detectCrossReferencedArticles,
   isConfident,
+  isEndOfRelationshipTopic,
   toCitationStatus,
 } from './retrieval';
 
@@ -156,6 +160,109 @@ describe('confidenceFromRank', () => {
   it('يُرجع 0 لقيمة Infinity (موجبة أو سالبة)', () => {
     expect(confidenceFromRank(Infinity)).toBe(0);
     expect(confidenceFromRank(-Infinity)).toBe(0);
+  });
+});
+
+describe('detectCrossReferencedArticles', () => {
+  it('يستخرج قائمة أرقام من صيغة "المواد (87، 88، 95)" — حالة المادة 154 الحقيقية', () => {
+    const body =
+      'مع عدم الإخلال بما نصت عليه المواد (87، 88، 95) من هذا القانون، ينتهى عقد العمل محدد المدة بانقضاء مدته.';
+    expect(detectCrossReferencedArticles(body)).toEqual([87, 88, 95]);
+  });
+
+  it(
+    'يستخرج نفس القائمة من النص الحقيقى المُخزَّن فعلياً فى قاعدة البيانات لهذه المادة ' +
+      '(أقواس معكوسة الترتيب ") (" — عطل استخراج نص حقيقى مؤكَّد بفحص مباشر 2026-09-24، لا افتراضى) ' +
+      'وبأرقام هندية/فارسية مختلطة كما وردت فعلياً',
+    () => {
+      const body =
+        'مع عدم الإخلال بما نصت عليه المواد ) (٩٥، ۸۸، ۸۷من هذا القانون، ينتهى عقد العمل محدد المدة بانقضاء مدته.';
+      expect(detectCrossReferencedArticles(body)).toEqual([87, 88, 95]);
+    },
+  );
+
+  it('يتحمّل قوساً معكوساً بلا مسافات إطلاقاً "المادة )(243" (نمط ثانٍ مُلاحَظ فعلياً فى نفس القانون)', () => {
+    expect(detectCrossReferencedArticles('مع مراعاة ما نصت عليه المادة )(243 من هذا القانون.')).toEqual([243]);
+  });
+
+  it('يستخرج قائمة من صيغة "المواد 87 و88 و95" بلا أقواس', () => {
+    expect(detectCrossReferencedArticles('طبقاً للمواد 87 و88 و95 من القانون')).toEqual([87, 88, 95]);
+  });
+
+  it('يستخرج إحالة مفردة من "المادة 88"', () => {
+    expect(detectCrossReferencedArticles('وفقاً لأحكام المادة 88 من هذا القانون')).toEqual([88]);
+  });
+
+  it('يستخرج إحالة من صيغة المثنى "المادتين 12 و13"', () => {
+    expect(detectCrossReferencedArticles('مع مراعاة المادتين 12 و13')).toEqual([12, 13]);
+  });
+
+  it('يستثني رقم المادة الحالية إن مُرِّر excludeArticleNo (لا تُحيل مادة لنفسها)', () => {
+    expect(detectCrossReferencedArticles('طبقاً للمواد 87 و88 و154', 154)).toEqual([87, 88]);
+  });
+
+  it('يُزيل التكرار ويرتّب الأرقام تصاعدياً بصرف النظر عن ترتيب ورودها', () => {
+    expect(detectCrossReferencedArticles('المادة 95 ثم المادة 87 ثم المادة 95 مجدداً')).toEqual([87, 95]);
+  });
+
+  it('لا يلتقط أرقاماً بعيدة عن كلمة "مادة" (كرقم القانون أو السنة)', () => {
+    expect(detectCrossReferencedArticles('طبقاً للمادة 88 من قانون رقم 14 لسنة 2025')).toEqual([88]);
+  });
+
+  it('يُرجع مصفوفة فارغة لو لا توجد إحالات صريحة إطلاقاً', () => {
+    expect(detectCrossReferencedArticles('ينتهي العقد بانقضاء مدته المتفق عليها بين الطرفين.')).toEqual([]);
+  });
+
+  it(`يحدّ عدد الإحالات المُستخرَجة بـ${MAX_CROSS_REFERENCE_ARTICLES} كحد أقصى`, () => {
+    const body = 'طبقاً للمواد (1، 2، 3، 4، 5، 6، 7، 8، 9، 10)';
+    expect(detectCrossReferencedArticles(body)).toHaveLength(MAX_CROSS_REFERENCE_ARTICLES);
+  });
+});
+
+describe('isEndOfRelationshipTopic', () => {
+  it.each([
+    'ما حقوق الموظف عند عدم تجديد العقد المؤقت؟',
+    'هل يجوز فصل العامل بدون سبب؟',
+    'هل يجوز فصل موظف بسبب النشاط النقابي؟',
+    'صاحب العمل فصلني بدون إنذار، ماذا أفعل؟',
+    'تم فصلي من العمل تعسفياً',
+    'قدمت استقالتي، متى تنتهي علاقتي بالعمل؟',
+    'ما هي مدة الإخطار قبل إنهاء عقد العمل؟',
+    'ترك العمل بدون إخطار صاحب العمل',
+    'ما هي حقوقي عند انتهاء خدمتي بالشركة؟',
+  ])('يكتشف أن السؤال "%s" يتعلق بنهاية علاقة العمل', (text) => {
+    expect(isEndOfRelationshipTopic(text)).toBe(true);
+  });
+
+  it.each([
+    'ما هي ساعات العمل الإضافية المسموح بها؟',
+    'هل يحق لي الحصول على ترقية بعد سنتين؟',
+    'كم قيمة بدل الأجازة السنوية إذا لم أستنفدها؟',
+    'ما هو الحد الأدنى للأجور؟',
+    'هل العامل ملزم بتوقيع عقد عمل مكتوب؟',
+    'ما شروط عقد التلمذة الصناعية؟',
+  ])('لا يُفعَّل زائفاً على سؤال عمالي غير متعلق بنهاية العلاقة: "%s"', (text) => {
+    expect(isEndOfRelationshipTopic(text)).toBe(false);
+  });
+
+  it(
+    'لا يُفعَّل زائفاً على كلمة تحتوي جذر "فصل" كجزء من كلمة أخرى غير متعلقة ' +
+      '(حالة حقيقية فحصتها: "المكافأة الفصلية" تحتوي حرفياً على السلسلة "فصلي")',
+    () => {
+      expect(isEndOfRelationshipTopic('ما قيمة المكافأة الفصلية المستحقة للموظف؟')).toBe(false);
+    },
+  );
+});
+
+describe('END_OF_RELATIONSHIP_BUNDLE_ARTICLES', () => {
+  it('يحتوي فقط على أرقام مواد صحيحة موجبة، بلا تكرار', () => {
+    const seen = new Set<number>();
+    for (const n of END_OF_RELATIONSHIP_BUNDLE_ARTICLES) {
+      expect(Number.isInteger(n)).toBe(true);
+      expect(n).toBeGreaterThan(0);
+      expect(seen.has(n)).toBe(false);
+      seen.add(n);
+    }
   });
 });
 
