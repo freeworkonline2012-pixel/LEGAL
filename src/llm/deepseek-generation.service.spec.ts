@@ -157,3 +157,133 @@ describe('DeepseekGenerationService.assessCompliance', () => {
     expect(result).toEqual({ status: 'error', detail: 'http_500' });
   });
 });
+
+/**
+ * 2026-09-24: اختبارات decomposeQuestion — الإصلاح الجذري الثاني بعد التحقق
+ * الحي الذي كشف أن expandWithCrossReferences وحدها لا تكفي لسؤال مُركَّب
+ * يحتاج شِقّين قانونيين منفصلين تماماً (راجع تعليق الدالة الكامل فى
+ * deepseek-generation.service.ts). يختبر هنا: التقسيم الفعلي، عدم التقسيم
+ * لسؤال بسيط، fail-open الكامل (not_configured/HTTP error/JSON غير صالح)،
+ * وأن الحد الأقصى MAX_SUBQUESTIONS=3 يُطبَّق فعلياً.
+ */
+describe('DeepseekGenerationService.decomposeQuestion', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it('يُرجِع not_configured بلا أى استدعاء fetch عند غياب DEEPSEEK_API_KEY', async () => {
+    delete process.env.DEEPSEEK_API_KEY;
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.decomposeQuestion('سؤال تجريبى');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ status: 'not_configured' });
+  });
+
+  it(
+    'يُقسِّم سؤالاً مُركَّباً فعلياً إلى سؤالين فرعيين (نفس السيناريو الحى: ' +
+      'عقد مؤقت مقابل عقد غير محدد المدة)',
+    async () => {
+      process.env.DEEPSEEK_API_KEY = 'test-key';
+      const service = new DeepseekGenerationService();
+      const subQuestions = [
+        'ما حقوق الموظف الذى لديه عقد عمل مؤقت يُجدَّد سنوياً وأفادت الشركة برغبتها فى عدم تجديده؟',
+        'هل تختلف تلك الحقوق لو كان العقد غير محدد المدة؟',
+      ];
+      const fetchMock = jest
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse(200, chatCompletion(JSON.stringify({ subQuestions }), 'stop')),
+        );
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await service.decomposeQuestion(
+        'ما حقوق الموظف الذى لديه عقد عمل مؤقت يُجدَّد سنوياً وبعد عدة سنوات ' +
+          'أفادت الشركة برغبتها فى عدم تجديد العقد؟ وهل تختلف تلك الحقوق لو ' +
+          'كان العقد غير محدد المدة؟',
+      );
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ status: 'ok', subQuestions });
+    },
+  );
+
+  it('لا يُقسِّم سؤالاً بسيطاً — subQuestions بعنصر واحد فقط', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(
+          200,
+          chatCompletion(JSON.stringify({ subQuestions: ['ما هى مدة الإجازة السنوية؟'] }), 'stop'),
+        ),
+      );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.decomposeQuestion('ما هى مدة الإجازة السنوية؟');
+
+    expect(result).toEqual({ status: 'ok', subQuestions: ['ما هى مدة الإجازة السنوية؟'] });
+  });
+
+  it('يحدّ subQuestions بـ3 عناصر كحد أقصى حتى لو أرجع النموذج أكثر', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValueOnce(
+      jsonResponse(
+        200,
+        chatCompletion(JSON.stringify({ subQuestions: ['س1', 'س2', 'س3', 'س4', 'س5'] }), 'stop'),
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.decomposeQuestion('سؤال تجريبى مُركَّب جداً');
+
+    expect(result).toEqual({ status: 'ok', subQuestions: ['س1', 'س2', 'س3'] });
+  });
+
+  it('يُرجِع unparseable_json عند رد بلا حقل subQuestions صالح', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, chatCompletion('{"foo": "bar"}', 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.decomposeQuestion('سؤال تجريبى');
+
+    expect(result).toEqual({ status: 'error', detail: 'unparseable_json' });
+  });
+
+  it('يُرجِع empty_response عند content فارغ بلا إعادة محاولة (لا منطق retry هنا)', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(null, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.decomposeQuestion('سؤال تجريبى');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ status: 'error', detail: 'empty_response' });
+  });
+
+  it('لا يُعيد المحاولة عند خطأ HTTP — يُرجِع فوراً', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(500, { detail: 'server error' }));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.decomposeQuestion('سؤال تجريبى');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ status: 'error', detail: 'http_500' });
+  });
+});

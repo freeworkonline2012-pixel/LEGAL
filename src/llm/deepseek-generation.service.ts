@@ -628,6 +628,121 @@ export class DeepseekGenerationService {
   }
 
   /**
+   * إصلاح جذري ثانٍ (2026-09-24) — فئة منفصلة تماماً عن expandWithCrossReferences/
+   * selectRelevantCandidates أعلاه: سؤال مُركَّب يطلب حكماً لحالتين قانونيتين
+   * مختلفتين تماماً بلا أى رابط نصى مباشر بينهما (تحقق حى فعلى 2026-09-24 على
+   * نفس السؤال المرجعى: "ما حقوق العامل بعقد مؤقت... وهل تختلف لو كان العقد
+   * غير محدد المدة؟" — شِقّ العقد غير محدد المدة (مواده فى قانون العمل
+   * 14/2025 لا صلة نصية مباشرة لها بالمادة 154 التى يُجيب عنها الشِّق الأول)
+   * ظل بلا إجابة رغم إصلاح الإحالات المرجعية، لأن تلك الآلية تكتشف فقط
+   * إحالات نصية صريحة داخل مادة واحدة مُسترجَعة بالفعل — لا شِقّاً ثانياً
+   * للسؤال ضعيف التشابه الدلالى معه من الأساس).
+   *
+   * الحل هنا مختلف جذرياً عن expandWithCrossReferences: تصنيف صغير (لا
+   * اختيار استشهاد) يحدد فقط هل السؤال يحتوى فعلياً أكثر من استفسار قانونى
+   * منفصل يحتاج نصوصاً مختلفة جذرياً، ولو كان كذلك يُرجع حتى 3 أسئلة فرعية
+   * مستقلة (كل سؤال فرعى يُشغَّل عبر كامل خط الاسترجاع مستقلاً فى
+   * questions.service.ts — راجع decomposeIfCompound هناك — والنتائج تُدمَج
+   * قبل التوليد، فتبقى الإجابة النهائية موحَّدة ومتصلة عبر
+   * composeGroundedAnswerMulti). سؤال بسيط (حتى لو يحتاج عدة مواد مترابطة
+   * صراحة داخل مادة واحدة) يُرجع كما هو بلا تقسيم — التمييز صريح فى تعليمة
+   * النظام أدناه لمنع تقسيم زائد يُضعف الدقة بلا داعٍ.
+   *
+   * fail-open كامل بلا استثناء: 'not_configured'، خطأ شبكة/تحليل، أو مصفوفة
+   * بعنصر واحد أو أقل — كلها تُعامَل فى questions.service.ts كـ"سؤال واحد
+   * بلا تقسيم"، أى بالضبط نفس السلوك قبل هذا الإصلاح، صفر مخاطرة تراجع.
+   */
+  async decomposeQuestion(
+    question: string,
+  ): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | { status: 'ok'; subQuestions: string[] }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+
+    const MAX_SUBQUESTIONS = 3;
+
+    const system =
+      'أنت محلل استفسارات قانونية. مهمتك الوحيدة: تحديد هل السؤال المطروح ' +
+      'يحتوى فعلياً على أكثر من استفسار قانونى منفصل يحتاج كل منهما نصوصاً ' +
+      'قانونية مختلفة جذرياً (لا رابط نصى مباشر بينها) — مثل مقارنة بين ' +
+      'حالتين قانونيتين مختلفتين (عقد محدد المدة مقابل غير محدد المدة، ' +
+      'موظف مقابل عامل، حالة عادية مقابل استثنائية)، أو سؤال يجمع بين ' +
+      'موضوعين قانونيين منفصلين تماماً بصيغة "و" أو "وهل" أو "وماذا لو".\n\n' +
+      '⚠️ لا تُقسِّم سؤالاً بسيطاً واحد الموضوع حتى لو طويلاً أو يحتاج عدة ' +
+      'مواد مترابطة صراحة (كأصل وفرع فى نفس النظام القانونى) — هذه الحالة ' +
+      'يعالجها نظام آخر منفصل ولا علاقة لها بمهمتك هنا. التقسيم الزائد لسؤال ' +
+      'بسيط يُضعف دقة الإجابة، فلا تُقسِّم إلا عند تأكدك من وجود موضوعين ' +
+      'قانونيين مختلفين فعلياً.\n\n' +
+      `أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى، بحد أقصى ${MAX_SUBQUESTIONS} ` +
+      'عناصر فى "subQuestions"، بالضبط بهذا الشكل: ' +
+      '{"subQuestions": ["السؤال الفرعى الأول كاملاً ومستقلاً بذاته", "السؤال الفرعى الثانى..."]} ' +
+      'أو، لو كان السؤال بسيطاً بموضوع واحد فقط: {"subQuestions": ["نفس السؤال الأصلى كاملاً بلا تعديل"]}. ' +
+      'كل سؤال فرعى يجب أن يكون مفهوماً ومستقلاً بذاته (لا يعتمد على سياق سؤال فرعى آخر).';
+
+    const userMsg = `السؤال: ${question}\n\nحلّله وأجب بصيغة JSON فقط كما هو موضَّح.`;
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 500,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek decomposeQuestion API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
+      };
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek decomposeQuestion: content فارغ — reasoning_content ` +
+            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+        return { status: 'error', detail: 'empty_response' };
+      }
+
+      const parsed = parseDecompositionJson(text, MAX_SUBQUESTIONS);
+      if (!parsed) {
+        this.logger.warn(
+          `DeepSeek decomposeQuestion: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+      return { status: 'ok', subQuestions: parsed };
+    } catch (err) {
+      this.logger.warn(`DeepSeek decomposeQuestion call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
+
+  /**
    * خدمة الحوكمة والالتزام والمخاطر (Service 3، 2026-09-04) — القسم 4.3 من
    * project doc (تصور-تقنى-محترف-ثلاث-خدمات-ذكاء-اصطناعى-2026-09-02.md).
    * الطبقة الثانية (بعد rerank) فى نفس نمط selectBestCandidate بالضبط —
@@ -1601,6 +1716,42 @@ function parseGovernanceWebAdvisoryJson(
         reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : '',
         confidence: Math.min(1, Math.max(0, confidenceRaw)),
       };
+    } catch {
+      // جرّب المحاولة التالية
+    }
+  }
+
+  return null;
+}
+
+/**
+ * تحليل دفاعي لرد decomposeQuestion — نفس منهجية parsePenaltySelectionJson
+ * (محاولتان: JSON.parse مباشر، ثم استخراج أول substring على شكل {...}).
+ * يتحقق أن subQuestions مصفوفة نصوص غير فارغة (عنصر فارغ أو غير نصى = هلوسة
+ * تُسقط ذلك العنصر تحديداً بلا إسقاط الباقى)، ويحدّها بـmaxItems دفاعياً
+ * (احتياطاً لو تجاوز النموذج الحد رغم التعليمة). مصفوفة فارغة بعد التنقية
+ * تُعامَل كفشل تحليل كامل (null) — نفس سياسة "لا نتيجة جزئية مشكوك فيها"
+ * المُطبَّقة فى بقية دوال هذا الملف.
+ */
+function parseDecompositionJson(text: string, maxItems: number): string[] | null {
+  const attempts = [text];
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    attempts.push(match[0]);
+  }
+
+  for (const attempt of attempts) {
+    try {
+      const parsed = JSON.parse(attempt) as { subQuestions?: unknown };
+      if (Array.isArray(parsed.subQuestions)) {
+        const cleaned = parsed.subQuestions
+          .filter((q): q is string => typeof q === 'string' && q.trim().length > 0)
+          .map((q) => q.trim())
+          .slice(0, maxItems);
+        if (cleaned.length > 0) {
+          return cleaned;
+        }
+      }
     } catch {
       // جرّب المحاولة التالية
     }

@@ -115,6 +115,12 @@ interface RetrievalCandidate {
 
 @Injectable()
 export class QuestionsService {
+  /** سقف إجمالي الاستشهادات لكل إجابة — يُطبَّق فى كل من دمج الأسئلة الفرعية
+   * (mergeCitationLists) وتوسيع الإحالات المرجعية (expandWithCrossReferences)
+   * معاً، مصدر واحد بدل ثابتين منفصلين قد يتضاربا. راجع تعليق
+   * expandWithCrossReferences ودمج الأسئلة الفرعية decomposeIfCompound أدناه. */
+  private static readonly MAX_TOTAL_CITATIONS = 8;
+
   private readonly logger = new Logger(QuestionsService.name);
   private readonly questionRepository: Repository<Question>;
   private readonly answerRepository: Repository<Answer>;
@@ -476,16 +482,88 @@ export class QuestionsService {
   // الكامل عن هذا الـfallback (وحذف rewriteForSearch من DeepseekGenerationService)
   // بقرار رجل الأعمال 2026-08-23. التفاصيل الكاملة موثّقة فى تقرير المعايرة.
   private async retrieve(questionText: string): Promise<RetrievalResult> {
-    const base = await this.retrieveBase(questionText);
-    if (base.citations.length === 0) {
-      return base;
+    // إصلاح جذري ثانٍ (2026-09-24 — راجع تعليق decomposeQuestion الكامل فى
+    // deepseek-generation.service.ts للتشخيص والتصميم): سؤال برقم مادة صريح
+    // (ref.lawNo) يبقى بلا تفكيك إطلاقاً — المستخدم أشار بدقة لمادة واحدة
+    // محددة، والتفكيك هنا لا فائدة منه وقد يُشتت directLookup الحتمي أصلاً.
+    // لكل سؤال آخر: محاولة كشف تفكيك حقيقي (fail-open كامل لسؤال واحد عند
+    // أي عطل أو عدم توفر — راجع decomposeIfCompound أدناه).
+    const ref = detectArticleReference(questionText);
+    const subQuestions = ref?.lawNo ? [questionText] : await this.decomposeIfCompound(questionText);
+
+    if (subQuestions.length <= 1) {
+      const base = await this.retrieveBase(questionText);
+      if (base.citations.length === 0) {
+        return base;
+      }
+      // 2026-09-24: توسيع نهائي موحَّد عبر إحالات صريحة (راجع تعليق
+      // expandWithCrossReferences أدناه وretrieval.ts) — نقطة اختناق واحدة
+      // تُطبَّق بعد أي مسار استرجاع نجح (تفصيل بالاسم/direct، rerank+تحقق، أو
+      // legacy)، بدل تكرار المنطق فى كل مسار على حدة.
+      const expanded = await this.expandWithCrossReferences(base.citations);
+      return { citations: expanded, confidence: base.confidence };
     }
-    // 2026-09-24: توسيع نهائي موحَّد عبر إحالات صريحة (راجع تعليق
-    // expandWithCrossReferences أدناه وretrieval.ts) — نقطة اختناق واحدة
-    // تُطبَّق بعد أي مسار استرجاع نجح (تفصيل بالاسم/direct، rerank+تحقق، أو
-    // legacy)، بدل تكرار المنطق فى كل مسار على حدة.
-    const expanded = await this.expandWithCrossReferences(base.citations);
-    return { citations: expanded, confidence: base.confidence };
+
+    // سؤال مُركَّب فعلياً (>1 سؤال فرعي مُكتشَف): كل سؤال فرعي يمر بكامل
+    // retrieveBase مستقلاً (بما فيها EP-10 لو مفعَّلة) — لا اختصار هنا، لأن
+    // كل شِقّ قد يحتاج مسار استرجاع مختلف تماماً عن الآخر (مثال حى: شِقّ
+    // العقد محدد المدة وجد مادته عبر الاسترجاع الدلالي، بينما شِقّ العقد غير
+    // محدد المدة قد يحتاج FTS أو EP-10 بمعايير مختلفة تماماً). النتائج تُدمَج
+    // (مُفرَّدة حسب articleId) ثم تمر بنفس توسيع الإحالات المرجعية النهائي
+    // مرة واحدة على المجموع الكامل — لا تكرار توسيع لكل شِقّ على حدة.
+    const results = await Promise.all(subQuestions.map((q) => this.retrieveBase(q)));
+    const merged = this.mergeCitationLists(results.map((r) => r.citations));
+    const confidence = results.reduce((max, r) => Math.max(max, r.confidence), 0);
+    if (merged.length === 0) {
+      return { citations: [], confidence };
+    }
+    const expanded = await this.expandWithCrossReferences(merged);
+    return { citations: expanded, confidence };
+  }
+
+  /** راجع التوثيق الكامل (التشخيص والتصميم وسياسة fail-open) فى تعليق
+   * DeepseekGenerationService.decomposeQuestion — هذه الدالة مجرد غلاف
+   * استدعاء بسياسة fail-open صريحة: أي شىء غير 'ok' بمصفوفة >1 عنصر يعود
+   * لمصفوفة بعنصر واحد (السؤال الأصلي كما هو، بلا تقسيم). */
+  private async decomposeIfCompound(questionText: string): Promise<string[]> {
+    try {
+      const result = await this.generationService.decomposeQuestion(questionText);
+      if (result.status === 'ok' && result.subQuestions.length > 1) {
+        this.logger.log(
+          `تفكيك سؤال مركَّب: qHash=${this.hashQuestion(questionText)} → ${result.subQuestions.length} سؤال فرعي`,
+        );
+        return result.subQuestions;
+      }
+    } catch (err) {
+      this.logger.warn(
+        `decomposeQuestion threw — fail-open لسؤال واحد بلا تفكيك: ${(err as Error).message}`,
+      );
+    }
+    return [questionText];
+  }
+
+  /** يدمج عدة قوائم استشهادات (من أسئلة فرعية مختلفة بعد التفكيك) مُفرَّدة
+   * حسب articleId (أو lawId+articleNo احتياطاً)، بحد أقصى
+   * QuestionsService.MAX_TOTAL_CITATIONS — نفس السقف المُطبَّق لاحقاً فى
+   * expandWithCrossReferences، مصدر واحد بدل تضارب ثابتين. الأولوية لترتيب
+   * ظهور الأسئلة الفرعية نفسه (لا إعادة ترتيب بالثقة هنا — كل شِقّ من السؤال
+   * الأصلي بنفس الأهمية بحكم التعريف). */
+  private mergeCitationLists(lists: RetrievedCitation[][]): RetrievedCitation[] {
+    const seen = new Set<string>();
+    const merged: RetrievedCitation[] = [];
+    for (const list of lists) {
+      for (const c of list) {
+        if (merged.length >= QuestionsService.MAX_TOTAL_CITATIONS) {
+          return merged;
+        }
+        const key = c.articleId ?? `${c.lawId}-${c.articleNo}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(c);
+        }
+      }
+    }
+    return merged;
   }
 
   private async retrieveBase(questionText: string): Promise<RetrievalResult> {
@@ -1110,7 +1188,9 @@ export class QuestionsService {
   private async expandWithCrossReferences(
     citations: RetrievedCitation[],
   ): Promise<RetrievedCitation[]> {
-    const MAX_TOTAL_CITATIONS = 8;
+    // 2026-09-24: ثابت مشترك مع mergeCitationLists (راجع تعليقها) بدل ثابت
+    // محلي منفصل — كان بالقيمة 8 هنا أصلاً، لا تغيير فى القيمة الفعلية.
+    const MAX_TOTAL_CITATIONS = QuestionsService.MAX_TOTAL_CITATIONS;
 
     const seenArticleIds = new Set<string>();
     const result: RetrievedCitation[] = [];
