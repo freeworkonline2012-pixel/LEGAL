@@ -27,6 +27,7 @@ import {
   buildFtsQuery,
   confidenceFromRank,
   detectArticleReference,
+  detectCrossReferencedArticles,
   isConfident,
   toCitationStatus,
 } from './retrieval';
@@ -81,10 +82,25 @@ interface RetrievedCitation {
   /** FK داخلي لمقالة/إصدار فعلي — أساس طبقة التحقق EP-05 (لا يُكشف في عقد API) */
   articleId: string | null;
   articleVersionId: string | null;
+  /**
+   * FK داخلي للقانون (لا يُكشف في عقد API) — أُضيف 2026-09-24 لدعم
+   * expandWithCrossReferences: يلزم معرفة نفس lawId للمادة المُسترجَعة لجلب
+   * المواد التي تُحيل إليها صراحة (الإحالة تكون دائماً داخل نفس القانون في
+   * الصياغة التشريعية المصرية — لا إحالة عابرة لقانون آخر بلا ذكره صراحة).
+   */
+  lawId: string | null;
 }
 
+/**
+ * إصلاح جذري (2026-09-24): citation (مفرد) → citations (مصفوفة). السبب
+ * الجذري الكامل موثَّق في retrieval.ts (راجع تعليق detectCrossReferencedArticles)
+ * وفي تقرير "تشخيص وإصلاح فجوة الشمول فى إجابات الأسئلة العامة" — خلاصته:
+ * تقييد الاسترجاع بنياً على مادة واحدة فقط كان يمنع أي إجابة شاملة لسؤال
+ * يحتاج فعلياً أكثر من نص قانوني، بصرف النظر عن جودة التوليد اللاحق. مصفوفة
+ * فارغة = لا استشهاد موثَّق (نفس دلالة citation:null السابقة تماماً).
+ */
 interface RetrievalResult {
-  citation: RetrievedCitation | null;
+  citations: RetrievedCitation[];
   confidence: number;
 }
 
@@ -139,20 +155,27 @@ export class QuestionsService {
     // الجاهز القديم دون أي تغيير في العقد أو انقطاع.
     let usedLlm = false;
     let answerText: string;
-    if (retrieval.citation) {
-      const llmAnswer = await this.generationService.composeGroundedAnswer({
+    if (retrieval.citations.length > 0) {
+      // composeGroundedAnswerMulti (2026-09-24): يستقبل **كل** الاستشهادات
+      // المُسترجَعة معاً (النص الأساسي + إحالاته الصريحة + أي مرشحين إضافيين
+      // ضروريين معاً لسؤال مقارن/مركَّب — راجع تعليق RetrievalResult أعلاه)
+      // بدل نص واحد فقط، فيقدر التوليف بينها بدل التصريح الخاطئ بعدم كفاية
+      // النص حين تكون الإجابة الكاملة موزَّعة فعلياً على أكثر من مادة.
+      const llmAnswer = await this.generationService.composeGroundedAnswerMulti({
         question: dto.question,
-        lawTitle: retrieval.citation.law,
-        lawNo: retrieval.citation.lawNo,
-        lawYear: retrieval.citation.lawYear,
-        articleNo: retrieval.citation.articleNo,
-        articleText: retrieval.citation.snippet,
+        articles: retrieval.citations.map((c) => ({
+          lawTitle: c.law,
+          lawNo: c.lawNo,
+          lawYear: c.lawYear,
+          articleNo: c.articleNo,
+          articleText: c.snippet,
+        })),
       });
       if (llmAnswer) {
         answerText = llmAnswer;
         usedLlm = true;
       } else {
-        answerText = this.buildGroundedAnswer(retrieval.citation);
+        answerText = this.buildGroundedAnswerMulti(retrieval.citations);
       }
     } else {
       answerText = REFUSED_ANSWER_TEXT;
@@ -167,17 +190,17 @@ export class QuestionsService {
     // موثَّق)، فتستمر فى دخول طابور المراجعة البشرية كما كانت بالضبط؛ النتيجة
     // (إن وُجدت) تُرفَق فى حقل webFallback الإضافي المنفصل فقط.
     let webFallbackResult: Awaited<ReturnType<WebSearchFallbackService['tryWebFallback']>> = null;
-    if (!retrieval.citation && this.webFallbackService.isConfigured) {
+    if (retrieval.citations.length === 0 && this.webFallbackService.isConfigured) {
       webFallbackResult = await this.webFallbackService.tryWebFallback(dto.question, (context) =>
         this.generationService.composeWebFallbackAnswer(dto.question, context),
       );
     }
 
-    const answer: AnswerResponseDto = retrieval.citation
+    const answer: AnswerResponseDto = retrieval.citations.length > 0
       ? {
           answer: answerText,
           confidence: retrieval.confidence,
-          citations: [this.toCitationDto(retrieval.citation)],
+          citations: retrieval.citations.map((c) => this.toCitationDto(c)),
           refused: false,
         }
       : {
@@ -228,7 +251,7 @@ export class QuestionsService {
       // C-2: نُعيد معرّف الإجابة المحفوظة في الرد — يُستخدم كـ answer_id في POST /api/feedback.
       answer.id = savedAnswer.id;
 
-      if (retrieval.citation) {
+      if (retrieval.citations.length > 0) {
         // ملاحظة تقنية (اكتُشفت 2026-09-12 أثناء إضافة عمود Answer.webFallback):
         // تمرير كائن كامل من Repository.create() إلى .insert() يجبر TypeScript
         // على مطابقة بنيوية عميقة عبر كل شجرة العلاقات (Citation → Answer →
@@ -240,24 +263,32 @@ export class QuestionsService {
         // على مستوى JS، فقط قيم الأعمدة نفسها؛ القيم الافتراضية DB-level مثل
         // status/position تُطبَّق من قِبل قاعدة البيانات بغض النظر). سلوك
         // مطابق تماماً للسابق، فقط بلا هشاشة نوعية.
-        const citationPayload: QueryDeepPartialEntity<Citation> = {
-          answerId: savedAnswer.id,
-          // ربط FK داخلي (EP-05): يربط الاستشهاد بالمقالة/الإصدار الفعليين اللذين
-          // استُرجعت منهما الإجابة — أساس فحص «هل المادة موجودة فعلاً» في مدقق
-          // الاستشهادات. لا يُكشف في عقد API (CitationResponseDto بلا article_id).
-          articleId: retrieval.citation.articleId,
-          articleVersionId: retrieval.citation.articleVersionId,
-          law: retrieval.citation.law,
-          lawNo: retrieval.citation.lawNo,
-          lawYear: retrieval.citation.lawYear,
-          articleNo: retrieval.citation.articleNo,
-          status: retrieval.citation.status,
-          lastAmended: retrieval.citation.lastAmended,
-          officialUrl: retrieval.citation.officialUrl,
-          snippet: retrieval.citation.snippet,
-          position: 0,
-        };
-        await manager.getRepository(Citation).insert(citationPayload);
+        //
+        // 2026-09-24: position (كان دائماً 0 لأن استشهاداً واحداً فقط كان
+        // يُخزَّن سابقاً) أصبح يعكس الآن ترتيب الاستشهادات الفعلي داخل مصفوفة
+        // retrieval.citations — العمود كان موجوداً بالفعل فى المخطط لهذا
+        // الغرض بالتحديد قبل هذا الإصلاح، ولم يكن مستخدَماً فعلياً إلا بقيمة
+        // ثابتة واحدة.
+        const citationPayloads: QueryDeepPartialEntity<Citation>[] = retrieval.citations.map(
+          (citation, position) => ({
+            answerId: savedAnswer.id,
+            // ربط FK داخلي (EP-05): يربط الاستشهاد بالمقالة/الإصدار الفعليين اللذين
+            // استُرجعت منهما الإجابة — أساس فحص «هل المادة موجودة فعلاً» في مدقق
+            // الاستشهادات. لا يُكشف في عقد API (CitationResponseDto بلا article_id).
+            articleId: citation.articleId,
+            articleVersionId: citation.articleVersionId,
+            law: citation.law,
+            lawNo: citation.lawNo,
+            lawYear: citation.lawYear,
+            articleNo: citation.articleNo,
+            status: citation.status,
+            lastAmended: citation.lastAmended,
+            officialUrl: citation.officialUrl,
+            snippet: citation.snippet,
+            position,
+          }),
+        );
+        await manager.getRepository(Citation).insert(citationPayloads);
       }
 
       // EP-06: كل إجابة مرفوضة (ثقة منخفضة / لا نص موثّق كافٍ) تدخل طابور
@@ -445,14 +476,27 @@ export class QuestionsService {
   // الكامل عن هذا الـfallback (وحذف rewriteForSearch من DeepseekGenerationService)
   // بقرار رجل الأعمال 2026-08-23. التفاصيل الكاملة موثّقة فى تقرير المعايرة.
   private async retrieve(questionText: string): Promise<RetrievalResult> {
+    const base = await this.retrieveBase(questionText);
+    if (base.citations.length === 0) {
+      return base;
+    }
+    // 2026-09-24: توسيع نهائي موحَّد عبر إحالات صريحة (راجع تعليق
+    // expandWithCrossReferences أدناه وretrieval.ts) — نقطة اختناق واحدة
+    // تُطبَّق بعد أي مسار استرجاع نجح (تفصيل بالاسم/direct، rerank+تحقق، أو
+    // legacy)، بدل تكرار المنطق فى كل مسار على حدة.
+    const expanded = await this.expandWithCrossReferences(base.citations);
+    return { citations: expanded, confidence: base.confidence };
+  }
+
+  private async retrieveBase(questionText: string): Promise<RetrievalResult> {
     const ref = detectArticleReference(questionText);
 
     if (ref && ref.lawNo) {
       const direct = await this.directLookup(ref);
       if (direct) {
-        return { citation: direct, confidence: 0.95 };
+        return { citations: [direct], confidence: 0.95 };
       }
-      return { citation: null, confidence: 0.1 };
+      return { citations: [], confidence: 0.1 };
     }
 
     // EP-10 (2026-08-23، ADR-001): طبقة rerank+تحقق هجينة، خلف feature flag
@@ -502,6 +546,11 @@ export class QuestionsService {
 
     return ftsResult;
   }
+
+  /** المسار البديل (بلا EP-10) يبقى وحيد-الاستشهاد الأساسي فى مصدره —
+   * expandWithCrossReferences (تُطبَّق مركزياً فى retrieve()) هى ما يمنحه
+   * فرصة استكمال أي إحالات صريحة داخل نص تلك المادة الواحدة نفسها، بلا
+   * حاجة لتعديل ftsRetrieval/semanticRetrieval أنفسهما. */
 
   /**
    * EP-10 (2026-08-23، ADR-001 — الحل الهجين المُعتمَد؛ مُعاد تصميم طبقة
@@ -576,7 +625,7 @@ export class QuestionsService {
       this.logger.log(
         `EP-10 verify: qHash=${this.hashQuestion(questionText)} → لا مرشحين إطلاقاً من FTS/الدلالي`,
       );
-      return { citation: null, confidence: 0 };
+      return { citations: [], confidence: 0 };
     }
 
     const rerankResults = await this.embeddingsService.rerank(
@@ -605,15 +654,22 @@ export class QuestionsService {
           .join(', '),
     );
 
-    // نعرض أفضل 3 مرشحين معاً على DeepSeek فى نداء مقارن واحد (بدل حلقة
+    // نعرض أفضل 5 مرشحين معاً على DeepSeek فى نداء مقارن واحد (بدل حلقة
     // فحوصات منفردة متتالية — راجع تعليق selectBestCandidate فى
     // deepseek-generation.service.ts لسبب هذا التغيير الجذري بعد حادثة g051
-    // 2026-08-25). 3 بدل 2 السابقة: نفس عدد نداءات DeepSeek تقريباً (نداء
-    // واحد مقارن بدل حتى 2 منفردين)، فزيادة نطاق المقارنة بلا كُلفة إضافية
-    // معتبرة أفضل من الاكتفاء بأفضل 2 حسب rerank فقط.
-    const topCandidates = ordered.slice(0, 3);
+    // 2026-08-25).
+    // ⚠️ 2026-09-24: رُفع من 3 إلى 5 — إصلاح جذري مصاحب لاستبدال
+    // selectBestCandidate بـselectRelevantCandidates (اختيار مُتعدد بدل
+    // مرشح واحد): سؤال مقارن أو مركَّب قد يحتاج مادتين غير متجاورتين فى
+    // ترتيب rerank (مثال حى: المادة 154 والمادة 165 من قانون العمل 14/2025
+    // — نظامان مختلفان لعقدين مختلفين لنفس القانون، تشابههما الدلالي بنص
+    // السؤال متفاوت)؛ نافذة أضيق من 3 كانت تُسقط المادة الثانية قبل أن تصل
+    // لطبقة الاختيار أصلاً، بصرف النظر عن جودة الاختيار نفسه. تكلفة إضافية
+    // ضئيلة (نداء rerank واحد أصلاً، ونداء DeepSeek واحد مقارن بحجم سياق
+    // أكبر قليلاً لا نداءات إضافية).
+    const topCandidates = ordered.slice(0, 5);
 
-    const selection = await this.generationService.selectBestCandidate({
+    const selection = await this.generationService.selectRelevantCandidates({
       question: questionText,
       candidates: topCandidates.map((c) => ({
         lawTitle: c.citation.law,
@@ -644,7 +700,7 @@ export class QuestionsService {
 
     // تسجيل تشخيصي (يحل محل سطر "EP-10 verify" القديم لكل مرشح على حدة) —
     // يُبقى فى السجلات لأنه مفيد للتدقيق المستقبلي؛ ليس ضجيجاً لأنه نداء
-    // واحد فقط لكل سؤال الآن (بدل حتى 2).
+    // واحد فقط لكل سؤال الآن.
     this.logger.log(
       `EP-10 select: qHash=${this.hashQuestion(questionText)} مرشحون=` +
         topCandidates
@@ -653,30 +709,42 @@ export class QuestionsService {
         ` → ${JSON.stringify(selection)}`,
     );
 
-    // سياسة fail-open/fail-closed (راجع تعليق selectBestCandidate فى
-    // deepseek-generation.service.ts للتفاصيل الكاملة):
-    //   - 'not_configured' (بلا DEEPSEEK_API_KEY): fail-open — الميزة غير
-    //     مفعَّلة أصلاً، حالة تهيئة معروفة، قبول أفضل مرشح حسب rerank كأن
-    //     التحقق غير موجود.
-    //   - 'ok' مع selectedIndex رقم صالح: قبول المرشح المُختار صراحة (قد لا
-    //     يكون الأول فى ترتيب rerank — هذا بالضبط الهدف من التصميم الجديد).
-    //   - 'ok' مع selectedIndex=null (لا أحد يجيب بدقة)، أو 'error' (عطل
-    //     استدعاء/تحليل فعلي أثناء التشغيل): fail-**closed** — رفض آمن. عطل
-    //     التحقق نفسه لم يعد يُعامَل كقبول ضمني (كان هذا سبب فشل التشغيل
-    //     الحي الأول بالكامل — راجع ADR-001).
+    // سياسة fail-open/fail-closed (راجع تعليق selectRelevantCandidates فى
+    // deepseek-generation.service.ts للتفاصيل الكاملة — نفس سياسة
+    // selectBestCandidate السابقة بالحرف، فقط selectedIndex المفرد أصبح
+    // selectedIndices مصفوفة):
+    //   - 'not_configured' (بلا DEEPSEEK_API_KEY): fail-open — قبول أفضل
+    //     مرشح واحد حسب rerank كأن التحقق غير موجود (سلوك مطابق تماماً
+    //     للسابق فى هذه الحالة تحديداً — لا نغامر بقبول عدة مرشحين بلا أي
+    //     تحقق فعلي).
+    //   - 'ok' مع selectedIndices غير فارغة: قبول كل المرشحين المُختارين
+    //     صراحة معاً — هذا بالضبط الهدف من التصميم الجديد (راجع تعليق
+    //     RetrievalResult فى بداية الملف).
+    //   - 'ok' مع selectedIndices فارغة (لا أحد يجيب بدقة)، أو 'error' (عطل
+    //     استدعاء/تحليل فعلي أثناء التشغيل): fail-**closed** — رفض آمن،
+    //     بلا تغيير عن السياسة السابقة.
     if (selection.status === 'not_configured') {
       const top = topCandidates[0];
-      return top ? { citation: top.citation, confidence: top.confidence } : { citation: null, confidence: 0 };
+      return top ? { citations: [top.citation], confidence: top.confidence } : { citations: [], confidence: 0 };
     }
-    if (selection.status === 'ok' && selection.selectedIndex !== null) {
-      const chosen = topCandidates[selection.selectedIndex];
-      if (chosen) {
-        return { citation: chosen.citation, confidence: chosen.confidence };
+    if (selection.status === 'ok' && selection.selectedIndices.length > 0) {
+      const chosen = selection.selectedIndices
+        .map((idx) => topCandidates[idx])
+        .filter((c): c is (typeof topCandidates)[number] => c !== undefined);
+      if (chosen.length > 0) {
+        // الثقة المُعتمَدة = أعلى ثقة خام بين المرشحين المختارين فعلاً —
+        // يحافظ على نفس دلالة/معايرة REFUSAL_THRESHOLD وSEMANTIC_CONFIDENCE_
+        // THRESHOLD الحاليتين (مبنيتين على قياس تجريبي فعلي موثَّق أعلاه)
+        // بلا أي تغيير: لو كان المرشح الأقوى يتجاوز العتبة، تبقى الإجابة
+        // بنفس مستوى الثقة المعروض للمستخدم كالسابق تماماً، بصرف النظر عن
+        // عدد المواد الإضافية المرفَقة معه لإثراء الإجابة.
+        const confidence = Math.max(...chosen.map((c) => c.confidence));
+        return { citations: chosen.map((c) => c.citation), confidence };
       }
     }
 
     // لا مرشح مختار (صراحة، أو fail-closed بعد عطل تشغيلي فعلي) — رفض آمن.
-    return { citation: null, confidence: ordered[0]?.confidence ?? 0 };
+    return { citations: [], confidence: ordered[0]?.confidence ?? 0 };
   }
 
   /** EP-10: نفس استعلام ftsRetrieval لكن يُرجع أفضل limit مرشحين خام (بلا
@@ -729,6 +797,7 @@ export class QuestionsService {
     const rows: Array<{
       article_id: string;
       article_no: number;
+      law_id: string;
       short_title: string | null;
       title: string;
       law_no: number;
@@ -742,7 +811,7 @@ export class QuestionsService {
     }> = await this.dataSource.query(
       `SELECT
          a.id AS article_id, a.article_no,
-         l.short_title, l.title, l.law_no, l.law_year, l.status, l.last_amended_at, l.official_url,
+         l.id AS law_id, l.short_title, l.title, l.law_no, l.law_year, l.status, l.last_amended_at, l.official_url,
          av.id AS version_id, av.body,
          1 - (a.embedding <=> $1::vector) AS similarity
        FROM articles a
@@ -808,6 +877,7 @@ export class QuestionsService {
       snippet: version.body,
       articleId: version.article.id,
       articleVersionId: version.id,
+      lawId: version.article.law.id,
     };
   }
 
@@ -816,6 +886,7 @@ export class QuestionsService {
   private citationFromSemanticRow(row: {
     article_id: string;
     article_no: number;
+    law_id: string;
     short_title: string | null;
     title: string;
     law_no: number;
@@ -837,6 +908,7 @@ export class QuestionsService {
       snippet: row.body,
       articleId: row.article_id,
       articleVersionId: row.version_id,
+      lawId: row.law_id,
     };
   }
 
@@ -863,6 +935,7 @@ export class QuestionsService {
       article_no: number;
       short_title: string | null;
       title: string;
+      law_id: string;
       law_no: number;
       law_year: number;
       status: 'in_force' | 'amended' | 'repealed';
@@ -874,7 +947,7 @@ export class QuestionsService {
     }> = await this.dataSource.query(
       `SELECT
          a.id AS article_id, a.article_no,
-         l.short_title, l.title, l.law_no, l.law_year, l.status, l.last_amended_at, l.official_url,
+         l.id AS law_id, l.short_title, l.title, l.law_no, l.law_year, l.status, l.last_amended_at, l.official_url,
          av.id AS version_id, av.body,
          1 - (a.embedding <=> $1::vector) AS similarity
        FROM articles a
@@ -887,29 +960,32 @@ export class QuestionsService {
     );
 
     if (rows.length === 0) {
-      return { citation: null, confidence: 0 };
+      return { citations: [], confidence: 0 };
     }
 
     const best = rows[0];
     const confidence = Math.min(1, Math.max(0, Number(best.similarity)));
 
     if (confidence < SEMANTIC_CONFIDENCE_THRESHOLD) {
-      return { citation: null, confidence };
+      return { citations: [], confidence };
     }
 
     return {
-      citation: {
-        law: best.short_title ?? best.title,
-        lawNo: best.law_no,
-        lawYear: best.law_year,
-        articleNo: best.article_no,
-        status: toCitationStatus(best.status),
-        lastAmended: best.last_amended_at,
-        officialUrl: best.official_url,
-        snippet: best.body,
-        articleId: best.article_id,
-        articleVersionId: best.version_id,
-      },
+      citations: [
+        {
+          law: best.short_title ?? best.title,
+          lawNo: best.law_no,
+          lawYear: best.law_year,
+          articleNo: best.article_no,
+          status: toCitationStatus(best.status),
+          lastAmended: best.last_amended_at,
+          officialUrl: best.official_url,
+          snippet: best.body,
+          articleId: best.article_id,
+          articleVersionId: best.version_id,
+          lawId: best.law_id,
+        },
+      ],
       confidence,
     };
   }
@@ -919,49 +995,9 @@ export class QuestionsService {
     if (!law) {
       return null;
     }
-
-    const article = await this.articleRepository.findOne({
-      where: { lawId: law.id, articleNo: ref.articleNo },
-    });
-    if (!article) {
-      return null;
-    }
-
-    const versions = await this.versionRepository.find({
-      where: { articleId: article.id },
-      order: { versionNo: 'ASC' },
-    });
-    const effective = versionEffectiveOn(
-      versions.map((v) => ({
-        id: v.id,
-        versionNo: v.versionNo,
-        body: v.body,
-        effectiveFrom: v.effectiveFrom,
-        effectiveTo: v.effectiveTo,
-        status: v.status,
-      })),
-      today(),
-    );
-
-    if (!effective) {
-      return null;
-    }
-
-    return {
-      law: law.shortTitle ?? law.title,
-      lawNo: law.lawNo,
-      lawYear: law.lawYear,
-      articleNo: article.articleNo,
-      // toCitationStatus: مفردات الاستشهاد (active/amended/repealed) — قانون
-      // in_force → active. الخلط مع مفردات القانون (in_force) يكسر قيد CHECK في
-      // citations.status ويخالف عقد API (P0 — كان سيُسقط أي INSERT استشهاد بـ 500).
-      status: toCitationStatus(law.status),
-      lastAmended: law.lastAmendedAt,
-      officialUrl: law.officialUrl,
-      snippet: effective.body,
-      articleId: article.id,
-      articleVersionId: effective.id,
-    };
+    // 2026-09-24: أُعيد استخدام resolveArticleCitation (المنطق نفسه حرفياً
+    // كان مكرَّراً هنا سابقاً) — راجع تعريفها أسفل expandWithCrossReferences.
+    return this.resolveArticleCitation(law, ref.articleNo);
   }
 
   private async findLawByRef(ref: ArticleReference): Promise<Law | null> {
@@ -982,7 +1018,7 @@ export class QuestionsService {
   ): Promise<RetrievalResult> {
     const query = buildFtsQuery(questionText);
     if (!query) {
-      return { citation: null, confidence: 0 };
+      return { citations: [], confidence: 0 };
     }
 
     // EP-06 (2026-08-21): to_tsquery بدل plainto_tsquery — buildFtsQuery
@@ -1009,7 +1045,7 @@ export class QuestionsService {
     const { entities, raw } = await qb.getRawAndEntities();
 
     if (entities.length === 0) {
-      return { citation: null, confidence: 0 };
+      return { citations: [], confidence: 0 };
     }
 
     // تفضيل مادة برقم صريح ورد في السؤال (إن وُجد)
@@ -1028,31 +1064,168 @@ export class QuestionsService {
     const confidence = confidenceFromRank(rank);
 
     if (!isConfident(confidence)) {
-      return { citation: null, confidence };
+      return { citations: [], confidence };
     }
 
     return {
-      citation: {
-        law: version.article.law.shortTitle ?? version.article.law.title,
-        lawNo: version.article.law.lawNo,
-        lawYear: version.article.law.lawYear,
-        articleNo: version.article.articleNo,
-        // toCitationStatus: انظر directLookup — نفس تحويل in_force → active.
-        status: toCitationStatus(version.article.law.status),
-        lastAmended: version.article.law.lastAmendedAt,
-        officialUrl: version.article.law.officialUrl,
-        snippet: version.body,
-        articleId: version.article.id,
-        articleVersionId: version.id,
-      },
+      citations: [
+        {
+          law: version.article.law.shortTitle ?? version.article.law.title,
+          lawNo: version.article.law.lawNo,
+          lawYear: version.article.law.lawYear,
+          articleNo: version.article.articleNo,
+          // toCitationStatus: انظر directLookup — نفس تحويل in_force → active.
+          status: toCitationStatus(version.article.law.status),
+          lastAmended: version.article.law.lastAmendedAt,
+          officialUrl: version.article.law.officialUrl,
+          snippet: version.body,
+          articleId: version.article.id,
+          articleVersionId: version.id,
+          lawId: version.article.law.id,
+        },
+      ],
       confidence,
+    };
+  }
+
+  // ===== توسيع بالإحالات الصريحة =====
+
+  /**
+   * إصلاح جذري (2026-09-24 — راجع تعليق RetrievalResult وretrieval.ts
+   * لتفاصيل التشخيص الكامل): يُستدعى مرة واحدة من retrieve() بعد نجاح أي
+   * مسار استرجاع (تفصيل بالاسم/direct، rerank+تحقق، أو legacy)، فيمسح نص كل
+   * استشهاد مُسترجَع بحثاً عن إحالات صريحة بأرقام داخل نفس القانون
+   * (detectCrossReferencedArticles) ويجلبها فعلياً من قاعدة البيانات —
+   * استعلام حتمي متحقَّق منه، لا تخمين ولا استدعاء LLM إطلاقاً فى هذه
+   * الخطوة. مثال حى: نص المادة 154 من قانون العمل 14/2025 يبدأ بـ"مع عدم
+   * الإخلال بما نصت عليه المواد (87، 88، 95)..." — بدون هذا التوسيع، تلك
+   * المواد الثلاث تبقى غائبة تماماً عن سياق التوليد رغم أن المُشرِّع نفسه
+   * يُحيل إليها صراحة فى نص المادة المسترجَعة بدقة.
+   *
+   * رقم مُستخرَج لا يقابل مادة فعلية فى نفس القانون (تطابق نصي زائف نادر)
+   * يُتجاهَل بصمت — findOne يُرجع null فيُستبعَد، بلا أي خطر تلفيق (لم يُضَف
+   * شيء لسياق التوليد أصلاً). سقف الإجمالي (المُسترجَعة أصلاً + المُوسَّعة)
+   * يمنع تضخم سياق التوليد بلا داعٍ — راجع MAX_TOTAL_CITATIONS.
+   */
+  private async expandWithCrossReferences(
+    citations: RetrievedCitation[],
+  ): Promise<RetrievedCitation[]> {
+    const MAX_TOTAL_CITATIONS = 8;
+
+    const seenArticleIds = new Set<string>();
+    const result: RetrievedCitation[] = [];
+    for (const c of citations) {
+      const key = c.articleId ?? `${c.lawId}-${c.articleNo}`;
+      if (!seenArticleIds.has(key)) {
+        seenArticleIds.add(key);
+        result.push(c);
+      }
+    }
+
+    const lawCache = new Map<string, Law | null>();
+
+    for (const citation of citations) {
+      if (result.length >= MAX_TOTAL_CITATIONS || !citation.lawId) {
+        continue;
+      }
+      const refs = detectCrossReferencedArticles(citation.snippet, citation.articleNo);
+      if (refs.length === 0) {
+        continue;
+      }
+
+      let law = lawCache.get(citation.lawId);
+      if (law === undefined) {
+        law = await this.lawRepository.findOne({ where: { id: citation.lawId } });
+        lawCache.set(citation.lawId, law);
+      }
+      if (!law) {
+        continue;
+      }
+
+      for (const articleNo of refs) {
+        if (result.length >= MAX_TOTAL_CITATIONS) {
+          break;
+        }
+        const key = `${citation.lawId}-${articleNo}`;
+        if (seenArticleIds.has(key)) {
+          continue;
+        }
+        const resolved = await this.resolveArticleCitation(law, articleNo);
+        if (resolved) {
+          seenArticleIds.add(resolved.articleId ?? key);
+          result.push(resolved);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * يبني RetrievedCitation من قانون معروف (Law) ورقم مادة — منطق مُستخرَج من
+   * directLookup لإعادة استخدامه فى expandWithCrossReferences أيضاً (نفس
+   * قواعد النسخة السارية زمنياً versionEffectiveOn، بلا أي تكرار منطق).
+   */
+  private async resolveArticleCitation(law: Law, articleNo: number): Promise<RetrievedCitation | null> {
+    const article = await this.articleRepository.findOne({
+      where: { lawId: law.id, articleNo },
+    });
+    if (!article) {
+      return null;
+    }
+
+    const versions = await this.versionRepository.find({
+      where: { articleId: article.id },
+      order: { versionNo: 'ASC' },
+    });
+    const effective = versionEffectiveOn(
+      versions.map((v) => ({
+        id: v.id,
+        versionNo: v.versionNo,
+        body: v.body,
+        effectiveFrom: v.effectiveFrom,
+        effectiveTo: v.effectiveTo,
+        status: v.status,
+      })),
+      today(),
+    );
+    if (!effective) {
+      return null;
+    }
+
+    return {
+      law: law.shortTitle ?? law.title,
+      lawNo: law.lawNo,
+      lawYear: law.lawYear,
+      articleNo: article.articleNo,
+      // toCitationStatus: مفردات الاستشهاد (active/amended/repealed) — قانون
+      // in_force → active. الخلط مع مفردات القانون (in_force) يكسر قيد CHECK في
+      // citations.status ويخالف عقد API (P0 — كان سيُسقط أي INSERT استشهاد بـ 500).
+      status: toCitationStatus(law.status),
+      lastAmended: law.lastAmendedAt,
+      officialUrl: law.officialUrl,
+      snippet: effective.body,
+      articleId: article.id,
+      articleVersionId: effective.id,
+      lawId: law.id,
     };
   }
 
   // ===== تجميع الإجابة =====
 
-  private buildGroundedAnswer(citation: RetrievedCitation): string {
-    return `طبقاً للمادة ${citation.articleNo} من ${citation.law} (رقم ${citation.lawNo} لسنة ${citation.lawYear}): ${citation.snippet}`;
+  /**
+   * قالب احتياطي (بلا LLM) — يُستخدَم فقط لو فشل استدعاء
+   * composeGroundedAnswerMulti أو لم يكن DEEPSEEK_API_KEY مُهيَّأً. يجمع كل
+   * استشهاد فى سطر مستقل بدل الاكتفاء بواحد (2026-09-24 — كان اسمها
+   * buildGroundedAnswer وتقبل استشهاداً واحداً فقط، قبل إصلاح فجوة الشمول).
+   */
+  private buildGroundedAnswerMulti(citations: RetrievedCitation[]): string {
+    return citations
+      .map(
+        (citation) =>
+          `طبقاً للمادة ${citation.articleNo} من ${citation.law} (رقم ${citation.lawNo} لسنة ${citation.lawYear}): ${citation.snippet}`,
+      )
+      .join('\n\n');
   }
 
   private toCitationDto(citation: RetrievedCitation): CitationResponseDto {

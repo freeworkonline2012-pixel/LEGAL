@@ -9,6 +9,20 @@ export interface GroundedGenerationInput {
   articleText: string;
 }
 
+/** مادة واحدة ضمن مجموعة المواد المرفقة لـ composeGroundedAnswerMulti. */
+export interface GroundedGenerationArticleInput {
+  lawTitle: string;
+  lawNo: number;
+  lawYear: number;
+  articleNo: number;
+  articleText: string;
+}
+
+export interface GroundedGenerationMultiInput {
+  question: string;
+  articles: GroundedGenerationArticleInput[];
+}
+
 /**
  * تكامل DeepSeek لصياغة الإجابة النهائية (EP-04 — تفعيل الذكاء الاصطناعي،
  * 2026-08-21؛ استُبدل مزوّد Anthropic Claude بـ DeepSeek بناءً على طلب صريح
@@ -108,6 +122,139 @@ export class DeepseekGenerationService {
       return text && text.length > 0 ? text : null;
     } catch (err) {
       this.logger.error(`DeepSeek Chat Completions API call failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
+  /**
+   * إصلاح جذري (2026-09-24 — راجع تقرير "تشخيص وإصلاح فجوة الشمول فى إجابات
+   * الأسئلة العامة" لنفس التاريخ): composeGroundedAnswer أعلاه (وحيد المادة)
+   * كان يُنتج إجابات ناقصة الشمول بنيوياً لأى سؤال يحتاج فعلياً أكثر من نص
+   * قانونى واحد للإجابة الكاملة — وهذه ليست حالة نادرة، بل الأصل فى الأسئلة
+   * المقارنة أو المركَّبة (مثال حى قيَّمه خبراء الشركة 4.5/10: "ما حقوق الموظف
+   * عند عدم تجديد عقد مؤقت، وهل تختلف لو كان العقد غير محدد المدة؟" — يحتاج
+   * مادة الحكم الأساسى + مواد الإحالة الصريحة داخلها + مواد نظام العقد الآخر
+   * المقارَن به بالكامل). الفارق الجوهرى عن composeGroundedAnswer: هذه الدالة
+   * تستقبل **مجموعة** مواد (من مصدرين مجتمعين فى questions.service.ts — راجع
+   * expandWithCrossReferences وselectRelevantCandidates أدناه) وتُلزَم صراحة
+   * بفحص كل واحدة منها ودمج ما هو ذو صلة فعلياً قبل أن تُقرِّر أن جزءاً من
+   * السؤال غير مُجاب — لا الاكتفاء بأقرب نص لفظياً للسؤال والتوقف عنده، وهو
+   * بالضبط العطل الذى أنتج التقييم المنخفض (composeGroundedAnswer القديم
+   * اكتفى بالمادة 154 وحدها وصرَّح أن "النص لا يتضمن حكماً صريحاً" لسؤال
+   * المقارنة رغم أن مواد أخرى مرفقة معه فعلياً كانت تجيب عليه).
+   *
+   * الانضباط الأساسى نفسه بلا أى تخفيف: ممنوع منعاً باتاً إضافة أى معلومة أو
+   * رقم مادة أو تفسير غير موجود حرفياً فى إحدى المواد المرفقة أدناه — التوسّع
+   * هنا فى **عدد المصادر المسموح الاستناد إليها**، لا فى الإذن بالتخمين. لو
+   * ظل جزء من السؤال بلا إجابة رغم فحص كل المواد المرفقة، يجب التصريح بذلك
+   * بوضوح كما كان تماماً (هذا سلوك سليم يُحفَظ، لا عطل يُصحَّح).
+   */
+  async composeGroundedAnswerMulti(input: GroundedGenerationMultiInput): Promise<string | null> {
+    if (!this.isConfigured) {
+      return null;
+    }
+    if (input.articles.length === 0) {
+      return null;
+    }
+    if (input.articles.length === 1) {
+      // مسار وحيد المادة: نفس نوع المُخرَج تماماً كـcomposeGroundedAnswer —
+      // لا داعٍ لتعليمات "التوليف بين عدة نصوص" حين لا يوجد سوى نص واحد.
+      const only = input.articles[0];
+      return this.composeGroundedAnswer({
+        question: input.question,
+        lawTitle: only.lawTitle,
+        lawNo: only.lawNo,
+        lawYear: only.lawYear,
+        articleNo: only.articleNo,
+        articleText: only.articleText,
+      });
+    }
+
+    const system =
+      'أنت مساعد قانوني يصوغ إجابة عربية واضحة وشاملة بناءً حصراً على النصوص ' +
+      'القانونية المرفقة أدناه (أكثر من نص واحد)، ولا شيء غيرها. ممنوع منعاً ' +
+      'باتاً إضافة أى معلومة أو رقم مادة أو تفسير أو مثال غير موجود حرفياً فى ' +
+      'أحد النصوص المرفقة.\n\n' +
+      'مهمتك تحديداً — وهى سبب إرفاق عدة نصوص معاً بدل نص واحد: افحص **كل** ' +
+      'نص مرفق قبل أن تقرر أن جزءاً من سؤال المستخدم بلا إجابة. الأسئلة ' +
+      'المقارنة أو المركَّبة (مثال: "...وهل يختلف الحكم لو كانت الحالة كذا؟") ' +
+      'غالباً ما تحتاج نصين مختلفين معاً — نصاً للحالة الأولى وآخر للحالة ' +
+      'الثانية — ولا يجوز الاكتفاء بالنص الأقرب لفظياً لصياغة السؤال والتوقف ' +
+      'عنده. اجمع كل ما هو ذو صلة فعلية من كل النصوص المرفقة فى إجابة واحدة ' +
+      'متماسكة، ونظّمها بوضوح إن كان السؤال يطرح أكثر من حالة أو يطلب مقارنة ' +
+      '(يجوز استخدام فقرات قصيرة منفصلة لكل حالة، أو نقاط مرقَّمة موجزة عند ' +
+      'الحاجة — لا تُطِل بلا داعٍ، لكن لا تختصر إجابة سؤال مركَّب بفقرة واحدة ' +
+      'عامة). اذكر رقم المادة والقانون داخل الشرح نفسه بجوار كل معلومة ' +
+      'مستنَدة إليها مباشرة — لا فى نهاية الإجابة فقط.\n\n' +
+      'إن كان أحد النصوص المرفقة إحالة صريحة داخل نص آخر (مثال: نص يقول "مع ' +
+      'عدم الإخلال بما نصت عليه المواد كذا وكذا")، فاعتبر تلك المواد المُحال ' +
+      'إليها جزءاً لا يتجزأ من فهم الحكم الأساسى، لا معلومة هامشية منفصلة.\n\n' +
+      'إن ظل جزء محدد من السؤال بلا إجابة **رغم** فحص كل النصوص المرفقة، ' +
+      'صرّح بذلك بوضوح لهذا الجزء تحديداً بدل التخمين أو التعميم — لكن لا ' +
+      'تُصرِّح بعدم وجود إجابة لجزء تُجيب عنه فعلاً إحدى النصوص المرفقة. لا ' +
+      'تذكر أنك ذكاء اصطناعي ولا تعتذر — أجب مباشرة وبإيجاز يتناسب مع عدد ' +
+      'جوانب السؤال (فقرة واحدة لسؤال بسيط، عدة فقرات قصيرة منظَّمة لسؤال ' +
+      'مركَّب أو مقارن — لا حد أقصى صارم لعدد الفقرات، لكن كل جملة يجب أن ' +
+      'تضيف معلومة فعلية من النصوص المرفقة).';
+
+    const articlesText = input.articles
+      .map(
+        (a, i) =>
+          `النص ${i + 1} — المادة ${a.articleNo} من ${a.lawTitle} (رقم ${a.lawNo} لسنة ${a.lawYear}):\n"""${a.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `سؤال المستخدم: ${input.question}\n\n` +
+      `النصوص القانونية المرجعية (${input.articles.length} نصوص):\n${articlesText}\n\n` +
+      'اشرح للمستخدم بعربية طبيعية إجابة شاملة تجمع كل ما هو ذو صلة من النصوص ' +
+      'أعلاه، مع ذكر رقم المادة والقانون داخل الشرح نفسه.';
+
+    // max_tokens يتناسب طردياً مع عدد المواد المرفقة — إجابة تُوَلِّف بين عدة
+    // نصوص (خاصة سؤال مقارن يغطى نظامين قانونيين مختلفين كما فى مثال عقد
+    // العمل محدد/غير محدد المدة) تحتاج مساحة أكبر بكثير من إجابة مادة واحدة.
+    // السقف الأقصى 2500 مطابق لحد assessCompliance الأعلى فى نفس الملف — سقف
+    // مُختبَر بالفعل فى الإنتاج لسلامته مع DeepSeek (راجع تعليقه).
+    const maxTokens = Math.min(2500, 700 + input.articles.length * 260);
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: maxTokens,
+          thinking: { type: 'disabled' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.error(`DeepSeek composeGroundedAnswerMulti API error ${res.status}: ${errText}`);
+        return null;
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string; reasoning_content?: string } }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek composeGroundedAnswerMulti: content فارغ (reasoning_content length=${reasoningLen}) — ` +
+            `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+      }
+      return text && text.length > 0 ? text : null;
+    } catch (err) {
+      this.logger.error(`DeepSeek composeGroundedAnswerMulti API call failed: ${(err as Error).message}`);
       return null;
     }
   }
@@ -337,6 +484,145 @@ export class DeepseekGenerationService {
       return { status: 'ok', selectedIndex, reason: parsed.reason };
     } catch (err) {
       this.logger.warn(`DeepSeek selectBestCandidate call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
+
+  /**
+   * إصلاح جذري (2026-09-24): selectBestCandidate أعلاه مصمَّم عمداً لاختيار
+   * مرشح **واحد فقط** — مناسب تماماً لتمييز الأدق بين عدة مواد متشابهة
+   * ظاهرياً لنفس السؤال (وظيفته الأصلية بعد حادثة g051)، لكنه غير مناسب
+   * إطلاقاً لسؤال يحتاج فعلياً أكثر من مادة **معاً** للإجابة الكاملة (سؤال
+   * مقارن بين نظامين، أو سؤال يستدعى قاعدة + استثناء منصوصاً عليه فى مادة
+   * أخرى) — "اختر واحداً" يفرض على النموذج استبعاد مواد صحيحة وضرورية فعلاً
+   * لمجرد أن التصميم لا يسمح له باختيار أكثر من واحدة. هذه الدالة تُستخدَم
+   * فى questions.service.ts (خط الأسئلة العامة) بدل selectBestCandidate،
+   * وتُرجع **مصفوفة** مرشحين مختارين بدل مرشح واحد — نفس نمط الإخراج
+   * المُثبَت أصلاً فى GovernanceService.assessCompliance (selectedIndices:
+   * number[]) الذى يعمل فى الإنتاج بنجاح منذ 2026-09-04، لا تصميماً جديداً
+   * غير مُجرَّب.
+   *
+   * الانضباط نفسه بلا تخفيف: فحص كل مرشح بحثاً عن شرط ضيق غير وارد فى
+   * السؤال (نفس تعليمة selectBestCandidate بالحرف) — الفارق الوحيد هو
+   * السماح باختيار عدة مرشحين **حين تستدعيهم طبيعة السؤال فعلياً**، لا
+   * إدراج كل شىء بلا تمييز. سقف MAX_SELECTED يمنع تضخم السياق المُرسَل
+   * للتوليد لاحقاً بلا داعٍ.
+   */
+  async selectRelevantCandidates(input: {
+    question: string;
+    candidates: Array<{
+      lawTitle: string;
+      lawNo: number;
+      articleNo: number;
+      articleText: string;
+    }>;
+  }): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | { status: 'ok'; selectedIndices: number[]; reason: string }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+    if (input.candidates.length === 0) {
+      return { status: 'ok', selectedIndices: [], reason: 'لا مرشحين' };
+    }
+
+    const MAX_SELECTED = 6;
+
+    const system =
+      'أنت مدقق قانوني صارم ومتشكك. أمامك سؤال مستخدم وعدة نصوص قانونية ' +
+      'مرشحة، ترتيب عرضها لا يعكس دقتها القانونية إطلاقاً. مهمتك: افحص كل ' +
+      'مرشح على حدة قبل الاختيار: هل يتضمن نصه شرطاً أو استثناءً أو حالة ' +
+      'فرعية ضيقة (مثل: ميراث، وصية، فئة معينة، ظرف استثنائي محدد) غير وارد ' +
+      'إطلاقاً فى نص السؤال؟ إن وُجد هذا الشرط الضيق فى مرشح ولم يذكره ' +
+      'السؤال، فهذا المرشح على الأرجح غلط حتى لو بدا الأقرب لفظياً.\n\n' +
+      '⚠️ الفارق عن مهمة "اختر واحداً فقط" المعتادة: هذا السؤال قد يحتاج ' +
+      'فعلياً **أكثر من نص واحد معاً** للإجابة الكاملة — مثال: سؤال يقارن ' +
+      'بين حالتين مختلفتين (كل حالة لها نصها الخاص)، أو سؤال يستدعى قاعدة ' +
+      'عامة ثم استثناء أو تفصيلاً إضافياً منصوصاً عليه فى نص آخر منفصل. ' +
+      'اختر **كل** النصوص الضرورية فعلياً للإجابة الكاملة والدقيقة — لا ' +
+      'تُدرج نصاً غير ذى صلة فعلية فقط لتكثير العدد، ولا تُغفل نصاً ضرورياً ' +
+      'فعلاً لمجرد أنه لا يبدو الأقرب لفظياً لصياغة السؤال. لو لا يوجد أى ' +
+      'نص يجيب فعلياً وبدقة، أرجع مصفوفة فارغة.\n\n' +
+      `أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى قبلها أو بعدها، بحد أقصى ${MAX_SELECTED} ` +
+      'أرقام فى "selected"، بالضبط بهذا الشكل: {"selected": [2, 5], "reason": ' +
+      '"سبب موجز يوضح لماذا هذه النصوص تحديداً معاً، لا نص واحد"}';
+
+    const candidatesText = input.candidates
+      .map(
+        (c, i) =>
+          `${i + 1}) المادة ${c.articleNo} من ${c.lawTitle} (قانون رقم ${c.lawNo}):\n"""${c.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `السؤال: ${input.question}\n\n` +
+      `المرشحون:\n${candidatesText}\n\n` +
+      `اختر كل أرقام المرشحين (من 1 إلى ${input.candidates.length}) الضرورية فعلياً ` +
+      'للإجابة الكاملة، أو مصفوفة فارغة لو لا يوجد مرشح يجيب بدقة. افحص ' +
+      'أولاً هل فى أى مرشح شرط استثنائي ضيق غير وارد فى السؤال. رد بـJSON فقط.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          // أكبر من selectBestCandidate (250) لأن الإخراج قد يتضمن حتى 6
+          // أرقام بدل رقم واحد — نفس منطق هامش الأمان الموثَّق فى الدوال
+          // الأخرى بهذا الملف ("درس التقطيع الأول").
+          max_tokens: 400,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek selectRelevantCandidates API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
+      };
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek selectRelevantCandidates: content فارغ — reasoning_content ` +
+            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+        return { status: 'error', detail: 'empty_response' };
+      }
+
+      const parsed = parsePenaltySelectionJson(text, input.candidates.length);
+      if (!parsed) {
+        this.logger.warn(
+          `DeepSeek selectRelevantCandidates: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+      // "selected" مبني على 1..N من DeepSeek. نحوّله هنا لفهارس 0-based
+      // ونحدّه بـMAX_SELECTED دفاعياً (احتياطاً لو تجاوز النموذج الحد رغم
+      // التعليمة، رغم أن parsePenaltySelectionJson لا يفرض هذا الحد بذاته).
+      const selectedIndices = parsed.selected.map((n) => n - 1).slice(0, MAX_SELECTED);
+      return { status: 'ok', selectedIndices, reason: parsed.note };
+    } catch (err) {
+      this.logger.warn(`DeepSeek selectRelevantCandidates call failed: ${(err as Error).message}`);
       return { status: 'error', detail: (err as Error).message };
     }
   }

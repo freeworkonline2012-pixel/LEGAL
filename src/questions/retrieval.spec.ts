@@ -1,8 +1,10 @@
 import {
   REFUSAL_THRESHOLD,
+  MAX_CROSS_REFERENCE_ARTICLES,
   buildFtsQuery,
   confidenceFromRank,
   detectArticleReference,
+  detectCrossReferencedArticles,
   isConfident,
   toCitationStatus,
 } from './retrieval';
@@ -156,6 +158,47 @@ describe('confidenceFromRank', () => {
   it('يُرجع 0 لقيمة Infinity (موجبة أو سالبة)', () => {
     expect(confidenceFromRank(Infinity)).toBe(0);
     expect(confidenceFromRank(-Infinity)).toBe(0);
+  });
+});
+
+describe('detectCrossReferencedArticles', () => {
+  it('يستخرج قائمة أرقام من صيغة "المواد (87، 88، 95)" — حالة المادة 154 الحقيقية', () => {
+    const body =
+      'مع عدم الإخلال بما نصت عليه المواد (87، 88، 95) من هذا القانون، ينتهى عقد العمل محدد المدة بانقضاء مدته.';
+    expect(detectCrossReferencedArticles(body)).toEqual([87, 88, 95]);
+  });
+
+  it('يستخرج قائمة من صيغة "المواد 87 و88 و95" بلا أقواس', () => {
+    expect(detectCrossReferencedArticles('طبقاً للمواد 87 و88 و95 من القانون')).toEqual([87, 88, 95]);
+  });
+
+  it('يستخرج إحالة مفردة من "المادة 88"', () => {
+    expect(detectCrossReferencedArticles('وفقاً لأحكام المادة 88 من هذا القانون')).toEqual([88]);
+  });
+
+  it('يستخرج إحالة من صيغة المثنى "المادتين 12 و13"', () => {
+    expect(detectCrossReferencedArticles('مع مراعاة المادتين 12 و13')).toEqual([12, 13]);
+  });
+
+  it('يستثني رقم المادة الحالية إن مُرِّر excludeArticleNo (لا تُحيل مادة لنفسها)', () => {
+    expect(detectCrossReferencedArticles('طبقاً للمواد 87 و88 و154', 154)).toEqual([87, 88]);
+  });
+
+  it('يُزيل التكرار ويرتّب الأرقام تصاعدياً بصرف النظر عن ترتيب ورودها', () => {
+    expect(detectCrossReferencedArticles('المادة 95 ثم المادة 87 ثم المادة 95 مجدداً')).toEqual([87, 95]);
+  });
+
+  it('لا يلتقط أرقاماً بعيدة عن كلمة "مادة" (كرقم القانون أو السنة)', () => {
+    expect(detectCrossReferencedArticles('طبقاً للمادة 88 من قانون رقم 14 لسنة 2025')).toEqual([88]);
+  });
+
+  it('يُرجع مصفوفة فارغة لو لا توجد إحالات صريحة إطلاقاً', () => {
+    expect(detectCrossReferencedArticles('ينتهي العقد بانقضاء مدته المتفق عليها بين الطرفين.')).toEqual([]);
+  });
+
+  it(`يحدّ عدد الإحالات المُستخرَجة بـ${MAX_CROSS_REFERENCE_ARTICLES} كحد أقصى`, () => {
+    const body = 'طبقاً للمواد (1، 2، 3، 4، 5، 6، 7، 8، 9، 10)';
+    expect(detectCrossReferencedArticles(body)).toHaveLength(MAX_CROSS_REFERENCE_ARTICLES);
   });
 });
 
