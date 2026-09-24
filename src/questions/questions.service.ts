@@ -1287,6 +1287,15 @@ export class QuestionsService {
       return citations;
     }
 
+    // ⚠️ تسجيل تشخيصي (2026-09-24 — أُضيف بعد قياس حى أول لم يُظهر أى مادة من
+    // الحزمة رغم نشر مؤكَّد وكاشف موضوع يُفترض أنه يتفعّل على نص السؤال
+    // المُختبَر فعلياً): بدون هذا التسجيل لا توجد وسيلة لمعرفة أين تتوقف
+    // السلسلة (الكاشف؟ عدم إيجاد القانون؟ رفض selectRelevantCandidates؟) —
+    // نفس نمط تسجيل EP-10 (pool/order/select) بالضبط، بلا نص السؤال الخام
+    // (H-4، راجع hashQuestion).
+    const qHash = this.hashQuestion(questionText);
+    this.logger.log(`EOR: qHash=${qHash} الكاشف تفعَّل، مواد موجودة بالفعل=${citations.length}`);
+
     try {
       const seenArticleNos = new Set(
         citations.map((c) => `${c.lawId}-${c.articleNo}`),
@@ -1294,6 +1303,7 @@ export class QuestionsService {
 
       const law = await this.lawRepository.findOne({ where: { lawNo: 14, lawYear: 2025 } });
       if (!law) {
+        this.logger.warn(`EOR: qHash=${qHash} لم يُعثَر على قانون العمل 14/2025 فى قاعدة البيانات`);
         return citations;
       }
 
@@ -1301,6 +1311,7 @@ export class QuestionsService {
         (articleNo) => !seenArticleNos.has(`${law.id}-${articleNo}`),
       );
       if (missing.length === 0) {
+        this.logger.log(`EOR: qHash=${qHash} كل مواد الحزمة موجودة بالفعل ضمن الاستشهادات — لا إضافة`);
         return citations;
       }
 
@@ -1311,6 +1322,10 @@ export class QuestionsService {
           candidates.push(resolved);
         }
       }
+      this.logger.log(
+        `EOR: qHash=${qHash} مرشحون مُحلَّلون من الحزمة=${candidates.map((c) => c.articleNo).join(',')} ` +
+          `(مفقود من الحزمة كلياً=${missing.filter((n) => !candidates.some((c) => c.articleNo === n)).join(',') || 'لا شىء'})`,
+      );
       if (candidates.length === 0) {
         return citations;
       }
@@ -1325,6 +1340,8 @@ export class QuestionsService {
         })),
       });
 
+      this.logger.log(`EOR: qHash=${qHash} نتيجة selectRelevantCandidates=${JSON.stringify(selection)}`);
+
       if (selection.status !== 'ok' || selection.selectedIndices.length === 0) {
         return citations;
       }
@@ -1335,10 +1352,15 @@ export class QuestionsService {
         .filter((c): c is RetrievedCitation => c !== undefined)
         .slice(0, room);
 
+      this.logger.log(
+        `EOR: qHash=${qHash} مواد مُضافة فعلياً=${chosen.map((c) => c.articleNo).join(',') || 'لا شىء'} ` +
+          `(room=${room})`,
+      );
+
       return [...citations, ...chosen];
     } catch (err) {
       this.logger.warn(
-        `expandWithEndOfRelationshipBundle فشل — fail-open بلا تعديل: ${(err as Error).message}`,
+        `EOR: qHash=${qHash} فشل — fail-open بلا تعديل: ${(err as Error).message}`,
       );
       return citations;
     }
