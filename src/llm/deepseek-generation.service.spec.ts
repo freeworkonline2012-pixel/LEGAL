@@ -287,3 +287,128 @@ describe('DeepseekGenerationService.decomposeQuestion', () => {
     expect(result).toEqual({ status: 'error', detail: 'http_500' });
   });
 });
+
+/**
+ * 2026-09-25 (إصلاح جذرى سادس — راجع تعليق findHallucinatedArticleCitations
+ * فى deepseek-generation.service.ts للتشخيص الكامل): دليل حى مباشر أن
+ * composeGroundedAnswerMulti استشهد بـ"المادة 11" لنص المادة 175 الفعلى بعد
+ * دمج 11 مادة فى استدعاء توليد واحد — الاسترجاع كان صحيحاً 100%، والعطل فى
+ * خطوة الصياغة وحدها. هذه الاختبارات تُشغِّل بوابة التحقق الحتمية الجديدة
+ * فعلياً (لا تقرأ الكود قراءة ثابتة فقط) للتأكد أنها تكتشف بالضبط هذا النمط
+ * وتُرجِع null بدل تمرير استشهاد خاطئ للمستخدم — طبقاً لقاعدة "التحقق قبل
+ * القول".
+ */
+describe('DeepseekGenerationService — بوابة رفض الاستشهاد بأرقام مواد غير مرسَلة (composeGroundedAnswer)', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it('يُرجِع النص كما هو حين يستشهد فقط برقم المادة المرسَلة فعلياً', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValueOnce(
+      jsonResponse(200, chatCompletion('طبقاً للمادة 1 من قانون تجريبى (رقم 1 لسنة 2020)...', 'stop')),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.composeGroundedAnswer({
+      question: 'سؤال تجريبى',
+      ...CANDIDATE,
+    });
+
+    expect(result).toBe('طبقاً للمادة 1 من قانون تجريبى (رقم 1 لسنة 2020)...');
+  });
+
+  it(
+    'يُرجِع null (fail-safe) حين يستشهد بمادة غير المادة الوحيدة المرسَلة — نفس نمط ' +
+      'عطل المادة 11/175 الحى بالضبط',
+    async () => {
+      process.env.DEEPSEEK_API_KEY = 'test-key';
+      const service = new DeepseekGenerationService();
+      const fetchMock = jest.fn().mockResolvedValueOnce(
+        jsonResponse(
+          200,
+          chatCompletion('طبقاً للمادة 175 من قانون تجريبى، يلتزم صاحب العمل بمنح شهادة خبرة...', 'stop'),
+        ),
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      // CANDIDATE.articleNo === 1 — النص المُولَّد يستشهد بـ175 بدلاً منها.
+      const result = await service.composeGroundedAnswer({
+        question: 'سؤال تجريبى',
+        ...CANDIDATE,
+      });
+
+      expect(result).toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(1); // لا إعادة محاولة — fail-safe فورى.
+    },
+  );
+});
+
+describe('DeepseekGenerationService — بوابة رفض الاستشهاد بأرقام مواد غير مرسَلة (composeGroundedAnswerMulti)', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  const ARTICLES = [
+    { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 108, articleText: 'نص المادة 108.' },
+    { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 125, articleText: 'نص المادة 125.' },
+    { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 175, articleText: 'نص المادة 175.' },
+  ];
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it('يُرجِع النص كما هو حين تُطابق كل أرقام المواد المذكورة المواد المرسَلة فعلياً', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const text = 'طبقاً للمادة 108 والمادة 125 والمادة 175 من قانون العمل (2025)...';
+    const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES });
+
+    expect(result).toBe(text);
+  });
+
+  it(
+    'يُرجِع null (fail-safe) حين يستشهد بمادة غير موجودة ضمن المواد المرسَلة فعلياً — ' +
+      'إعادة إنتاج مباشرة لعطل "المادة 11" بدل "المادة 175" المُكتشَف حياً 2026-09-25',
+    async () => {
+      process.env.DEEPSEEK_API_KEY = 'test-key';
+      const service = new DeepseekGenerationService();
+      const text =
+        'طبقاً للمادة 108 من قانون العمل (2025)... وبموجب المادة 11 يلتزم صاحب العمل ' +
+        'بمنح العامل شهادة خبرة عند انتهاء علاقة العمل...'; // 11 ليست ضمن ARTICLES — هلوسة.
+      const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES });
+
+      expect(result).toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('لا يُطابق ذكر "المواد" (جمع) عرضاً كاستشهاد مفرد قابل للتحقق (لا إيجابية كاذبة)', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    // "المواد" هنا سياق عام لا استشهاد برقم مادة بعينها — لا يجوز أن يُسقِط
+    // البوابة إجابة سليمة بسبب هذا النمط (راجع تعليق findHallucinatedArticleCitations:
+    // الفحص عمداً يطابق "المادة"/"ماده" المفرد فقط لتفادى إيجابيات كاذبة).
+    const text = 'طبقاً للمادة 108 من قانون العمل (2025)، مع مراعاة المواد الأخرى ذات الصلة.';
+    const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES });
+
+    expect(result).toBe(text);
+  });
+});

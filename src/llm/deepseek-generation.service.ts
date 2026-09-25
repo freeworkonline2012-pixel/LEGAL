@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { normalizeArabic, toEnglishDigits } from '../ingestion/normalize';
 
 export interface GroundedGenerationInput {
   question: string;
@@ -73,6 +74,87 @@ const GENERATION_INTERPRETIVE_CERTAINTY_RULE =
   'لعدة جمل مشابهة — أضِفها بعد أول جملة تستوفيه فقط.';
 
 /**
+ * ⚠️ إصلاح جذرى خامس (2026-09-25 — دليل مباشر من مقارنة حية مع مستند خبراء
+ * مرجعى): إجابة حية على السؤال المرجعى نقلت حكم المادة 154 (مكافأة نهاية
+ * الخدمة) بحذف الشرط الرقمى الصريح المرفق به فعلياً فى النص المُرسَل للنموذج
+ * — "فإذا أُبرم العقد أو جُدد **لمدة تزيد على خمس سنوات**، ... فإذا كان
+ * الإنهاء من جانب صاحب العمل استحق العامل مكافأة..." — فبدت المكافأة
+ * مستحقة لأى إنهاء من صاحب العمل بصرف النظر عن المدة، وهذا خطأ جوهرى يخالف
+ * النص المرفق نفسه لا تفسيراً له. **مختلف عن قاعدة اليقين التفسيرى أعلاه**:
+ * تلك عن ربط مصطلح قانونى بواقعة لم يحسمها النص؛ هذه عن إسقاط شرط/استثناء
+ * موجود صراحة فى النص أثناء تلخيصه — النص هنا محسوم تماماً، والعطل فى
+ * الأمانة عند إعادة الصياغة لا فى التفسير.
+ */
+const GENERATION_CONDITIONAL_FIDELITY_RULE =
+  '⚠️ قاعدة إلزامية ثالثة (أمانة نقل الشروط) — منفصلة عن قاعدتى "ممنوع ' +
+  'الإضافة من خارج النص" و"يقين العرض" أعلاه. قبل كتابة أى جملة تذكر حقاً ' +
+  'أو التزاماً أو مبلغاً مستنَداً لأحد النصوص المرفقة، افحص نفس النص بحثاً ' +
+  'عن أى شرط أو استثناء أو حد (عبارات مثل "إذا"، "بشرط"، "إلا إذا"، "ما ' +
+  'لم"، "لمدة تزيد/تقل عن"، "بحد أقصى/أدنى") **مرتبط بنفس الحق أو المبلغ ' +
+  'تحديداً** لا بجزء آخر من النص. إن وُجد هذا الشرط، يجب ذكره فى نفس الجملة ' +
+  'أو مباشرة بعدها — ممنوع ذكر الحق كأنه مطلق بلا قيد لمجرد الإيجاز، حتى لو ' +
+  'كان الشرط يبدو تفصيلاً ثانوياً. (مثال محسوم من نص حقيقى: نص يقول "فإذا ' +
+  'أُبرم العقد أو جُدد لمدة تزيد على خمس سنوات... فإذا كان الإنهاء من جانب ' +
+  'صاحب العمل استحق العامل مكافأة..." — يُمنع كتابة "إذا كان الإنهاء من ' +
+  'جانب صاحب العمل استحق العامل مكافأة..." وحذف شرط "تزيد على خمس سنوات"، ' +
+  'حتى لو كانت بقية الجملة منقولة حرفياً، لأن حذف الشرط يجعل نطاق الحق ' +
+  'المذكور للمستخدم أوسع فعلياً مما يقرره النص). هذا ينطبق على أى شرط رقمى ' +
+  'أو زمنى أو استثناء مماثل فى أى نص مرفق، لا على هذا المثال تحديداً.';
+
+/**
+ * ⚠️ إصلاح جذرى سادس (2026-09-25 — دليل مباشر من قياس حى بعد إصلاح حزمة
+ * نهاية العلاقة، سجل EOR: qHash=53ef75df 2026-09-25T16:21): بعد نجاح توسيع
+ * مساحة حزمة نهاية العلاقة (راجع EOR_BUNDLE_MAX_ADDITIONS فى
+ * questions.service.ts)، دُمِجت 11 مادة مختلفة فى استدعاء توليد واحد لأول
+ * مرة هذه الجلسة — والإجابة الناتجة استشهدت بـ"المادة 11" لنص المادة 175
+ * الفعلى (شهادة الخبرة ورد المستندات، تحقَّقت من نص المادة 11 الحقيقى فى
+ * migrations/003_seed_real_laws.sql: عن استمرار عقود العمال عند إدماج/انتقال
+ * المنشأة — موضوع مختلف تماماً). الاسترجاع كان صحيحاً 100% (سجل EOR: يؤكد
+ * أن النص الصحيح لـ175 أُرسِل فعلياً للنموذج)؛ العطل فى خطوة الصياغة وحدها:
+ * استبدال رقم مادة صحيح برقم آخر أثناء توليف عدد كبير من النصوص معاً — نوع
+ * هلوسة يزداد احتماله كلما زاد عدد المواد المدموجة (نتيجة جانبية غير
+ * متوقَّعة لنجاح توسيع الاسترجاع نفسه).
+ *
+ * لا يوجد ضمان أن أى تحسين فى الـ prompt وحده يحل هذا حلاً كاملاً —
+ * عدم-حتمية DeepSeek موثَّقة بالفعل (راجع تعليق assessCompliance). لذلك
+ * الإصلاح الجذرى هنا **ليس** تعليمة صياغة إضافية فقط، بل بوابة تحقق حتمية
+ * بعد التوليد مباشرة (findHallucinatedArticleCitations أدناه): نفحص برمجياً
+ * كل رقم "المادة X" ورد فعلياً فى النص المُولَّد مقابل مجموعة أرقام المواد
+ * التى أُرسِلت فعلياً فى الطلب (معروفة بيقين تام، لا تخمين). أى رقم غير
+ * موجود فى تلك المجموعة = هلوسة مؤكَّدة قطعاً بصرف النظر عن جودة النص حوله.
+ *
+ * عند الاكتشاف: **لا** نحاول "إصلاح" النص أو إعادة توليده — نُعيد null، وهو
+ * نفس العقد الموجود بالفعل لأى فشل فى composeGroundedAnswer/Multi (فشل
+ * API، محتوى فارغ)، فيتحول الاستدعاء تلقائياً لمسار buildGroundedAnswer/
+ * Multi القديم فى questions.service.ts — قالب حتمى يسرد الاستشهادات كما هى
+ * دون أى صياغة توليفية، فلا خطر هلوسة رقم فيه إطلاقاً. هذا استخدام لبنية
+ * أمان قائمة ومُختبَرة بالفعل، لا آلية تراجع/إعادة محاولة جديدة بمخاطرها
+ * الإضافية (تكلفة، زمن استجابة، احتمال فشل من نوع آخر فى المحاولة الثانية).
+ */
+function findHallucinatedArticleCitations(
+  generatedText: string,
+  validArticleNumbers: readonly number[],
+): number[] {
+  const normalized = normalizeArabic(toEnglishDigits(generatedText));
+  const validSet = new Set(validArticleNumbers);
+  const found = new Set<number>();
+  // "الماده"/"ماده" فقط (مفرد، بعد ة→ه) — النموذج يذكر كل استشهاد بصيغة
+  // "المادة X" حرفياً حسب تعليمات الـ prompt أعلاه ("اذكر رقم المادة...").
+  // لا نطابق "المواد" (جمع) هنا عمداً: النص المُولَّد نثر عربى نظيف من
+  // الإخراج نفسه، لا نص مصدر خام يحتاج تعميم مقاومة كما فى
+  // detectCrossReferencedArticles — سلامة الفحص (لا إيجابيات كاذبة) أهم من
+  // شموله الكامل لكل صيغة ممكنة.
+  const pattern = /(?:ال)?ماده\s*(\d+)/g;
+  for (const m of normalized.matchAll(pattern)) {
+    const n = Number.parseInt(m[1], 10);
+    if (Number.isInteger(n) && n > 0 && !validSet.has(n)) {
+      found.add(n);
+    }
+  }
+  return Array.from(found).sort((a, b) => a - b);
+}
+
+/**
  * تكامل DeepSeek لصياغة الإجابة النهائية (EP-04 — تفعيل الذكاء الاصطناعي،
  * 2026-08-21؛ استُبدل مزوّد Anthropic Claude بـ DeepSeek بناءً على طلب صريح
  * من رجل الأعمال في نفس اليوم — الملف anthropic-generation.service.ts القديم
@@ -121,7 +203,9 @@ export class DeepseekGenerationService {
       'تفسير أو رأي قانوني أو مثال غير موجود حرفياً في النص المرفق. إن كان النص لا ' +
       'يجيب على سؤال المستخدم مباشرة، صرّح بذلك بوضوح بدل التخمين أو التعميم. لا ' +
       'تذكر أنك ذكاء اصطناعي ولا تعتذر — أجب مباشرة وبإيجاز (3 فقرات قصيرة كحد أقصى).\n\n' +
-      GENERATION_INTERPRETIVE_CERTAINTY_RULE;
+      GENERATION_INTERPRETIVE_CERTAINTY_RULE +
+      '\n\n' +
+      GENERATION_CONDITIONAL_FIDELITY_RULE;
 
     const userMsg =
       `سؤال المستخدم: ${input.question}\n\n` +
@@ -168,8 +252,21 @@ export class DeepseekGenerationService {
           `DeepSeek Chat Completions: content فارغ (reasoning_content length=${reasoningLen}) — ` +
             `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
+        return null;
       }
-      return text && text.length > 0 ? text : null;
+      // 2026-09-25: راجع تعليق findHallucinatedArticleCitations أعلاه — نفس
+      // البوابة الحتمية مطبَّقة هنا أيضاً، مادة واحدة فقط لكن الخطر نفسه
+      // مبدئياً (استشهاد برقم غير المادة المرفقة فعلياً).
+      const hallucinated = findHallucinatedArticleCitations(text, [input.articleNo]);
+      if (hallucinated.length > 0) {
+        this.logger.warn(
+          `DeepSeek Chat Completions: استشهاد بأرقام مواد غير مرسَلة فعلياً ` +
+            `(${hallucinated.join(',')}) — المادة المرسَلة الوحيدة ${input.articleNo}. ` +
+            `fail-safe: إرجاع null ليتحول questions.service.ts للقالب الحتمى القديم.`,
+        );
+        return null;
+      }
+      return text;
     } catch (err) {
       this.logger.error(`DeepSeek Chat Completions API call failed: ${(err as Error).message}`);
       return null;
@@ -246,7 +343,9 @@ export class DeepseekGenerationService {
       'جوانب السؤال (فقرة واحدة لسؤال بسيط، عدة فقرات قصيرة منظَّمة لسؤال ' +
       'مركَّب أو مقارن — لا حد أقصى صارم لعدد الفقرات، لكن كل جملة يجب أن ' +
       'تضيف معلومة فعلية من النصوص المرفقة).\n\n' +
-      GENERATION_INTERPRETIVE_CERTAINTY_RULE;
+      GENERATION_INTERPRETIVE_CERTAINTY_RULE +
+      '\n\n' +
+      GENERATION_CONDITIONAL_FIDELITY_RULE;
 
     const articlesText = input.articles
       .map(
@@ -302,8 +401,24 @@ export class DeepseekGenerationService {
           `DeepSeek composeGroundedAnswerMulti: content فارغ (reasoning_content length=${reasoningLen}) — ` +
             `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
+        return null;
       }
-      return text && text.length > 0 ? text : null;
+      // 2026-09-25 (إصلاح جذرى سادس — راجع تعليق findHallucinatedArticleCitations
+      // أعلاه للتشخيص الكامل المدعوم بدليل حى: استشهاد بـ"المادة 11" لنص
+      // المادة 175 الفعلى فى قياس حى مباشر بعد دمج 11 مادة فى استدعاء واحد):
+      // بوابة تحقق حتمية بعد كل توليد — لا تعتمد على جودة الـ prompt وحدها.
+      const validArticleNumbers = input.articles.map((a) => a.articleNo);
+      const hallucinated = findHallucinatedArticleCitations(text, validArticleNumbers);
+      if (hallucinated.length > 0) {
+        this.logger.warn(
+          `DeepSeek composeGroundedAnswerMulti: استشهاد بأرقام مواد غير مرسَلة فعلياً ` +
+            `(${hallucinated.join(',')}) — المواد المرسَلة فعلياً: ${validArticleNumbers.join(',')}. ` +
+            `fail-safe: إرجاع null ليتحول questions.service.ts للقالب الحتمى القديم ` +
+            `(buildGroundedAnswerMulti) بدل عرض استشهاد خاطئ للمستخدم.`,
+        );
+        return null;
+      }
+      return text;
     } catch (err) {
       this.logger.error(`DeepSeek composeGroundedAnswerMulti API call failed: ${(err as Error).message}`);
       return null;
