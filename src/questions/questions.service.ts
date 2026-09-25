@@ -123,6 +123,35 @@ export class QuestionsService {
    * expandWithCrossReferences ودمج الأسئلة الفرعية decomposeIfCompound أدناه. */
   private static readonly MAX_TOTAL_CITATIONS = 8;
 
+  /**
+   * ⚠️ إصلاح جذرى خامس (2026-09-25 — دليل مباشر من سجل إنتاج حى، qHash=53ef75df):
+   * expandWithEndOfRelationshipBundle كانت تحسب room المتاحة لإضافة مواد
+   * الحزمة كـ"ما تبقّى من MAX_TOTAL_CITATIONS بعد الاسترجاع الأساسى" —
+   * سجل الإنتاج أثبت أن هذا خطأ تصميمى: بعد إصلاح selectSupplementaryEntitlements
+   * (راجع تعليقه فى deepseek-generation.service.ts)، اختار النموذج بحكم قانونى
+   * سليم تماماً 4 مواد ذات صلة فعلية (108 صرف المستحقات، 125 تسوية رصيد
+   * الإجازات، 150 التعويض المؤقت عند الفصل، 175 شهادة الخبرة) ورفض بحق 3
+   * مواد إجرائية (7، 149، 185) — لكن room = MAX_TOTAL_CITATIONS(8) −
+   * citations.length(7 من الاسترجاع الأساسى) = 1 فقط، فأُسقِطت 3 من أصل
+   * 4 مواد اختارها النموذج بحكم سليم فعلاً، لسبب لا علاقة له بصحة الاختيار
+   * (عدد المواد الأساسية المسترجَعة للسؤال بالصدفة كان 7 لا أقل). هذا سقف
+   * صُمِّم أصلاً لضبط تضخّم الاسترجاع الأساسى/الإحالات المرجعية (راجع
+   * expandWithCrossReferences)، ولم يكن مُصمَّماً قط ليُصادر نتيجة بوابة حكم
+   * قانونى منفصلة نجحت فعلاً بعد أن أنفقت نداء DeepSeek كاملاً فى تحديدها.
+   *
+   * الحل الجذرى: مساحة مخصَّصة مستقلة لحزمة نهاية العلاقة، بدل اقتطاعها من
+   * نفس الميزانية العامة. القيمة 6 تُطابق عمداً MAX_SELECTED فى
+   * selectSupplementaryEntitlements نفسها (سقف مُتعمَّد هناك أصلاً على أقصى
+   * حزمة ممكنة من 7 مواد) — بحيث تتَّفق طبقتا "الحكم القانونى" و"مساحة
+   * الإدراج" مع بعضهما بدل أن تُصادر إحداهما الأخرى بصمت بقيمة غير مرتبطة.
+   * الأثر العملى: حد أقصى لعدد الاستشهادات فى إجابة واحدة يرتفع من 8 إلى 14
+   * فقط فى الحالة النادرة التى يتفعَّل فيها كاشف نهاية العلاقة والنموذج يختار
+   * أقصى عدد من مواد الحزمة معاً — composeGroundedAnswerMulti لا يفرض أى حد
+   * ثابت على طول articles[] (تحقَّقت من تعريفه فى deepseek-generation.service.ts)
+   * فلا مخاطرة بنيوية فى ذلك.
+   */
+  private static readonly EOR_BUNDLE_MAX_ADDITIONS = 6;
+
   private readonly logger = new Logger(QuestionsService.name);
   private readonly questionRepository: Repository<Question>;
   private readonly answerRepository: Repository<Answer>;
@@ -1280,7 +1309,14 @@ export class QuestionsService {
     questionText: string,
     citations: RetrievedCitation[],
   ): Promise<RetrievedCitation[]> {
-    if (citations.length >= QuestionsService.MAX_TOTAL_CITATIONS) {
+    // 2026-09-25: البوابة هنا تستخدم سقفاً أعلى مخصَّصاً (راجع تعليق
+    // EOR_BUNDLE_MAX_ADDITIONS) بدل MAX_TOTAL_CITATIONS العام — كانت البوابة
+    // القديمة تُغلِق هذا التوسيع بالكامل بمجرد أن يصل الاسترجاع الأساسى
+    // لسقفه العام (8)، رغم أن حزمة نهاية العلاقة مساحتها مخصَّصة منفصلة الآن.
+    if (
+      citations.length >=
+      QuestionsService.MAX_TOTAL_CITATIONS + QuestionsService.EOR_BUNDLE_MAX_ADDITIONS
+    ) {
       return citations;
     }
     if (!isEndOfRelationshipTopic(questionText)) {
@@ -1351,7 +1387,11 @@ export class QuestionsService {
         return citations;
       }
 
-      const room = QuestionsService.MAX_TOTAL_CITATIONS - citations.length;
+      // 2026-09-25: مساحة مخصَّصة مستقلة عن MAX_TOTAL_CITATIONS العام — راجع
+      // تعليق EOR_BUNDLE_MAX_ADDITIONS أعلاه للتشخيص الكامل المدعوم بسجل
+      // إنتاج حى (qHash=53ef75df) أثبت أن الحساب القديم (المتبقى من الميزانية
+      // العامة فقط) كان يُسقِط اختيارات صحيحة لبوابة الحكم القانونى بلا مبرر.
+      const room = QuestionsService.EOR_BUNDLE_MAX_ADDITIONS;
       const chosen = selection.selectedIndices
         .map((idx) => candidates[idx])
         .filter((c): c is RetrievedCitation => c !== undefined)
