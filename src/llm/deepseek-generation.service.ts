@@ -26,6 +26,38 @@ export interface GroundedGenerationMultiInput {
 }
 
 /**
+ * ناتج composeGroundedAnswer/Multi — بديل صريح لـ Promise<string|null> السابق
+ * (بند "ربط بادج الثقة بتقييم دقة الإجابة"، 2026-09-25، بموافقة رجل الأعمال
+ * على الحل المركّب بدون استدعاء LLM إضافى).
+ *
+ * السبب: كل مسارات "return null" القديمة كانت تُميّز داخلياً بين 5 أسباب فشل
+ * مختلفة تماماً فى دلالتها (لم يُفعَّل / خطأ شبكة أو API / رد فارغ / بوابة
+ * الهلوسة رفضت استشهاداً غير محقَّق) ثم تُلقيها جميعاً فى null واحد — فيفقد
+ * questions.service.ts هذه المعلومة كلياً رغم أنها محسوبة بالفعل بلا أى كلفة
+ * إضافية. الحالة الوحيدة التى تحمل دليلاً مباشراً على "صعوبة تفسيرية مرتفعة
+ * لهذا السؤال بعينه" هى hallucination_rejected تحديداً: تعنى أن النموذج حاول
+ * فعلياً الاستشهاد برقم مادة غير محقَّق ضمن ما أُرسِل إليه، ورُفض برمجياً قبل
+ * عرضه — بعكس عدم التهيئة أو عطل شبكى عارض، وهما لا يقولان شيئاً عن صعوبة
+ * السؤال نفسه. القالب الحتمى المعروض بدلاً من ذلك (buildGroundedAnswerMulti)
+ * نص حرفى 100% بالتعريف ولا يمكن أن يحمل نفس نوع الخطر — لكن كون النموذج
+ * *حاول* تجاوز النصوص المُرفَقة إليه لهذا السؤال بالذات دليل كافٍ لخفض سقف
+ * الثقة المعروضة، حتى لا تظهر "ثقة عالية" على سؤال اضطر النظام لرفض محاولة
+ * توليد بشأنه. راجع computeFinalConfidence فى questions.service.ts للتوظيف
+ * الكامل، وتعليقها للتوثيق الصريح لما لا يزال هذا الحل *لا* يكشفه (انزلاق
+ * أمانة فى نص اجتاز بوابة الهلوسة لكنه أسقط شرطاً جوهرياً أثناء التوليف —
+ * الحالات الموثَّقة فعلياً هذه الجلسة: المادة 6 النطاق الزمنى، 125 سقوط
+ * الإجازة، 154 سريان الفقرة الثانية. هذا يحتاج طبقة تحقق دلالية بـLLM منفصلة
+ * (اقتُرحت كخيار "أ" الأقوى جذرياً، أُجِّلت بقرار صريح لصالح هذا الحل الأسرع
+ * أولاً، غير مُستبعدة مستقبلاً).
+ */
+export type GroundedGenerationOutcome =
+  | { status: 'ok'; text: string }
+  | { status: 'not_configured' }
+  | { status: 'api_error' }
+  | { status: 'empty_response' }
+  | { status: 'hallucination_rejected' };
+
+/**
  * ⚠️ إصلاح جذرى 2026-09-24 (دفعة ثالثة — بعد إصلاحى توسيع الإحالات وتفكيك
  * الأسئلة المُركَّبة): دليل مباشر من مقارنة حية جديدة (مرجع خبراء أعمق وأدق
  * من المرجع الأصلى الذى استُخدِم للإغلاق السابق، راجع محادثة المراجعة
@@ -274,9 +306,9 @@ export class DeepseekGenerationService {
     return Boolean(this.apiKey);
   }
 
-  async composeGroundedAnswer(input: GroundedGenerationInput): Promise<string | null> {
+  async composeGroundedAnswer(input: GroundedGenerationInput): Promise<GroundedGenerationOutcome> {
     if (!this.isConfigured) {
-      return null;
+      return { status: 'not_configured' };
     }
 
     const system =
@@ -321,7 +353,7 @@ export class DeepseekGenerationService {
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
         this.logger.error(`DeepSeek Chat Completions API error ${res.status}: ${errText}`);
-        return null;
+        return { status: 'api_error' };
       }
 
       const data = (await res.json()) as {
@@ -334,7 +366,7 @@ export class DeepseekGenerationService {
           `DeepSeek Chat Completions: content فارغ (reasoning_content length=${reasoningLen}) — ` +
             `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
-        return null;
+        return { status: 'empty_response' };
       }
       // 2026-09-25: راجع تعليق findHallucinatedArticleCitations أعلاه — نفس
       // البوابة الحتمية مطبَّقة هنا أيضاً، مادة واحدة فقط لكن الخطر نفسه
@@ -351,14 +383,15 @@ export class DeepseekGenerationService {
           `DeepSeek Chat Completions: استشهاد بأرقام مواد غير مرسَلة فعلياً ` +
             `(${hallucinated.join(',')}) — المواد المسموح بها (الأساسية + الإحالات ` +
             `الصريحة داخل النص) ${validArticleNumbers.join(',')}. ` +
-            `fail-safe: إرجاع null ليتحول questions.service.ts للقالب الحتمى القديم.`,
+            `fail-safe: إرجاع hallucination_rejected ليتحول questions.service.ts للقالب ` +
+            `الحتمى القديم ويُخفِّض سقف الثقة المعروضة (راجع computeFinalConfidence).`,
         );
-        return null;
+        return { status: 'hallucination_rejected' };
       }
-      return text;
+      return { status: 'ok', text };
     } catch (err) {
       this.logger.error(`DeepSeek Chat Completions API call failed: ${(err as Error).message}`);
-      return null;
+      return { status: 'api_error' };
     }
   }
 
@@ -385,12 +418,14 @@ export class DeepseekGenerationService {
    * ظل جزء من السؤال بلا إجابة رغم فحص كل المواد المرفقة، يجب التصريح بذلك
    * بوضوح كما كان تماماً (هذا سلوك سليم يُحفَظ، لا عطل يُصحَّح).
    */
-  async composeGroundedAnswerMulti(input: GroundedGenerationMultiInput): Promise<string | null> {
+  async composeGroundedAnswerMulti(
+    input: GroundedGenerationMultiInput,
+  ): Promise<GroundedGenerationOutcome> {
     if (!this.isConfigured) {
-      return null;
+      return { status: 'not_configured' };
     }
     if (input.articles.length === 0) {
-      return null;
+      return { status: 'empty_response' };
     }
     if (input.articles.length === 1) {
       // مسار وحيد المادة: نفس نوع المُخرَج تماماً كـcomposeGroundedAnswer —
@@ -477,7 +512,7 @@ export class DeepseekGenerationService {
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
         this.logger.error(`DeepSeek composeGroundedAnswerMulti API error ${res.status}: ${errText}`);
-        return null;
+        return { status: 'api_error' };
       }
 
       const data = (await res.json()) as {
@@ -490,7 +525,7 @@ export class DeepseekGenerationService {
           `DeepSeek composeGroundedAnswerMulti: content فارغ (reasoning_content length=${reasoningLen}) — ` +
             `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
-        return null;
+        return { status: 'empty_response' };
       }
       // 2026-09-25 (إصلاح جذرى سادس — راجع تعليق findHallucinatedArticleCitations
       // أعلاه للتشخيص الكامل المدعوم بدليل حى: استشهاد بـ"المادة 11" لنص
@@ -511,15 +546,16 @@ export class DeepseekGenerationService {
           `DeepSeek composeGroundedAnswerMulti: استشهاد بأرقام مواد غير مرسَلة فعلياً ` +
             `(${hallucinated.join(',')}) — المواد المسموح بها (الأساسية + الإحالات الصريحة ` +
             `داخل النصوص): ${validArticleNumbers.join(',')}. ` +
-            `fail-safe: إرجاع null ليتحول questions.service.ts للقالب الحتمى القديم ` +
-            `(buildGroundedAnswerMulti) بدل عرض استشهاد خاطئ للمستخدم.`,
+            `fail-safe: إرجاع hallucination_rejected ليتحول questions.service.ts للقالب الحتمى ` +
+            `القديم (buildGroundedAnswerMulti) بدل عرض استشهاد خاطئ للمستخدم، ويُخفِّض سقف ` +
+            `الثقة المعروضة (راجع computeFinalConfidence فى questions.service.ts).`,
         );
-        return null;
+        return { status: 'hallucination_rejected' };
       }
-      return text;
+      return { status: 'ok', text };
     } catch (err) {
       this.logger.error(`DeepSeek composeGroundedAnswerMulti API call failed: ${(err as Error).message}`);
-      return null;
+      return { status: 'api_error' };
     }
   }
 

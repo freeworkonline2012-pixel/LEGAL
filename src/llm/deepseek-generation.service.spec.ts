@@ -321,12 +321,12 @@ describe('DeepseekGenerationService — بوابة رفض الاستشهاد ب�
       ...CANDIDATE,
     });
 
-    expect(result).toBe('طبقاً للمادة 1 من قانون تجريبى (رقم 1 لسنة 2020)...');
+    expect(result).toEqual({ status: 'ok', text: 'طبقاً للمادة 1 من قانون تجريبى (رقم 1 لسنة 2020)...' });
   });
 
   it(
-    'يُرجِع null (fail-safe) حين يستشهد بمادة غير المادة الوحيدة المرسَلة — نفس نمط ' +
-      'عطل المادة 11/175 الحى بالضبط',
+    'يُرجِع hallucination_rejected (fail-safe) حين يستشهد بمادة غير المادة الوحيدة المرسَلة ' +
+      '— نفس نمط عطل المادة 11/175 الحى بالضبط',
     async () => {
       process.env.DEEPSEEK_API_KEY = 'test-key';
       const service = new DeepseekGenerationService();
@@ -344,7 +344,7 @@ describe('DeepseekGenerationService — بوابة رفض الاستشهاد ب�
         ...CANDIDATE,
       });
 
-      expect(result).toBeNull();
+      expect(result).toEqual({ status: 'hallucination_rejected' });
       expect(fetchMock).toHaveBeenCalledTimes(1); // لا إعادة محاولة — fail-safe فورى.
     },
   );
@@ -375,12 +375,12 @@ describe('DeepseekGenerationService — بوابة رفض الاستشهاد ب�
 
     const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES });
 
-    expect(result).toBe(text);
+    expect(result).toEqual({ status: 'ok', text });
   });
 
   it(
-    'يُرجِع null (fail-safe) حين يستشهد بمادة غير موجودة ضمن المواد المرسَلة فعلياً — ' +
-      'إعادة إنتاج مباشرة لعطل "المادة 11" بدل "المادة 175" المُكتشَف حياً 2026-09-25',
+    'يُرجِع hallucination_rejected (fail-safe) حين يستشهد بمادة غير موجودة ضمن المواد المرسَلة ' +
+      'فعلياً — إعادة إنتاج مباشرة لعطل "المادة 11" بدل "المادة 175" المُكتشَف حياً 2026-09-25',
     async () => {
       process.env.DEEPSEEK_API_KEY = 'test-key';
       const service = new DeepseekGenerationService();
@@ -392,7 +392,7 @@ describe('DeepseekGenerationService — بوابة رفض الاستشهاد ب�
 
       const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES });
 
-      expect(result).toBeNull();
+      expect(result).toEqual({ status: 'hallucination_rejected' });
       expect(fetchMock).toHaveBeenCalledTimes(1);
     },
   );
@@ -409,7 +409,7 @@ describe('DeepseekGenerationService — بوابة رفض الاستشهاد ب�
 
     const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES });
 
-    expect(result).toBe(text);
+    expect(result).toEqual({ status: 'ok', text });
   });
 });
 
@@ -462,11 +462,11 @@ describe('DeepseekGenerationService — الإصلاح السابع: لا ترف
         articles: ARTICLES_WITH_150,
       });
 
-      expect(result).toBe(text);
+      expect(result).toEqual({ status: 'ok', text });
     },
   );
 
-  it('يظل يرفض (fail-safe) استشهاداً برقم لا صلة له إطلاقاً حتى مع تفعيل توسيع الإحالات', async () => {
+  it('يظل يرفض (fail-safe، hallucination_rejected) استشهاداً برقم لا صلة له إطلاقاً حتى مع تفعيل توسيع الإحالات', async () => {
     process.env.DEEPSEEK_API_KEY = 'test-key';
     const service = new DeepseekGenerationService();
     // 999 ليست المادة الأساسية (108 أو 150) ولا إحالة داخل نص المادة 150 — هلوسة حقيقية.
@@ -479,7 +479,7 @@ describe('DeepseekGenerationService — الإصلاح السابع: لا ترف
       articles: ARTICLES_WITH_150,
     });
 
-    expect(result).toBeNull();
+    expect(result).toEqual({ status: 'hallucination_rejected' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

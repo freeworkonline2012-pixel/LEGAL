@@ -168,6 +168,56 @@ export class QuestionsService {
    */
   private static readonly ITB_BUNDLE_MAX_ADDITIONS = 5;
 
+  /**
+   * "ربط بادج الثقة بتقييم دقة الإجابة" (2026-09-25 — بموافقة رجل الأعمال على
+   * الحل المركّب بدون استدعاء LLM إضافى، بعد تشخيص أن answer.confidence كان
+   * يُحسَب بالكامل من جودة الاسترجاع فقط، بلا أى صلة بنجاح/فشل التوليد أو
+   * رفض بوابة الهلوسة — راجع GroundedGenerationOutcome فى
+   * deepseek-generation.service.ts للتوثيق الكامل).
+   *
+   * القيمة 0.75: أقل من عتبة "ثقة عالية" فى الواجهة (confidenceTokens فى
+   * legal_frontend_work/src/lib/tokens.ts، ≥0.85) عمداً — الهدف بالتحديد أن
+   * لا يظهر بادج "ثقة عالية" أبداً على سؤال اضطر النظام لرفض محاولة استشهاد
+   * غير محقَّقة بشأنه، مهما كانت ثقة الاسترجاع الخام مرتفعة (قد تصل 0.95 فى
+   * حالة تطابق مباشر لرقم مادة). لا تُخفَض تحت 0.75 عمداً: القالب الحتمى
+   * المعروض فعلياً للمستخدم فى هذه الحالة نص حرفى 100% (buildGroundedAnswerMulti)
+   * ولا يحمل خطر "معلومة خاطئة معروضة" — الخطر هنا هو صعوبة تفسيرية للسؤال
+   * ذاته اكتُشِفت أثناء المحاولة، لا خطأ فى النص النهائى المعروض؛ تخفيض أعمق
+   * (نحو "ثقة منخفضة") يبالغ فى الإنذار مقارنة بما يثبته هذا الدليل تحديداً.
+   *
+   * ⚠️ حدود موثَّقة صراحة لهذا الحل (لتجنّب الإيحاء بأكثر مما يثبته فعلاً):
+   * لا يكشف — ولا يمكنه أن يكشف بدون استدعاء LLM إضافى مخصَّص للتحقق الدلالى —
+   * حالة "التوليد نجح واجتاز بوابة الهلوسة، لكنه أسقط شرطاً أو قيداً جوهرياً
+   * من نص المادة أثناء التوليف". هذه بالتحديد الفجوة التى كشفتها جلستا
+   * التقييم "7/10" و"6/10" هذه الجلسة (المادة 6 - النطاق الزمنى، 125 - سقوط
+   * الإجازة، 154 - سريان الفقرة الثانية) — ولا تزال قائمة بعد هذا التغيير.
+   * الحل الجذرى الكامل لها (طبقة تحقق دلالية LLM منفصلة تقارن النص النهائى
+   * بالنصوص المصدر) اقتُرح صراحة وأُجِّل بقرار رجل الأعمال لصالح هذا الحل
+   * الأسرع أولاً — غير مُستبعد مستقبلاً عند الحاجة.
+   */
+  private static readonly HALLUCINATION_REJECTED_CONFIDENCE_CAP = 0.75;
+
+  /**
+   * قيمة الثقة النهائية المعروضة فى بادج الواجهة ومُخزَّنة فى Answer.confidence
+   * — مركّبة من إشارتين بلا أى تكلفة LLM إضافية (الحل المعتمَد صراحة، راجع
+   * تعليق HALLUCINATION_REJECTED_CONFIDENCE_CAP أعلاه للتفاصيل والحدود):
+   *  1. retrievalConfidence: جودة تطابق الاسترجاع كما كانت دائماً (FTS/دلالى/
+   *     تطابق مباشر) — الإشارة الوحيدة المستخدَمة سابقاً.
+   *  2. generationOutcome: 'hallucination_rejected' تحديداً يفرض سقفاً أدنى —
+   *     أى إشارة أخرى ('ok' أو 'other': لم يُفعَّل/عطل شبكى/رد فارغ) لا تغيّر
+   *     شيئاً، لأنها لا تحمل دليلاً على صعوبة السؤال نفسه (فقط hallucination
+   *     نابعة من محاولة توليد فعلية لهذا السؤال بالذات).
+   */
+  private computeFinalConfidence(
+    retrievalConfidence: number,
+    generationOutcome: 'ok' | 'hallucination_rejected' | 'other',
+  ): number {
+    if (generationOutcome === 'hallucination_rejected') {
+      return Math.min(retrievalConfidence, QuestionsService.HALLUCINATION_REJECTED_CONFIDENCE_CAP);
+    }
+    return retrievalConfidence;
+  }
+
   private readonly logger = new Logger(QuestionsService.name);
   private readonly questionRepository: Repository<Question>;
   private readonly answerRepository: Repository<Answer>;
@@ -207,6 +257,15 @@ export class QuestionsService {
     // التحقق تبقى كما هي). فشل الاستدعاء أو عدم التفعيل → رجوع فوري للقالب
     // الجاهز القديم دون أي تغيير في العقد أو انقطاع.
     let usedLlm = false;
+    // "ربط بادج الثقة بتقييم دقة الإجابة" (2026-09-25، الحل المركّب المعتمَد
+    // من رجل الأعمال — بدون استدعاء LLM إضافى): composeGroundedAnswerMulti
+    // الآن يُرجع GroundedGenerationOutcome بدل string|null، فيكشف تحديداً هل
+    // كان الفشل (إن وُجد) بسبب hallucination_rejected — أى أن النموذج حاول
+    // فعلياً الاستشهاد بمادة غير محقَّقة لهذا السؤال بعينه ورُفض برمجياً —
+    // بدل أسباب حيادية (عدم تفعيل/عطل شبكى/رد فارغ) لا تحمل أى دليل على صعوبة
+    // السؤال. راجع computeFinalConfidence أدناه للتوظيف الكامل فى قيمة الثقة
+    // النهائية المعروضة فى الواجهة.
+    let generationOutcomeStatus: 'ok' | 'hallucination_rejected' | 'other' = 'other';
     let answerText: string;
     if (retrieval.citations.length > 0) {
       // composeGroundedAnswerMulti (2026-09-24): يستقبل **كل** الاستشهادات
@@ -214,7 +273,7 @@ export class QuestionsService {
       // ضروريين معاً لسؤال مقارن/مركَّب — راجع تعليق RetrievalResult أعلاه)
       // بدل نص واحد فقط، فيقدر التوليف بينها بدل التصريح الخاطئ بعدم كفاية
       // النص حين تكون الإجابة الكاملة موزَّعة فعلياً على أكثر من مادة.
-      const llmAnswer = await this.generationService.composeGroundedAnswerMulti({
+      const llmOutcome = await this.generationService.composeGroundedAnswerMulti({
         question: dto.question,
         articles: retrieval.citations.map((c) => ({
           lawTitle: c.law,
@@ -224,11 +283,15 @@ export class QuestionsService {
           articleText: c.snippet,
         })),
       });
-      if (llmAnswer) {
-        answerText = llmAnswer;
+      if (llmOutcome.status === 'ok') {
+        answerText = llmOutcome.text;
         usedLlm = true;
+        generationOutcomeStatus = 'ok';
       } else {
         answerText = this.buildGroundedAnswerMulti(retrieval.citations);
+        if (llmOutcome.status === 'hallucination_rejected') {
+          generationOutcomeStatus = 'hallucination_rejected';
+        }
       }
     } else {
       answerText = REFUSED_ANSWER_TEXT;
@@ -249,16 +312,21 @@ export class QuestionsService {
       );
     }
 
+    const finalConfidence =
+      retrieval.citations.length > 0
+        ? this.computeFinalConfidence(retrieval.confidence, generationOutcomeStatus)
+        : retrieval.confidence;
+
     const answer: AnswerResponseDto = retrieval.citations.length > 0
       ? {
           answer: answerText,
-          confidence: retrieval.confidence,
+          confidence: finalConfidence,
           citations: retrieval.citations.map((c) => this.toCitationDto(c)),
           refused: false,
         }
       : {
           answer: answerText,
-          confidence: retrieval.confidence,
+          confidence: finalConfidence,
           citations: [],
           refused: true,
           web_fallback: webFallbackResult
