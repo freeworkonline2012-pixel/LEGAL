@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { normalizeArabic, toEnglishDigits } from '../ingestion/normalize';
+import { detectCrossReferencedArticles } from '../questions/retrieval';
 
 export interface GroundedGenerationInput {
   question: string;
@@ -131,6 +132,61 @@ const GENERATION_CONDITIONAL_FIDELITY_RULE =
  * أمان قائمة ومُختبَرة بالفعل، لا آلية تراجع/إعادة محاولة جديدة بمخاطرها
  * الإضافية (تكلفة، زمن استجابة، احتمال فشل من نوع آخر فى المحاولة الثانية).
  */
+/**
+ * ⚠️ إصلاح جذرى سابع (2026-09-25T16:54، اكتُشف من نفس القياس الحى الذى نُشر
+ * لاختبار الإصلاح السادس أعلاه — راجع سجل الإنتاج المباشر عبر Railway
+ * get-logs: WARN بتوقيت 16:54:25 "استشهاد بأرقام مواد غير مرسَلة فعلياً
+ * (143) — المواد المرسَلة فعلياً: 154,6,164,165,87,88,95,108,125,150,175").
+ * هذا عطل **فى الإصلاح السادس نفسه** (إيجابية كاذبة)، لا عطل جديد منفصل —
+ * وجب توثيقه بنفس صراحة أى عطل آخر (قاعدة الشفافية الكاملة): البوابة رفضت
+ * إجابة **صحيحة تماماً بلا أى هلوسة فعلية**، فتحوَّل الاستدعاء لقالب
+ * buildGroundedAnswerMulti الاحتياطى بدل عرض توليف الذكاء الاصطناعى —
+ * تدهور فى الجودة (فقدان التوليف والتنظيم) لا خطأ فى الحقائق المعروضة، لكنه
+ * يُبطل تماماً أى تقييم لفعالية GENERATION_CONDITIONAL_FIDELITY_RULE على أى
+ * إجابة سقطت فى هذا المسار الاحتياطى بالذات (القالب يعرض نص المادة كاملاً
+ * حرفياً دون أى صياغة LLM أصلاً، فلا يمكن أن "يفقد" شرطاً حتى لو كانت
+ * القاعدة الجديدة معطَّلة تماماً — نجاح القالب لا يثبت شيئاً عن نجاح القاعدة).
+ *
+ * السبب الجذرى: نص المادة 150 المُرسَل فعلياً للنموذج يحتوى حرفياً (تحقَّقتُ
+ * مباشرة عبر grep على migrations/003_seed_real_laws.sql):
+ * "...مع مراعاة نص المادة ) (١٤٣من هذا القانون..." — إحالة صريحة داخل النص
+ * المصدر نفسه لمادة 143، تماماً من نفس نوع الإحالات التى يأمر system prompt
+ * فى composeGroundedAnswerMulti صراحةً (السطر الذى يبدأ بـ"إن كان أحد
+ * النصوص المرفقة إحالة صريحة داخل نص آخر... فاعتبر تلك المواد المُحال
+ * إليها جزءاً لا يتجزأ من فهم الحكم الأساسى") بذكرها. النموذج أطاع هذه
+ * التعليمة بأمانة ونقل رقم 143 كما ورد فى مصدره — وهو سلوك صحيح ومطلوب —
+ * لكن الإصلاح السادس اعتبر أى رقم مادة غير موجود حرفياً فى قائمة
+ * articleNo العليا "هلوسة" بصرف النظر عن مصدره، فعاقب سلوكاً سليماً.
+ *
+ * الإصلاح الصحيح (لا ترقيع فوق العطل، بل تصحيح تعريف "الصحيح" نفسه): مجموعة
+ * "أرقام المواد المسموح بها" يجب أن تشمل ليس فقط أرقام المواد المُرسَلة
+ * كنصوص أساسية (articleNo)، بل أيضاً أى رقم مادة يُحيل إليه أحد هذه النصوص
+ * صراحة داخل محتواه — تماماً نفس التعريف الذى يستخدمه بالفعل
+ * QuestionsService.expandWithCrossReferences لتوسيع المواد المُسترجَعة أصلاً
+ * (راجع تعليق detectCrossReferencedArticles فى retrieval.ts). لذلك: إعادة
+ * استخدام نفس الدالة الجاهزة والمُختبَرة بالفعل (لا دالة استخراج جديدة
+ * بمنطق مختلف قد يحمل عطلاً موازياً خاصاً به) لحساب هذه المجموعة الموسَّعة —
+ * الرقم يظل يُتجاهَل بصمت إن لم يكن موجوداً فعلياً كمادة حقيقية فى نفس نص
+ * المصدر (نفس ضمان detectCrossReferencedArticles الأصلى: لا خطر تلفيق
+ * إضافى، أسوأ حالة هى مطابقة زائفة نادرة لرقم عرضى فى النص لا علاقة له
+ * بإحالة فعلية — احتمال أقل بكثير من المخاطرة الحالية المؤكَّدة عملياً
+ * (558 حالة نمط قوس معكوس فى قاعدة البيانات وحدها، راجع تعليق
+ * detectCrossReferencedArticles) بإسقاط إجابات صحيحة كل مرة تُذكر فيها إحالة
+ * مشروعة).
+ */
+function computeValidCitationNumbers(
+  primaryArticleNumbers: readonly number[],
+  sourceTexts: readonly string[],
+): number[] {
+  const valid = new Set<number>(primaryArticleNumbers);
+  for (const text of sourceTexts) {
+    for (const n of detectCrossReferencedArticles(text)) {
+      valid.add(n);
+    }
+  }
+  return Array.from(valid);
+}
+
 function findHallucinatedArticleCitations(
   generatedText: string,
   validArticleNumbers: readonly number[],
@@ -256,12 +312,19 @@ export class DeepseekGenerationService {
       }
       // 2026-09-25: راجع تعليق findHallucinatedArticleCitations أعلاه — نفس
       // البوابة الحتمية مطبَّقة هنا أيضاً، مادة واحدة فقط لكن الخطر نفسه
-      // مبدئياً (استشهاد برقم غير المادة المرفقة فعلياً).
-      const hallucinated = findHallucinatedArticleCitations(text, [input.articleNo]);
+      // مبدئياً (استشهاد برقم غير المادة المرفقة فعلياً). راجع أيضاً تعليق
+      // computeValidCitationNumbers (إصلاح جذرى سابع) — المجموعة "الصحيحة"
+      // تشمل هنا أيضاً أى إحالة صريحة داخل نص هذه المادة الواحدة نفسها.
+      const validArticleNumbers = computeValidCitationNumbers(
+        [input.articleNo],
+        [input.articleText],
+      );
+      const hallucinated = findHallucinatedArticleCitations(text, validArticleNumbers);
       if (hallucinated.length > 0) {
         this.logger.warn(
           `DeepSeek Chat Completions: استشهاد بأرقام مواد غير مرسَلة فعلياً ` +
-            `(${hallucinated.join(',')}) — المادة المرسَلة الوحيدة ${input.articleNo}. ` +
+            `(${hallucinated.join(',')}) — المواد المسموح بها (الأساسية + الإحالات ` +
+            `الصريحة داخل النص) ${validArticleNumbers.join(',')}. ` +
             `fail-safe: إرجاع null ليتحول questions.service.ts للقالب الحتمى القديم.`,
         );
         return null;
@@ -407,12 +470,21 @@ export class DeepseekGenerationService {
       // أعلاه للتشخيص الكامل المدعوم بدليل حى: استشهاد بـ"المادة 11" لنص
       // المادة 175 الفعلى فى قياس حى مباشر بعد دمج 11 مادة فى استدعاء واحد):
       // بوابة تحقق حتمية بعد كل توليد — لا تعتمد على جودة الـ prompt وحدها.
-      const validArticleNumbers = input.articles.map((a) => a.articleNo);
+      // 2026-09-25T16:54 (إصلاح جذرى سابع — راجع تعليق computeValidCitationNumbers
+      // أعلاه: القياس الحى التالى مباشرةً كشف إيجابية كاذبة فى الإصلاح
+      // السادس نفسه — رفض إجابة صحيحة استشهدت بمادة 143 لأن نص المادة 150
+      // المرفقة يُحيل إليها صراحةً داخل محتواه). المجموعة "الصحيحة" هنا تشمل
+      // الآن أيضاً أى إحالة صريحة داخل نص أى مادة من المواد المُرفقة.
+      const validArticleNumbers = computeValidCitationNumbers(
+        input.articles.map((a) => a.articleNo),
+        input.articles.map((a) => a.articleText),
+      );
       const hallucinated = findHallucinatedArticleCitations(text, validArticleNumbers);
       if (hallucinated.length > 0) {
         this.logger.warn(
           `DeepSeek composeGroundedAnswerMulti: استشهاد بأرقام مواد غير مرسَلة فعلياً ` +
-            `(${hallucinated.join(',')}) — المواد المرسَلة فعلياً: ${validArticleNumbers.join(',')}. ` +
+            `(${hallucinated.join(',')}) — المواد المسموح بها (الأساسية + الإحالات الصريحة ` +
+            `داخل النصوص): ${validArticleNumbers.join(',')}. ` +
             `fail-safe: إرجاع null ليتحول questions.service.ts للقالب الحتمى القديم ` +
             `(buildGroundedAnswerMulti) بدل عرض استشهاد خاطئ للمستخدم.`,
         );

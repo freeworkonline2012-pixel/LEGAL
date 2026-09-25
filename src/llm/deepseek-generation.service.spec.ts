@@ -412,3 +412,74 @@ describe('DeepseekGenerationService — بوابة رفض الاستشهاد ب�
     expect(result).toBe(text);
   });
 });
+
+/**
+ * 2026-09-25T16:54: إصلاح جذرى سابع — راجع تعليق computeValidCitationNumbers
+ * فى deepseek-generation.service.ts للتشخيص الكامل. القياس الحى الأول لبوابة
+ * الإصلاح السادس (أعلاه) اكتشف إيجابية كاذبة: نص المادة 150 الحقيقى (راجع
+ * migrations/003_seed_real_laws.sql) يُحيل صراحة داخل محتواه لمادة 143
+ * ("...مع مراعاة نص المادة ) (١٤٣من هذا القانون...")، والنموذج نقل هذه
+ * الإحالة بأمانة طبقاً لتعليمة system prompt الصريحة بذلك — فرفضته البوابة
+ * القديمة خطأً باعتباره هلوسة. هذان الاختباران يعيدان إنتاج العطل بالضبط
+ * (نص مادة يحتوى إحالة صريحة بصيغة قوس معكوس حقيقية) ويتحققان من أن الإصلاح
+ * السابع يقبلها، مع التأكد أن رقماً غير مرتبط بأى إحالة فعلية لا يزال يُرفَض.
+ */
+describe('DeepseekGenerationService — الإصلاح السابع: لا ترفض البوابة إحالة صريحة داخل نص مادة مرفقة', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  // نص المادة 150 الحقيقى (مُقتطَف، بنفس صيغة القوس المعكوس الحقيقية فى قاعدة
+  // البيانات) — يُحيل صراحة لمادة 143.
+  const ARTICLE_150_TEXT =
+    'وتخصم المبالغ التى استوفاها العامل نفاذاً لقرار المحكمة من مبلغ التعويض ' +
+    'الذى يحكم به أو أى مبالغ أخرى مستحقة له قبل صاحب العمل،مع مراعاة نص ' +
+    'المادة ) (١٤٣من هذا القانون.';
+  const ARTICLES_WITH_150 = [
+    { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 108, articleText: 'نص المادة 108.' },
+    { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 150, articleText: ARTICLE_150_TEXT },
+  ];
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it(
+    'يقبل استشهاداً بمادة 143 حين يكون مذكوراً كإحالة صريحة داخل نص المادة 150 المرفقة ' +
+      '— إعادة إنتاج مباشرة للإيجابية الكاذبة المُكتشَفة حياً بتوقيت 2026-09-25T16:54',
+    async () => {
+      process.env.DEEPSEEK_API_KEY = 'test-key';
+      const service = new DeepseekGenerationService();
+      const text =
+        'طبقاً للمادة 108 من قانون العمل (2025)... وطبقاً للمادة 150 يُحال النزاع ' +
+        'للمحكمة العمالية، مع مراعاة المادة 143 بشأن خصم المبالغ المستوفاة سلفاً.';
+      const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await service.composeGroundedAnswerMulti({
+        question: 'سؤال تجريبى',
+        articles: ARTICLES_WITH_150,
+      });
+
+      expect(result).toBe(text);
+    },
+  );
+
+  it('يظل يرفض (fail-safe) استشهاداً برقم لا صلة له إطلاقاً حتى مع تفعيل توسيع الإحالات', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    // 999 ليست المادة الأساسية (108 أو 150) ولا إحالة داخل نص المادة 150 — هلوسة حقيقية.
+    const text = 'طبقاً للمادة 108... وطبقاً للمادة 999 يلتزم صاحب العمل بكذا.';
+    const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.composeGroundedAnswerMulti({
+      question: 'سؤال تجريبى',
+      articles: ARTICLES_WITH_150,
+    });
+
+    expect(result).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});

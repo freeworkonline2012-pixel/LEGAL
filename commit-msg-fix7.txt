@@ -1,0 +1,24 @@
+fix(llm): لا ترفض بوابة الاستشهاد إحالة صريحة داخل نص مادة مرفقة (إصلاح سابع)
+
+القياس الحى الأول للإصلاح السادس (بوابة findHallucinatedArticleCitations) كشف
+إيجابية كاذبة: نص المادة 150 يُحيل صراحة لمادة 143 داخل محتواه، والنموذج نقل
+هذه الإحالة بأمانة طبقاً لتعليمة system prompt الصريحة بذلك — فرفضتها البوابة
+خطأً كهلوسة، مما أسقط الإجابة للقالب الاحتياطى القديم بلا داع (سجل الإنتاج
+16:54:25: "استشهاد بأرقام مواد غير مرسَلة فعلياً (143)").
+
+الإصلاح: مجموعة "أرقام المواد المسموح بها" تشمل الآن أيضاً أى رقم مادة يُحيل
+إليه صراحة أحد النصوص المرفقة داخل محتواه، عبر إعادة استخدام
+detectCrossReferencedArticles (retrieval.ts) — نفس الدالة المُختبَرة بالفعل
+والمستخدمة فعلياً لتوسيع الاسترجاع، بدل منطق استخراج جديد موازٍ.
+
+إضافتان جديدتان فى deepseek-generation.service.ts:
+- computeValidCitationNumbers(primaryArticleNumbers, sourceTexts)
+- تحديث composeGroundedAnswer وcomposeGroundedAnswerMulti لاستخدامها
+
+اختباران جديدان فى deepseek-generation.service.spec.ts يعيدان إنتاج عطل
+المادة 143/150 الحى بالضبط، ويتحققان أن رقماً غير مرتبط بأى إحالة حقيقية
+(999) لا يزال يُرفَض. الحزمة الكاملة: 136/136 ناجحة. npx tsc --noEmit ونest
+build نظيفان.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01EvjjtdpRK6wc7dVeQkQNnq
