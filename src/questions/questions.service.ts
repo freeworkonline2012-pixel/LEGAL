@@ -1330,7 +1330,12 @@ export class QuestionsService {
         return citations;
       }
 
-      const selection = await this.generationService.selectRelevantCandidates({
+      // ⚠️ 2026-09-24: selectRelevantCandidates (معيار "ضرورى حرفياً
+      // للإجابة") استُبدل هنا بـselectSupplementaryEntitlements (معيار
+      // "مرتبط فعلياً بواقعة انتهاء العلاقة") بعد قياس حى مباشر أثبت أن
+      // الأول يرفض كل مواد الحزمة دائماً — راجع تعليق selectSupplementaryEntitlements
+      // الكامل فى deepseek-generation.service.ts للتشخيص الكامل بالسجلات.
+      const selection = await this.generationService.selectSupplementaryEntitlements({
         question: questionText,
         candidates: candidates.map((c) => ({
           lawTitle: c.law,
@@ -1340,7 +1345,7 @@ export class QuestionsService {
         })),
       });
 
-      this.logger.log(`EOR: qHash=${qHash} نتيجة selectRelevantCandidates=${JSON.stringify(selection)}`);
+      this.logger.log(`EOR: qHash=${qHash} نتيجة selectSupplementaryEntitlements=${JSON.stringify(selection)}`);
 
       if (selection.status !== 'ok' || selection.selectedIndices.length === 0) {
         return citations;

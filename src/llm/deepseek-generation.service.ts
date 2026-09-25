@@ -679,6 +679,156 @@ export class DeepseekGenerationService {
   }
 
   /**
+   * إصلاح جذري رابع (2026-09-24 — راجع تعليق QuestionsService.
+   * expandWithEndOfRelationshipBundle الكامل للتشخيص): قياس حى مباشر بعد نشر
+   * حزمة "نهاية علاقة العمل" (مواد 7، 108، 125، 149، 150، 175، 185) أظهر أن
+   * السلسلة تعمل بالكامل بشكل صحيح تقنياً (الكاشف يتفعّل، القانون يُحل،
+   * السبع مواد تُجلَب من قاعدة البيانات بنجاح — كل ذلك مؤكَّد من سجلات
+   * الإنتاج) لكن selectRelevantCandidates أعلاه ترفض كل المواد السبع دائماً
+   * (selectedIndices=[] فى كل استدعاء حى رُصِد). السبب الجذري الحقيقي ليس
+   * عطلاً برمجياً، بل **خطأ فى اختيار الأداة**: تعليمة selectRelevantCandidates
+   * مصمَّمة ومعايَرة لمهمة مختلفة جذرياً — "أى هذه المرشحين هو **السند
+   * القانونى المباشر الصحيح** لهذا السؤال تحديداً؟" (معيار "ضرورى فعلياً
+   * للإجابة الكاملة" حرفياً، مع فحص صارم لاستبعاد أى شرط ضيق غير وارد
+   * بالسؤال) — وهو معيار متشدد عمداً وبحق لاختيار الأساس القانونى، لكنه
+   * معيار خاطئ تماماً لمهمة حزمة "نهاية علاقة العمل" التى ليست عن الأساس
+   * القانونى للحكم (ذلك مُنجَز بالفعل بمواد أخرى) بل عن **استحقاقات إضافية
+   * مرتبطة موضوعياً** (رصيد إجازة، شهادة خبرة، ميعاد صرف مستحقات) يذكرها
+   * محامٍ متمرّس تلقائياً ولو لم يُسأل عنها حرفياً — إعادة استخدام تعليمة
+   * "الضرورة الحرفية الصارمة" لهذه المهمة المختلفة يجعل الرفض شبه مضمون لكل
+   * مادة إضافية، بصرف النظر عن مدى صلتها الفعلية.
+   *
+   * الحل: دالة مستقلة بتعليمة نظام مُعايَرة خصيصاً لمعيار "الشمول المفيد"
+   * (helpful completeness) بدل "الضرورة الحرفية الصارمة" — لا تزال تتطلب
+   * صلة موضوعية حقيقية بواقعة السؤال (ليست إدراجاً عشوائياً بلا تمييز)، لكن
+   * المعيار "هل يرتبط هذا الحق فعلياً بواقعة انتهاء علاقة العمل المسؤولة"
+   * لا "هل هذا هو السند القانونى المباشر الوحيد الكافى وحده للإجابة". تُعيد
+   * استخدام نفس parsePenaltySelectionJson (بعد إصلاح تطابق note/reason
+   * أعلاه) — بنية استدعاء مطابقة لـselectRelevantCandidates تماماً، الفارق
+   * الوحيد الجوهري هو نص تعليمة النظام.
+   *
+   * ⚠️ غير مُقاس حياً بعد وقت الكتابة — سيُختبَر بعد النشر بنفس السؤال
+   * المرجعي والاستعانة بنفس سجلات EOR: التشخيصية.
+   */
+  async selectSupplementaryEntitlements(input: {
+    question: string;
+    candidates: Array<{
+      lawTitle: string;
+      lawNo: number;
+      articleNo: number;
+      articleText: string;
+    }>;
+  }): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | { status: 'ok'; selectedIndices: number[]; reason: string }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+    if (input.candidates.length === 0) {
+      return { status: 'ok', selectedIndices: [], reason: 'لا مرشحين' };
+    }
+
+    const MAX_SELECTED = 6;
+
+    const system =
+      'أنت مستشار قانونى متمرّس تراجع مواد قانونية إضافية محتملة الصلة ' +
+      'بسؤال مستخدم عن حقوقه عند انتهاء علاقة عمل (عدم تجديد، فصل، ' +
+      'استقالة، انتهاء خدمة). النصوص القانونية التى تُجيب مباشرة عن صلب ' +
+      'السؤال (الأساس القانونى للحكم) عُرضت بالفعل للمستخدم من مصدر آخر — ' +
+      'مهمتك هنا **مختلفة تماماً**: ليست اختيار السند القانونى المباشر، بل ' +
+      'تحديد أى حقوق أو استحقاقات أو إجراءات إضافية ترتبط فعلياً وواقعياً ' +
+      'بواقعة انتهاء علاقة العمل الموصوفة فى السؤال، يستحق أن يُنبَّه إليها ' +
+      'المستخدم ليحصل على صورة كاملة — تماماً كما يفعل محامٍ متمرّس لا ' +
+      'يكتفى بالحد الأدنى الحرفى لسؤال العميل، بل يُذكِّره بحقوقه المرتبطة ' +
+      '(كرصيد الإجازة، شهادة الخبرة، ميعاد صرف المستحقات) حتى لو لم يسألها ' +
+      'صراحة بنفس الألفاظ.\n\n' +
+      '⚠️ لا تُطبِّق معيار "هل هذا ضرورى وحده للإجابة على حرفية السؤال؟" ' +
+      '(ذلك معيار مهمة أخرى منفصلة) — طبِّق بدلاً منه: "هل هذا الحق يرتبط ' +
+      'فعلياً وواقعياً بواقعة انتهاء علاقة العمل التى يسأل عنها المستخدم؟" ' +
+      'اختر كل نص تنطبق عليه هذه الصلة الحقيقية، ولو لم يُذكَر صراحة بنص ' +
+      'السؤال. لكن لا تُدرج نصاً لمجرد كونه من نفس القانون أو الباب دون ' +
+      'صلة موضوعية حقيقية بواقعة انتهاء العلاقة تحديداً (مثال: نص عن شروط ' +
+      'التعيين الأولى أو ساعات العمل اليومية لا صلة له بهذه الواقعة رغم ' +
+      'كونه فى نفس القانون).\n\n' +
+      `أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى قبلها أو بعدها، بحد أقصى ${MAX_SELECTED} ` +
+      'أرقام فى "selected"، بالضبط بهذا الشكل: {"selected": [2, 5], "note": ' +
+      '"سبب موجز يوضح صلة هذه النصوص تحديداً بواقعة انتهاء العلاقة"}';
+
+    const candidatesText = input.candidates
+      .map(
+        (c, i) =>
+          `${i + 1}) المادة ${c.articleNo} من ${c.lawTitle} (قانون رقم ${c.lawNo}):\n"""${c.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `السؤال: ${input.question}\n\n` +
+      `المرشحون:\n${candidatesText}\n\n` +
+      `اختر كل أرقام المرشحين (من 1 إلى ${input.candidates.length}) المرتبطين ` +
+      'فعلياً بواقعة انتهاء علاقة العمل فى السؤال، أو مصفوفة فارغة لو لا ' +
+      'يوجد أى نص ذو صلة حقيقية. رد بـJSON فقط.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 400,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek selectSupplementaryEntitlements API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
+      };
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek selectSupplementaryEntitlements: content فارغ — reasoning_content ` +
+            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+        return { status: 'error', detail: 'empty_response' };
+      }
+
+      const parsed = parsePenaltySelectionJson(text, input.candidates.length);
+      if (!parsed) {
+        this.logger.warn(
+          `DeepSeek selectSupplementaryEntitlements: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+      const selectedIndices = parsed.selected.map((n) => n - 1).slice(0, MAX_SELECTED);
+      return { status: 'ok', selectedIndices, reason: parsed.note };
+    } catch (err) {
+      this.logger.warn(`DeepSeek selectSupplementaryEntitlements call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
+
+  /**
    * إصلاح جذري ثانٍ (2026-09-24) — فئة منفصلة تماماً عن expandWithCrossReferences/
    * selectRelevantCandidates أعلاه: سؤال مُركَّب يطلب حكماً لحالتين قانونيتين
    * مختلفتين تماماً بلا أى رابط نصى مباشر بينهما (تحقق حى فعلى 2026-09-24 على
@@ -1863,6 +2013,21 @@ function parseDecompositionJson(text: string, maxItems: number): string[] | null
  * (محاولتان: JSON.parse مباشر، ثم استخراج أول substring على شكل {...})، مع
  * نفس تحقق "رقم خارج المدى = هلوسة تُسقط الحكم بالكامل" المُطبَّق فى
  * parseVerdictJson (لا رقم عقوبة خاطئ يُقبَل جزئياً).
+ *
+ * ⚠️ إصلاح جذري (2026-09-24 — اكتُشف من فحص سجلات إنتاج حية أثناء تشخيص
+ * فجوة حزمة "نهاية علاقة العمل" فى questions.service.ts): selectRelevantCandidates
+ * أدناه (مستدعية لاحقة لهذه الدالة، أُضيفت بعد الاستخدام الأصلي لها فى
+ * selectApplicablePenalties) تطلب من DeepSeek حقل "reason" صراحة فى تعليمة
+ * النظام الخاصة بها، لكن هذه الدالة كانت تقرأ حقل "note" فقط — عدم تطابق
+ * أسماء حقول صامت بين مُستدعيَين مختلفين لنفس الدالة المشتركة. النتيجة
+ * الفعلية المرصودة حياً: selectRelevantCandidates ترجع دائماً reason="" بصرف
+ * النظر عمّا يكتبه النموذج فعلياً فى استجابته الخام (تحقَّق منه مباشرة عبر
+ * سجل قياس حى: {"status":"ok","selectedIndices":[],"reason":""}) — لا خطر
+ * تلفيق نتج عن هذا (selected نفسها تُحلَّل بشكل صحيح مستقل عن note/reason)،
+ * لكنه يُفقِد كل قابلية ملاحظة (observability) لسبب رفض النموذج لمرشح ما.
+ * الإصلاح: قبول الحقلين معاً (note أولوية، فـreason احتياطاً) دون تغيير أي
+ * سلوك فى المستدعى الأصلي (selectApplicablePenalties يستخدم "note" فعلاً
+ * فى تعليمته ولم يتأثر إطلاقاً).
  */
 function parsePenaltySelectionJson(
   text: string,
@@ -1880,11 +2045,17 @@ function parsePenaltySelectionJson(
 
   for (const attempt of attempts) {
     try {
-      const parsed = JSON.parse(attempt) as { selected?: unknown; note?: unknown };
+      const parsed = JSON.parse(attempt) as { selected?: unknown; note?: unknown; reason?: unknown };
       if (isValidSelected(parsed.selected)) {
+        const note =
+          typeof parsed.note === 'string'
+            ? parsed.note
+            : typeof parsed.reason === 'string'
+              ? parsed.reason
+              : '';
         return {
           selected: Array.from(new Set(parsed.selected)),
-          note: typeof parsed.note === 'string' ? parsed.note : '',
+          note,
         };
       }
     } catch {
