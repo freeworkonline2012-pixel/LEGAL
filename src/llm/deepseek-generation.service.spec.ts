@@ -483,3 +483,72 @@ describe('DeepseekGenerationService — الإصلاح السابع: لا ترف
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * 2026-09-25: بند P1 من "تقرير تحليل شامل لفجوات إجابة المنصة مقارنة بالمرجع
+ * 9.5" — راجع تعليق selectIndefiniteTerminationBundleArticles الكامل فى
+ * deepseek-generation.service.ts. الاختبار الأول هنا يتحقق تحديداً من النقطة
+ * الجوهرية التى تُميِّز هذه الدالة عن selectSupplementaryEntitlements: مادة
+ * "أساسية" (لا "إضافية") يجب ألا تُستبعَد لمجرد ذلك — نمرر مادتين تمثلان
+ * بالضبط 156 (الإخطار) و157 (المبرر المشروع) ونتحقق أن كليهما تُختاران.
+ */
+describe('DeepseekGenerationService.selectIndefiniteTerminationBundleArticles', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  const INDEFINITE_CANDIDATES = [
+    {
+      lawTitle: 'قانون العمل',
+      lawNo: 14,
+      articleNo: 156,
+      articleText:
+        'إذا كان عقد العمل غير محدد المدة، جاز لأى من طرفيه إنهاؤه بشرط أن يخطر الطرف الآخر كتابة قبل الإنهاء بثلاثة أشهر.',
+    },
+    {
+      lawTitle: 'قانون العمل',
+      lawNo: 14,
+      articleNo: 157,
+      articleText: 'لا يجوز لأصحاب الأعمال والعمال إنهاء عقد العمل غير محدد المدة، إلا بمبرر مشروع وكافٍ.',
+    },
+  ];
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it('لا تستبعد مادة تمثّل الأساس القانونى المباشر (156/157) لمجرد أنها ليست "إضافية"', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValueOnce(
+      jsonResponse(
+        200,
+        chatCompletion(
+          JSON.stringify({ selected: [1, 2], note: 'كلاهما أساس إنهاء العقد غير محدد المدة' }),
+          'stop',
+        ),
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.selectIndefiniteTerminationBundleArticles({
+      question: 'هل تختلف الحقوق لو كان العقد غير محدد المدة؟',
+      candidates: INDEFINITE_CANDIDATES,
+    });
+
+    expect(result).toEqual({ status: 'ok', selectedIndices: [0, 1], reason: 'كلاهما أساس إنهاء العقد غير محدد المدة' });
+  });
+
+  it('ترجع مصفوفة فارغة حين لا يوجد أى مرشح ذو صلة فعلية (fail-safe الطبيعى، لا استدعاء API)', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+
+    const result = await service.selectIndefiniteTerminationBundleArticles({
+      question: 'سؤال تجريبى',
+      candidates: [],
+    });
+
+    expect(result).toEqual({ status: 'ok', selectedIndices: [], reason: 'لا مرشحين' });
+  });
+});

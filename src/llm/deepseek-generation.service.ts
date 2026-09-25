@@ -53,6 +53,22 @@ export interface GroundedGenerationMultiInput {
  * ضمان أن هذه النسخة تنجح أيضاً — عدم-حتمية DeepSeek الموثَّقة سابقاً
  * (راجع تعليق assessCompliance) تعنى أن التحقق الحى وحده يحسم هذا، لا
  * القراءة الثابتة للكود.
+ *
+ * ⚠️ توسيع (2026-09-25 — بند P1 من "تقرير تحليل شامل لفجوات إجابة المنصة
+ * مقارنة بالمرجع 9.5"، بموافقة صريحة): المثال الوحيد أعلاه يغطى نمطاً واحداً
+ * فقط من اليقين الزائف — ربط مصطلح قانونى بواقعة. المرجع كشف نمطاً ثانياً
+ * مختلفاً تماماً لم تُعمِّمه القاعدة تلقائياً: **تراكم عدة مدد أو تكرارات
+ * منفصلة نحو حد رقمى واحد مذكور فى النص**. مثال حقيقى محفِّز: المادة 154
+ * تشترط "مدة تزيد على خمس سنوات" (عقد واحد أو تجديد واحد)، والسؤال المرجعى
+ * يصف عقداً مؤقتاً "يتجدد سنوياً" — فهل تُجمع مدد التجديدات السنوية المتصلة
+ * نحو حاجز الخمس سنوات، أم كل عقد سنوى مستقل بذاته لا يُحسَب مع سابقيه؟
+ * تحقَّقتُ مباشرة من نص المادة 154 الكامل فى قاعدة البيانات: لا يحسم هذا
+ * السؤال صراحة بأى اتجاه — المرجع القانونى نفسه يوثِّق هذا كخلاف فقهى حقيقى
+ * غير محسوم قضائياً (اتجاه مضيّق يرفض الجمع، واتجاه حمائى يقبله)، لا مسألة
+ * فيها إجابة واحدة واضحة. إجابة المنصة على هذا السؤال بالذات لم تطرح هذا
+ * الخلاف إطلاقاً رغم أنه صميم سيناريو السؤال (عقد "متجدد سنوياً" تحديداً).
+ * الحل بنفس آلية التحقق الذاتى الإلزامية أعلاه، بمثال ثانٍ منفصل بدل قاعدة
+ * جديدة كلياً — لا داعٍ لتكرار البنية.
  */
 const GENERATION_INTERPRETIVE_CERTAINTY_RULE =
   '⚠️ قاعدة إلزامية منفصلة عن قاعدة "ممنوع إضافة معلومة خارج النص" أعلاه — ' +
@@ -64,15 +80,25 @@ const GENERATION_INTERPRETIVE_CERTAINTY_RULE =
   'تشابه أو منطق عام؟ (مثال محسوم: النص يُقرِّر حكماً لحالة "الإنهاء من ' +
   'جانب صاحب العمل"، والسؤال يصف "عدم تجديد عقد مؤقت عند انتهاء مدته" — ' +
   'النص لا يذكر "عدم التجديد" بالاسم إطلاقاً، فربطهما استنتاج منك لا نقل ' +
-  'حرفى، حتى لو بدا الربط منطقياً جداً). إن كانت الإجابة أنه استنتاج منك ' +
+  'حرفى، حتى لو بدا الربط منطقياً جداً).\n\n' +
+  'نفس خطوة التحقق الذاتى تنطبق أيضاً على نمط مختلف: **تراكم عدة مدد أو ' +
+  'تكرارات منفصلة نحو حد رقمى واحد ورد فى النص**. اسأل نفسك أيضاً — إن كان ' +
+  'النص يشترط مدة/عدداً محدداً ("تزيد على كذا")، والسؤال يصف عدة فترات أو ' +
+  'عقود أو تكرارات منفصلة قد يتجاوز مجموعها هذا الحد، هل يقول النص صراحة ' +
+  'إن هذه الفترات المنفصلة تُجمع معاً لحساب الحد، أم أن هذا استنتاجك؟ (مثال ' +
+  'محسوم: نص يشترط "مدة تزيد على خمس سنوات" لعقد واحد أو تجديد واحد، ' +
+  'والسؤال يصف عقوداً سنوية متتالية متجددة — النص لا يقول صراحة إن مدد ' +
+  'التجديدات المتتالية تُجمع أو لا تُجمع، فأى جزم بأحد الاتجاهين استنتاج ' +
+  'منك لا نقل حرفى، ولو بدا أحد الاتجاهين أكثر إنصافاً للعامل).\n\n' +
+  'إن كانت الإجابة على أى من السؤالين أعلاه أنه استنتاج منك ' +
   '(الحالة الغالبة فى الأسئلة عن وقائع لا تستخدم ألفاظ القانون حرفياً)، ' +
   'يجب أن تُضيف بعد تلك الجملة مباشرة، حرفياً وبدون أى تعديل فى الصياغة: ' +
   '"(ملاحظة: هذا ربط تفسيرى بين واقعة السؤال ونص القانون، لم يُنص عليه ' +
   'صراحة، وقد يكون محل خلاف قانونى — يُنصح بمراجعة مختص عند الحاجة لقرار ' +
   'قاطع)". هذه العبارة **إلزامية بنصها الحرفى بلا اختصار أو إعادة صياغة** ' +
-  'كلما انطبق الشرط أعلاه — لا خيار بين عدة صياغات ممكنة. الاستثناء الوحيد: ' +
-  'لا تُكرِّرها أكثر من مرة واحدة فى الإجابة الواحدة حتى لو تكرر الشرط ' +
-  'لعدة جمل مشابهة — أضِفها بعد أول جملة تستوفيه فقط.';
+  'كلما انطبق أى من الشرطين أعلاه — لا خيار بين عدة صياغات ممكنة. الاستثناء ' +
+  'الوحيد: لا تُكرِّرها أكثر من مرة واحدة فى الإجابة الواحدة حتى لو تكرر ' +
+  'الشرط لعدة جمل مشابهة — أضِفها بعد أول جملة تستوفيه فقط.';
 
 /**
  * ⚠️ إصلاح جذرى خامس (2026-09-25 — دليل مباشر من مقارنة حية مع مستند خبراء
@@ -1011,6 +1037,151 @@ export class DeepseekGenerationService {
       return { status: 'ok', selectedIndices, reason: parsed.note };
     } catch (err) {
       this.logger.warn(`DeepSeek selectSupplementaryEntitlements call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
+
+  /**
+   * ⚠️ بند P1 (2026-09-25 — من "تقرير تحليل شامل لفجوات إجابة المنصة مقارنة
+   * بالمرجع 9.5"، بموافقة صريحة بعد نقاش نطاق التنفيذ): حزمة "إنهاء العقد
+   * غير محدد المدة" (المواد 156/157/159/161/162 — راجع
+   * INDEFINITE_TERMINATION_BUNDLE_ARTICLES وisIndefiniteContractTerminationTopic
+   * فى retrieval.ts للتشخيص الكامل والتصميم) تحتاج بوابة حكم قانونى منفصلة
+   * عن selectSupplementaryEntitlements أعلاه رغم تطابق البنية الظاهرى —
+   * **لا يجوز إعادة استخدام نفس تعليمة selectSupplementaryEntitlements
+   * حرفياً هنا**، وهذا قرار هندسى واعٍ لا سهو: تعليمتها مبنية صراحة على
+   * التمييز "السند القانونى المباشر عُرض بالفعل من مصدر آخر — مهمتك هنا
+   * استحقاقات *إضافية* تابعة، لا الأساس القانونى نفسه". لكن مادتى 156
+   * (الإخطار الكتابى) و157 (المبرر المشروع) **هما تحديداً الأساس القانونى
+   * المباشر** لسؤال عن إنهاء عقد غير محدد المدة، لا استحقاقاً تابعاً —
+   * تعليمة selectSupplementaryEntitlements قد تدفع النموذج لاستبعادهما
+   * تحديداً لأنهما "يبدوان أساسيين لا إضافيين"، وهى بالضبط الفئة التى صُمِّمت
+   * تلك التعليمة لاستبعادها (بقصد صحيح فى سياقها الأصلى). نفس الدرس المستفاد
+   * من استبدال selectRelevantCandidates بـselectSupplementaryEntitlements فى
+   * حزمة نهاية العلاقة سابقاً: تعليمة مُعايَرة لمهمة حكم مختلفة تُعطى نتيجة
+   * خاطئة بانتظام مهما كانت البنية البرمجية مطابقة — الحل بناء تعليمة ثالثة
+   * مُعايَرة خصيصاً لهذه المهمة، لا إعادة تدوير الثانية.
+   *
+   * ⚠️ تسجيل تشخيصى (ITB:-مثل فى questions.service.ts) يُضاف منذ اليوم
+   * الأول — درس مستفاد صريح من تعليق expandWithEndOfRelationshipBundle: لا
+   * ننتظر فشل قياس حى أول لنكتشف أين تتوقف السلسلة.
+   *
+   * ⚠️ غير مُقاس حياً بعد وقت الكتابة — يحتاج قياساً حياً بنفس السؤال
+   * المرجعى (الشِّق الثالث: "هل تختلف الحقوق لو كان العقد غير محدد المدة؟")
+   * قبل الإقرار بالنجاح، طبقاً لقاعدة "التحقق قبل القول".
+   */
+  async selectIndefiniteTerminationBundleArticles(input: {
+    question: string;
+    candidates: Array<{
+      lawTitle: string;
+      lawNo: number;
+      articleNo: number;
+      articleText: string;
+    }>;
+  }): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | { status: 'ok'; selectedIndices: number[]; reason: string }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+    if (input.candidates.length === 0) {
+      return { status: 'ok', selectedIndices: [], reason: 'لا مرشحين' };
+    }
+
+    const MAX_SELECTED = 5;
+
+    const system =
+      'أنت مستشار قانونى متمرّس تراجع مواد قانونية محتملة الصلة بسؤال ' +
+      'مستخدم يتعلق بإنهاء عقد عمل **غير محدد المدة** (سواء بالإخطار، أو ' +
+      'الفصل، أو المبرر المشروع لإنهائه، أو ضمانات مهلة الإخطار). هذه ' +
+      'المواد تمثّل **الإطار القانونى الكامل** لهذا النوع من الإنهاء — قد ' +
+      'يكون بعضها هو الأساس القانونى المباشر (كشرط الإخطار الكتابى، أو ' +
+      'اشتراط مبرر مشروع وكافٍ) وقد يكون بعضها ضماناً تابعاً (كحظر توجيه ' +
+      'الإخطار أثناء إجازة العامل، أو منع الاتفاق على الإعفاء منه، أو حق ' +
+      'التغيب للبحث عن عمل). **لا تستبعد نصاً لمجرد أنه يبدو "أساسياً" لا ' +
+      '"إضافياً"** — المعيار الوحيد هو: هل هذا النص جزء فعلى وواقعى من ' +
+      'الإطار القانونى لواقعة إنهاء العقد غير محدد المدة التى يصفها أو ' +
+      'يستلزمها السؤال؟ اختر كل نص تنطبق عليه هذه الصلة، حتى لو لم يُذكَر ' +
+      'صراحة بنفس ألفاظ السؤال — تماماً كما يفعل محامٍ متمرّس يعرض الصورة ' +
+      'القانونية كاملة لا الحد الأدنى الحرفى فقط. لكن لا تُدرج نصاً لمجرد ' +
+      'كونه من نفس القانون أو الباب دون صلة موضوعية حقيقية بواقعة *إنهاء* ' +
+      'العقد غير محدد المدة تحديداً.\n\n' +
+      `أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى قبلها أو بعدها، بحد أقصى ${MAX_SELECTED} ` +
+      'أرقام فى "selected"، بالضبط بهذا الشكل: {"selected": [1, 3], "note": ' +
+      '"سبب موجز يوضح صلة هذه النصوص تحديداً بواقعة إنهاء العقد غير محدد المدة"}';
+
+    const candidatesText = input.candidates
+      .map(
+        (c, i) =>
+          `${i + 1}) المادة ${c.articleNo} من ${c.lawTitle} (قانون رقم ${c.lawNo}):\n"""${c.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `السؤال: ${input.question}\n\n` +
+      `المرشحون:\n${candidatesText}\n\n` +
+      `اختر كل أرقام المرشحين (من 1 إلى ${input.candidates.length}) المرتبطين ` +
+      'فعلياً بواقعة إنهاء العقد غير محدد المدة فى السؤال، أو مصفوفة فارغة ' +
+      'لو لا يوجد أى نص ذو صلة حقيقية. رد بـJSON فقط.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 400,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek selectIndefiniteTerminationBundleArticles API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
+      };
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek selectIndefiniteTerminationBundleArticles: content فارغ — reasoning_content ` +
+            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+        return { status: 'error', detail: 'empty_response' };
+      }
+
+      const parsed = parsePenaltySelectionJson(text, input.candidates.length);
+      if (!parsed) {
+        this.logger.warn(
+          `DeepSeek selectIndefiniteTerminationBundleArticles: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+      const selectedIndices = parsed.selected.map((n) => n - 1).slice(0, MAX_SELECTED);
+      return { status: 'ok', selectedIndices, reason: parsed.note };
+    } catch (err) {
+      this.logger.warn(
+        `DeepSeek selectIndefiniteTerminationBundleArticles call failed: ${(err as Error).message}`,
+      );
       return { status: 'error', detail: (err as Error).message };
     }
   }

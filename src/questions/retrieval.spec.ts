@@ -2,12 +2,14 @@ import {
   REFUSAL_THRESHOLD,
   MAX_CROSS_REFERENCE_ARTICLES,
   END_OF_RELATIONSHIP_BUNDLE_ARTICLES,
+  INDEFINITE_TERMINATION_BUNDLE_ARTICLES,
   buildFtsQuery,
   confidenceFromRank,
   detectArticleReference,
   detectCrossReferencedArticles,
   isConfident,
   isEndOfRelationshipTopic,
+  isIndefiniteContractTerminationTopic,
   toCitationStatus,
 } from './retrieval';
 
@@ -262,6 +264,52 @@ describe('END_OF_RELATIONSHIP_BUNDLE_ARTICLES', () => {
       expect(n).toBeGreaterThan(0);
       expect(seen.has(n)).toBe(false);
       seen.add(n);
+    }
+  });
+});
+
+/**
+ * 2026-09-25: بند P1 من "تقرير تحليل شامل لفجوات إجابة المنصة مقارنة بالمرجع
+ * 9.5" — راجع تعليق isIndefiniteContractTerminationTopic وINDEFINITE_
+ * TERMINATION_BUNDLE_ARTICLES الكاملين فى retrieval.ts. حالة "%s" الأولى فى
+ * الاختبارات الإيجابية أدناه هى الصياغة الحقيقية للشِّق الثالث من السؤال
+ * المرجعى الذى كشف الفجوة أصلاً ("هل تختلف الحقوق لو كان العقد غير محدد
+ * المدة؟").
+ */
+describe('isIndefiniteContractTerminationTopic', () => {
+  it.each([
+    'هل تختلف الحقوق لو كان العقد غير محدد المدة؟',
+    'ما حقوقى لو كان عقدى غير محدد المدة وأنهاه صاحب العمل؟',
+    'صاحب العمل فصلني بدون إخطار من عقد دائم، ماذا أفعل؟',
+    'ما هي مهلة الإخطار المطلوبة لإنهاء عقد عمل مفتوح؟',
+    'تم فصلي تعسفياً من وظيفتى',
+    'أنهى صاحب العمل عقدى بدون مبرر مشروع',
+  ])('يكتشف أن السؤال "%s" يتعلق بإنهاء عقد غير محدد المدة', (text) => {
+    expect(isIndefiniteContractTerminationTopic(text)).toBe(true);
+  });
+
+  it.each([
+    'ما حقوق الموظف عند عدم تجديد العقد المؤقت؟',
+    'كم قيمة بدل الأجازة السنوية إذا لم أستنفدها؟',
+    'ما هي ساعات العمل الإضافية المسموح بها؟',
+    'ما هو الحد الأدنى للأجور؟',
+  ])(
+    'لا يُفعَّل زائفاً على سؤال عمالى عام لا يتعلق تحديداً بإنهاء عقد غير محدد المدة: "%s"',
+    (text) => {
+      expect(isIndefiniteContractTerminationTopic(text)).toBe(false);
+    },
+  );
+});
+
+describe('INDEFINITE_TERMINATION_BUNDLE_ARTICLES', () => {
+  it('يحتوي فقط على أرقام مواد صحيحة موجبة، بلا تكرار، ومنفصلة عن حزمة نهاية العلاقة العامة', () => {
+    const seen = new Set<number>();
+    for (const n of INDEFINITE_TERMINATION_BUNDLE_ARTICLES) {
+      expect(Number.isInteger(n)).toBe(true);
+      expect(n).toBeGreaterThan(0);
+      expect(seen.has(n)).toBe(false);
+      seen.add(n);
+      expect(END_OF_RELATIONSHIP_BUNDLE_ARTICLES.includes(n)).toBe(false);
     }
   });
 });
