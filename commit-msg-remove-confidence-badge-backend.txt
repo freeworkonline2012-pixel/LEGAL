@@ -1,0 +1,86 @@
+إزالة كاملة لحقل الثقة (confidence) من عقد API العام — الباك-إند
+
+السبب (نفسه فى الجانبين backend/frontend، راجع أيضاً commit-msg-remove-confidence-badge-frontend.txt):
+تقييم إجابة حية فعلية (7/10 مقابل مستند مرجعي) كشف أن المادتين 159 و161
+سقطتا من نص الإجابة النهائى رغم استرجاعهما بنجاح (ITB) وتوليد سليم غير
+مرفوض من حارس الهلوسة — أى أن إشارة الثقة المركّبة (hallucination-aware)
+التى أضفناها فى هذه الجلسة نفسها لم تكن لتكتشف هذا العيب إطلاقاً. القرار:
+إلغاء بادج/حقل الثقة بالكامل من عقد API والواجهة، بدلاً من الاستمرار فى
+تكرار محاولات إصلاحه.
+
+ما تم إزالته هنا (تراجع عن الجولة الأولى "ربط بادج الثقة"، مع الإبقاء على
+تحسين type-safety المستقل GroundedGenerationOutcome لأنه مفيد بذاته):
+
+- src/questions/questions.service.ts:
+  • حذف الدالة computeFinalConfidence() بالكامل وHALLUCINATION_REJECTED_CONFIDENCE_CAP.
+  • حذف متغيّر generationOutcomeStatus وربطه.
+  • إرجاع معالجة llmOutcome.status === 'ok' لشكلها الأبسط قبل ميزة الربط.
+  • حقل confidence أُزيل تماماً من كائن AnswerResponseDto فى كلتا الحالتين
+    (وجود استشهادات / رفض).
+  • تخزين قاعدة البيانات (answerEntity.confidence) يبقى يُغذّى مباشرة من
+    retrieval.confidence (وليس من answer.confidence الذى لم يعد موجوداً) —
+    وذلك فقط لأغراض التدقيق الداخلى عبر AuditModule، وليس تعريضاً فى الـ API.
+  • metadata فى سجل التدقيق (audit log) تستخدم retrieval.confidence مباشرة.
+  • حُذف حقل confidence من history() ومن getById().
+
+- src/questions/dto/answer-response.dto.ts:
+  • حذف @ApiProperty confidence: number بالكامل من AnswerResponseDto،
+    واستبداله بتعليق موثّق يشرح القرار وأن العمود فى قاعدة البيانات يبقى
+    للتدقيق الداخلى فقط.
+
+- src/questions/dto/question-response.dto.ts:
+  • حذف @ApiProperty confidence: number من QuestionHistoryItemDto.
+  • QuestionDetailResponseDto لم يكن يحتاج تعديلاً (يضمّن AnswerResponseDto
+    بالتركيب composition، فينعكس التعديل تلقائياً).
+
+- src/llm/deepseek-generation.service.ts + .service.spec.ts:
+  • تم الإبقاء على GroundedGenerationOutcome (النوع المميَّز discriminated
+    union) دون تغيير — هذا تحسين type-safety مستقل عن ميزة البادج المُلغاة،
+    ووافق المستخدم صراحة على إبقائه.
+
+⚠️ تصحيح شفافية (2026-09-26 — راجعتُ هذا الملف مباشرة على جهازك بطلب صريح
+من المستخدم قبل البدء فى عمل جديد، فاكتشفت أن هذا الكوميت يحمل أيضاً تعديلاً
+لم يُذكَر أعلاه): نفس ملف deepseek-generation.service.ts يحمل بالفعل
+GENERATION_CONDITIONAL_FIDELITY_RULE — قاعدة "أمانة نقل الشروط" (بند P0 من
+تقرير الفجوات: منع إسقاط شرط رقمى صريح مثل "لمدة تزيد على خمس سنوات" فى
+المادة 154 أثناء التوليف) — مُضافة فعلياً منذ وقت سابق فى هذه الجلسة (قبل
+ميزة ربط بادج الثقة)، ومكتوبة فى كلا مسارَى composeGroundedAnswer/Multi.
+هذا التعديل **لم يُختبَر حياً بعد إطلاقاً** بإجابة حقيقية توليفية (غير
+احتياطية/fallback) تحتوى شرطاً رقمياً — أى اختبار حى يفيد فى تأكيد فعاليته
+يستحق اهتماماً خاصاً بعد هذا الدفع (مثال سؤال مقترح: "ما هى مكافأة نهاية
+الخدمة إذا أنهى صاحب العمل عقد عمل محدد المدة؟" ثم التحقق أن الإجابة تذكر
+صراحة شرط "أكثر من خمس سنوات" ولا تعرض الحق كأنه مطلق).
+
+ما لم يُمس عمداً (مفاهيم "ثقة" منفصلة تماماً، خارج نطاق هذه الإزالة):
+- src/reviews/dto/review-response.dto.ts → ReviewDetailContextDto.confidence
+  (قائمة انتظار المراجعة البشرية EP-06) — DTO مستقل تماماً، يستورد فقط
+  CitationResponseDto من answer-response.dto.ts.
+- GovernanceRecommendation.confidence / GovernanceAssessResponse.confidence
+  (وحدة الحوكمة — معلَّق فى الكود أصلاً بأنه لا يُعرض كرقم خام للمستخدم).
+- ContractClauseItem.assessment_confidence (تقييم بنود العقود).
+- منطق الثقة الداخلى فى طبقة الاسترجاع (isConfident()،
+  SEMANTIC_CONFIDENCE_THRESHOLD، confidenceFromRank()، retrieval.confidence
+  المستخدَم لاختيار/تصفية مرشَّحى الاستشهاد) — يبقى سليماً بالكامل، لأنه
+  جوهرى لضبط جودة الاستشهادات؛ فقط تعريضه عبر الـ API/الواجهة أُزيل.
+
+التحقق المنفَّذ فى بيئة العمل السحابية قبل الشحن:
+- npx tsc --noEmit: نظيف، بدون أخطاء.
+- npx jest: 149/149 اختباراً ناجحاً (10 ملفات اختبار).
+- nest build: نظيف (تم التحقق فى جولة سابقة من نفس التعديلات).
+
+⚠️ هذا الشحن يُعيد ملف questions.service.ts (والملفات الأخرى أعلاه) إلى شكل
+ما بعد الإزالة الكاملة — أى أنه يُبطل تلقائياً كل تعديلات ميزة "ربط بادج
+الثقة" (الجولة الأولى) التى كانت مشحونة مسبقاً على هذا الجهاز. لا حاجة
+لأى git revert يدوى؛ فقط استبدل الملفات بالمحتوى المُرسَل هنا.
+
+الخطوات المطلوبة منك على جهازك (لكل من مساري الباك-إند):
+1) راجع git status/git diff للتأكد من التغييرات.
+2) نفّذ:
+   git add -A
+   git commit -F commit-msg-remove-confidence-badge-backend.txt
+   git push
+3) بعد النشر على Railway، أرسل لى تأكيداً (أو اطلب منى التحقق مباشرة عبر
+   Railway MCP) قبل اعتماد نجاح الإطلاق.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01EvjjtdpRK6wc7dVeQkQNnq

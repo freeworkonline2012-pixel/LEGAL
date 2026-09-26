@@ -37,8 +37,8 @@ export class QuestionHistoryItemDto {
   @ApiProperty({ example: false })
   refused: boolean;
 
-  @ApiProperty({ example: 0.87 })
-  confidence: number;
+  // confidence أُزيل من هنا أيضاً — راجع تعليق "إلغاء بادج الثقة بالكامل" فى
+  // answer-response.dto.ts للتفاصيل الكاملة.
 }
 
 export class QuestionHistoryResponseDto {

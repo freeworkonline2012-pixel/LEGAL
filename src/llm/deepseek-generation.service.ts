@@ -379,12 +379,25 @@ export class DeepseekGenerationService {
       );
       const hallucinated = findHallucinatedArticleCitations(text, validArticleNumbers);
       if (hallucinated.length > 0) {
+        // ⚠️ إصلاح جذرى ثامن (2026-09-26 — راجع تقرير الفجوات لنفس التاريخ):
+        // قبل هذا التعديل كان هذا السطر يسرد فقط *عدد/أرقام* المواد المرفوضة
+        // والمواد "المسموح بها"، دون أى مقتطف من النص المُولَّد الفعلى نفسه —
+        // فحادثة حية لاحقة (qHash=53ef75df) أُسيء تفسيرها لاحقاً (حسبتُ الرقم
+        // الوحيد المرفوض "(9)" وكأنه *عدد* 9 مواد رغم أنه فى الحقيقة اسم مادة
+        // واحدة رقمها 9 — join(',') لمصفوفة عنصر واحد لا يفرَّق شكلياً عن رقم
+        // عادى) لعدم توفر النص نفسه للتحقق المباشر. الإصلاح هنا ليس تخمين حل
+        // للهلوسة نفسها (لا يوجد دليل كافٍ بعد لتحديد حل سلوكى صحيح)، بل توفير
+        // الدليل الخام اللازم لتشخيص أى حادثة مستقبلية بيقين تام بدل التخمين —
+        // شرط أساسى لأى إصلاح سلوكى لاحق يستحق الثقة. لا تكلفة أداء أو مخاطرة
+        // إضافية: النص بالفعل محسوب فى الذاكرة، والسجل warn-level لا يُعرَض
+        // للمستخدم إطلاقاً.
         this.logger.warn(
-          `DeepSeek Chat Completions: استشهاد بأرقام مواد غير مرسَلة فعلياً ` +
-            `(${hallucinated.join(',')}) — المواد المسموح بها (الأساسية + الإحالات ` +
-            `الصريحة داخل النص) ${validArticleNumbers.join(',')}. ` +
+          `DeepSeek Chat Completions: استشهاد بـ${hallucinated.length} رقم مادة غير مرسَل ` +
+            `فعلياً — الأرقام المرفوضة: [${hallucinated.join(',')}]. المواد المسموح بها ` +
+            `(الأساسية + الإحالات الصريحة داخل النص): [${validArticleNumbers.join(',')}]. ` +
             `fail-safe: إرجاع hallucination_rejected ليتحول questions.service.ts للقالب ` +
-            `الحتمى القديم ويُخفِّض سقف الثقة المعروضة (راجع computeFinalConfidence).`,
+            `الحتمى القديم ويُخفِّض سقف الثقة المعروضة (راجع computeFinalConfidence). ` +
+            `النص المُولَّد الكامل المرفوض (للتشخيص فقط، لا يُعرَض للمستخدم): """${text}"""`,
         );
         return { status: 'hallucination_rejected' };
       }
@@ -542,13 +555,20 @@ export class DeepseekGenerationService {
       );
       const hallucinated = findHallucinatedArticleCitations(text, validArticleNumbers);
       if (hallucinated.length > 0) {
+        // ⚠️ إصلاح جذرى ثامن (2026-09-26) — راجع التعليق المطابق أعلاه فى
+        // composeGroundedAnswer لسياق كامل السبب: هذا السطر (النسخة متعددة
+        // المواد، الأكثر عرضة لحوادث الهلوسة عملياً) كان يسرد فقط عدد/أرقام
+        // المواد المرفوضة والمسموح بها دون النص المُولَّد نفسه، فتعذَّر تشخيص
+        // حادثة حية فعلية (qHash=53ef75df) بيقين — فُسِّر الرقم المرفوض
+        // الوحيد "(9)" خطأً كعدّ لتسع مواد بدل كونه اسم مادة واحدة رقمها 9.
         this.logger.warn(
-          `DeepSeek composeGroundedAnswerMulti: استشهاد بأرقام مواد غير مرسَلة فعلياً ` +
-            `(${hallucinated.join(',')}) — المواد المسموح بها (الأساسية + الإحالات الصريحة ` +
-            `داخل النصوص): ${validArticleNumbers.join(',')}. ` +
+          `DeepSeek composeGroundedAnswerMulti: استشهاد بـ${hallucinated.length} رقم مادة غير ` +
+            `مرسَل فعلياً — الأرقام المرفوضة: [${hallucinated.join(',')}]. المواد المسموح بها ` +
+            `(الأساسية + الإحالات الصريحة داخل النصوص): [${validArticleNumbers.join(',')}]. ` +
             `fail-safe: إرجاع hallucination_rejected ليتحول questions.service.ts للقالب الحتمى ` +
             `القديم (buildGroundedAnswerMulti) بدل عرض استشهاد خاطئ للمستخدم، ويُخفِّض سقف ` +
-            `الثقة المعروضة (راجع computeFinalConfidence فى questions.service.ts).`,
+            `الثقة المعروضة (راجع computeFinalConfidence فى questions.service.ts). ` +
+            `النص المُولَّد الكامل المرفوض (للتشخيص فقط، لا يُعرَض للمستخدم): """${text}"""`,
         );
         return { status: 'hallucination_rejected' };
       }

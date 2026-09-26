@@ -169,54 +169,19 @@ export class QuestionsService {
   private static readonly ITB_BUNDLE_MAX_ADDITIONS = 5;
 
   /**
-   * "ربط بادج الثقة بتقييم دقة الإجابة" (2026-09-25 — بموافقة رجل الأعمال على
-   * الحل المركّب بدون استدعاء LLM إضافى، بعد تشخيص أن answer.confidence كان
-   * يُحسَب بالكامل من جودة الاسترجاع فقط، بلا أى صلة بنجاح/فشل التوليد أو
-   * رفض بوابة الهلوسة — راجع GroundedGenerationOutcome فى
-   * deepseek-generation.service.ts للتوثيق الكامل).
-   *
-   * القيمة 0.75: أقل من عتبة "ثقة عالية" فى الواجهة (confidenceTokens فى
-   * legal_frontend_work/src/lib/tokens.ts، ≥0.85) عمداً — الهدف بالتحديد أن
-   * لا يظهر بادج "ثقة عالية" أبداً على سؤال اضطر النظام لرفض محاولة استشهاد
-   * غير محقَّقة بشأنه، مهما كانت ثقة الاسترجاع الخام مرتفعة (قد تصل 0.95 فى
-   * حالة تطابق مباشر لرقم مادة). لا تُخفَض تحت 0.75 عمداً: القالب الحتمى
-   * المعروض فعلياً للمستخدم فى هذه الحالة نص حرفى 100% (buildGroundedAnswerMulti)
-   * ولا يحمل خطر "معلومة خاطئة معروضة" — الخطر هنا هو صعوبة تفسيرية للسؤال
-   * ذاته اكتُشِفت أثناء المحاولة، لا خطأ فى النص النهائى المعروض؛ تخفيض أعمق
-   * (نحو "ثقة منخفضة") يبالغ فى الإنذار مقارنة بما يثبته هذا الدليل تحديداً.
-   *
-   * ⚠️ حدود موثَّقة صراحة لهذا الحل (لتجنّب الإيحاء بأكثر مما يثبته فعلاً):
-   * لا يكشف — ولا يمكنه أن يكشف بدون استدعاء LLM إضافى مخصَّص للتحقق الدلالى —
-   * حالة "التوليد نجح واجتاز بوابة الهلوسة، لكنه أسقط شرطاً أو قيداً جوهرياً
-   * من نص المادة أثناء التوليف". هذه بالتحديد الفجوة التى كشفتها جلستا
-   * التقييم "7/10" و"6/10" هذه الجلسة (المادة 6 - النطاق الزمنى، 125 - سقوط
-   * الإجازة، 154 - سريان الفقرة الثانية) — ولا تزال قائمة بعد هذا التغيير.
-   * الحل الجذرى الكامل لها (طبقة تحقق دلالية LLM منفصلة تقارن النص النهائى
-   * بالنصوص المصدر) اقتُرح صراحة وأُجِّل بقرار رجل الأعمال لصالح هذا الحل
-   * الأسرع أولاً — غير مُستبعد مستقبلاً عند الحاجة.
+   * "إلغاء بادج الثقة بالكامل" (2026-09-25 — قرار صريح من رجل الأعمال):
+   * كانت هذه الدالة (computeFinalConfidence) وHALLUCINATION_REJECTED_CONFIDENCE_CAP
+   * تنفيذاً لميزة "ربط بادج الثقة بتقييم دقة الإجابة" (نفس اليوم) — أُزيلتا
+   * كلياً هنا بعد أن كشف اختبار حى تالٍ مباشرة (سؤال حقوق الموظف عند عدم
+   * التجديد، مقارنة 7/10 بالمستند المرجعى) أن الإشارة الجديدة لم تمنع أصلاً
+   * فجوة جوهرية أخرى (إسقاط المادتين 159/161 من نص إجابة ناجحة توليدياً بلا
+   * أى رفض) — أى أنها كانت تعطى ثقة زائفة فى حالات لا تكشفها. راجع تعليق
+   * AnswerResponseDto فى answer-response.dto.ts للتوثيق الكامل لقرار الإلغاء.
+   * الجزء المفيد المتبقى من عمل ذلك اليوم (GroundedGenerationOutcome —
+   * composeGroundedAnswer/Multi يُرجعان discriminated union بدل string|null
+   * غامض) أُبقِى عمداً فى deepseek-generation.service.ts: تحسين نوعى داخلى
+   * مستقل تماماً عن ميزة الثقة الملغاة، لا علاقة له بالمشكلة التى استدعت الإلغاء.
    */
-  private static readonly HALLUCINATION_REJECTED_CONFIDENCE_CAP = 0.75;
-
-  /**
-   * قيمة الثقة النهائية المعروضة فى بادج الواجهة ومُخزَّنة فى Answer.confidence
-   * — مركّبة من إشارتين بلا أى تكلفة LLM إضافية (الحل المعتمَد صراحة، راجع
-   * تعليق HALLUCINATION_REJECTED_CONFIDENCE_CAP أعلاه للتفاصيل والحدود):
-   *  1. retrievalConfidence: جودة تطابق الاسترجاع كما كانت دائماً (FTS/دلالى/
-   *     تطابق مباشر) — الإشارة الوحيدة المستخدَمة سابقاً.
-   *  2. generationOutcome: 'hallucination_rejected' تحديداً يفرض سقفاً أدنى —
-   *     أى إشارة أخرى ('ok' أو 'other': لم يُفعَّل/عطل شبكى/رد فارغ) لا تغيّر
-   *     شيئاً، لأنها لا تحمل دليلاً على صعوبة السؤال نفسه (فقط hallucination
-   *     نابعة من محاولة توليد فعلية لهذا السؤال بالذات).
-   */
-  private computeFinalConfidence(
-    retrievalConfidence: number,
-    generationOutcome: 'ok' | 'hallucination_rejected' | 'other',
-  ): number {
-    if (generationOutcome === 'hallucination_rejected') {
-      return Math.min(retrievalConfidence, QuestionsService.HALLUCINATION_REJECTED_CONFIDENCE_CAP);
-    }
-    return retrievalConfidence;
-  }
 
   private readonly logger = new Logger(QuestionsService.name);
   private readonly questionRepository: Repository<Question>;
@@ -257,15 +222,6 @@ export class QuestionsService {
     // التحقق تبقى كما هي). فشل الاستدعاء أو عدم التفعيل → رجوع فوري للقالب
     // الجاهز القديم دون أي تغيير في العقد أو انقطاع.
     let usedLlm = false;
-    // "ربط بادج الثقة بتقييم دقة الإجابة" (2026-09-25، الحل المركّب المعتمَد
-    // من رجل الأعمال — بدون استدعاء LLM إضافى): composeGroundedAnswerMulti
-    // الآن يُرجع GroundedGenerationOutcome بدل string|null، فيكشف تحديداً هل
-    // كان الفشل (إن وُجد) بسبب hallucination_rejected — أى أن النموذج حاول
-    // فعلياً الاستشهاد بمادة غير محقَّقة لهذا السؤال بعينه ورُفض برمجياً —
-    // بدل أسباب حيادية (عدم تفعيل/عطل شبكى/رد فارغ) لا تحمل أى دليل على صعوبة
-    // السؤال. راجع computeFinalConfidence أدناه للتوظيف الكامل فى قيمة الثقة
-    // النهائية المعروضة فى الواجهة.
-    let generationOutcomeStatus: 'ok' | 'hallucination_rejected' | 'other' = 'other';
     let answerText: string;
     if (retrieval.citations.length > 0) {
       // composeGroundedAnswerMulti (2026-09-24): يستقبل **كل** الاستشهادات
@@ -286,12 +242,8 @@ export class QuestionsService {
       if (llmOutcome.status === 'ok') {
         answerText = llmOutcome.text;
         usedLlm = true;
-        generationOutcomeStatus = 'ok';
       } else {
         answerText = this.buildGroundedAnswerMulti(retrieval.citations);
-        if (llmOutcome.status === 'hallucination_rejected') {
-          generationOutcomeStatus = 'hallucination_rejected';
-        }
       }
     } else {
       answerText = REFUSED_ANSWER_TEXT;
@@ -312,21 +264,14 @@ export class QuestionsService {
       );
     }
 
-    const finalConfidence =
-      retrieval.citations.length > 0
-        ? this.computeFinalConfidence(retrieval.confidence, generationOutcomeStatus)
-        : retrieval.confidence;
-
     const answer: AnswerResponseDto = retrieval.citations.length > 0
       ? {
           answer: answerText,
-          confidence: finalConfidence,
           citations: retrieval.citations.map((c) => this.toCitationDto(c)),
           refused: false,
         }
       : {
           answer: answerText,
-          confidence: finalConfidence,
           citations: [],
           refused: true,
           web_fallback: webFallbackResult
@@ -354,7 +299,13 @@ export class QuestionsService {
       const answerEntity = manager.getRepository(Answer).create({
         questionId: savedQuestion.id,
         answer: answer.answer,
-        confidence: answer.confidence.toFixed(3),
+        // "إلغاء بادج الثقة بالكامل" (2026-09-25، بطلب صريح من رجل الأعمال بعد
+        // اكتشاف أن الإشارة غير كافية لتعكس دقة الإجابة فعلياً — راجع تعليق
+        // AnswerResponseDto فى answer-response.dto.ts للتفاصيل الكاملة):
+        // confidence لم يعد يُكشَف فى أى استجابة API، لكن العمود يبقى محفوظاً
+        // فى قاعدة البيانات مباشرة من retrieval.confidence (سجل تدقيقى داخلى
+        // فقط — راجع AuditModule — لا صلة له بأى بادج معروض للمستخدم).
+        confidence: retrieval.confidence.toFixed(3),
         refused: answer.refused,
         modelVersion,
         latencyMs,
@@ -435,7 +386,10 @@ export class QuestionsService {
       resourceType: 'question',
       ipAddress: context.ipAddress ?? null,
       userAgent: context.userAgent ?? null,
-      metadata: { refused: answer.refused, confidence: answer.confidence },
+      // confidence هنا لسجل التدقيق الداخلى (AuditModule) فقط — راجع تعليق
+      // "إلغاء بادج الثقة بالكامل" أعلاه: لم يعد answer.confidence موجوداً على
+      // عقد الاستجابة العام، فالمصدر هنا retrieval.confidence مباشرة.
+      metadata: { refused: answer.refused, confidence: retrieval.confidence },
     });
     await this.auditService.record({
       actorId: context.userId,
@@ -491,7 +445,6 @@ export class QuestionsService {
         category: question.category,
         created_at: question.createdAt.toISOString(),
         refused: latestAnswer ? latestAnswer.refused : true,
-        confidence: latestAnswer ? Number(latestAnswer.confidence) : 0,
       };
     });
 
@@ -530,7 +483,6 @@ export class QuestionsService {
       answer: {
         id: latestAnswer.id,
         answer: latestAnswer.answer,
-        confidence: Number(latestAnswer.confidence),
         citations: (latestAnswer.citations ?? [])
           .sort((a, b) => a.position - b.position)
           .map((citation) => ({
