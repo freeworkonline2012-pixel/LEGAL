@@ -1,0 +1,19 @@
+fix(retrieval): مساحة مخصصة مستقلة لحزمة نهاية العلاقة بدل اقتطاعها من سقف الاستشهادات العام
+
+سجل إنتاج حى (qHash=53ef75df) أثبت أن selectSupplementaryEntitlements
+تعمل بحكم قانونى سليم فعلاً (اختارت 108، 125، 150، 175 بحق ورفضت
+7، 149، 185 بحق)، لكن room = MAX_TOTAL_CITATIONS(8) - citations.length(7)
+= 1 فقط أسقط 3 من أصل 4 مواد صحيحة الاختيار، لسبب عددي عشوائي (عدد
+المواد الأساسية المسترجَعة صدفة) لا علاقة له بصحة اختيار النموذج.
+
+الحل: EOR_BUNDLE_MAX_ADDITIONS = 6 (يطابق MAX_SELECTED فى
+selectSupplementaryEntitlements نفسها) كمساحة مخصصة مستقلة، بدل اقتطاع
+الحزمة من نفس ميزانية الاسترجاع الأساسى/الإحالات المرجعية. الأثر: حد
+الاستشهادات القصوى للإجابة الواحدة يرتفع من 8 إلى 14 فقط فى الحالة
+النادرة لتفعُّل كاشف نهاية العلاقة مع اختيار كامل للحزمة.
+
+تحقق: tsc --noEmit نظيف، jest 129/129، nest build نظيف. لم يُقَس حياً
+بعد وقت هذا الكوميت — يتطلب اختبار حى + سجل EOR: جديد للتأكيد.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01EvjjtdpRK6wc7dVeQkQNnq

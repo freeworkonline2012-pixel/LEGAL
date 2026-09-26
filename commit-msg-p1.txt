@@ -1,0 +1,33 @@
+feat(retrieval): بند P1 — حزمة إنهاء العقد غير محدد المدة + توسيع قاعدة اليقين التفسيرى لتراكم المدد
+
+من "تقرير تحليل شامل لفجوات إجابة المنصة مقارنة بالمرجع 9.5"، بموافقة صريحة
+على نطاق P1 فقط (دون P2/P3).
+
+1) حزمة "إنهاء العقد غير محدد المدة" (156 الإخطار، 157 المبرر المشروع، 159
+   حظر الإخطار أثناء الإجازة، 161 حظر الإعفاء من الإخطار، 162 يوم البحث عن
+   عمل) — نفس نمط حزمة نهاية العلاقة (EOR) المُثبَت حياً سابقاً:
+   - retrieval.ts: isIndefiniteContractTerminationTopic (كاشف محافظ) +
+     INDEFINITE_TERMINATION_BUNDLE_ARTICLES (أرقام متحقَّق منها مباشرة من
+     migrations/003_seed_real_laws.sql).
+   - deepseek-generation.service.ts: selectIndefiniteTerminationBundleArticles
+     — بوابة حكم قانونى منفصلة عمداً عن selectSupplementaryEntitlements (تلك
+     مصمَّمة لاستبعاد ما "يبدو أساسياً لا إضافياً"، وهذا بالضبط ما لا يجوز
+     فعله بمادتى 156/157 هنا — درس مستفاد من استبدال selectRelevantCandidates
+     سابقاً).
+   - questions.service.ts: expandWithIndefiniteTerminationBundle (مطابقة
+     لبنية expandWithEndOfRelationshipBundle + ITB_BUNDLE_MAX_ADDITIONS
+     كمساحة مخصَّصة مستقلة) + تسجيل تشخيصى ITB: من أول نشر (لا بعد فشل أول
+     قياس كما حدث فى EOR).
+
+2) توسيع GENERATION_INTERPRETIVE_CERTAINTY_RULE بمثال ثانٍ: تراكم عدة مدد/
+   تكرارات منفصلة نحو حد رقمى واحد (مثال حى: هل تُجمع مدد التجديدات السنوية
+   لعقد مؤقت نحو حاجز الخمس سنوات فى المادة 154؟ — خلاف فقهى حقيقى غير محسوم
+   قضائياً، والقاعدة السابقة لم تُعمِّمه تلقائياً من مثالها الوحيد).
+
+تحقق: tsc --noEmit نظيف، jest 149/149 (+13 اختبار جديد يعيد إنتاج فجوتى
+156/157 الغائبتين وتفضيل استبعاد المادة "الأساسية" خطأً)، nest build نظيف.
+غير مُقاس حياً بعد وقت هذا الكوميت — يحتاج سجلى ITB: من Railway بنفس السؤال
+المرجعى (الشِّق الثالث تحديداً) قبل الإقرار بالنجاح.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01EvjjtdpRK6wc7dVeQkQNnq

@@ -29,8 +29,10 @@ import {
   detectArticleReference,
   detectCrossReferencedArticles,
   END_OF_RELATIONSHIP_BUNDLE_ARTICLES,
+  INDEFINITE_TERMINATION_BUNDLE_ARTICLES,
   isConfident,
   isEndOfRelationshipTopic,
+  isIndefiniteContractTerminationTopic,
   toCitationStatus,
 } from './retrieval';
 import type { ArticleReference } from './retrieval';
@@ -122,6 +124,49 @@ export class QuestionsService {
    * معاً، مصدر واحد بدل ثابتين منفصلين قد يتضاربا. راجع تعليق
    * expandWithCrossReferences ودمج الأسئلة الفرعية decomposeIfCompound أدناه. */
   private static readonly MAX_TOTAL_CITATIONS = 8;
+
+  /**
+   * ⚠️ إصلاح جذرى خامس (2026-09-25 — دليل مباشر من سجل إنتاج حى، qHash=53ef75df):
+   * expandWithEndOfRelationshipBundle كانت تحسب room المتاحة لإضافة مواد
+   * الحزمة كـ"ما تبقّى من MAX_TOTAL_CITATIONS بعد الاسترجاع الأساسى" —
+   * سجل الإنتاج أثبت أن هذا خطأ تصميمى: بعد إصلاح selectSupplementaryEntitlements
+   * (راجع تعليقه فى deepseek-generation.service.ts)، اختار النموذج بحكم قانونى
+   * سليم تماماً 4 مواد ذات صلة فعلية (108 صرف المستحقات، 125 تسوية رصيد
+   * الإجازات، 150 التعويض المؤقت عند الفصل، 175 شهادة الخبرة) ورفض بحق 3
+   * مواد إجرائية (7، 149، 185) — لكن room = MAX_TOTAL_CITATIONS(8) −
+   * citations.length(7 من الاسترجاع الأساسى) = 1 فقط، فأُسقِطت 3 من أصل
+   * 4 مواد اختارها النموذج بحكم سليم فعلاً، لسبب لا علاقة له بصحة الاختيار
+   * (عدد المواد الأساسية المسترجَعة للسؤال بالصدفة كان 7 لا أقل). هذا سقف
+   * صُمِّم أصلاً لضبط تضخّم الاسترجاع الأساسى/الإحالات المرجعية (راجع
+   * expandWithCrossReferences)، ولم يكن مُصمَّماً قط ليُصادر نتيجة بوابة حكم
+   * قانونى منفصلة نجحت فعلاً بعد أن أنفقت نداء DeepSeek كاملاً فى تحديدها.
+   *
+   * الحل الجذرى: مساحة مخصَّصة مستقلة لحزمة نهاية العلاقة، بدل اقتطاعها من
+   * نفس الميزانية العامة. القيمة 6 تُطابق عمداً MAX_SELECTED فى
+   * selectSupplementaryEntitlements نفسها (سقف مُتعمَّد هناك أصلاً على أقصى
+   * حزمة ممكنة من 7 مواد) — بحيث تتَّفق طبقتا "الحكم القانونى" و"مساحة
+   * الإدراج" مع بعضهما بدل أن تُصادر إحداهما الأخرى بصمت بقيمة غير مرتبطة.
+   * الأثر العملى: حد أقصى لعدد الاستشهادات فى إجابة واحدة يرتفع من 8 إلى 14
+   * فقط فى الحالة النادرة التى يتفعَّل فيها كاشف نهاية العلاقة والنموذج يختار
+   * أقصى عدد من مواد الحزمة معاً — composeGroundedAnswerMulti لا يفرض أى حد
+   * ثابت على طول articles[] (تحقَّقت من تعريفه فى deepseek-generation.service.ts)
+   * فلا مخاطرة بنيوية فى ذلك.
+   */
+  private static readonly EOR_BUNDLE_MAX_ADDITIONS = 6;
+
+  /**
+   * ⚠️ بند P1 (2026-09-25 — من "تقرير تحليل شامل لفجوات إجابة المنصة مقارنة
+   * بالمرجع 9.5"، بموافقة صريحة): مساحة مخصَّصة مستقلة لحزمة "إنهاء العقد
+   * غير محدد المدة" (راجع تعليق expandWithIndefiniteTerminationBundle
+   * وINDEFINITE_TERMINATION_BUNDLE_ARTICLES فى retrieval.ts) — بنفس فلسفة
+   * EOR_BUNDLE_MAX_ADDITIONS أعلاه تماماً (درس مستفاد صريح: لا تُحسَب هذه
+   * المساحة كباقٍ من MAX_TOTAL_CITATIONS العام، حتى لا يتكرر نفس عطل سقف
+   * الاستشهادات الذى أسقط مواد صحيحة الاختيار سابقاً فى حزمة نهاية العلاقة).
+   * القيمة 5 تطابق عمداً MAX_SELECTED فى selectIndefiniteTerminationBundleArticles
+   * نفسها (= طول الحزمة الكاملة فعلياً، إذ حجمها الأصغر من حزمة نهاية العلاقة
+   * لا يستدعى سقفاً منفصلاً عن الحد الأقصى الطبيعى).
+   */
+  private static readonly ITB_BUNDLE_MAX_ADDITIONS = 5;
 
   private readonly logger = new Logger(QuestionsService.name);
   private readonly questionRepository: Repository<Question>;
@@ -504,7 +549,8 @@ export class QuestionsService {
       // legacy)، بدل تكرار المنطق فى كل مسار على حدة.
       const expanded = await this.expandWithCrossReferences(base.citations);
       const withBundle = await this.expandWithEndOfRelationshipBundle(questionText, expanded);
-      return { citations: withBundle, confidence: base.confidence };
+      const withITB = await this.expandWithIndefiniteTerminationBundle(questionText, withBundle);
+      return { citations: withITB, confidence: base.confidence };
     }
 
     // سؤال مُركَّب فعلياً (>1 سؤال فرعي مُكتشَف): كل سؤال فرعي يمر بكامل
@@ -522,7 +568,8 @@ export class QuestionsService {
     }
     const expanded = await this.expandWithCrossReferences(merged);
     const withBundle = await this.expandWithEndOfRelationshipBundle(questionText, expanded);
-    return { citations: withBundle, confidence };
+    const withITB = await this.expandWithIndefiniteTerminationBundle(questionText, withBundle);
+    return { citations: withITB, confidence };
   }
 
   /** راجع التوثيق الكامل (التشخيص والتصميم وسياسة fail-open) فى تعليق
@@ -1280,7 +1327,14 @@ export class QuestionsService {
     questionText: string,
     citations: RetrievedCitation[],
   ): Promise<RetrievedCitation[]> {
-    if (citations.length >= QuestionsService.MAX_TOTAL_CITATIONS) {
+    // 2026-09-25: البوابة هنا تستخدم سقفاً أعلى مخصَّصاً (راجع تعليق
+    // EOR_BUNDLE_MAX_ADDITIONS) بدل MAX_TOTAL_CITATIONS العام — كانت البوابة
+    // القديمة تُغلِق هذا التوسيع بالكامل بمجرد أن يصل الاسترجاع الأساسى
+    // لسقفه العام (8)، رغم أن حزمة نهاية العلاقة مساحتها مخصَّصة منفصلة الآن.
+    if (
+      citations.length >=
+      QuestionsService.MAX_TOTAL_CITATIONS + QuestionsService.EOR_BUNDLE_MAX_ADDITIONS
+    ) {
       return citations;
     }
     if (!isEndOfRelationshipTopic(questionText)) {
@@ -1351,7 +1405,11 @@ export class QuestionsService {
         return citations;
       }
 
-      const room = QuestionsService.MAX_TOTAL_CITATIONS - citations.length;
+      // 2026-09-25: مساحة مخصَّصة مستقلة عن MAX_TOTAL_CITATIONS العام — راجع
+      // تعليق EOR_BUNDLE_MAX_ADDITIONS أعلاه للتشخيص الكامل المدعوم بسجل
+      // إنتاج حى (qHash=53ef75df) أثبت أن الحساب القديم (المتبقى من الميزانية
+      // العامة فقط) كان يُسقِط اختيارات صحيحة لبوابة الحكم القانونى بلا مبرر.
+      const room = QuestionsService.EOR_BUNDLE_MAX_ADDITIONS;
       const chosen = selection.selectedIndices
         .map((idx) => candidates[idx])
         .filter((c): c is RetrievedCitation => c !== undefined)
@@ -1366,6 +1424,121 @@ export class QuestionsService {
     } catch (err) {
       this.logger.warn(
         `EOR: qHash=${qHash} فشل — fail-open بلا تعديل: ${(err as Error).message}`,
+      );
+      return citations;
+    }
+  }
+
+  /**
+   * ⚠️ بند P1 (2026-09-25 — من "تقرير تحليل شامل لفجوات إجابة المنصة مقارنة
+   * بالمرجع 9.5"، بموافقة صريحة): نفس بنية expandWithEndOfRelationshipBundle
+   * أعلاه حرفياً (كاشف موضوع محافظ + حزمة مواد ثابتة + جلب حتمى من DB + بوابة
+   * حكم قانونى مُعايَرة خصيصاً + مساحة مخصَّصة مستقلة)، لحزمة مختلفة: مواد
+   * إنهاء العقد غير محدد المدة (156/157/159/161/162 — راجع
+   * INDEFINITE_TERMINATION_BUNDLE_ARTICLES وisIndefiniteContractTerminationTopic
+   * الكاملين فى retrieval.ts للتشخيص والتصميم). يُستدعى بعد
+   * expandWithEndOfRelationshipBundle مباشرة فى retrieve() — الحزمتان
+   * مستقلتان تماماً (كاشفان مختلفان، مساحتان مختلفتان، بوابتا حكم مختلفتان)
+   * ويجوز تفعيلهما معاً على نفس السؤال (مثال: سؤال يقارن عقداً محدد المدة
+   * بعقد غير محدد المدة يحتاج غالباً كلتا الحزمتين معاً).
+   *
+   * ⚠️ درس مستفاد صريح من expandWithEndOfRelationshipBundle (لا يُكرَّر هنا):
+   * أول قياس حى لتلك الحزمة لم يُظهر أى مادة رغم نشر مؤكَّد، ولم يكن هناك
+   * تسجيل تشخيصى كافٍ لمعرفة أين توقفت السلسلة (الكاشف؟ الاستعلام؟ بوابة
+   * الحكم؟) — استغرق عدة جولات تشخيص إضافية لاحقة لتحديد السبب. هنا: تسجيل
+   * ITB: مطابق تماماً لنمط EOR: (qHash، لا نص سؤال خام — H-4) منذ أول نشر،
+   * لا بعد فشل أول قياس.
+   *
+   * fail-open كامل، بنفس ضمانات expandWithEndOfRelationshipBundle تماماً: أى
+   * عطل (استعلام DB، نداء DeepSeek، تحليل استجابة) يُرجع الاستشهادات كما هى
+   * دون تعديل.
+   *
+   * ⚠️ غير مُقاس حياً بعد وقت الكتابة — يحتاج قياساً حياً (سجل ITB: من
+   * Railway) بنفس السؤال المرجعى قبل الإقرار بالنجاح، طبقاً لقاعدة "التحقق
+   * قبل القول".
+   */
+  private async expandWithIndefiniteTerminationBundle(
+    questionText: string,
+    citations: RetrievedCitation[],
+  ): Promise<RetrievedCitation[]> {
+    if (
+      citations.length >=
+      QuestionsService.MAX_TOTAL_CITATIONS + QuestionsService.ITB_BUNDLE_MAX_ADDITIONS
+    ) {
+      return citations;
+    }
+    if (!isIndefiniteContractTerminationTopic(questionText)) {
+      return citations;
+    }
+
+    const qHash = this.hashQuestion(questionText);
+    this.logger.log(`ITB: qHash=${qHash} الكاشف تفعَّل، مواد موجودة بالفعل=${citations.length}`);
+
+    try {
+      const seenArticleNos = new Set(citations.map((c) => `${c.lawId}-${c.articleNo}`));
+
+      const law = await this.lawRepository.findOne({ where: { lawNo: 14, lawYear: 2025 } });
+      if (!law) {
+        this.logger.warn(`ITB: qHash=${qHash} لم يُعثَر على قانون العمل 14/2025 فى قاعدة البيانات`);
+        return citations;
+      }
+
+      const missing = INDEFINITE_TERMINATION_BUNDLE_ARTICLES.filter(
+        (articleNo) => !seenArticleNos.has(`${law.id}-${articleNo}`),
+      );
+      if (missing.length === 0) {
+        this.logger.log(`ITB: qHash=${qHash} كل مواد الحزمة موجودة بالفعل ضمن الاستشهادات — لا إضافة`);
+        return citations;
+      }
+
+      const candidates: RetrievedCitation[] = [];
+      for (const articleNo of missing) {
+        const resolved = await this.resolveArticleCitation(law, articleNo);
+        if (resolved) {
+          candidates.push(resolved);
+        }
+      }
+      this.logger.log(
+        `ITB: qHash=${qHash} مرشحون مُحلَّلون من الحزمة=${candidates.map((c) => c.articleNo).join(',')} ` +
+          `(مفقود من الحزمة كلياً=${missing.filter((n) => !candidates.some((c) => c.articleNo === n)).join(',') || 'لا شىء'})`,
+      );
+      if (candidates.length === 0) {
+        return citations;
+      }
+
+      const selection = await this.generationService.selectIndefiniteTerminationBundleArticles({
+        question: questionText,
+        candidates: candidates.map((c) => ({
+          lawTitle: c.law,
+          lawNo: c.lawNo,
+          articleNo: c.articleNo,
+          articleText: c.snippet,
+        })),
+      });
+
+      this.logger.log(
+        `ITB: qHash=${qHash} نتيجة selectIndefiniteTerminationBundleArticles=${JSON.stringify(selection)}`,
+      );
+
+      if (selection.status !== 'ok' || selection.selectedIndices.length === 0) {
+        return citations;
+      }
+
+      const room = QuestionsService.ITB_BUNDLE_MAX_ADDITIONS;
+      const chosen = selection.selectedIndices
+        .map((idx) => candidates[idx])
+        .filter((c): c is RetrievedCitation => c !== undefined)
+        .slice(0, room);
+
+      this.logger.log(
+        `ITB: qHash=${qHash} مواد مُضافة فعلياً=${chosen.map((c) => c.articleNo).join(',') || 'لا شىء'} ` +
+          `(room=${room})`,
+      );
+
+      return [...citations, ...chosen];
+    } catch (err) {
+      this.logger.warn(
+        `ITB: qHash=${qHash} فشل — fail-open بلا تعديل: ${(err as Error).message}`,
       );
       return citations;
     }

@@ -1,4 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { normalizeArabic, toEnglishDigits } from '../ingestion/normalize';
+import { detectCrossReferencedArticles } from '../questions/retrieval';
 
 export interface GroundedGenerationInput {
   question: string;
@@ -51,6 +53,22 @@ export interface GroundedGenerationMultiInput {
  * ضمان أن هذه النسخة تنجح أيضاً — عدم-حتمية DeepSeek الموثَّقة سابقاً
  * (راجع تعليق assessCompliance) تعنى أن التحقق الحى وحده يحسم هذا، لا
  * القراءة الثابتة للكود.
+ *
+ * ⚠️ توسيع (2026-09-25 — بند P1 من "تقرير تحليل شامل لفجوات إجابة المنصة
+ * مقارنة بالمرجع 9.5"، بموافقة صريحة): المثال الوحيد أعلاه يغطى نمطاً واحداً
+ * فقط من اليقين الزائف — ربط مصطلح قانونى بواقعة. المرجع كشف نمطاً ثانياً
+ * مختلفاً تماماً لم تُعمِّمه القاعدة تلقائياً: **تراكم عدة مدد أو تكرارات
+ * منفصلة نحو حد رقمى واحد مذكور فى النص**. مثال حقيقى محفِّز: المادة 154
+ * تشترط "مدة تزيد على خمس سنوات" (عقد واحد أو تجديد واحد)، والسؤال المرجعى
+ * يصف عقداً مؤقتاً "يتجدد سنوياً" — فهل تُجمع مدد التجديدات السنوية المتصلة
+ * نحو حاجز الخمس سنوات، أم كل عقد سنوى مستقل بذاته لا يُحسَب مع سابقيه؟
+ * تحقَّقتُ مباشرة من نص المادة 154 الكامل فى قاعدة البيانات: لا يحسم هذا
+ * السؤال صراحة بأى اتجاه — المرجع القانونى نفسه يوثِّق هذا كخلاف فقهى حقيقى
+ * غير محسوم قضائياً (اتجاه مضيّق يرفض الجمع، واتجاه حمائى يقبله)، لا مسألة
+ * فيها إجابة واحدة واضحة. إجابة المنصة على هذا السؤال بالذات لم تطرح هذا
+ * الخلاف إطلاقاً رغم أنه صميم سيناريو السؤال (عقد "متجدد سنوياً" تحديداً).
+ * الحل بنفس آلية التحقق الذاتى الإلزامية أعلاه، بمثال ثانٍ منفصل بدل قاعدة
+ * جديدة كلياً — لا داعٍ لتكرار البنية.
  */
 const GENERATION_INTERPRETIVE_CERTAINTY_RULE =
   '⚠️ قاعدة إلزامية منفصلة عن قاعدة "ممنوع إضافة معلومة خارج النص" أعلاه — ' +
@@ -62,15 +80,161 @@ const GENERATION_INTERPRETIVE_CERTAINTY_RULE =
   'تشابه أو منطق عام؟ (مثال محسوم: النص يُقرِّر حكماً لحالة "الإنهاء من ' +
   'جانب صاحب العمل"، والسؤال يصف "عدم تجديد عقد مؤقت عند انتهاء مدته" — ' +
   'النص لا يذكر "عدم التجديد" بالاسم إطلاقاً، فربطهما استنتاج منك لا نقل ' +
-  'حرفى، حتى لو بدا الربط منطقياً جداً). إن كانت الإجابة أنه استنتاج منك ' +
+  'حرفى، حتى لو بدا الربط منطقياً جداً).\n\n' +
+  'نفس خطوة التحقق الذاتى تنطبق أيضاً على نمط مختلف: **تراكم عدة مدد أو ' +
+  'تكرارات منفصلة نحو حد رقمى واحد ورد فى النص**. اسأل نفسك أيضاً — إن كان ' +
+  'النص يشترط مدة/عدداً محدداً ("تزيد على كذا")، والسؤال يصف عدة فترات أو ' +
+  'عقود أو تكرارات منفصلة قد يتجاوز مجموعها هذا الحد، هل يقول النص صراحة ' +
+  'إن هذه الفترات المنفصلة تُجمع معاً لحساب الحد، أم أن هذا استنتاجك؟ (مثال ' +
+  'محسوم: نص يشترط "مدة تزيد على خمس سنوات" لعقد واحد أو تجديد واحد، ' +
+  'والسؤال يصف عقوداً سنوية متتالية متجددة — النص لا يقول صراحة إن مدد ' +
+  'التجديدات المتتالية تُجمع أو لا تُجمع، فأى جزم بأحد الاتجاهين استنتاج ' +
+  'منك لا نقل حرفى، ولو بدا أحد الاتجاهين أكثر إنصافاً للعامل).\n\n' +
+  'إن كانت الإجابة على أى من السؤالين أعلاه أنه استنتاج منك ' +
   '(الحالة الغالبة فى الأسئلة عن وقائع لا تستخدم ألفاظ القانون حرفياً)، ' +
   'يجب أن تُضيف بعد تلك الجملة مباشرة، حرفياً وبدون أى تعديل فى الصياغة: ' +
   '"(ملاحظة: هذا ربط تفسيرى بين واقعة السؤال ونص القانون، لم يُنص عليه ' +
   'صراحة، وقد يكون محل خلاف قانونى — يُنصح بمراجعة مختص عند الحاجة لقرار ' +
   'قاطع)". هذه العبارة **إلزامية بنصها الحرفى بلا اختصار أو إعادة صياغة** ' +
-  'كلما انطبق الشرط أعلاه — لا خيار بين عدة صياغات ممكنة. الاستثناء الوحيد: ' +
-  'لا تُكرِّرها أكثر من مرة واحدة فى الإجابة الواحدة حتى لو تكرر الشرط ' +
-  'لعدة جمل مشابهة — أضِفها بعد أول جملة تستوفيه فقط.';
+  'كلما انطبق أى من الشرطين أعلاه — لا خيار بين عدة صياغات ممكنة. الاستثناء ' +
+  'الوحيد: لا تُكرِّرها أكثر من مرة واحدة فى الإجابة الواحدة حتى لو تكرر ' +
+  'الشرط لعدة جمل مشابهة — أضِفها بعد أول جملة تستوفيه فقط.';
+
+/**
+ * ⚠️ إصلاح جذرى خامس (2026-09-25 — دليل مباشر من مقارنة حية مع مستند خبراء
+ * مرجعى): إجابة حية على السؤال المرجعى نقلت حكم المادة 154 (مكافأة نهاية
+ * الخدمة) بحذف الشرط الرقمى الصريح المرفق به فعلياً فى النص المُرسَل للنموذج
+ * — "فإذا أُبرم العقد أو جُدد **لمدة تزيد على خمس سنوات**، ... فإذا كان
+ * الإنهاء من جانب صاحب العمل استحق العامل مكافأة..." — فبدت المكافأة
+ * مستحقة لأى إنهاء من صاحب العمل بصرف النظر عن المدة، وهذا خطأ جوهرى يخالف
+ * النص المرفق نفسه لا تفسيراً له. **مختلف عن قاعدة اليقين التفسيرى أعلاه**:
+ * تلك عن ربط مصطلح قانونى بواقعة لم يحسمها النص؛ هذه عن إسقاط شرط/استثناء
+ * موجود صراحة فى النص أثناء تلخيصه — النص هنا محسوم تماماً، والعطل فى
+ * الأمانة عند إعادة الصياغة لا فى التفسير.
+ */
+const GENERATION_CONDITIONAL_FIDELITY_RULE =
+  '⚠️ قاعدة إلزامية ثالثة (أمانة نقل الشروط) — منفصلة عن قاعدتى "ممنوع ' +
+  'الإضافة من خارج النص" و"يقين العرض" أعلاه. قبل كتابة أى جملة تذكر حقاً ' +
+  'أو التزاماً أو مبلغاً مستنَداً لأحد النصوص المرفقة، افحص نفس النص بحثاً ' +
+  'عن أى شرط أو استثناء أو حد (عبارات مثل "إذا"، "بشرط"، "إلا إذا"، "ما ' +
+  'لم"، "لمدة تزيد/تقل عن"، "بحد أقصى/أدنى") **مرتبط بنفس الحق أو المبلغ ' +
+  'تحديداً** لا بجزء آخر من النص. إن وُجد هذا الشرط، يجب ذكره فى نفس الجملة ' +
+  'أو مباشرة بعدها — ممنوع ذكر الحق كأنه مطلق بلا قيد لمجرد الإيجاز، حتى لو ' +
+  'كان الشرط يبدو تفصيلاً ثانوياً. (مثال محسوم من نص حقيقى: نص يقول "فإذا ' +
+  'أُبرم العقد أو جُدد لمدة تزيد على خمس سنوات... فإذا كان الإنهاء من جانب ' +
+  'صاحب العمل استحق العامل مكافأة..." — يُمنع كتابة "إذا كان الإنهاء من ' +
+  'جانب صاحب العمل استحق العامل مكافأة..." وحذف شرط "تزيد على خمس سنوات"، ' +
+  'حتى لو كانت بقية الجملة منقولة حرفياً، لأن حذف الشرط يجعل نطاق الحق ' +
+  'المذكور للمستخدم أوسع فعلياً مما يقرره النص). هذا ينطبق على أى شرط رقمى ' +
+  'أو زمنى أو استثناء مماثل فى أى نص مرفق، لا على هذا المثال تحديداً.';
+
+/**
+ * ⚠️ إصلاح جذرى سادس (2026-09-25 — دليل مباشر من قياس حى بعد إصلاح حزمة
+ * نهاية العلاقة، سجل EOR: qHash=53ef75df 2026-09-25T16:21): بعد نجاح توسيع
+ * مساحة حزمة نهاية العلاقة (راجع EOR_BUNDLE_MAX_ADDITIONS فى
+ * questions.service.ts)، دُمِجت 11 مادة مختلفة فى استدعاء توليد واحد لأول
+ * مرة هذه الجلسة — والإجابة الناتجة استشهدت بـ"المادة 11" لنص المادة 175
+ * الفعلى (شهادة الخبرة ورد المستندات، تحقَّقت من نص المادة 11 الحقيقى فى
+ * migrations/003_seed_real_laws.sql: عن استمرار عقود العمال عند إدماج/انتقال
+ * المنشأة — موضوع مختلف تماماً). الاسترجاع كان صحيحاً 100% (سجل EOR: يؤكد
+ * أن النص الصحيح لـ175 أُرسِل فعلياً للنموذج)؛ العطل فى خطوة الصياغة وحدها:
+ * استبدال رقم مادة صحيح برقم آخر أثناء توليف عدد كبير من النصوص معاً — نوع
+ * هلوسة يزداد احتماله كلما زاد عدد المواد المدموجة (نتيجة جانبية غير
+ * متوقَّعة لنجاح توسيع الاسترجاع نفسه).
+ *
+ * لا يوجد ضمان أن أى تحسين فى الـ prompt وحده يحل هذا حلاً كاملاً —
+ * عدم-حتمية DeepSeek موثَّقة بالفعل (راجع تعليق assessCompliance). لذلك
+ * الإصلاح الجذرى هنا **ليس** تعليمة صياغة إضافية فقط، بل بوابة تحقق حتمية
+ * بعد التوليد مباشرة (findHallucinatedArticleCitations أدناه): نفحص برمجياً
+ * كل رقم "المادة X" ورد فعلياً فى النص المُولَّد مقابل مجموعة أرقام المواد
+ * التى أُرسِلت فعلياً فى الطلب (معروفة بيقين تام، لا تخمين). أى رقم غير
+ * موجود فى تلك المجموعة = هلوسة مؤكَّدة قطعاً بصرف النظر عن جودة النص حوله.
+ *
+ * عند الاكتشاف: **لا** نحاول "إصلاح" النص أو إعادة توليده — نُعيد null، وهو
+ * نفس العقد الموجود بالفعل لأى فشل فى composeGroundedAnswer/Multi (فشل
+ * API، محتوى فارغ)، فيتحول الاستدعاء تلقائياً لمسار buildGroundedAnswer/
+ * Multi القديم فى questions.service.ts — قالب حتمى يسرد الاستشهادات كما هى
+ * دون أى صياغة توليفية، فلا خطر هلوسة رقم فيه إطلاقاً. هذا استخدام لبنية
+ * أمان قائمة ومُختبَرة بالفعل، لا آلية تراجع/إعادة محاولة جديدة بمخاطرها
+ * الإضافية (تكلفة، زمن استجابة، احتمال فشل من نوع آخر فى المحاولة الثانية).
+ */
+/**
+ * ⚠️ إصلاح جذرى سابع (2026-09-25T16:54، اكتُشف من نفس القياس الحى الذى نُشر
+ * لاختبار الإصلاح السادس أعلاه — راجع سجل الإنتاج المباشر عبر Railway
+ * get-logs: WARN بتوقيت 16:54:25 "استشهاد بأرقام مواد غير مرسَلة فعلياً
+ * (143) — المواد المرسَلة فعلياً: 154,6,164,165,87,88,95,108,125,150,175").
+ * هذا عطل **فى الإصلاح السادس نفسه** (إيجابية كاذبة)، لا عطل جديد منفصل —
+ * وجب توثيقه بنفس صراحة أى عطل آخر (قاعدة الشفافية الكاملة): البوابة رفضت
+ * إجابة **صحيحة تماماً بلا أى هلوسة فعلية**، فتحوَّل الاستدعاء لقالب
+ * buildGroundedAnswerMulti الاحتياطى بدل عرض توليف الذكاء الاصطناعى —
+ * تدهور فى الجودة (فقدان التوليف والتنظيم) لا خطأ فى الحقائق المعروضة، لكنه
+ * يُبطل تماماً أى تقييم لفعالية GENERATION_CONDITIONAL_FIDELITY_RULE على أى
+ * إجابة سقطت فى هذا المسار الاحتياطى بالذات (القالب يعرض نص المادة كاملاً
+ * حرفياً دون أى صياغة LLM أصلاً، فلا يمكن أن "يفقد" شرطاً حتى لو كانت
+ * القاعدة الجديدة معطَّلة تماماً — نجاح القالب لا يثبت شيئاً عن نجاح القاعدة).
+ *
+ * السبب الجذرى: نص المادة 150 المُرسَل فعلياً للنموذج يحتوى حرفياً (تحقَّقتُ
+ * مباشرة عبر grep على migrations/003_seed_real_laws.sql):
+ * "...مع مراعاة نص المادة ) (١٤٣من هذا القانون..." — إحالة صريحة داخل النص
+ * المصدر نفسه لمادة 143، تماماً من نفس نوع الإحالات التى يأمر system prompt
+ * فى composeGroundedAnswerMulti صراحةً (السطر الذى يبدأ بـ"إن كان أحد
+ * النصوص المرفقة إحالة صريحة داخل نص آخر... فاعتبر تلك المواد المُحال
+ * إليها جزءاً لا يتجزأ من فهم الحكم الأساسى") بذكرها. النموذج أطاع هذه
+ * التعليمة بأمانة ونقل رقم 143 كما ورد فى مصدره — وهو سلوك صحيح ومطلوب —
+ * لكن الإصلاح السادس اعتبر أى رقم مادة غير موجود حرفياً فى قائمة
+ * articleNo العليا "هلوسة" بصرف النظر عن مصدره، فعاقب سلوكاً سليماً.
+ *
+ * الإصلاح الصحيح (لا ترقيع فوق العطل، بل تصحيح تعريف "الصحيح" نفسه): مجموعة
+ * "أرقام المواد المسموح بها" يجب أن تشمل ليس فقط أرقام المواد المُرسَلة
+ * كنصوص أساسية (articleNo)، بل أيضاً أى رقم مادة يُحيل إليه أحد هذه النصوص
+ * صراحة داخل محتواه — تماماً نفس التعريف الذى يستخدمه بالفعل
+ * QuestionsService.expandWithCrossReferences لتوسيع المواد المُسترجَعة أصلاً
+ * (راجع تعليق detectCrossReferencedArticles فى retrieval.ts). لذلك: إعادة
+ * استخدام نفس الدالة الجاهزة والمُختبَرة بالفعل (لا دالة استخراج جديدة
+ * بمنطق مختلف قد يحمل عطلاً موازياً خاصاً به) لحساب هذه المجموعة الموسَّعة —
+ * الرقم يظل يُتجاهَل بصمت إن لم يكن موجوداً فعلياً كمادة حقيقية فى نفس نص
+ * المصدر (نفس ضمان detectCrossReferencedArticles الأصلى: لا خطر تلفيق
+ * إضافى، أسوأ حالة هى مطابقة زائفة نادرة لرقم عرضى فى النص لا علاقة له
+ * بإحالة فعلية — احتمال أقل بكثير من المخاطرة الحالية المؤكَّدة عملياً
+ * (558 حالة نمط قوس معكوس فى قاعدة البيانات وحدها، راجع تعليق
+ * detectCrossReferencedArticles) بإسقاط إجابات صحيحة كل مرة تُذكر فيها إحالة
+ * مشروعة).
+ */
+function computeValidCitationNumbers(
+  primaryArticleNumbers: readonly number[],
+  sourceTexts: readonly string[],
+): number[] {
+  const valid = new Set<number>(primaryArticleNumbers);
+  for (const text of sourceTexts) {
+    for (const n of detectCrossReferencedArticles(text)) {
+      valid.add(n);
+    }
+  }
+  return Array.from(valid);
+}
+
+function findHallucinatedArticleCitations(
+  generatedText: string,
+  validArticleNumbers: readonly number[],
+): number[] {
+  const normalized = normalizeArabic(toEnglishDigits(generatedText));
+  const validSet = new Set(validArticleNumbers);
+  const found = new Set<number>();
+  // "الماده"/"ماده" فقط (مفرد، بعد ة→ه) — النموذج يذكر كل استشهاد بصيغة
+  // "المادة X" حرفياً حسب تعليمات الـ prompt أعلاه ("اذكر رقم المادة...").
+  // لا نطابق "المواد" (جمع) هنا عمداً: النص المُولَّد نثر عربى نظيف من
+  // الإخراج نفسه، لا نص مصدر خام يحتاج تعميم مقاومة كما فى
+  // detectCrossReferencedArticles — سلامة الفحص (لا إيجابيات كاذبة) أهم من
+  // شموله الكامل لكل صيغة ممكنة.
+  const pattern = /(?:ال)?ماده\s*(\d+)/g;
+  for (const m of normalized.matchAll(pattern)) {
+    const n = Number.parseInt(m[1], 10);
+    if (Number.isInteger(n) && n > 0 && !validSet.has(n)) {
+      found.add(n);
+    }
+  }
+  return Array.from(found).sort((a, b) => a - b);
+}
 
 /**
  * تكامل DeepSeek لصياغة الإجابة النهائية (EP-04 — تفعيل الذكاء الاصطناعي،
@@ -121,7 +285,9 @@ export class DeepseekGenerationService {
       'تفسير أو رأي قانوني أو مثال غير موجود حرفياً في النص المرفق. إن كان النص لا ' +
       'يجيب على سؤال المستخدم مباشرة، صرّح بذلك بوضوح بدل التخمين أو التعميم. لا ' +
       'تذكر أنك ذكاء اصطناعي ولا تعتذر — أجب مباشرة وبإيجاز (3 فقرات قصيرة كحد أقصى).\n\n' +
-      GENERATION_INTERPRETIVE_CERTAINTY_RULE;
+      GENERATION_INTERPRETIVE_CERTAINTY_RULE +
+      '\n\n' +
+      GENERATION_CONDITIONAL_FIDELITY_RULE;
 
     const userMsg =
       `سؤال المستخدم: ${input.question}\n\n` +
@@ -168,8 +334,28 @@ export class DeepseekGenerationService {
           `DeepSeek Chat Completions: content فارغ (reasoning_content length=${reasoningLen}) — ` +
             `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
+        return null;
       }
-      return text && text.length > 0 ? text : null;
+      // 2026-09-25: راجع تعليق findHallucinatedArticleCitations أعلاه — نفس
+      // البوابة الحتمية مطبَّقة هنا أيضاً، مادة واحدة فقط لكن الخطر نفسه
+      // مبدئياً (استشهاد برقم غير المادة المرفقة فعلياً). راجع أيضاً تعليق
+      // computeValidCitationNumbers (إصلاح جذرى سابع) — المجموعة "الصحيحة"
+      // تشمل هنا أيضاً أى إحالة صريحة داخل نص هذه المادة الواحدة نفسها.
+      const validArticleNumbers = computeValidCitationNumbers(
+        [input.articleNo],
+        [input.articleText],
+      );
+      const hallucinated = findHallucinatedArticleCitations(text, validArticleNumbers);
+      if (hallucinated.length > 0) {
+        this.logger.warn(
+          `DeepSeek Chat Completions: استشهاد بأرقام مواد غير مرسَلة فعلياً ` +
+            `(${hallucinated.join(',')}) — المواد المسموح بها (الأساسية + الإحالات ` +
+            `الصريحة داخل النص) ${validArticleNumbers.join(',')}. ` +
+            `fail-safe: إرجاع null ليتحول questions.service.ts للقالب الحتمى القديم.`,
+        );
+        return null;
+      }
+      return text;
     } catch (err) {
       this.logger.error(`DeepSeek Chat Completions API call failed: ${(err as Error).message}`);
       return null;
@@ -246,7 +432,9 @@ export class DeepseekGenerationService {
       'جوانب السؤال (فقرة واحدة لسؤال بسيط، عدة فقرات قصيرة منظَّمة لسؤال ' +
       'مركَّب أو مقارن — لا حد أقصى صارم لعدد الفقرات، لكن كل جملة يجب أن ' +
       'تضيف معلومة فعلية من النصوص المرفقة).\n\n' +
-      GENERATION_INTERPRETIVE_CERTAINTY_RULE;
+      GENERATION_INTERPRETIVE_CERTAINTY_RULE +
+      '\n\n' +
+      GENERATION_CONDITIONAL_FIDELITY_RULE;
 
     const articlesText = input.articles
       .map(
@@ -302,8 +490,33 @@ export class DeepseekGenerationService {
           `DeepSeek composeGroundedAnswerMulti: content فارغ (reasoning_content length=${reasoningLen}) — ` +
             `الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
         );
+        return null;
       }
-      return text && text.length > 0 ? text : null;
+      // 2026-09-25 (إصلاح جذرى سادس — راجع تعليق findHallucinatedArticleCitations
+      // أعلاه للتشخيص الكامل المدعوم بدليل حى: استشهاد بـ"المادة 11" لنص
+      // المادة 175 الفعلى فى قياس حى مباشر بعد دمج 11 مادة فى استدعاء واحد):
+      // بوابة تحقق حتمية بعد كل توليد — لا تعتمد على جودة الـ prompt وحدها.
+      // 2026-09-25T16:54 (إصلاح جذرى سابع — راجع تعليق computeValidCitationNumbers
+      // أعلاه: القياس الحى التالى مباشرةً كشف إيجابية كاذبة فى الإصلاح
+      // السادس نفسه — رفض إجابة صحيحة استشهدت بمادة 143 لأن نص المادة 150
+      // المرفقة يُحيل إليها صراحةً داخل محتواه). المجموعة "الصحيحة" هنا تشمل
+      // الآن أيضاً أى إحالة صريحة داخل نص أى مادة من المواد المُرفقة.
+      const validArticleNumbers = computeValidCitationNumbers(
+        input.articles.map((a) => a.articleNo),
+        input.articles.map((a) => a.articleText),
+      );
+      const hallucinated = findHallucinatedArticleCitations(text, validArticleNumbers);
+      if (hallucinated.length > 0) {
+        this.logger.warn(
+          `DeepSeek composeGroundedAnswerMulti: استشهاد بأرقام مواد غير مرسَلة فعلياً ` +
+            `(${hallucinated.join(',')}) — المواد المسموح بها (الأساسية + الإحالات الصريحة ` +
+            `داخل النصوص): ${validArticleNumbers.join(',')}. ` +
+            `fail-safe: إرجاع null ليتحول questions.service.ts للقالب الحتمى القديم ` +
+            `(buildGroundedAnswerMulti) بدل عرض استشهاد خاطئ للمستخدم.`,
+        );
+        return null;
+      }
+      return text;
     } catch (err) {
       this.logger.error(`DeepSeek composeGroundedAnswerMulti API call failed: ${(err as Error).message}`);
       return null;
@@ -824,6 +1037,151 @@ export class DeepseekGenerationService {
       return { status: 'ok', selectedIndices, reason: parsed.note };
     } catch (err) {
       this.logger.warn(`DeepSeek selectSupplementaryEntitlements call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
+
+  /**
+   * ⚠️ بند P1 (2026-09-25 — من "تقرير تحليل شامل لفجوات إجابة المنصة مقارنة
+   * بالمرجع 9.5"، بموافقة صريحة بعد نقاش نطاق التنفيذ): حزمة "إنهاء العقد
+   * غير محدد المدة" (المواد 156/157/159/161/162 — راجع
+   * INDEFINITE_TERMINATION_BUNDLE_ARTICLES وisIndefiniteContractTerminationTopic
+   * فى retrieval.ts للتشخيص الكامل والتصميم) تحتاج بوابة حكم قانونى منفصلة
+   * عن selectSupplementaryEntitlements أعلاه رغم تطابق البنية الظاهرى —
+   * **لا يجوز إعادة استخدام نفس تعليمة selectSupplementaryEntitlements
+   * حرفياً هنا**، وهذا قرار هندسى واعٍ لا سهو: تعليمتها مبنية صراحة على
+   * التمييز "السند القانونى المباشر عُرض بالفعل من مصدر آخر — مهمتك هنا
+   * استحقاقات *إضافية* تابعة، لا الأساس القانونى نفسه". لكن مادتى 156
+   * (الإخطار الكتابى) و157 (المبرر المشروع) **هما تحديداً الأساس القانونى
+   * المباشر** لسؤال عن إنهاء عقد غير محدد المدة، لا استحقاقاً تابعاً —
+   * تعليمة selectSupplementaryEntitlements قد تدفع النموذج لاستبعادهما
+   * تحديداً لأنهما "يبدوان أساسيين لا إضافيين"، وهى بالضبط الفئة التى صُمِّمت
+   * تلك التعليمة لاستبعادها (بقصد صحيح فى سياقها الأصلى). نفس الدرس المستفاد
+   * من استبدال selectRelevantCandidates بـselectSupplementaryEntitlements فى
+   * حزمة نهاية العلاقة سابقاً: تعليمة مُعايَرة لمهمة حكم مختلفة تُعطى نتيجة
+   * خاطئة بانتظام مهما كانت البنية البرمجية مطابقة — الحل بناء تعليمة ثالثة
+   * مُعايَرة خصيصاً لهذه المهمة، لا إعادة تدوير الثانية.
+   *
+   * ⚠️ تسجيل تشخيصى (ITB:-مثل فى questions.service.ts) يُضاف منذ اليوم
+   * الأول — درس مستفاد صريح من تعليق expandWithEndOfRelationshipBundle: لا
+   * ننتظر فشل قياس حى أول لنكتشف أين تتوقف السلسلة.
+   *
+   * ⚠️ غير مُقاس حياً بعد وقت الكتابة — يحتاج قياساً حياً بنفس السؤال
+   * المرجعى (الشِّق الثالث: "هل تختلف الحقوق لو كان العقد غير محدد المدة؟")
+   * قبل الإقرار بالنجاح، طبقاً لقاعدة "التحقق قبل القول".
+   */
+  async selectIndefiniteTerminationBundleArticles(input: {
+    question: string;
+    candidates: Array<{
+      lawTitle: string;
+      lawNo: number;
+      articleNo: number;
+      articleText: string;
+    }>;
+  }): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | { status: 'ok'; selectedIndices: number[]; reason: string }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+    if (input.candidates.length === 0) {
+      return { status: 'ok', selectedIndices: [], reason: 'لا مرشحين' };
+    }
+
+    const MAX_SELECTED = 5;
+
+    const system =
+      'أنت مستشار قانونى متمرّس تراجع مواد قانونية محتملة الصلة بسؤال ' +
+      'مستخدم يتعلق بإنهاء عقد عمل **غير محدد المدة** (سواء بالإخطار، أو ' +
+      'الفصل، أو المبرر المشروع لإنهائه، أو ضمانات مهلة الإخطار). هذه ' +
+      'المواد تمثّل **الإطار القانونى الكامل** لهذا النوع من الإنهاء — قد ' +
+      'يكون بعضها هو الأساس القانونى المباشر (كشرط الإخطار الكتابى، أو ' +
+      'اشتراط مبرر مشروع وكافٍ) وقد يكون بعضها ضماناً تابعاً (كحظر توجيه ' +
+      'الإخطار أثناء إجازة العامل، أو منع الاتفاق على الإعفاء منه، أو حق ' +
+      'التغيب للبحث عن عمل). **لا تستبعد نصاً لمجرد أنه يبدو "أساسياً" لا ' +
+      '"إضافياً"** — المعيار الوحيد هو: هل هذا النص جزء فعلى وواقعى من ' +
+      'الإطار القانونى لواقعة إنهاء العقد غير محدد المدة التى يصفها أو ' +
+      'يستلزمها السؤال؟ اختر كل نص تنطبق عليه هذه الصلة، حتى لو لم يُذكَر ' +
+      'صراحة بنفس ألفاظ السؤال — تماماً كما يفعل محامٍ متمرّس يعرض الصورة ' +
+      'القانونية كاملة لا الحد الأدنى الحرفى فقط. لكن لا تُدرج نصاً لمجرد ' +
+      'كونه من نفس القانون أو الباب دون صلة موضوعية حقيقية بواقعة *إنهاء* ' +
+      'العقد غير محدد المدة تحديداً.\n\n' +
+      `أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى قبلها أو بعدها، بحد أقصى ${MAX_SELECTED} ` +
+      'أرقام فى "selected"، بالضبط بهذا الشكل: {"selected": [1, 3], "note": ' +
+      '"سبب موجز يوضح صلة هذه النصوص تحديداً بواقعة إنهاء العقد غير محدد المدة"}';
+
+    const candidatesText = input.candidates
+      .map(
+        (c, i) =>
+          `${i + 1}) المادة ${c.articleNo} من ${c.lawTitle} (قانون رقم ${c.lawNo}):\n"""${c.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `السؤال: ${input.question}\n\n` +
+      `المرشحون:\n${candidatesText}\n\n` +
+      `اختر كل أرقام المرشحين (من 1 إلى ${input.candidates.length}) المرتبطين ` +
+      'فعلياً بواقعة إنهاء العقد غير محدد المدة فى السؤال، أو مصفوفة فارغة ' +
+      'لو لا يوجد أى نص ذو صلة حقيقية. رد بـJSON فقط.';
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 400,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek selectIndefiniteTerminationBundleArticles API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{
+          message?: { content?: string; reasoning_content?: string };
+          finish_reason?: string;
+        }>;
+      };
+      const finishReason = data.choices?.[0]?.finish_reason ?? 'unknown';
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        const reasoningLen = data.choices?.[0]?.message?.reasoning_content?.length ?? 0;
+        this.logger.warn(
+          `DeepSeek selectIndefiniteTerminationBundleArticles: content فارغ — reasoning_content ` +
+            `length=${reasoningLen}, finish_reason=${finishReason}, الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+        return { status: 'error', detail: 'empty_response' };
+      }
+
+      const parsed = parsePenaltySelectionJson(text, input.candidates.length);
+      if (!parsed) {
+        this.logger.warn(
+          `DeepSeek selectIndefiniteTerminationBundleArticles: could not parse JSON from response (finish_reason=${finishReason}): ${text}`,
+        );
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+      const selectedIndices = parsed.selected.map((n) => n - 1).slice(0, MAX_SELECTED);
+      return { status: 'ok', selectedIndices, reason: parsed.note };
+    } catch (err) {
+      this.logger.warn(
+        `DeepSeek selectIndefiniteTerminationBundleArticles call failed: ${(err as Error).message}`,
+      );
       return { status: 'error', detail: (err as Error).message };
     }
   }

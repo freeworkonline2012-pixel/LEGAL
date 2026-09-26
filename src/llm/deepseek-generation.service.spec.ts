@@ -287,3 +287,268 @@ describe('DeepseekGenerationService.decomposeQuestion', () => {
     expect(result).toEqual({ status: 'error', detail: 'http_500' });
   });
 });
+
+/**
+ * 2026-09-25 (إصلاح جذرى سادس — راجع تعليق findHallucinatedArticleCitations
+ * فى deepseek-generation.service.ts للتشخيص الكامل): دليل حى مباشر أن
+ * composeGroundedAnswerMulti استشهد بـ"المادة 11" لنص المادة 175 الفعلى بعد
+ * دمج 11 مادة فى استدعاء توليد واحد — الاسترجاع كان صحيحاً 100%، والعطل فى
+ * خطوة الصياغة وحدها. هذه الاختبارات تُشغِّل بوابة التحقق الحتمية الجديدة
+ * فعلياً (لا تقرأ الكود قراءة ثابتة فقط) للتأكد أنها تكتشف بالضبط هذا النمط
+ * وتُرجِع null بدل تمرير استشهاد خاطئ للمستخدم — طبقاً لقاعدة "التحقق قبل
+ * القول".
+ */
+describe('DeepseekGenerationService — بوابة رفض الاستشهاد بأرقام مواد غير مرسَلة (composeGroundedAnswer)', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it('يُرجِع النص كما هو حين يستشهد فقط برقم المادة المرسَلة فعلياً', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValueOnce(
+      jsonResponse(200, chatCompletion('طبقاً للمادة 1 من قانون تجريبى (رقم 1 لسنة 2020)...', 'stop')),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.composeGroundedAnswer({
+      question: 'سؤال تجريبى',
+      ...CANDIDATE,
+    });
+
+    expect(result).toBe('طبقاً للمادة 1 من قانون تجريبى (رقم 1 لسنة 2020)...');
+  });
+
+  it(
+    'يُرجِع null (fail-safe) حين يستشهد بمادة غير المادة الوحيدة المرسَلة — نفس نمط ' +
+      'عطل المادة 11/175 الحى بالضبط',
+    async () => {
+      process.env.DEEPSEEK_API_KEY = 'test-key';
+      const service = new DeepseekGenerationService();
+      const fetchMock = jest.fn().mockResolvedValueOnce(
+        jsonResponse(
+          200,
+          chatCompletion('طبقاً للمادة 175 من قانون تجريبى، يلتزم صاحب العمل بمنح شهادة خبرة...', 'stop'),
+        ),
+      );
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      // CANDIDATE.articleNo === 1 — النص المُولَّد يستشهد بـ175 بدلاً منها.
+      const result = await service.composeGroundedAnswer({
+        question: 'سؤال تجريبى',
+        ...CANDIDATE,
+      });
+
+      expect(result).toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(1); // لا إعادة محاولة — fail-safe فورى.
+    },
+  );
+});
+
+describe('DeepseekGenerationService — بوابة رفض الاستشهاد بأرقام مواد غير مرسَلة (composeGroundedAnswerMulti)', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  const ARTICLES = [
+    { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 108, articleText: 'نص المادة 108.' },
+    { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 125, articleText: 'نص المادة 125.' },
+    { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 175, articleText: 'نص المادة 175.' },
+  ];
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it('يُرجِع النص كما هو حين تُطابق كل أرقام المواد المذكورة المواد المرسَلة فعلياً', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const text = 'طبقاً للمادة 108 والمادة 125 والمادة 175 من قانون العمل (2025)...';
+    const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES });
+
+    expect(result).toBe(text);
+  });
+
+  it(
+    'يُرجِع null (fail-safe) حين يستشهد بمادة غير موجودة ضمن المواد المرسَلة فعلياً — ' +
+      'إعادة إنتاج مباشرة لعطل "المادة 11" بدل "المادة 175" المُكتشَف حياً 2026-09-25',
+    async () => {
+      process.env.DEEPSEEK_API_KEY = 'test-key';
+      const service = new DeepseekGenerationService();
+      const text =
+        'طبقاً للمادة 108 من قانون العمل (2025)... وبموجب المادة 11 يلتزم صاحب العمل ' +
+        'بمنح العامل شهادة خبرة عند انتهاء علاقة العمل...'; // 11 ليست ضمن ARTICLES — هلوسة.
+      const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES });
+
+      expect(result).toBeNull();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('لا يُطابق ذكر "المواد" (جمع) عرضاً كاستشهاد مفرد قابل للتحقق (لا إيجابية كاذبة)', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    // "المواد" هنا سياق عام لا استشهاد برقم مادة بعينها — لا يجوز أن يُسقِط
+    // البوابة إجابة سليمة بسبب هذا النمط (راجع تعليق findHallucinatedArticleCitations:
+    // الفحص عمداً يطابق "المادة"/"ماده" المفرد فقط لتفادى إيجابيات كاذبة).
+    const text = 'طبقاً للمادة 108 من قانون العمل (2025)، مع مراعاة المواد الأخرى ذات الصلة.';
+    const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES });
+
+    expect(result).toBe(text);
+  });
+});
+
+/**
+ * 2026-09-25T16:54: إصلاح جذرى سابع — راجع تعليق computeValidCitationNumbers
+ * فى deepseek-generation.service.ts للتشخيص الكامل. القياس الحى الأول لبوابة
+ * الإصلاح السادس (أعلاه) اكتشف إيجابية كاذبة: نص المادة 150 الحقيقى (راجع
+ * migrations/003_seed_real_laws.sql) يُحيل صراحة داخل محتواه لمادة 143
+ * ("...مع مراعاة نص المادة ) (١٤٣من هذا القانون...")، والنموذج نقل هذه
+ * الإحالة بأمانة طبقاً لتعليمة system prompt الصريحة بذلك — فرفضته البوابة
+ * القديمة خطأً باعتباره هلوسة. هذان الاختباران يعيدان إنتاج العطل بالضبط
+ * (نص مادة يحتوى إحالة صريحة بصيغة قوس معكوس حقيقية) ويتحققان من أن الإصلاح
+ * السابع يقبلها، مع التأكد أن رقماً غير مرتبط بأى إحالة فعلية لا يزال يُرفَض.
+ */
+describe('DeepseekGenerationService — الإصلاح السابع: لا ترفض البوابة إحالة صريحة داخل نص مادة مرفقة', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  // نص المادة 150 الحقيقى (مُقتطَف، بنفس صيغة القوس المعكوس الحقيقية فى قاعدة
+  // البيانات) — يُحيل صراحة لمادة 143.
+  const ARTICLE_150_TEXT =
+    'وتخصم المبالغ التى استوفاها العامل نفاذاً لقرار المحكمة من مبلغ التعويض ' +
+    'الذى يحكم به أو أى مبالغ أخرى مستحقة له قبل صاحب العمل،مع مراعاة نص ' +
+    'المادة ) (١٤٣من هذا القانون.';
+  const ARTICLES_WITH_150 = [
+    { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 108, articleText: 'نص المادة 108.' },
+    { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 150, articleText: ARTICLE_150_TEXT },
+  ];
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it(
+    'يقبل استشهاداً بمادة 143 حين يكون مذكوراً كإحالة صريحة داخل نص المادة 150 المرفقة ' +
+      '— إعادة إنتاج مباشرة للإيجابية الكاذبة المُكتشَفة حياً بتوقيت 2026-09-25T16:54',
+    async () => {
+      process.env.DEEPSEEK_API_KEY = 'test-key';
+      const service = new DeepseekGenerationService();
+      const text =
+        'طبقاً للمادة 108 من قانون العمل (2025)... وطبقاً للمادة 150 يُحال النزاع ' +
+        'للمحكمة العمالية، مع مراعاة المادة 143 بشأن خصم المبالغ المستوفاة سلفاً.';
+      const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+      global.fetch = fetchMock as unknown as typeof fetch;
+
+      const result = await service.composeGroundedAnswerMulti({
+        question: 'سؤال تجريبى',
+        articles: ARTICLES_WITH_150,
+      });
+
+      expect(result).toBe(text);
+    },
+  );
+
+  it('يظل يرفض (fail-safe) استشهاداً برقم لا صلة له إطلاقاً حتى مع تفعيل توسيع الإحالات', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    // 999 ليست المادة الأساسية (108 أو 150) ولا إحالة داخل نص المادة 150 — هلوسة حقيقية.
+    const text = 'طبقاً للمادة 108... وطبقاً للمادة 999 يلتزم صاحب العمل بكذا.';
+    const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.composeGroundedAnswerMulti({
+      question: 'سؤال تجريبى',
+      articles: ARTICLES_WITH_150,
+    });
+
+    expect(result).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * 2026-09-25: بند P1 من "تقرير تحليل شامل لفجوات إجابة المنصة مقارنة بالمرجع
+ * 9.5" — راجع تعليق selectIndefiniteTerminationBundleArticles الكامل فى
+ * deepseek-generation.service.ts. الاختبار الأول هنا يتحقق تحديداً من النقطة
+ * الجوهرية التى تُميِّز هذه الدالة عن selectSupplementaryEntitlements: مادة
+ * "أساسية" (لا "إضافية") يجب ألا تُستبعَد لمجرد ذلك — نمرر مادتين تمثلان
+ * بالضبط 156 (الإخطار) و157 (المبرر المشروع) ونتحقق أن كليهما تُختاران.
+ */
+describe('DeepseekGenerationService.selectIndefiniteTerminationBundleArticles', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  const INDEFINITE_CANDIDATES = [
+    {
+      lawTitle: 'قانون العمل',
+      lawNo: 14,
+      articleNo: 156,
+      articleText:
+        'إذا كان عقد العمل غير محدد المدة، جاز لأى من طرفيه إنهاؤه بشرط أن يخطر الطرف الآخر كتابة قبل الإنهاء بثلاثة أشهر.',
+    },
+    {
+      lawTitle: 'قانون العمل',
+      lawNo: 14,
+      articleNo: 157,
+      articleText: 'لا يجوز لأصحاب الأعمال والعمال إنهاء عقد العمل غير محدد المدة، إلا بمبرر مشروع وكافٍ.',
+    },
+  ];
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it('لا تستبعد مادة تمثّل الأساس القانونى المباشر (156/157) لمجرد أنها ليست "إضافية"', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValueOnce(
+      jsonResponse(
+        200,
+        chatCompletion(
+          JSON.stringify({ selected: [1, 2], note: 'كلاهما أساس إنهاء العقد غير محدد المدة' }),
+          'stop',
+        ),
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.selectIndefiniteTerminationBundleArticles({
+      question: 'هل تختلف الحقوق لو كان العقد غير محدد المدة؟',
+      candidates: INDEFINITE_CANDIDATES,
+    });
+
+    expect(result).toEqual({ status: 'ok', selectedIndices: [0, 1], reason: 'كلاهما أساس إنهاء العقد غير محدد المدة' });
+  });
+
+  it('ترجع مصفوفة فارغة حين لا يوجد أى مرشح ذو صلة فعلية (fail-safe الطبيعى، لا استدعاء API)', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+
+    const result = await service.selectIndefiniteTerminationBundleArticles({
+      question: 'سؤال تجريبى',
+      candidates: [],
+    });
+
+    expect(result).toEqual({ status: 'ok', selectedIndices: [], reason: 'لا مرشحين' });
+  });
+});
