@@ -57,9 +57,14 @@ BEGIN;
 --
 -- ⚠️ لأى مطوّر/جلسة مستقبلية تضيف فئة laws جديدة: عدِّل القائمة أدناه فقط —
 -- لا تُنشئ نسخة DROP+ADD جديدة فى ملف migration آخر مهما كان السبب.
+--
+-- 2026-09-26 (migrations/066): أُضيفت 'criminal_procedure' لقانون الإجراءات
+-- الجنائية الجديد رقم 174 لسنة 2025 (546 مادة) — مجال تشريعي رئيسي مستقلّ
+-- (كقانون العقوبات وقانون المرافعات)، وليس تخصصاً تنظيمياً/مالياً كبقية
+-- الفئات الحالية، فلا يصح تصنيفه تحت 'other' لنفس المنطق الموثّق أعلاه لـ'commercial'.
 ALTER TABLE laws DROP CONSTRAINT IF EXISTS laws_category_check;
 ALTER TABLE laws ADD CONSTRAINT laws_category_check
-  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','commercial','other'));
+  CHECK (category IN ('labor','rent','personal_status','traffic','consumer_protection','insurance','aml_cft','legal_profession','capital_markets','non_bank_finance','commercial','criminal_procedure','other'));
 
 
 -- ===== law17_1999 =====
