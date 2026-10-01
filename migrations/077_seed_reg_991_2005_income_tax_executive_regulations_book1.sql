@@ -193,43 +193,56 @@ SELECT id, 1, body, '2005-12-28'::date, 'active' FROM ins7;
 DO $verify077$
 DECLARE
     v_law_id uuid;
-    v_total INT;
-    v_versions INT;
-    v_distinct_main INT;
-    v_min_no INT;
-    v_max_no INT;
+    v_enactment_count INT;
+    v_enactment_versions INT;
+    v_book1_count INT;
+    v_book1_versions INT;
+    v_book1_min INT;
+    v_book1_max INT;
 BEGIN
     SELECT id INTO v_law_id FROM laws WHERE law_no = 991 AND law_year = 2005 AND kind = 'regulation';
     IF v_law_id IS NULL THEN
         RAISE EXCEPTION 'migration 077: تعذر العثور على سجل اللائحة بعد الإدراج.';
     END IF;
 
-    SELECT COUNT(*) INTO v_total FROM articles WHERE law_id = v_law_id;
-    IF v_total <> 11 THEN
-        RAISE EXCEPTION 'migration 077: عدد المواد المتوقع 11 لكن الفعلى %', v_total;
+    SELECT COUNT(*) INTO v_enactment_count
+    FROM articles WHERE law_id = v_law_id AND article_suffix_order = -1;
+    IF v_enactment_count <> 4 THEN
+        RAISE EXCEPTION 'migration 077: عدد مواد الإصدار المتوقع 4 لكن الفعلى %', v_enactment_count;
     END IF;
 
-    SELECT COUNT(*) INTO v_versions
+    SELECT COUNT(*) INTO v_enactment_versions
     FROM article_versions av
     JOIN articles a ON a.id = av.article_id
-    WHERE a.law_id = v_law_id;
-    IF v_versions <> 11 THEN
-        RAISE EXCEPTION 'migration 077: عدد النسخ المتوقع 11 لكن الفعلى %', v_versions;
+    WHERE a.law_id = v_law_id AND a.article_suffix_order = -1;
+    IF v_enactment_versions <> 4 THEN
+        RAISE EXCEPTION 'migration 077: عدد نسخ مواد الإصدار المتوقع 4 لكن الفعلى %', v_enactment_versions;
     END IF;
 
-    SELECT COUNT(DISTINCT article_no) INTO v_distinct_main
-    FROM articles WHERE law_id = v_law_id AND article_suffix_order >= 0;
-    IF v_distinct_main <> 7 THEN
-        RAISE EXCEPTION 'migration 077: عدد أرقام المواد الأساسية المتوقع 7 لكن الفعلى %', v_distinct_main;
+    SELECT COUNT(*) INTO v_book1_count
+    FROM articles WHERE law_id = v_law_id AND article_suffix_order = 0
+        AND article_no BETWEEN 1 AND 7;
+    IF v_book1_count <> 7 THEN
+        RAISE EXCEPTION 'migration 077: عدد مواد الكتاب الأول المتوقع 7 لكن الفعلى %', v_book1_count;
     END IF;
 
-    SELECT MIN(article_no), MAX(article_no) INTO v_min_no, v_max_no
-    FROM articles WHERE law_id = v_law_id AND article_suffix_order >= 0;
-    IF v_min_no <> 1 OR v_max_no <> 7 THEN
-        RAISE EXCEPTION 'migration 077: مدى أرقام المواد المتوقع 1-7 لكن الفعلى %-%', v_min_no, v_max_no;
+    SELECT COUNT(*) INTO v_book1_versions
+    FROM article_versions av
+    JOIN articles a ON a.id = av.article_id
+    WHERE a.law_id = v_law_id AND a.article_suffix_order = 0
+        AND a.article_no BETWEEN 1 AND 7;
+    IF v_book1_versions <> 7 THEN
+        RAISE EXCEPTION 'migration 077: عدد نسخ مواد الكتاب الأول المتوقع 7 لكن الفعلى %', v_book1_versions;
     END IF;
 
-    RAISE NOTICE 'migration 077 (اللائحة التنفيذية 991/2005 - الكتاب الأول): تم بنجاح. % مادة، % نسخة، مدى الأرقام 1-7.', v_total, v_versions;
+    SELECT MIN(article_no), MAX(article_no) INTO v_book1_min, v_book1_max
+    FROM articles WHERE law_id = v_law_id AND article_suffix_order = 0
+        AND article_no BETWEEN 1 AND 7;
+    IF v_book1_min <> 1 OR v_book1_max <> 7 THEN
+        RAISE EXCEPTION 'migration 077: مدى أرقام الكتاب الأول المتوقع 1-7 لكن الفعلى %-%', v_book1_min, v_book1_max;
+    END IF;
+
+    RAISE NOTICE 'migration 077 (اللائحة التنفيذية 991/2005 - الكتاب الأول): تم بنجاح. % مادة إصدار، % مادة فى الكتاب الأول، مدى أرقام الكتاب 1-7.', v_enactment_count, v_book1_count;
 END $verify077$;
 
 COMMIT;

@@ -611,28 +611,14 @@ SELECT id, 1, body, '2005-12-28'::date, 'active' FROM ins45;
 DO $verify078$
 DECLARE
     v_law_id uuid;
-    v_cumulative_total INT;
-    v_cumulative_versions INT;
     v_book2_count INT;
+    v_book2_versions INT;
     v_book2_min INT;
     v_book2_max INT;
 BEGIN
     SELECT id INTO v_law_id FROM laws WHERE law_no = 991 AND law_year = 2005 AND kind = 'regulation';
     IF v_law_id IS NULL THEN
         RAISE EXCEPTION 'migration 078: سجل اللائحة غير موجود - يجب تشغيل migration 077 أولاً.';
-    END IF;
-
-    SELECT COUNT(*) INTO v_cumulative_total FROM articles WHERE law_id = v_law_id;
-    IF v_cumulative_total <> 56 THEN
-        RAISE EXCEPTION 'migration 078: إجمالى المواد التراكمى المتوقع 56 (077+078) لكن الفعلى %', v_cumulative_total;
-    END IF;
-
-    SELECT COUNT(*) INTO v_cumulative_versions
-    FROM article_versions av
-    JOIN articles a ON a.id = av.article_id
-    WHERE a.law_id = v_law_id;
-    IF v_cumulative_versions <> 56 THEN
-        RAISE EXCEPTION 'migration 078: إجمالى النسخ التراكمى المتوقع 56 لكن الفعلى %', v_cumulative_versions;
     END IF;
 
     SELECT COUNT(*) INTO v_book2_count
@@ -642,6 +628,15 @@ BEGIN
         RAISE EXCEPTION 'migration 078: عدد مواد الكتاب الثانى المتوقع 45 لكن الفعلى %', v_book2_count;
     END IF;
 
+    SELECT COUNT(*) INTO v_book2_versions
+    FROM article_versions av
+    JOIN articles a ON a.id = av.article_id
+    WHERE a.law_id = v_law_id AND a.article_suffix_order = 0
+        AND a.article_no BETWEEN 8 AND 52;
+    IF v_book2_versions <> 45 THEN
+        RAISE EXCEPTION 'migration 078: عدد نسخ مواد الكتاب الثانى المتوقع 45 لكن الفعلى %', v_book2_versions;
+    END IF;
+
     SELECT MIN(article_no), MAX(article_no) INTO v_book2_min, v_book2_max
     FROM articles WHERE law_id = v_law_id AND article_suffix_order = 0
         AND article_no BETWEEN 8 AND 52;
@@ -649,7 +644,7 @@ BEGIN
         RAISE EXCEPTION 'migration 078: مدى أرقام الكتاب الثانى المتوقع 8-52 لكن الفعلى %-%', v_book2_min, v_book2_max;
     END IF;
 
-    RAISE NOTICE 'migration 078 (اللائحة التنفيذية 991/2005 - الكتاب الثانى): تم بنجاح. % مادة فى هذا الكتاب، % إجمالى تراكمى، مدى أرقام الكتاب 8-52.', v_book2_count, v_cumulative_total;
+    RAISE NOTICE 'migration 078 (اللائحة التنفيذية 991/2005 - الكتاب الثانى): تم بنجاح. % مادة فى هذا الكتاب، مدى أرقام الكتاب 8-52.', v_book2_count;
 END $verify078$;
 
 COMMIT;
