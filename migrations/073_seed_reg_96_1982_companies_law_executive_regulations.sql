@@ -4762,7 +4762,20 @@ INSERT INTO article_versions (article_id, version_no, body, effective_from, stat
 SELECT id, 1, body, '1982-04-01'::date, 'active' FROM ins361;
 
 -- ===== كتلة التحقق النهائية =====
-
+-- ملاحظة إصلاح جذرى (بعد اكتشاف عطل نشر حى عبر Railway قبل migration 076):
+-- الهجرات تُعاد تطبيقها بالكامل (idempotent) فى كل عملية نشر (pre-deploy
+-- command يُعيد تشغيل كل ملفات migrations بالترتيب فى كل مرة). لذلك فإن
+-- هذه الكتلة، عند إعادة تشغيلها فى أى نشر لاحق بعد تطبيق migration 075
+-- (التى تضيف 5 صفوف ملاحق لنفس سجل اللائحة law_id، بنطاق ترقيم مستقل
+-- article_no = 1001-1005)، كانت تُحصِى هذه الصفوف ضمن COUNT(*) غير
+-- المقيَّد بنطاق أرقام migration 073 نفسها، فيصبح الإجمالى 369 بدلاً من
+-- 364 المتوقع وتفشل عملية النشر بالكامل قبل أن تصل حتى إلى migration 076.
+-- الإصلاح: تقييد كل عدّادات هذه الكتلة بـ article_no < 1000 (نطاق المتن
+-- الأساسى للائحة وحده)، بحيث تبقى هذه الكتلة تتحقق حصراً مما أدرجته هى
+-- نفسها، بصرف النظر عما تضيفه هجرات لاحقة لنفس سجل اللائحة. هذا لا يغيّر
+-- أى بيانات مُدرجة بالفعل - تعديل فى منطق التحقق فقط. (ملاحظة: كتلة تحقق
+-- migration 075 نفسها كانت مُقيَّدة بنطاق 1001-1005 بشكل صحيح من البداية
+-- ولم تتأثر بهذا العطل.)
 DO $verify073$
 DECLARE
     v_law_id uuid;
@@ -4776,7 +4789,7 @@ BEGIN
         RAISE EXCEPTION 'migration 073: تعذر العثور على سجل اللائحة بعد الإدراج.';
     END IF;
 
-    SELECT COUNT(*) INTO v_total FROM articles WHERE law_id = v_law_id;
+    SELECT COUNT(*) INTO v_total FROM articles WHERE law_id = v_law_id AND article_no < 1000;
     IF v_total <> 364 THEN
         RAISE EXCEPTION 'migration 073: عدد المواد المتوقع 364 لكن الفعلى %', v_total;
     END IF;
@@ -4784,7 +4797,7 @@ BEGIN
     SELECT COUNT(*) INTO v_versions
     FROM article_versions av
     JOIN articles a ON a.id = av.article_id
-    WHERE a.law_id = v_law_id;
+    WHERE a.law_id = v_law_id AND a.article_no < 1000;
     IF v_versions <> 364 THEN
         RAISE EXCEPTION 'migration 073: عدد النسخ المتوقع 364 لكن الفعلى %', v_versions;
     END IF;
@@ -4792,13 +4805,13 @@ BEGIN
     SELECT COUNT(*) INTO v_amended
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id
-    WHERE a.law_id = v_law_id AND av.effective_from = '2009-01-01'::date;
+    WHERE a.law_id = v_law_id AND a.article_no < 1000 AND av.effective_from = '2009-01-01'::date;
     IF v_amended <> 32 THEN
         RAISE EXCEPTION 'migration 073: عدد الصفوف المؤرَّخة بـ 2009-01-01 المتوقع 32 لكن الفعلى %', v_amended;
     END IF;
 
     SELECT COUNT(DISTINCT article_no) INTO v_distinct_main
-    FROM articles WHERE law_id = v_law_id AND article_suffix_order >= 0;
+    FROM articles WHERE law_id = v_law_id AND article_suffix_order >= 0 AND article_no < 1000;
     IF v_distinct_main <> 324 THEN
         RAISE EXCEPTION 'migration 073: عدد أرقام المواد الأساسية المتوقع 324 لكن الفعلى %', v_distinct_main;
     END IF;
