@@ -2061,7 +2061,19 @@ BEGIN
         RAISE EXCEPTION 'migration 076: تعذر العثور على سجل القانون بعد الإدراج.';
     END IF;
 
-    SELECT COUNT(*) INTO v_total FROM articles WHERE law_id = v_law_id;
+    -- ملاحظة إصلاح جذرى (2026-10-03، بمناسبة بناء migration 086):
+    -- كان هذا الفحص يحسب COUNT(*) غير مُقيَّد بـ article_suffix_order،
+    -- فكان يفشل حتماً بعد أى هجرة لاحقة تُضيف مواد "مكررة" (suffix >= 1)
+    -- لقانون 91/2005 نفسه (مثل 086: 7 مواد مكررة جديدة) - لأن Railway
+    -- pre-deploy يُعيد تشغيل كامل سلسلة الهجرات من الصفر فى كل عملية
+    -- نشر، فكان هذا سيُسقط كل عملية نشر مستقبلية بمجرد دمج migration
+    -- 086. الإصلاح: تقييد الفحص صراحة بـ article_suffix_order <= 0
+    -- (نطاق migration 076 الفعلى بالضبط - 9 مواد إصدار بـ suffix=-1 +
+    -- 147 مادة بـ suffix=0 = 156 - وهو الوحيد الذى يُدرج بهذين الـ
+    -- suffix)، بدلاً من فحص غير مُقيَّد لكل صفوف law_id (الذى يشمل الآن
+    -- أيضاً المواد المكررة اللاحقة بـ suffix >= 1). نفس المبدأ المعمارى
+    -- المُثبَّت فى بقية سلسلة الهجرات: كل هجرة تتحقق حصراً من نطاقها هى.
+    SELECT COUNT(*) INTO v_total FROM articles WHERE law_id = v_law_id AND article_suffix_order <= 0;
     IF v_total <> 156 THEN
         RAISE EXCEPTION 'migration 076: عدد المواد المتوقع 156 لكن الفعلى %', v_total;
     END IF;
@@ -2069,7 +2081,7 @@ BEGIN
     SELECT COUNT(*) INTO v_versions
     FROM article_versions av
     JOIN articles a ON a.id = av.article_id
-    WHERE a.law_id = v_law_id;
+    WHERE a.law_id = v_law_id AND a.article_suffix_order <= 0;
     IF v_versions <> 156 THEN
         RAISE EXCEPTION 'migration 076: عدد النسخ المتوقع 156 لكن الفعلى %', v_versions;
     END IF;
