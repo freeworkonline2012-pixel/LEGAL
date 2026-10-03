@@ -39,7 +39,7 @@
 BEGIN;
 
 -- ===== عمليات التعديل =====
--- مادة 7 (suffix=0) - REPEAL
+-- مادة 7 (suffix=0) - REPEAL (effective_to=2012-12-07)
 UPDATE article_versions SET
     status = 'repealed',
     effective_to = '2012-12-07'::date,
@@ -52,7 +52,7 @@ WHERE article_id = (
       AND a.article_no = 7 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 8 (suffix=0) - UPDATE
+-- مادة 8 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_2$تلغى المادة (7) ، ومع عدم الإخلال بالبند (1) من المادة (13) من القانون ، تكون شرائح وأسعار الضريبة على النحو الآتى :
 الشريحة الأولى : 5000 جنيه فى السنة معفاة من الضريبة .
 الشريحة الثانية : أكثر من 5000 جنيه وحتى 30000 جنيه (10%) .
@@ -81,7 +81,7 @@ WHERE article_id = (
       AND a.article_no = 8 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 31 (suffix=0) - UPDATE
+-- مادة 31 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_3$يعفى من الضريبة :
 1 - أرباح منشآت استصلاح أو استزراع الأراضى وذلك لمدة عشر سنوات اعتبارًا من تاريخ بدء مزاولة النشاط .
 2 - أرباح منشآت الإنتاج الداجنى وتربية النحل وحظائر تربية المواشى وتسمينها ومشروعات مصايد ومزارع الأسماك ، وأرباح مشروعات مراكب الصيد ، وذلك لمدة عشر سنوات من تاريخ بدء مزاولة النشاط .
@@ -122,7 +122,7 @@ WHERE article_id = (
       AND a.article_no = 31 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 36 (suffix=0) - UPDATE
+-- مادة 36 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_4$تعفى من الضريبة :
 1 - المنشآت التعليمية الخاضعة لإشراف الحكومة أو لإشراف الأشخاص الاعتبارية العامة أو لإشراف القطاع العام أو قطاع الأعمال العام .
 2 - إيرادات تأليف وترجمة الكتب والمقالات الدينية والعلمية والثقافية والأدبية ، عدا ما يكون ناتجًا عن بيع المؤلف أو الترجمة لإخراجه فى صورة مرئية أو صوتية .
@@ -149,7 +149,7 @@ WHERE article_id = (
       AND a.article_no = 36 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 42 (suffix=0) - UPDATE
+-- مادة 42 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_5$تفرض ضريبة بسعر 2.5% وبغير أى تخفيض على إجمالى قيمة التصرف فى العقارات المبنية أو الأراضى للبناء عليها سواء انصب التصرف عليها بحالتها أو بعد إقامة منشآت عليها وسواء كان هذا التصرف شاملاً العقار كله أو جزءً منه أو وحدة سكنية منه أو غير ذلك ، وسواء كانت المنشأة مقامة على أرض مملوكة للممول أو للغير ، وسواء كانت مشهرة أو غير مشهرة وسواء كانت هذه العقارات تقع داخل أو خارج كردون المدينة .
 وتستثنى من التصرفات الخاضعة لهذه الضريبة تصرفات الوارث فى العقارات التى آلت إليه من مورثه بحالتها عند الميراث وكذلك تقديم العقار كحصة عينية فى رأس مال شركات المساهمة بشرط عدم التصرف فى الأسهم المقابلة لها لمدة خمس سنوات .
 ويلتزم المتصرف بسداد الضريبة خلال ثلاثين يومًا من تاريخ التصرف .
@@ -178,7 +178,7 @@ WHERE article_id = (
       AND a.article_no = 42 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 49 (suffix=0) - UPDATE
+-- مادة 49 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_6$يقرب وعاء الضريبة إلى أقرب عشرة جنيهات أقل ، ويخضع للضريبة بسعر 25% من صافى الأرباح السنوية .
 واستثناءً من السعر الوارد فى الفقرة السابقة تخضع أرباح هيئة قناة السويس والهيئة المصرية العامة للبترول والبنك المركزى للضريبة بسعر 40% كما تخضع أرباح شركات البحث عن البترول والغاز وإنتاجها للضريبة بسعر (40.55%) .$b086_6$, updated_at = now()
 WHERE law_id = (SELECT id FROM laws WHERE law_no = 91 AND law_year = 2005 AND kind = 'law')
@@ -197,7 +197,7 @@ WHERE article_id = (
       AND a.article_no = 49 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 50 (suffix=0) - UPDATE
+-- مادة 50 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_7$يعفى من الضريبة :
 1 - الوزارات والمصالح الحكومية .
 2 - المنشآت التعليمية الخاضعة لإشراف الدولة التى لا تستهدف أساسًا الحصول على الربح .
@@ -234,7 +234,7 @@ WHERE article_id = (
       AND a.article_no = 50 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 53 (suffix=0) - UPDATE
+-- مادة 53 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_8$فى حالة تغيير الشكل القانونى لشخص اعتبارى أو أكثر ، تخضع للضريبة الأرباح الرأسمالية الناتجة عن إعادة التقييم بما فى ذلك حالات الاندماج والتقسيم بكافة صورها ، ويُعد من التغيير فى الشكل القانونى فى الحالات الآتية :
 1 - اندماج شركتين مقيمتين أو أكثر .
 2 - إندماج شركة غير مقيمة مع شركة مقيمة .
@@ -263,7 +263,7 @@ WHERE article_id = (
       AND a.article_no = 53 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 56 (suffix=0) - UPDATE
+-- مادة 56 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_9$تخضع للضريبة بسعر 20% المبالغ التى يدفعها أصحاب المنشآت الفردية والأشخاص الاعتبارية المقيمة فى مصر والجهات غير المقيمة التى لها منشأة دائمة فى مصر لغير المقيمين فى مصر وذلك دون خصم أية تكاليف منها .
 وتشمل هذه المبالغ ما يأتى :
 1 - العوائد .
@@ -294,7 +294,7 @@ WHERE article_id = (
       AND a.article_no = 56 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 58 (suffix=0) - UPDATE
+-- مادة 58 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_10$مع عدم الإخلال بأى إعفاءات ضريبية مقررة فى قوانين أخرى تخضع للضريبة عوائد السندات التى تصدرها وزارة المالية لصالح البنك المركزى أو غيره من البنوك بسعر 32% وذلك دون خصم أية تكاليف ، ويلتزم دافع هذه العوائد أو من يحصل عليها بحجز مقدار الضريبة المستحقة عند دفع العائد وتوريدها إلى مأمورية الضرائب المختصة فى أول يوم عمل تال على الأكثر .
 تخضع عوائد أذون الخزانة للضريبة بسعر 20% وذلك دون خصم أية تكاليف ، ويلتزم دافع هذه العوائد بتحصيل مقدار الضريبة المستحقة وتوريدها إلى مأمورية الضرائب المختصة فى اليوم التالى لليوم الذى تم فيه الخصم .
 كما تخضع لذات الضريبة بسعر 20% عوائد سندات الخزانة ، ويلتزم دافع هذه العوائد بحجز مقدار الضريبة وتوريدها لمأمورية الضرائب المختصة فى أول يوم عمل تال لليوم الذى تم فيه حجز الضريبة .
@@ -317,7 +317,7 @@ WHERE article_id = (
       AND a.article_no = 58 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 133 (suffix=0) - UPDATE
+-- مادة 133 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_11$يعاقب كل ممول تهرب من أداء الضريبة بالحبس مدة لا تقل عن ستة أشهر ولا تجاوز خمس سنوات وغرامة تعادل مثل الضريبة التى لم يتم أداؤها بموجب هذا القانون أو بإحدى هاتين العقوبتين .
 ويعتبر الممول متهربًا من أداء الضريبة باستعمال إحدى الطرق الآتية :
 1 - تقديم الإقرار الضريبى السنوى بالاستناد إلى دفاتر أو سجلات أو حسابات أو مستندات مصطنعة مع علمه بذلك أو تضمينه بيانات تخالف ما هو ثابت بالدفاتر أو السجلات أو الحسابات أو المستندات التى أخفاها .
@@ -350,7 +350,7 @@ WHERE article_id = (
       AND a.article_no = 133 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 135 (suffix=0) - UPDATE
+-- مادة 135 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_12$يعاقب بغرامة لا تقل عن ألفى جنيه ولا تجاوز عشرة آلاف جنيه كل من ارتكب أيًا من الأفعال الآتية :
 1 - الامتناع عن تقديم إخطار مزاولة النشاط .
 2 - الامتناع عن تقديم الإقرار الضريبى .
@@ -381,70 +381,115 @@ WHERE article_id = (
       AND a.article_no = 135 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 56 (suffix=1) - INSERT جديدة
+-- مادة 56 (suffix=1) - INSERT/UPSERT جديدة (effective_from=2012-12-07)
 WITH ins086_13 AS (
     INSERT INTO articles (law_id, article_no, article_suffix_order, hierarchical_location, body)
     SELECT id, 56, 1, $h086_13$قانون 91/2005 > الكتاب الرابع: الضريبة المستقطعة من المنبع > مادة 56 مكرراً [أُضيفت بالمادة الثالثة من القانون 101/2012]$h086_13$, $b086_13$تفرض ضريبة مقطوعة بسعر 10% دون خصم أى تكاليف على الأرباح التى يحققها الأشخاص الطبيعيون أو الأشخاص الاعتباريون من كل طرح للأوراق المالية لأول مرة فى السوق الثانوى ، وبناءً على نشرة طرح معتمدة من الهيئة العامة للرقابة المالية أو مذكرة معلومات بحسب الأحوال أو نموذج إفصاح والبيع المباشر فى البورصة .
 وتسرى الضريبة المشار إليه على الأرباح التى يحققها المقيمون وغير المقيمين من الأشخاص الطبيعيين والأشخاص الاعتبارية وأية منشأة دائمة يملكها شخص غير مقيم وذلك نتيجة بيع الأسهم أو الحصص بما فيها عمليات الشراء أو المبادلة بأنواعها المختلفة فى الشركات فى صفقة استحواذ متى جاوزت 33% لأغراض الضريبة من رأس مال الشركة أو حقوق التصويت فيها وفقًا لأحكام القانون رقم 95 لسنة 1992 وتعديلاته ، ويعتبر الاستحواذ من خلال عدة عمليات بمثابة صفقة واحدة إذا قام به المشترى أو أشخاص مرتبطة به خلال أثنى عشر شهرًا من تاريخ أول عملية شراء ، وتحسب الأرباح الخاضعة للضريبة على أساس الفرق بين سعر الاقتناء أو القيمة الاسمية فى حالة التأسيس وبين سعر الاستحواذ ، وذلك دون التمتع بأى إعفاء مقرر بهذا القانون أو أى قانون آخر .
 وتتولى الجهة القائمة بتسوية المراكز المالية الناتجة عن عملية الطرح أو الاستحواذ خصم الضريبة المشار إليها ، وتوريدها للمصلحة خلال خمسة عشر يومًا من بداية الشهر التالى للتسوية دون إخلال بالتزام الممول بأداء الضريبة المستحقة عليه وفقًا لما تقرره اللائحة التنفيذية .$b086_13$
     FROM laws WHERE law_no = 91 AND law_year = 2005 AND kind = 'law'
-    ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
+    ON CONFLICT (law_id, article_no, article_suffix_order) DO UPDATE SET
+        hierarchical_location = EXCLUDED.hierarchical_location,
+        body = EXCLUDED.body,
+        updated_at = now()
     RETURNING id, body
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, amended_by_law_no, amended_by_law_year, change_note)
 SELECT id, 1, body, '2012-12-07'::date, 'active', 101, 2012, $n086_13$مادة جديدة كلياً، أُضيفت بموجب المادة الثالثة من القانون 101/2012 - ضريبة مقطوعة 10% على أرباح الطرح الأول للأوراق المالية فى السوق الثانوى، وعلى أرباح بيع/استحواذ الأسهم يتجاوز 33% من رأس المال أو حقوق التصويت.$n086_13$ FROM ins086_13
-ON CONFLICT (article_id, version_no) DO NOTHING;
+ON CONFLICT (article_id, version_no) DO UPDATE SET
+    body = EXCLUDED.body,
+    effective_from = EXCLUDED.effective_from,
+    status = 'active',
+    amended_by_law_no = EXCLUDED.amended_by_law_no,
+    amended_by_law_year = EXCLUDED.amended_by_law_year,
+    change_note = EXCLUDED.change_note;
 
--- مادة 59 (suffix=1) - INSERT جديدة
+-- مادة 59 (suffix=1) - INSERT/UPSERT جديدة (effective_from=2012-12-07)
 WITH ins086_14 AS (
     INSERT INTO articles (law_id, article_no, article_suffix_order, hierarchical_location, body)
     SELECT id, 59, 1, $h086_14$قانون 91/2005 > الكتاب الخامس > مادة 59 مكرراً [أُضيفت بالمادة الثالثة من القانون 101/2012]$h086_14$, $b086_14$على الجهات المنصوص عليها فى البند (1) من المادة 59 من القانون المشار إليه التى تتولى بيع أو توزيع أى سلع أو منتجات صناعية أو حاصلات زراعية محلية أو مستوردة إلى أشخاص القطاع الخاص للإتجار فيها أو تصنيعها أن تضيف نسبة على المبالغ التى تحصل عليها من أى شخص من هؤلاء الأشخاص وتحصل هذه النسبة مع هذه المبالغ تحت حساب الضريبة التى تستحق عليه .$b086_14$
     FROM laws WHERE law_no = 91 AND law_year = 2005 AND kind = 'law'
-    ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
+    ON CONFLICT (law_id, article_no, article_suffix_order) DO UPDATE SET
+        hierarchical_location = EXCLUDED.hierarchical_location,
+        body = EXCLUDED.body,
+        updated_at = now()
     RETURNING id, body
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, amended_by_law_no, amended_by_law_year, change_note)
 SELECT id, 1, body, '2012-12-07'::date, 'active', 101, 2012, $n086_14$مادة جديدة كلياً، أُضيفت بموجب المادة الثالثة من القانون 101/2012 - نظام الإضافة تحت حساب الضريبة على مبيعات/توزيعات السلع والمنتجات والحاصلات الزراعية لأشخاص القطاع الخاص.$n086_14$ FROM ins086_14
-ON CONFLICT (article_id, version_no) DO NOTHING;
+ON CONFLICT (article_id, version_no) DO UPDATE SET
+    body = EXCLUDED.body,
+    effective_from = EXCLUDED.effective_from,
+    status = 'active',
+    amended_by_law_no = EXCLUDED.amended_by_law_no,
+    amended_by_law_year = EXCLUDED.amended_by_law_year,
+    change_note = EXCLUDED.change_note;
 
--- مادة 59 (suffix=2) - INSERT جديدة
+-- مادة 59 (suffix=2) - INSERT/UPSERT جديدة (effective_from=2012-12-07)
 WITH ins086_15 AS (
     INSERT INTO articles (law_id, article_no, article_suffix_order, hierarchical_location, body)
     SELECT id, 59, 2, $h086_15$قانون 91/2005 > الكتاب الخامس > مادة 59 مكرراً (1) [أُضيفت بالمادة الثالثة من القانون 101/2012]$h086_15$, $b086_15$على الجهات المنصوص عليها فى البندين (1) ، (2) من المادة 59 من القانون المشار إليه أن تضيف نسبة على الإيجارات التى تحصلها من المستأجر للأماكن المملوكة لها والمعدة للإيجار أو التصنيع فيها أو تقديم أية خدمات أو إعداد مأكولات أو مشروبات وتحصيلها مع الإيجارات وبذات إجراءات التحصيل وذلك تحت حساب الضريبة التى تستحق على هؤلاء المستأجرين .$b086_15$
     FROM laws WHERE law_no = 91 AND law_year = 2005 AND kind = 'law'
-    ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
+    ON CONFLICT (law_id, article_no, article_suffix_order) DO UPDATE SET
+        hierarchical_location = EXCLUDED.hierarchical_location,
+        body = EXCLUDED.body,
+        updated_at = now()
     RETURNING id, body
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, amended_by_law_no, amended_by_law_year, change_note)
 SELECT id, 1, body, '2012-12-07'::date, 'active', 101, 2012, $n086_15$مادة جديدة كلياً، أُضيفت بموجب المادة الثالثة من القانون 101/2012 - مدّ نظام الإضافة تحت حساب الضريبة إلى الإيجارات التى تحصلها الجهات المُشار إليها.$n086_15$ FROM ins086_15
-ON CONFLICT (article_id, version_no) DO NOTHING;
+ON CONFLICT (article_id, version_no) DO UPDATE SET
+    body = EXCLUDED.body,
+    effective_from = EXCLUDED.effective_from,
+    status = 'active',
+    amended_by_law_no = EXCLUDED.amended_by_law_no,
+    amended_by_law_year = EXCLUDED.amended_by_law_year,
+    change_note = EXCLUDED.change_note;
 
--- مادة 59 (suffix=3) - INSERT جديدة
+-- مادة 59 (suffix=3) - INSERT/UPSERT جديدة (effective_from=2012-12-07)
 WITH ins086_16 AS (
     INSERT INTO articles (law_id, article_no, article_suffix_order, hierarchical_location, body)
     SELECT id, 59, 3, $h086_16$قانون 91/2005 > الكتاب الخامس > مادة 59 مكرراً (2) [أُضيفت بالمادة الثالثة من القانون 101/2012]$h086_16$, $b086_16$تحدد بقرار من الوزير السلع والمنتجات وأوجه النشاط وأنواع الإيجارات التى يسرى عليها نظام الإضافة لحساب الضريبة ، وكذلك النسبة التى يتم إضافتها بما يتفق مع طبيعة كل نشاط وبما لا يجاوز 5% من المبالغ المسددة .
 وعلى الجهات المشار إليها فى البندين (1) ، (2) من المادة 59 مكررًا ، 59 مكررًا (1) من هذا القانون بقانون توريد قيمة ما حصلته تحت حساب الضريبة المستحقة إلى المصلحة فى موعد أقصاه آخر إبريل ويوليه وأكتوبر ويناير من كل عام مع بيان تفصيلى بالمبالغ التى قبضت من كل ممول خلال الثلاثة أشهر السابقة وذلك طبقًا للأوضاع والإجراءات التى يصدر بتحديدها قرار من الوزير .$b086_16$
     FROM laws WHERE law_no = 91 AND law_year = 2005 AND kind = 'law'
-    ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
+    ON CONFLICT (law_id, article_no, article_suffix_order) DO UPDATE SET
+        hierarchical_location = EXCLUDED.hierarchical_location,
+        body = EXCLUDED.body,
+        updated_at = now()
     RETURNING id, body
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, amended_by_law_no, amended_by_law_year, change_note)
 SELECT id, 1, body, '2012-12-07'::date, 'active', 101, 2012, $n086_16$مادة جديدة كلياً، أُضيفت بموجب المادة الثالثة من القانون 101/2012 - تفويض الوزير بتحديد نطاق ونسبة نظام الإضافة (بحد أقصى 5%)، ومواعيد توريد الحصيلة (إبريل/يوليو/أكتوبر/يناير).$n086_16$ FROM ins086_16
-ON CONFLICT (article_id, version_no) DO NOTHING;
+ON CONFLICT (article_id, version_no) DO UPDATE SET
+    body = EXCLUDED.body,
+    effective_from = EXCLUDED.effective_from,
+    status = 'active',
+    amended_by_law_no = EXCLUDED.amended_by_law_no,
+    amended_by_law_year = EXCLUDED.amended_by_law_year,
+    change_note = EXCLUDED.change_note;
 
--- مادة 59 (suffix=4) - INSERT جديدة
+-- مادة 59 (suffix=4) - INSERT/UPSERT جديدة (effective_from=2012-12-07)
 WITH ins086_17 AS (
     INSERT INTO articles (law_id, article_no, article_suffix_order, hierarchical_location, body)
     SELECT id, 59, 4, $h086_17$قانون 91/2005 > الكتاب الخامس > مادة 59 مكرراً (3) [أُضيفت بالمادة الثالثة من القانون 101/2012]$h086_17$, $b086_17$لا تسرى أحكام الإضافة تحت حساب الضريبة على المنشآت غير الخاضعة للضريبة أو المعفاة منها بمقتضى القانون وذلك خلال فترة عدم الخضوع أو الإعفاء ، مع إلتزامها بالإضافة بالنسبة لمنشآت القطاع الخاص التى تتعامل معها وفقًا لأحكام نظام الإضافة المشار إليها فى المواد 59 مكررًا ، 59 مكررًا (1) ، 59 مكررًا (2) ، وهذه المادة .$b086_17$
     FROM laws WHERE law_no = 91 AND law_year = 2005 AND kind = 'law'
-    ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
+    ON CONFLICT (law_id, article_no, article_suffix_order) DO UPDATE SET
+        hierarchical_location = EXCLUDED.hierarchical_location,
+        body = EXCLUDED.body,
+        updated_at = now()
     RETURNING id, body
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, amended_by_law_no, amended_by_law_year, change_note)
 SELECT id, 1, body, '2012-12-07'::date, 'active', 101, 2012, $n086_17$مادة جديدة كلياً، أُضيفت بموجب المادة الثالثة من القانون 101/2012 - استثناء المنشآت غير الخاضعة/المعفاة من نظام الإضافة، مع إلزامها بالإضافة عند التعامل مع منشآت القطاع الخاص.$n086_17$ FROM ins086_17
-ON CONFLICT (article_id, version_no) DO NOTHING;
+ON CONFLICT (article_id, version_no) DO UPDATE SET
+    body = EXCLUDED.body,
+    effective_from = EXCLUDED.effective_from,
+    status = 'active',
+    amended_by_law_no = EXCLUDED.amended_by_law_no,
+    amended_by_law_year = EXCLUDED.amended_by_law_year,
+    change_note = EXCLUDED.change_note;
 
--- مادة 87 (suffix=1) - INSERT جديدة
+-- مادة 87 (suffix=1) - INSERT/UPSERT جديدة (effective_from=2012-12-07)
 WITH ins086_18 AS (
     INSERT INTO articles (law_id, article_no, article_suffix_order, hierarchical_location, body)
     SELECT id, 87, 1, $h086_18$قانون 91/2005 > الكتاب السادس > مادة 87 مكرراً [أُضيفت بالمادة الثالثة من القانون 101/2012]$h086_18$, $b086_18$إذا أدرج الممول مبلغ الضريبة فى الإقرار الضريبى بأقل من قيمة الضريبة المقدرة نهائيًا يلتزم بأداء مبلغ إضافى للضريبة النهائية يعادل النسبة المحددة قرين كل حالة من الحالات التالية :
@@ -453,14 +498,23 @@ WITH ins086_18 AS (
 30% من الضريبة التى لم يتم إدراجها إذا كان الفرق بين الضريبة المدرجة بالإقرار وبين الضريبة النهائية يعادل أكثر من 50% من مقدار الضريبة النهائية .
 ويصدر الوزير قرارًا بالقواعد التنفيذية بالحالات التى لا تطبق بشأنها الغرامات المنصوص عليها فى هذه المادة ومنها حالات حدوث خطأ فى التطبيق وحالات تعديل بعض أسس الفحص وتأثيرها على السنوات اللاحقة وكذلك حالات ترحيل الخسائر التى لم تكن معتمدة عند تقديم الإقرار .$b086_18$
     FROM laws WHERE law_no = 91 AND law_year = 2005 AND kind = 'law'
-    ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
+    ON CONFLICT (law_id, article_no, article_suffix_order) DO UPDATE SET
+        hierarchical_location = EXCLUDED.hierarchical_location,
+        body = EXCLUDED.body,
+        updated_at = now()
     RETURNING id, body
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, amended_by_law_no, amended_by_law_year, change_note)
 SELECT id, 1, body, '2012-12-07'::date, 'active', 101, 2012, $n086_18$مادة جديدة كلياً، أُضيفت بموجب المادة الثالثة من القانون 101/2012 - ضريبة إضافية متدرجة (10%/20%/30%) عند إدراج الممول للضريبة بالإقرار بأقل من الضريبة المقدرة نهائياً، بديلاً عمَّا كانت تنص عليه عقوبة المادة (136) الملغاة (غرامات 5%/15%/80%).$n086_18$ FROM ins086_18
-ON CONFLICT (article_id, version_no) DO NOTHING;
+ON CONFLICT (article_id, version_no) DO UPDATE SET
+    body = EXCLUDED.body,
+    effective_from = EXCLUDED.effective_from,
+    status = 'active',
+    amended_by_law_no = EXCLUDED.amended_by_law_no,
+    amended_by_law_year = EXCLUDED.amended_by_law_year,
+    change_note = EXCLUDED.change_note;
 
--- مادة 147 (suffix=1) - INSERT جديدة
+-- مادة 147 (suffix=1) - INSERT/UPSERT جديدة (effective_from=2012-12-07)
 WITH ins086_19 AS (
     INSERT INTO articles (law_id, article_no, article_suffix_order, hierarchical_location, body)
     SELECT id, 147, 1, $h086_19$قانون 91/2005 > الكتاب السابع: العقوبات > مادة 147 مكرراً [أُضيفت بالمادة الثالثة من القانون 101/2012]$h086_19$, $b086_19$يُعفى كل شخص من أداء جميع مبالغ الضريبة المستحقة على دخله وجميع مبالغ الضريبة العامة على المبيعات ، أيًا كانت قيمة رأسماله أو رقم أعماله أو إيراداته أو صافى ربحه السنوى ، وذلك عن الفترات الضريبية السابقة على تاريخ العمل بهذا القانون أيًا كان عدد هذه الفترات الضريبية ، ويعفى كذلك من كل ما يرتبط بتلك الضرائب من مقابل تأخير وغرامات وضريبة إضافية وغيرها فى حالة توافر الشرطين الآتيين :
@@ -468,14 +522,23 @@ WITH ins086_19 AS (
 ثانيًا - أن يتقدم الممول لمأمورية الضرائب المختصة خلال أثنى عشر شهرًا من تاريخ العمل بهذا القانون بقانون بطلب للتسجيل أو فتح ملف ضريبى والحصول على الإعفاء الضريبى المشار إليه متضمنًا البيانات التالية :
 الاسم / العنوان / النشاط / الكيان القانونى /$b086_19$
     FROM laws WHERE law_no = 91 AND law_year = 2005 AND kind = 'law'
-    ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
+    ON CONFLICT (law_id, article_no, article_suffix_order) DO UPDATE SET
+        hierarchical_location = EXCLUDED.hierarchical_location,
+        body = EXCLUDED.body,
+        updated_at = now()
     RETURNING id, body
 )
 INSERT INTO article_versions (article_id, version_no, body, effective_from, status, amended_by_law_no, amended_by_law_year, change_note)
 SELECT id, 1, body, '2012-12-07'::date, 'active', 101, 2012, $n086_19$مادة جديدة كلياً، أُضيفت بموجب المادة الثالثة من القانون 101/2012 - إعفاء ضريبى شامل لمرة واحدة (عفو ضريبى) عن الفترات السابقة لمن يسجل لأول مرة خلال 12 شهراً من تاريخ العمل بالقانون (أى حتى 2013/12/6 تقريباً). حكم تاريخياً منتهى نافذة التسجيل، مُبقى عليه هنا كمادة رسمية قائمة فى نص القانون كما نُشر.$n086_19$ FROM ins086_19
-ON CONFLICT (article_id, version_no) DO NOTHING;
+ON CONFLICT (article_id, version_no) DO UPDATE SET
+    body = EXCLUDED.body,
+    effective_from = EXCLUDED.effective_from,
+    status = 'active',
+    amended_by_law_no = EXCLUDED.amended_by_law_no,
+    amended_by_law_year = EXCLUDED.amended_by_law_year,
+    change_note = EXCLUDED.change_note;
 
--- مادة 136 (suffix=0) - REPEAL
+-- مادة 136 (suffix=0) - REPEAL (effective_to=2012-12-07)
 UPDATE article_versions SET
     status = 'repealed',
     effective_to = '2012-12-07'::date,
@@ -488,7 +551,7 @@ WHERE article_id = (
       AND a.article_no = 136 AND a.article_suffix_order = 0
 ) AND version_no = 1;
 
--- مادة 138 (suffix=0) - UPDATE
+-- مادة 138 (suffix=0) - UPDATE (effective_from=2012-12-07)
 UPDATE articles SET body = $b086_21$للوزير أو من ينيبه التصالح فى الجرائم المنصوص عليها فى هذا القانون فى أية حالة تكون عليها الدعوى قبل صدور حكم بات فيها وذلك مقابل أداء :
 ( أ ) المبالغ المستحقة على المخالف فى الجرائم المنصوص عليها فى المادة 135 من هذا القانون بالإضافة إلى تعويض مقداره ألفا جنيه .
 (ب) [ملغى بموجب المادة الرابعة من القانون 101/2012] .
@@ -525,22 +588,27 @@ DECLARE
     v_amended_no int;
     v_amended_year int;
     v_status text;
+    v_eff_from date;
+    v_eff_to date;
 BEGIN
     SELECT id INTO v_law_id FROM laws WHERE law_no = 91 AND law_year = 2005 AND kind = 'law';
     IF v_law_id IS NULL THEN
         RAISE EXCEPTION 'migration 086: سجل قانون 91/2005 غير موجود - يجب تشغيل migration 076 أولاً.';
     END IF;
 
-    SELECT av.status INTO v_status
+    SELECT av.status, av.effective_to INTO v_status, v_eff_to
     FROM articles a JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 7 AND a.article_suffix_order = 0;
 
     IF v_status <> 'repealed' THEN
         RAISE EXCEPTION 'migration 086: المادة 7 يُفترض أن تكون status=repealed لكن الفعلى %', v_status;
     END IF;
+    IF v_eff_to <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_to للمادة 7 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_to;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 8 AND a.article_suffix_order = 0;
@@ -569,9 +637,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 8 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 8 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 31 AND a.article_suffix_order = 0;
@@ -612,9 +683,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 31 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 31 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 36 AND a.article_suffix_order = 0;
@@ -641,9 +715,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 36 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 36 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 42 AND a.article_suffix_order = 0;
@@ -672,9 +749,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 42 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 42 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 49 AND a.article_suffix_order = 0;
@@ -693,9 +773,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 49 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 49 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 50 AND a.article_suffix_order = 0;
@@ -732,9 +815,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 50 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 50 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 53 AND a.article_suffix_order = 0;
@@ -763,9 +849,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 53 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 53 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 56 AND a.article_suffix_order = 0;
@@ -796,9 +885,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 56 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 56 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 58 AND a.article_suffix_order = 0;
@@ -821,9 +913,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 58 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 58 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 133 AND a.article_suffix_order = 0;
@@ -856,9 +951,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 133 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 133 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 135 AND a.article_suffix_order = 0;
@@ -889,9 +987,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 135 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 135 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 56 AND a.article_suffix_order = 1;
@@ -912,9 +1013,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 56 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 56 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 59 AND a.article_suffix_order = 1;
@@ -931,9 +1035,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 59 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 59 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 59 AND a.article_suffix_order = 2;
@@ -950,9 +1057,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 59 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 59 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 59 AND a.article_suffix_order = 3;
@@ -971,9 +1081,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 59 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 59 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 59 AND a.article_suffix_order = 4;
@@ -990,9 +1103,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 59 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 59 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 87 AND a.article_suffix_order = 1;
@@ -1017,9 +1133,12 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 87 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 87 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 147 AND a.article_suffix_order = 1;
@@ -1042,17 +1161,23 @@ BEGIN
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 147 غير مطابق (متوقع 101/2012).';
     END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 147 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
+    END IF;
 
-    SELECT av.status INTO v_status
+    SELECT av.status, av.effective_to INTO v_status, v_eff_to
     FROM articles a JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 136 AND a.article_suffix_order = 0;
 
     IF v_status <> 'repealed' THEN
         RAISE EXCEPTION 'migration 086: المادة 136 يُفترض أن تكون status=repealed لكن الفعلى %', v_status;
     END IF;
+    IF v_eff_to <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_to للمادة 136 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_to;
+    END IF;
 
-    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status
-    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status
+    SELECT a.body, av.body, av.amended_by_law_no, av.amended_by_law_year, av.status, av.effective_from
+    INTO v_art_body, v_ver_body, v_amended_no, v_amended_year, v_status, v_eff_from
     FROM articles a
     JOIN article_versions av ON av.article_id = a.id AND av.version_no = 1
     WHERE a.law_id = v_law_id AND a.article_no = 138 AND a.article_suffix_order = 0;
@@ -1078,6 +1203,9 @@ BEGIN
     END IF;
     IF v_amended_no <> 101 OR v_amended_year <> 2012 THEN
         RAISE EXCEPTION 'migration 086: amended_by_law_no/year للمادة 138 غير مطابق (متوقع 101/2012).';
+    END IF;
+    IF v_eff_from <> '2012-12-07'::date THEN
+        RAISE EXCEPTION 'migration 086: effective_from للمادة 138 غير مطابق (متوقع 2012-12-07، الفعلى %)', v_eff_from;
     END IF;
 
     RAISE NOTICE 'migration 086: تم بنجاح. 21 عملية مُطبَّقة. القانون 101/2012: استبدال 10 مواد قائمة، إلغاء مادتين (7 بالكامل، 136 بالكامل)، إلغاء جزئى لبندين فى مادتين (50، 138)، إضافة 7 مواد جديدة، إضافة بند جديد لمادة 135.';
