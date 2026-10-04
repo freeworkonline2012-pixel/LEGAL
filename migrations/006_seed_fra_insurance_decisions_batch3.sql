@@ -18846,9 +18846,10 @@ SELECT id, 1, $b481$الهيئة العامة ثلرقاية المالية
 تليفون: +7١1750980150٠ فاكس 70/071 اد 5ااولاا أمى ععولم8 ومألاأن8
 6016 . ضمح / الالالال نبنى الجسور لا العواجز$b481$, now()::date, 'active' FROM ins_art_________________________1;
 
+-- [تصحيح 114] هذا كتاب دورى وليس قرار مجلس إدارة: أُضيف kind='circular' هنا حتى لا تُنشئ إعادة تشغيل هذا الملف صفاً مكرراً بنوع board_decision (انظر هجرة 114).
 -- ===== كتاب-دوري-رقم-1-لسنة-2023-1 : 1/2023 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
-INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
-VALUES (1, 2023, $t482$بشأن حظر التوكيل أو التفويض فى مزاولة المهن المتخصصة (التأمينية)$t482$, $t482$بشأن حظر التوكيل أو التفويض فى مزاولة المهن المتخصصة (التأمينية)$t482$, 'insurance', 'in_force', $u482$https://fra.gov.eg/wp-content/uploads/2023/02/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%82%D9%85-1-%D9%84%D8%B3%D9%86%D8%A9-2023-1.pdf$u482$, NULL)
+INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at)
+VALUES (1, 2023, $t482$بشأن حظر التوكيل أو التفويض فى مزاولة المهن المتخصصة (التأمينية)$t482$, $t482$بشأن حظر التوكيل أو التفويض فى مزاولة المهن المتخصصة (التأمينية)$t482$, 'insurance', 'circular', 'in_force', $u482$https://fra.gov.eg/wp-content/uploads/2023/02/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%82%D9%85-1-%D9%84%D8%B3%D9%86%D8%A9-2023-1.pdf$u482$, NULL)
 ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING;
 
 WITH ins_art_______________1______2023_1_1 AS (
@@ -18894,7 +18895,7 @@ WITH ins_art_______________1______2023_1_1 AS (
 تليفون: 107010٠ 170+ فاكس: ا .”زوم الاج نبئى الجسور لا الحواجز
 
 01.6 6خ |الالازالالا$b483$
-  FROM laws WHERE law_no = 1 AND law_year = 2023
+  FROM laws WHERE law_no = 1 AND law_year = 2023 AND kind = 'circular'
   ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
