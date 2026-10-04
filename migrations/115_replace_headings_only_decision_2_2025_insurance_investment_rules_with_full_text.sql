@@ -36,6 +36,8 @@
 -- بـON CONFLICT DO NOTHING، وتحقق الختام محصور فى هذا القرار. وإعادة تشغيل بلوك
 -- 006 القديم لا تُعيد المادة الواحدة لأن إدراجها يتخطى القرار الموجود (ON CONFLICT).
 --
+-- [تحديث مع هجرة 119] تحقق الختام صار يعتمد النسخ الأولى (version_no=1، حالتها active أو amended) لأن القرار
+-- 3/2026 استبدل البند (5) من المادة 4 بنسخة ثانية (يتغير articles.body لتلك المادة)، ولولا ذلك لفشل كل نشر لاحق.
 -- ملاحظة تشغيلية: المواد الجديدة بلا embedding؛ يلزم scripts/backfill-embeddings.js بعد النشر.
 
 BEGIN;
@@ -288,12 +290,16 @@ DECLARE
   v_art8 int;
 BEGIN
   SELECT id INTO v_law_id FROM laws WHERE law_no = 2 AND law_year = 2025 AND kind = 'board_decision';
-  SELECT count(*), COALESCE(sum(length(body)),0),
+  -- [119] التحقق من الأطوال والنسخ يعتمد النسخة الأولى (version_no=1) لأنها النص الأصلى الثابت للقرار،
+  -- أما articles.body فقد يتغير بعد تعديل لاحق (القرار 3/2026 يستبدل البند 5 من المادة 4 بنسخة ثانية).
+  SELECT count(*),
          count(*) FILTER (WHERE body LIKE '%' || chr(65533) || '%' OR body LIKE '%املادة%' OR body LIKE '%اهليئة%' OR body LIKE '%جملس%'),
          count(*) FILTER (WHERE article_no = 8 AND body LIKE '%(13) وجه الاستثمار%')
-    INTO v_arts, v_len, v_bad, v_art8 FROM articles WHERE law_id = v_law_id;
-  SELECT count(*) INTO v_vers FROM article_versions av JOIN articles a ON a.id = av.article_id
-   WHERE a.law_id = v_law_id AND av.effective_from = DATE '2025-06-04' AND av.status = 'active';
+    INTO v_arts, v_bad, v_art8 FROM articles WHERE law_id = v_law_id;
+  SELECT count(*), COALESCE(sum(length(av.body)),0) INTO v_vers, v_len
+    FROM article_versions av JOIN articles a ON a.id = av.article_id
+   WHERE a.law_id = v_law_id AND av.version_no = 1 AND av.effective_from = DATE '2025-06-04'
+     AND av.status IN ('active', 'amended');
   IF v_arts <> 12 OR v_vers <> 12 THEN
     RAISE EXCEPTION '[115] متوقَّع 12 مادة و12 نسخة، الفعلى: % / %', v_arts, v_vers;
   END IF;
