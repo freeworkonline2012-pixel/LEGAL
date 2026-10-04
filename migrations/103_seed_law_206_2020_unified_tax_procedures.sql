@@ -1157,7 +1157,13 @@ BEGIN
         RAISE EXCEPTION 'migration 103: تعذر العثور على سجل القانون بعد الإدراج.';
     END IF;
 
-    SELECT COUNT(*) INTO v_total FROM articles WHERE law_id = v_law_id;
+    -- إصلاح جذرى (2026-10-04): Railway pre-deploy يُعيد تشغيل كامل سلسلة
+    -- الهجرات فى كل نشر، وmigration 104 تُضيف لاحقاً 73مكررا و74مكررا
+    -- (suffix >= 1) لنفس القانون - فكان COUNT(*) غير المقيَّد يفشل حتماً
+    -- (89 بدل 87) ويوقف النشر قبل الوصول لأى هجرة تالية. التقييد بـ
+    -- suffix <= 0 هو نطاق هذه الهجرة بالضبط (6 مواد إصدار suffix=-1 +
+    -- 81 مادة suffix=0)، كما فى الإصلاح المماثل لـ migration 076.
+    SELECT COUNT(*) INTO v_total FROM articles WHERE law_id = v_law_id AND article_suffix_order <= 0;
     IF v_total <> 87 THEN
         RAISE EXCEPTION 'migration 103: عدد المواد المتوقع 87 لكن الفعلى %', v_total;
     END IF;
@@ -1165,7 +1171,7 @@ BEGIN
     SELECT COUNT(*) INTO v_versions
     FROM article_versions av
     JOIN articles a ON a.id = av.article_id
-    WHERE a.law_id = v_law_id;
+    WHERE a.law_id = v_law_id AND a.article_suffix_order <= 0;
     IF v_versions <> 87 THEN
         RAISE EXCEPTION 'migration 103: عدد النسخ المتوقع 87 لكن الفعلى %', v_versions;
     END IF;

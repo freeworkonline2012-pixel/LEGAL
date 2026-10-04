@@ -2073,7 +2073,12 @@ BEGIN
     -- suffix)، بدلاً من فحص غير مُقيَّد لكل صفوف law_id (الذى يشمل الآن
     -- أيضاً المواد المكررة اللاحقة بـ suffix >= 1). نفس المبدأ المعمارى
     -- المُثبَّت فى بقية سلسلة الهجرات: كل هجرة تتحقق حصراً من نطاقها هى.
-    SELECT COUNT(*) INTO v_total FROM articles WHERE law_id = v_law_id AND article_suffix_order <= 0;
+    -- إصلاح جذرى ثانٍ (2026-10-04، اكتُشف بإعادة تشغيل السلسلة كاملة
+    -- مرتين): migration 105 (القانون 30/2023) تُنشئ المادة 149 بـ
+    -- article_suffix_order = 0، فكان الفحص أعلاه (suffix <= 0) يرى 157
+    -- مادة بدل 156 ويُسقط كل نشر لاحق. نطاق هذه الهجرة هو المواد 1-148
+    -- حصراً، فقُيِّدت كل الفحوص أدناه أيضاً بـ article_no <= 148.
+    SELECT COUNT(*) INTO v_total FROM articles WHERE law_id = v_law_id AND article_suffix_order <= 0 AND article_no <= 148;
     IF v_total <> 156 THEN
         RAISE EXCEPTION 'migration 076: عدد المواد المتوقع 156 لكن الفعلى %', v_total;
     END IF;
@@ -2081,19 +2086,19 @@ BEGIN
     SELECT COUNT(*) INTO v_versions
     FROM article_versions av
     JOIN articles a ON a.id = av.article_id
-    WHERE a.law_id = v_law_id AND a.article_suffix_order <= 0;
+    WHERE a.law_id = v_law_id AND a.article_suffix_order <= 0 AND a.article_no <= 148;
     IF v_versions <> 156 THEN
         RAISE EXCEPTION 'migration 076: عدد النسخ المتوقع 156 لكن الفعلى %', v_versions;
     END IF;
 
     SELECT COUNT(DISTINCT article_no) INTO v_distinct_main
-    FROM articles WHERE law_id = v_law_id AND article_suffix_order >= 0;
+    FROM articles WHERE law_id = v_law_id AND article_suffix_order >= 0 AND article_no <= 148;
     IF v_distinct_main <> 147 THEN
         RAISE EXCEPTION 'migration 076: عدد أرقام المواد الأساسية المتوقع 147 لكن الفعلى %', v_distinct_main;
     END IF;
 
     SELECT MIN(article_no), MAX(article_no) INTO v_min_no, v_max_no
-    FROM articles WHERE law_id = v_law_id AND article_suffix_order >= 0;
+    FROM articles WHERE law_id = v_law_id AND article_suffix_order >= 0 AND article_no <= 148;
     IF v_min_no <> 1 OR v_max_no <> 148 THEN
         RAISE EXCEPTION 'migration 076: مدى أرقام المواد المتوقع 1-148 لكن الفعلى %-%', v_min_no, v_max_no;
     END IF;
