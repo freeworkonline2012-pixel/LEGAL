@@ -18671,8 +18671,9 @@ SELECT id, 1, $b477$ينشر هذا القرار في الوقائع المصض�
 د/ إسلام عبد العظيم عزام$b477$, now()::date, 'active' FROM ins_art__________82__unlocked_2;
 
 -- ===== كتاب-دوري-4 : 4/2023 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
-INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
-VALUES (4, 2023, $t478$بشأن حماية سرية بيانات المتعاملين فى الأنشطة المالية غير المصرفية$t478$, $t478$بشأن حماية سرية بيانات المتعاملين فى الأنشطة المالية غير المصرفية$t478$, 'insurance', 'in_force', $u478$https://fra.gov.eg/wp-content/uploads/2023/10/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-4.pdf$u478$, NULL)
+-- [تصحيح 120] يُدرَج بنوع circular (كتاب دورى) حتى لا تُعيد إعادة تشغيل هذه الهجرة صفاً مكرراً بنوع board_decision؛ المتن يُستبدل فى هجرة 120.
+INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at)
+VALUES (4, 2023, $t478$بشأن حماية سرية بيانات المتعاملين فى الأنشطة المالية غير المصرفية$t478$, $t478$بشأن حماية سرية بيانات المتعاملين فى الأنشطة المالية غير المصرفية$t478$, 'insurance', 'circular', 'in_force', $u478$https://fra.gov.eg/wp-content/uploads/2023/10/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-4.pdf$u478$, NULL)
 ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING;
 
 WITH ins_art___________4_1 AS (
@@ -18718,7 +18719,7 @@ WITH ins_art___________4_1 AS (
 الهيئة العامة للرقابة المالية
 
 د. محمد نريد صالح$b479$
-  FROM laws WHERE law_no = 4 AND law_year = 2023
+  FROM laws WHERE law_no = 4 AND law_year = 2023 AND kind = 'circular'
   ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
