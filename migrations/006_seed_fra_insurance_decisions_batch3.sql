@@ -1652,9 +1652,9 @@ SELECT id, 1, $b20$ينشر هذا القرار فى الوقائع المص�
  د /محمد فريد صالح$b20$, now()::date, 'active' FROM ins_art_2_2026_2;
 
 -- ===== 2023-08-10-10-04-08-735-1 : 3/2023 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
-INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
-VALUES (3, 2023, $t21$بشأن إجراءات تعزيز الأمن السيبراني بشركات التأمين$t21$, $t21$بشأن إجراءات تعزيز الأمن السيبراني بشركات التأمين$t21$, 'insurance', 'in_force', $u21$https://fra.gov.eg/wp-content/uploads/2023/08/2023-08-10-10-04-08-735-1.pdf$u21$, NULL)
-ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING;
+INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at)
+VALUES (3, 2023, $t21$بشأن إجراءات تعزيز الأمن السيبراني بشركات التأمين$t21$, $t21$بشأن إجراءات تعزيز الأمن السيبراني بشركات التأمين$t21$, 'insurance', 'circular', 'in_force', $u21$https://fra.gov.eg/wp-content/uploads/2023/08/2023-08-10-10-04-08-735-1.pdf$u21$, NULL)
+ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING; -- [تصحيح 117] kind=circular بدل board_decision (انظر هجرة 117)
 
 WITH ins_art_2023_08_10_10_04_08_735_1_1 AS (
   INSERT INTO articles (law_id, article_no, hierarchical_location, body)
@@ -1698,7 +1698,7 @@ WITH ins_art_2023_08_10_10_04_08_735_1_1 AS (
 تليفون: 01760170٠ 171+ فاكس: 801/071 817+ نبنى الجسور لا الحواجز
 
 601١.2 .خم <. |الالازانانا$b22$
-  FROM laws WHERE law_no = 3 AND law_year = 2023
+  FROM laws WHERE law_no = 3 AND law_year = 2023 AND kind = 'circular'
   ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
