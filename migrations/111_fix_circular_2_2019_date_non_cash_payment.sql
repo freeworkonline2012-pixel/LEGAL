@@ -67,15 +67,16 @@ BEGIN
   END IF;
 
   SELECT count(*) INTO v_articles FROM articles WHERE law_id = v_law_id;
-  IF v_articles <> 1 THEN
-    RAISE EXCEPTION '[111] عدد المواد المتوقع 1 لكن الفعلى %', v_articles;
+  -- 1 = الحالة قبل هجرة 112، 7 = بعد تقسيمها إلى أقسام (112) — كلتاهما سليمة
+  IF v_articles NOT IN (1, 7) THEN
+    RAISE EXCEPTION '[111] عدد المواد المتوقع 1 أو 7 لكن الفعلى %', v_articles;
   END IF;
 
   SELECT count(*), count(*) FILTER (WHERE av.effective_from <> DATE '2019-05-26')
     INTO v_versions, v_bad
   FROM article_versions av JOIN articles a ON a.id = av.article_id
   WHERE a.law_id = v_law_id;
-  IF v_versions <> 1 OR v_bad <> 0 THEN
+  IF v_versions <> v_articles OR v_bad <> 0 THEN
     RAISE EXCEPTION '[111] نسخ المادة غير متسقة: versions=% bad=%', v_versions, v_bad;
   END IF;
 
