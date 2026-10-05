@@ -387,7 +387,7 @@ describe('GovernanceService.attemptPenaltyCitation (طبقة استشهاد ال
     const result = await attempt({ query, selectApplicablePenalties });
     expect(result.penaltyNote).toBe('عقوبة السجن سبع سنوات');
     expect(result.applicablePenalties).toEqual([
-      { law: 'قانون 80/2002', law_no: 80, law_year: 2002, article_no: 14, snippet: 'يعاقب بالسجن مدة لا تجاوز سبع سنوات', official_url: null },
+      { law: 'قانون 80/2002', law_no: 80, law_year: 2002, article_no: 14, snippet: 'يعاقب بالسجن مدة لا تجاوز سبع سنوات', official_url: null, source_status: 'غير محسوم' },
     ]);
     // ✅ يتحقق من أن الاختيار جاء من التحقق الدلالى للنموذج (selectedIndices=[1]،
     // أى المادة 14) لا اختياراً تلقائياً لأول مرشح (المادة 13، وهى مادة عامة

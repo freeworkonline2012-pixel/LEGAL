@@ -36,6 +36,14 @@ export class GovernanceLegalBasisDto {
     nullable: true,
   })
   official_url: string | null;
+
+  @ApiPropertyOptional({
+    example: 'ساري',
+    enum: ['ساري', 'معدّل', 'ملغى', 'غير محسوم'],
+    description:
+      'حالة المصدر مشتقة حتمياً من حالة القانون المخزَّنة (2026-10-05). حقل إضافى اختيارى — لا يغيّر أى حقل سابق.',
+  })
+  source_status?: 'ساري' | 'معدّل' | 'ملغى' | 'غير محسوم';
 }
 
 /** مصدر ويب فردى — نفس بنية WebFallbackSource فى web-search-fallback.service.ts
@@ -161,6 +169,38 @@ export class GovernanceRecommendationDto {
   penalty_note: string | null;
 }
 
+/**
+ * طبقة العرض المنظَّم (2026-10-05) — مشتقة حتمياً من باقى الحقول، لا نداء LLM
+ * إضافى ولا تأثير على verdict. راجع governance-presentation.ts.
+ */
+export class GovernancePresentationBasisDto extends GovernanceLegalBasisDto {
+  @ApiProperty({ example: 'نص حرفي', enum: ['نص حرفي'] })
+  text_kind: 'نص حرفي';
+}
+
+export class GovernancePresentationDto {
+  @ApiProperty({ example: 'الإجراء غير متوافق مع النصوص القانونية المسترجَعة. التوصية: غير موصى به.' })
+  direct_answer: string;
+
+  @ApiPropertyOptional({ example: 'تفسير', enum: ['تفسير'], nullable: true })
+  verdict_kind: 'تفسير' | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  verdict_kind_note: string | null;
+
+  @ApiProperty({ type: [String] })
+  warnings: string[];
+
+  @ApiProperty({ type: [String] })
+  open_issues: string[];
+
+  @ApiProperty({ type: [String] })
+  facts_to_confirm: string[];
+
+  @ApiProperty({ type: GovernancePresentationBasisDto, isArray: true })
+  basis: GovernancePresentationBasisDto[];
+}
+
 export class GovernanceVerdictResponseDto {
   @ApiProperty({
     example: 'غير متوافق',
@@ -202,4 +242,11 @@ export class GovernanceVerdictResponseDto {
       'ومبنى مباشرة على legal_basis أعلاه (basis_type="database").',
   })
   recommendation: GovernanceRecommendationDto | null;
+
+  @ApiPropertyOptional({
+    type: GovernancePresentationDto,
+    nullable: true,
+    description: 'طبقة العرض المنظَّم (2026-10-05) — إضافية اختيارية؛ العملاء القدامى يتجاهلونها.',
+  })
+  presentation?: GovernancePresentationDto | null;
 }

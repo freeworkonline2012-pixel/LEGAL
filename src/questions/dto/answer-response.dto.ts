@@ -27,6 +27,83 @@ export class CitationResponseDto {
 
   @ApiProperty({ example: 'يستحق العامل إجازة سنوية مدفوعة الأجر...' })
   snippet: string;
+
+  @ApiPropertyOptional({
+    example: 'ساري',
+    enum: ['ساري', 'معدّل', 'ملغى', 'غير محسوم'],
+    description:
+      'حالة المصدر بمفردات العرض للمستخدم — مشتقة حتمياً من قاعدة البيانات (لا من ' +
+      'النموذج اللغوى): ساري / معدّل (عُرف تاريخ آخر تعديل) / ملغى / غير محسوم ' +
+      '(قانون معدَّل بلا تاريخ تعديل معروف أو حالة غير معروفة — لا نفترض السريان).',
+  })
+  source_status?: string;
+
+  @ApiPropertyOptional({
+    example: 'a-uuid',
+    nullable: true,
+    description:
+      'معرّف القانون فى المنصة لبناء رابط المادة (/laws/{law_id}/articles/{article_no}) ' +
+      'للتحقق من النص الكامل. null/غائب فى السجل التاريخى للأسئلة القديمة.',
+  })
+  law_id?: string | null;
+}
+
+/** حكم/حق/التزام واحد فى الإجابة المنظَّمة مع سنده ووسمه. */
+export class StructuredRulingDto {
+  @ApiProperty({ example: 'يستحق العامل مكافأة نهاية خدمة إذا أنهى صاحب العمل العقد بعد مدة تزيد على خمس سنوات.' })
+  claim: string;
+
+  @ApiProperty({
+    example: 'نص',
+    enum: ['نص', 'تفسير'],
+    description:
+      '"نص": الحكم منقول من النص ويُثبته مقتطف حرفى تحقَّق منه الخادم آلياً داخل نص المادة. ' +
+      '"تفسير": ربط/استنتاج/تطبيق على واقعة لا يقرره النص صراحةً (قد يكون محل خلاف).',
+  })
+  kind: 'نص' | 'تفسير';
+
+  @ApiProperty({
+    example: 0,
+    description: 'فهرس (من صفر) المادة المستند إليها داخل citations فى نفس الاستجابة.',
+  })
+  citation_index: number;
+
+  @ApiPropertyOptional({ example: 'استحق العامل مكافأة', nullable: true })
+  quote: string | null;
+
+  @ApiProperty({ example: true, description: 'هل وُجد المقتطف حرفياً داخل نص المادة (فحص آلى).' })
+  quote_verified: boolean;
+}
+
+/**
+ * الإجابة المنظَّمة (2026-10-05): جواب مباشر أولاً، ثم الأحكام بسندها ووسمها،
+ * ثم التحذيرات والمسائل المفتوحة والوقائع المطلوب تأكيدها. حقل إضافى اختيارى
+ * فى AnswerResponseDto — غائب عندما يرجع الخادم للمسار القديم (answer نصى فقط).
+ */
+export class StructuredAnswerDto {
+  @ApiProperty({ example: 'نعم، يستحق مكافأة بشرط أن تتجاوز مدة العقد خمس سنوات.' })
+  direct_answer: string;
+
+  @ApiProperty({ type: StructuredRulingDto, isArray: true })
+  rulings: StructuredRulingDto[];
+
+  @ApiProperty({
+    type: [String],
+    description: 'تحذيرات بارزة: حالة المصادر (من قاعدة البيانات) ثم شروط/مدد تسقط الحق (من النموذج).',
+  })
+  warnings: string[];
+
+  @ApiProperty({ type: [String], description: 'مسائل خلافية أو غير محسوم فيها نصاً أو قضاءً.' })
+  open_issues: string[];
+
+  @ApiProperty({
+    type: [String],
+    description: 'وقائع يحتاج المستخدم إلى تأكيدها لتصير الإجابة قاطعة (مثل مدة الخدمة، كتابة التجديد).',
+  })
+  facts_to_confirm: string[];
+
+  @ApiProperty({ type: [String], description: 'أجزاء السؤال التى لا تجيب عنها النصوص المتاحة (بلا تخمين).' })
+  not_covered: string[];
 }
 
 export class WebFallbackSourceDto {
@@ -95,6 +172,15 @@ export class AnswerResponseDto {
 
   @ApiProperty({ example: false })
   refused: boolean;
+
+  @ApiPropertyOptional({
+    type: StructuredAnswerDto,
+    nullable: true,
+    description:
+      'الإجابة المنظَّمة (جواب مباشر + أحكام بسندها ووسمها + تحذيرات + مسائل مفتوحة + ' +
+      'وقائع للتأكيد). غائب/null عندما يرجع الخادم للمسار النصى القديم (answer فقط).',
+  })
+  structured?: StructuredAnswerDto | null;
 
   @ApiPropertyOptional({
     type: WebFallbackResponseDto,

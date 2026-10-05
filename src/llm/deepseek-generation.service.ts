@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { normalizeArabic, toEnglishDigits } from '../ingestion/normalize';
 import { detectCrossReferencedArticles } from '../questions/retrieval';
+import {
+  collectProseForGate,
+  parseStructuredAnswer,
+  type StructuredAnswer,
+} from '../questions/structured-answer';
 
 export interface GroundedGenerationInput {
   question: string;
@@ -56,6 +61,41 @@ export type GroundedGenerationOutcome =
   | { status: 'api_error' }
   | { status: 'empty_response' }
   | { status: 'hallucination_rejected' };
+
+/**
+ * ناتج composeStructuredAnswer (2026-10-05). أى حالة غير 'ok' تعنى أن
+ * questions.service.ts يرجع فوراً للمسار القديم المُعايَر (composeGroundedAnswerMulti)
+ * بلا أى أثر على المستخدم — التوليد المنظَّم إضافة آمنة الفشل، لا بديل إجبارى.
+ */
+export type StructuredGenerationOutcome =
+  | { status: 'ok'; structured: StructuredAnswer }
+  | { status: 'not_configured' }
+  | { status: 'api_error' }
+  | { status: 'empty_response' }
+  | { status: 'invalid_structure'; reason: string }
+  | { status: 'hallucination_rejected' };
+
+/**
+ * قاعدة الوسم "نص/تفسير" فى التوليد المنظَّم — تحل محل العبارة الثابتة
+ * الإلزامية لـGENERATION_INTERPRETIVE_CERTAINTY_RULE (التى تبقى كما هى فى
+ * المسار القديم): هنا يُعبَّر عن الربط التفسيرى بوسم kind='تفسير' فى نفس
+ * الحكم وبإدراج المسألة الخلافية فى open_issues، لا بجملة نثرية ملحقة. نفس
+ * خطوة التحقق الذاتى الإلزامية، ونفس المثالين المحسومين، لكن بنتيجة بنيوية
+ * يتحقق منها الخادم (المقتطف الحرفى) لا بنتيجة يقررها النموذج منفرداً.
+ */
+const STRUCTURED_KIND_RULE =
+  'قاعدة الوسم (إلزامية): لكل حكم فى rulings حدِّد kind بخطوة تحقق ذاتى قبل الكتابة — ' +
+  'هل النص المرفق نفسه يقرر هذا الحكم صراحةً بنفس وصف الواقعة أو بمرادف مباشر لا لبس ' +
+  'فيه؟ إن نعم فـ"نص" مع quote إلزامى: مقتطف **منسوخ حرفياً** من النص المرفق (حتى 40 ' +
+  'كلمة، ويجوز استخدام "..." بين مقطعين حرفيين). إن كان الحكم ربطاً أو استنتاجاً أو ' +
+  'تطبيقاً لنص عام على واقعة السؤال (مثال: النص يقرر حكماً لحالة "الإنهاء من جانب ' +
+  'صاحب العمل" والسؤال عن "عدم تجديد عقد مؤقت" — النص لا يذكر عدم التجديد بالاسم؛ ' +
+  'أو مثال: نص يشترط "مدة تزيد على خمس سنوات" لعقد واحد أو تجديد واحد والسؤال عن ' +
+  'عقود سنوية متتالية — النص لا يقول هل تُجمع المدد) فـ"تفسير"، وأضف المسألة نفسها فى ' +
+  'open_issues بصياغة موجزة تصرِّح أنها غير منصوص عليها صراحةً وقد تكون محل خلاف ' +
+  '(ولا تُضِف عبارة ملاحظة نثرية داخل claim). الخادم يتحقق آلياً من quote داخل نص ' +
+  'المادة، وأى حكم يوسم "نص" بلا مقتطف حرفى صحيح يُخفَّض تلقائياً إلى "تفسير" — فلا ' +
+  'تُجازف بوسم "نص" لتبدو الإجابة أقوى.';
 
 /**
  * ⚠️ إصلاح جذرى 2026-09-24 (دفعة ثالثة — بعد إصلاحى توسيع الإحالات وتفكيك
@@ -575,6 +615,142 @@ export class DeepseekGenerationService {
       return { status: 'ok', text };
     } catch (err) {
       this.logger.error(`DeepSeek composeGroundedAnswerMulti API call failed: ${(err as Error).message}`);
+      return { status: 'api_error' };
+    }
+  }
+
+  /**
+   * التوليد المنظَّم (2026-10-05 — المرحلة 1 من طلب "تحسين شكل الإجابة"):
+   * نداء واحد يُخرج JSON: جواب مباشر، أحكام (claim/kind/source/quote)،
+   * مسائل مفتوحة، تحذيرات، وقائع للتأكيد، وأجزاء غير مغطاة. يحتفظ بكل
+   * انضباط المسار القديم (ممنوع الإضافة من خارج النص، أمانة نقل الشروط،
+   * يقين العرض عبر وسم نص/تفسير) ويضيف تحققاً حتمياً بعد التوليد: (1) بنية
+   * JSON، (2) بوابة هلوسة أرقام المواد على كل النصوص الحرة، (3) فحص المقتطفات
+   * الحرفية (parseStructuredAnswer). فشل أى منها → حالة غير ok → رجوع المسار
+   * القديم المُعايَر دون أى تغيير فى سلوكه.
+   */
+  async composeStructuredAnswer(
+    input: GroundedGenerationMultiInput,
+  ): Promise<StructuredGenerationOutcome> {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+    if (input.articles.length === 0) {
+      return { status: 'empty_response' };
+    }
+
+    const system =
+      'أنت مساعد قانونى يصوغ إجابة منظَّمة بالعربية بناءً حصراً على النصوص القانونية ' +
+      'المرفقة أدناه، ولا شىء غيرها. ممنوع منعاً باتاً إضافة أى معلومة أو رقم مادة أو ' +
+      'تفسير أو مثال غير موجود حرفياً فى أحد النصوص المرفقة. لا تذكر أنك ذكاء ' +
+      'اصطناعى ولا تعتذر ولا تكتب مقدمات ولا تُكرِّر معلومة سبق ذكرها.\n\n' +
+      'افحص **كل** نص مرفق قبل أن تقرر أن جزءاً من السؤال بلا إجابة (الأسئلة المقارنة أو ' +
+      'المركَّبة تحتاج غالباً أكثر من نص)، واعتبر المواد المُحال إليها صراحةً داخل نص ما ' +
+      'جزءاً من فهم حكمه.\n\n' +
+      'أخرِج **كائن JSON واحداً فقط** (بلا أى نص خارجه) بهذه المفاتيح بالضبط:\n' +
+      '{\n' +
+      '  "direct_answer": "جواب مباشر فى جملة إلى ثلاث جمل قبل أى تفصيل: نعم/لا/يعتمد على كذا، ' +
+      'ثم أهم شرط أو تحفظ. إن كانت الإجابة تتوقف على واقعة غير مذكورة فى السؤال فقل ذلك صراحةً هنا.",\n' +
+      '  "rulings": [ { "claim": "حكم/حق/التزام واحد فى جملة موجزة (حتى 40 كلمة) ويتضمن شروطه ' +
+      'واستثناءاته ومُدده فى نفس الجملة", "kind": "نص" أو "تفسير", "source": رقم النص المرفق ' +
+      '(1..N) الذى يستند إليه الحكم، "quote": "مقتطف حرفى منسوخ من ذلك النص (إلزامى عند kind=نص)" } ],\n' +
+      '  "open_issues": ["مسائل خلافية أو غير محسومة نصاً أو قضاءً، كل مسألة فى جملة"],\n' +
+      '  "warnings": ["تحذيرات عملية: مواعيد أو مدد أو شروط قد تُسقط الحق، كل تحذير فى جملة"],\n' +
+      '  "facts_to_confirm": ["وقائع غير مذكورة فى السؤال ويتوقف عليها الحكم (مثل: مدة الخدمة، ' +
+      'نوع العقد، هل التجديد كتابى)، كل واقعة فى جملة سؤال قصيرة"],\n' +
+      '  "not_covered": ["أجزاء من السؤال لا تجيب عنها أى من النصوص المرفقة رغم فحصها كلها"]\n' +
+      '}\n' +
+      'القوائم الفارغة تُكتب [] — لا تملأها لمجرد الملء. الأحكام فى rulings تُرتَّب بترتيب أهميتها ' +
+      'للسؤال (لا أكثر من 8). لا تذكر حالة سريان القانون (ساري/ملغى) فى أى حقل؛ يضيفها الخادم ' +
+      'من قاعدة البيانات. إن ذكرت رقم مادة داخل claim فيجب أن تكون ضمن النصوص المرفقة أو ' +
+      'محالاً إليها صراحةً داخلها.\n\n' +
+      STRUCTURED_KIND_RULE +
+      '\n\n' +
+      GENERATION_CONDITIONAL_FIDELITY_RULE;
+
+    const articlesText = input.articles
+      .map(
+        (a, i) =>
+          `النص ${i + 1} — المادة ${a.articleNo} من ${a.lawTitle} (رقم ${a.lawNo} لسنة ${a.lawYear}):\n"""${a.articleText}"""`,
+      )
+      .join('\n\n');
+
+    const userMsg =
+      `سؤال المستخدم: ${input.question}\n\n` +
+      `النصوص القانونية المرجعية (${input.articles.length}):\n${articlesText}\n\n` +
+      'أخرِج كائن JSON وفق المفاتيح المحددة.';
+
+    const maxTokens = Math.min(3500, 1100 + input.articles.length * 300);
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: maxTokens,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.error(`DeepSeek composeStructuredAnswer API error ${res.status}: ${errText}`);
+        return { status: 'api_error' };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        this.logger.warn(
+          `DeepSeek composeStructuredAnswer: content فارغ — الجسم الخام (مقتطف): ${JSON.stringify(data).slice(0, 300)}`,
+        );
+        return { status: 'empty_response' };
+      }
+
+      const parsed = parseStructuredAnswer(
+        text,
+        input.articles.map((a) => ({ text: a.articleText })),
+      );
+      if (!parsed.ok) {
+        this.logger.warn(
+          `DeepSeek composeStructuredAnswer: بنية غير صالحة (${parsed.reason}، finish_reason=` +
+            `${data.choices?.[0]?.finish_reason ?? 'unknown'}) — fail-safe: رجوع للمسار القديم.`,
+        );
+        return { status: 'invalid_structure', reason: parsed.reason };
+      }
+
+      // بوابة هلوسة أرقام المواد (نفس تعريف "الأرقام الصحيحة" فى المسار القديم:
+      // المواد المرفقة + إحالاتها الصريحة) على كل النصوص الحرة — لا على المقتطفات
+      // الحرفية (تُتحقَّق منها حرفياً فى parseStructuredAnswer).
+      const validArticleNumbers = computeValidCitationNumbers(
+        input.articles.map((a) => a.articleNo),
+        input.articles.map((a) => a.articleText),
+      );
+      const hallucinated = findHallucinatedArticleCitations(
+        collectProseForGate(parsed.value),
+        validArticleNumbers,
+      );
+      if (hallucinated.length > 0) {
+        this.logger.warn(
+          `DeepSeek composeStructuredAnswer: استشهاد بأرقام مواد غير مرسَلة [${hallucinated.join(',')}] — ` +
+            `المسموح بها: [${validArticleNumbers.join(',')}]. fail-safe: رجوع للمسار القديم.`,
+        );
+        return { status: 'hallucination_rejected' };
+      }
+      return { status: 'ok', structured: parsed.value };
+    } catch (err) {
+      this.logger.error(`DeepSeek composeStructuredAnswer API call failed: ${(err as Error).message}`);
       return { status: 'api_error' };
     }
   }

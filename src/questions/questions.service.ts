@@ -36,6 +36,13 @@ import {
   toCitationStatus,
 } from './retrieval';
 import type { ArticleReference } from './retrieval';
+import {
+  buildStatusWarnings,
+  computeSourceStatus,
+  renderStructuredAsText,
+  type RenderCitationMeta,
+  type StructuredAnswer,
+} from './structured-answer';
 
 export const REFUSED_ANSWER_TEXT = 'لا تتوفر معلومة موثقة كافية للإجابة بدقة.';
 
@@ -222,8 +229,45 @@ export class QuestionsService {
     // التحقق تبقى كما هي). فشل الاستدعاء أو عدم التفعيل → رجوع فوري للقالب
     // الجاهز القديم دون أي تغيير في العقد أو انقطاع.
     let usedLlm = false;
-    let answerText: string;
-    if (retrieval.citations.length > 0) {
+    let answerText = '';
+    // الإجابة المنظَّمة (2026-10-05): مسار إضافى آمن الفشل فوق المسار القديم
+    // المُعايَر — راجع composeStructuredAnswer. أى فشل (بنية JSON، بوابة الهلوسة،
+    // API، عدم التهيئة) أو تعطيل صريح بـSTRUCTURED_ANSWERS_ENABLED=false → يعمل
+    // المسار القديم أدناه بلا أى تغيير فى سلوكه.
+    let structured: StructuredAnswer | null = null;
+    let platformWarnings: string[] = [];
+    const citationMeta: RenderCitationMeta[] = retrieval.citations.map((c) => ({
+      law: c.law,
+      lawNo: c.lawNo,
+      lawYear: c.lawYear,
+      articleNo: c.articleNo,
+      sourceStatus: computeSourceStatus({ status: c.status, lastAmended: c.lastAmended }),
+    }));
+    if (retrieval.citations.length > 0 && process.env.STRUCTURED_ANSWERS_ENABLED !== 'false') {
+      const structuredOutcome = await this.generationService.composeStructuredAnswer({
+        question: dto.question,
+        articles: retrieval.citations.map((c) => ({
+          lawTitle: c.law,
+          lawNo: c.lawNo,
+          lawYear: c.lawYear,
+          articleNo: c.articleNo,
+          articleText: c.snippet,
+        })),
+      });
+      if (structuredOutcome.status === 'ok') {
+        structured = structuredOutcome.structured;
+        platformWarnings = buildStatusWarnings(citationMeta);
+        answerText = renderStructuredAsText(structured, citationMeta, platformWarnings);
+        usedLlm = true;
+      } else {
+        this.logger.warn(
+          `الإجابة المنظَّمة غير متاحة (${structuredOutcome.status}) — رجوع للمسار القديم المُعايَر.`,
+        );
+      }
+    }
+    if (structured) {
+      // answerText جاهز من الإجابة المنظَّمة أعلاه
+    } else if (retrieval.citations.length > 0) {
       // composeGroundedAnswerMulti (2026-09-24): يستقبل **كل** الاستشهادات
       // المُسترجَعة معاً (النص الأساسي + إحالاته الصريحة + أي مرشحين إضافيين
       // ضروريين معاً لسؤال مقارن/مركَّب — راجع تعليق RetrievalResult أعلاه)
@@ -269,6 +313,9 @@ export class QuestionsService {
           answer: answerText,
           citations: retrieval.citations.map((c) => this.toCitationDto(c)),
           refused: false,
+          structured: structured
+            ? { ...structured, warnings: [...platformWarnings, ...structured.warnings] }
+            : null,
         }
       : {
           answer: answerText,
@@ -494,6 +541,8 @@ export class QuestionsService {
             last_amended: citation.lastAmended,
             official_url: citation.officialUrl,
             snippet: citation.snippet,
+            source_status: computeSourceStatus({ status: citation.status, lastAmended: citation.lastAmended }),
+            law_id: null,
           })),
         refused: latestAnswer.refused,
       },
@@ -1641,6 +1690,8 @@ export class QuestionsService {
       last_amended: citation.lastAmended,
       official_url: citation.officialUrl,
       snippet: citation.snippet,
+      source_status: computeSourceStatus({ status: citation.status, lastAmended: citation.lastAmended }),
+      law_id: citation.lawId,
     };
   }
 

@@ -9,6 +9,8 @@ import { WebSearchFallbackService } from '../llm/web-search-fallback.service';
 import { Article } from '../database/entities/article.entity';
 import { ArticleVersion } from '../database/entities/article-version.entity';
 import { Law } from '../database/entities/law.entity';
+import { computeSourceStatus } from '../questions/structured-answer';
+import { buildGovernancePresentation } from './governance-presentation';
 import { buildFtsQuery, confidenceFromRank } from '../questions/retrieval';
 import { AssessGovernanceDto } from './dto/assess-governance.dto';
 import {
@@ -27,6 +29,9 @@ interface GovernanceCitation {
   articleSuffixOrder: number;
   snippet: string;
   officialUrl: string | null;
+  // 2026-10-05 (حالة المصدر): تُشتق منها source_status حتمياً للعرض فقط.
+  lawStatus?: string | null;
+  lastAmendedAt?: string | null;
 }
 
 interface GovernanceCandidate {
@@ -186,7 +191,7 @@ export class GovernanceService {
       );
       result.recommendation = await this.attemptWebAdvisory(question, qHash);
       await this.audit(context, qHash, [], { status: 'no_candidates' }, result);
-      return result;
+      return this.attachPresentation(result);
     }
 
     const rerankResults = await this.embeddingsService.rerank(
@@ -341,6 +346,7 @@ export class GovernanceService {
           article_no: c.articleNo,
           snippet: c.snippet,
           official_url: c.officialUrl,
+          source_status: computeSourceStatus({ status: c.lawStatus, lastAmended: c.lastAmendedAt }),
         };
       });
       result = this.buildResult(
@@ -398,6 +404,25 @@ export class GovernanceService {
       result,
     );
 
+    return this.attachPresentation(result);
+  }
+
+  /**
+   * طبقة العرض المنظَّم (2026-10-05): تُلحَق **بعد** audit وبعد استقرار كل
+   * حقول الحكم — إضافة صرفة مشتقة حتمياً، fail-safe (أى استثناء هنا يُهمَل
+   * ويبقى الرد القديم كاملاً).
+   */
+  private attachPresentation(result: GovernanceVerdictResponseDto): GovernanceVerdictResponseDto {
+    try {
+      result.presentation = buildGovernancePresentation({
+        verdict: result.verdict,
+        legal_basis: result.legal_basis,
+        recommendation: result.recommendation,
+      });
+    } catch (err) {
+      this.logger.warn(`governance presentation skipped: ${(err as Error).message}`);
+      result.presentation = null;
+    }
     return result;
   }
 
@@ -705,11 +730,14 @@ export class GovernanceService {
       law_no: number;
       law_year: number;
       official_url: string | null;
+      status: string | null;
+      last_amended_at: string | null;
       body: string;
     }> = await this.dataSource.query(
       `SELECT
          a.article_no, a.article_suffix_order,
          l.short_title, l.title, l.law_no, l.law_year, l.official_url,
+         l.status, l.last_amended_at,
          av.body
        FROM article_versions av
        JOIN articles a ON a.id = av.article_id
@@ -731,6 +759,8 @@ export class GovernanceService {
       articleSuffixOrder: row.article_suffix_order,
       snippet: row.body,
       officialUrl: row.official_url,
+      lawStatus: row.status,
+      lastAmendedAt: row.last_amended_at,
     }));
   }
 
@@ -828,6 +858,7 @@ export class GovernanceService {
             article_no: c.articleNo,
             snippet: c.snippet,
             official_url: c.officialUrl,
+            source_status: computeSourceStatus({ status: c.lawStatus, lastAmended: c.lastAmendedAt }),
           };
         });
 
@@ -919,6 +950,8 @@ export class GovernanceService {
       law_year: number;
       body: string;
       official_url: string | null;
+      status: string | null;
+      last_amended_at: string | null;
       similarity: number;
     }>;
     await queryRunner.connect();
@@ -929,6 +962,7 @@ export class GovernanceService {
         `SELECT
            a.article_no, a.article_suffix_order,
            l.short_title, l.title, l.law_no, l.law_year, l.official_url,
+           l.status, l.last_amended_at,
            av.body,
            1 - (a.embedding <=> $1::vector) AS similarity
          FROM articles a
@@ -968,6 +1002,8 @@ export class GovernanceService {
         articleSuffixOrder: row.article_suffix_order,
         snippet: row.body,
         officialUrl: row.official_url,
+        lawStatus: row.status,
+        lastAmendedAt: row.last_amended_at,
       },
       confidence: Math.min(1, Math.max(0, Number(row.similarity))),
       source: 'semantic' as const,
@@ -1013,6 +1049,8 @@ export class GovernanceService {
       articleSuffixOrder: version.article.articleSuffixOrder,
       snippet: version.body,
       officialUrl: version.article.law.officialUrl,
+      lawStatus: version.article.law.status,
+      lastAmendedAt: version.article.law.lastAmendedAt,
     };
   }
 }
