@@ -46,12 +46,25 @@ export interface StructuredArticleMeta {
   text: string;
 }
 
+/** إحصاءات تشخيصية للتسجيل فقط (لا تُعرَض للمستخدم). */
+export interface ParseStats {
+  /** عدد الأحكام التى طلب النموذج وسمها "نص". */
+  requested_text: number;
+  /** منها ما خُفِّض إلى "تفسير" لعدم ثبوت المقتطف الحرفى. */
+  downgraded: number;
+  /** أحكام أُسقطت لمصدر غير صالح. */
+  dropped: number;
+}
+
 export type ParseStructuredResult =
-  | { ok: true; value: StructuredAnswer }
+  | { ok: true; value: StructuredAnswer; stats: ParseStats }
   | { ok: false; reason: string };
 
-export const MAX_RULINGS = 10;
+export const MAX_RULINGS = 8;
 export const MAX_LIST_ITEMS = 8;
+/** إيجاز العرض: حدود أضيق لقوائم التحذيرات والوقائع (المسائل المفتوحة تبقى حتى MAX_LIST_ITEMS). */
+export const MAX_WARNINGS = 4;
+export const MAX_FACTS = 5;
 export const MAX_FIELD_CHARS = 700;
 export const MAX_QUOTE_WORDS = 40;
 
@@ -110,13 +123,13 @@ function cleanStr(v: unknown, max = MAX_FIELD_CHARS): string {
   return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
 }
 
-function cleanList(v: unknown): string[] {
+function cleanList(v: unknown, max: number = MAX_LIST_ITEMS): string[] {
   if (!Array.isArray(v)) return [];
   const out: string[] = [];
   for (const item of v) {
     const s = cleanStr(item);
     if (s.length >= 3 && !out.includes(s)) out.push(s);
-    if (out.length >= MAX_LIST_ITEMS) break;
+    if (out.length >= max) break;
   }
   return out;
 }
@@ -153,13 +166,17 @@ export function parseStructuredAnswer(
   }
   const rawRulings = Array.isArray(obj.rulings) ? obj.rulings : [];
   const rulings: StructuredRuling[] = [];
+  const stats: ParseStats = { requested_text: 0, downgraded: 0, dropped: 0 };
   for (const r of rawRulings) {
     if (!r || typeof r !== 'object') continue;
     const rr = r as Record<string, unknown>;
     const claim = cleanStr(rr.claim);
     const srcNum = Number(rr.source);
     if (claim.length < 5) continue;
-    if (!Number.isInteger(srcNum) || srcNum < 1 || srcNum > articles.length) continue;
+    if (!Number.isInteger(srcNum) || srcNum < 1 || srcNum > articles.length) {
+      stats.dropped++;
+      continue;
+    }
     const idx = srcNum - 1;
     let quote: string | null = cleanStr(rr.quote, 500) || null;
     if (quote && quote.split(/\s+/).length > MAX_QUOTE_WORDS) {
@@ -169,6 +186,10 @@ export function parseStructuredAnswer(
     const requested = cleanStr(rr.kind, 20);
     // نص إلا إذا ثبت المقتطف الحرفى؛ أى شىء آخر (أو وسم غير معروف) = تفسير.
     const kind: RulingKind = requested === 'نص' && verified ? 'نص' : 'تفسير';
+    if (requested === 'نص') {
+      stats.requested_text++;
+      if (kind !== 'نص') stats.downgraded++;
+    }
     rulings.push({
       claim,
       kind,
@@ -187,10 +208,11 @@ export function parseStructuredAnswer(
       direct_answer: direct,
       rulings,
       open_issues: cleanList(obj.open_issues),
-      warnings: cleanList(obj.warnings),
-      facts_to_confirm: cleanList(obj.facts_to_confirm),
+      warnings: cleanList(obj.warnings, MAX_WARNINGS),
+      facts_to_confirm: cleanList(obj.facts_to_confirm, MAX_FACTS),
       not_covered: cleanList(obj.not_covered),
     },
+    stats,
   };
 }
 

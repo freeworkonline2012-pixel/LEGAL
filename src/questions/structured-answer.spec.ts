@@ -145,6 +145,49 @@ describe('parseStructuredAnswer', () => {
     expect(r.value.warnings[0].length).toBeLessThanOrEqual(700);
   });
 
+  it('يحدّ التحذيرات (4) والوقائع (5) والأحكام (8) ويُرجع إحصاءات التخفيض والإسقاط', () => {
+    const many = {
+      ...good,
+      rulings: [
+        ...Array.from({ length: 10 }, (_, i) => ({ claim: `حكم رقم ${i} موجز`, kind: 'تفسير', source: 1 })),
+        { claim: 'حكم نص بلا مقتطف صحيح', kind: 'نص', source: 1, quote: 'مقتطف غير موجود إطلاقاً هنا' },
+        { claim: 'حكم لمصدر غير صالح', kind: 'تفسير', source: 9 },
+      ],
+      warnings: Array.from({ length: 9 }, (_, i) => `تحذير ${i} مختلف`),
+      facts_to_confirm: Array.from({ length: 9 }, (_, i) => `واقعة ${i} مختلفة؟`),
+    };
+    const r = parseStructuredAnswer(JSON.stringify(many), arts);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.rulings).toHaveLength(8);
+    expect(r.value.warnings).toHaveLength(4);
+    expect(r.value.facts_to_confirm).toHaveLength(5);
+    const r2 = parseStructuredAnswer(
+      JSON.stringify({
+        ...good,
+        rulings: [
+          { claim: 'حكم نص بلا مقتطف صحيح', kind: 'نص', source: 1, quote: 'مقتطف غير موجود إطلاقاً هنا' },
+          { claim: 'حكم لمصدر غير صالح', kind: 'تفسير', source: 9 },
+          good.rulings[0],
+        ],
+      }),
+      arts,
+    );
+    expect(r2.ok && r2.stats).toEqual({ requested_text: 2, downgraded: 1, dropped: 1 });
+  });
+
+  it('يحتفظ بالمقتطف الموثَّق حتى مع kind=تفسير (نص مرتبط بالحكم)', () => {
+    const r = parseStructuredAnswer(
+      JSON.stringify({
+        ...good,
+        rulings: [{ claim: 'ربط تفسيرى بالواقعة هنا.', kind: 'تفسير', source: 1, quote: 'استحق العامل مكافأة عن مدة خدمته' }],
+      }),
+      arts,
+    );
+    expect(r.ok && r.value.rulings[0]).toMatchObject({ kind: 'تفسير', quote_verified: true });
+    expect(r.ok && r.value.rulings[0].quote).toBe('استحق العامل مكافأة عن مدة خدمته');
+  });
+
   it('يتجاهل المقتطف الطويل جداً (نسخ لا استشهاد)', () => {
     const long = ART_154.repeat(3);
     const bad = { ...good, rulings: [{ claim: 'حكم بمقتطف مفرط الطول.', kind: 'نص', source: 1, quote: long }] };
