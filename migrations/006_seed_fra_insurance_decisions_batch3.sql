@@ -18944,8 +18944,9 @@ SELECT id, 1, $b483$42 جا وس متت
 01.6 6خ |الالازالالا$b483$, now()::date, 'active' FROM ins_art_______________1______2023_1_1;
 
 -- ===== كتاب-دوري-رقم-5-لسنة-2022 : 5/2022 (احتياطى — نص كامل غير مُقسَّم؛ السبب: مادة وحيدة مكتشَفة استشهاد زائف بقانون آخر — أُجبِر على المسار الاحتياطى بعد تحقق يدوى) =====
-INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
-VALUES (5, 2022, $t484$بشأن اختبارات الوظائف الرئيسية فى الشركات العاملة فى الأنشطة المالية غير المصرفية$t484$, $t484$بشأن اختبارات الوظائف الرئيسية فى الشركات العاملة فى الأنشطة المالية غير المصرفية$t484$, 'insurance', 'in_force', $u484$https://fra.gov.eg/wp-content/uploads/2022/12/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%82%D9%85-5-%D9%84%D8%B3%D9%86%D8%A9-2022.pdf$u484$, NULL)
+-- [تصحيح 123] يُدرَج بنوع circular (كتاب دورى) حتى لا تُعيد إعادة تشغيل هذه الهجرة صفاً مكرراً بنوع board_decision؛ المتن يُستبدل فى هجرة 123.
+INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at)
+VALUES (5, 2022, $t484$بشأن اختبارات الوظائف الرئيسية فى الشركات العاملة فى الأنشطة المالية غير المصرفية$t484$, $t484$بشأن اختبارات الوظائف الرئيسية فى الشركات العاملة فى الأنشطة المالية غير المصرفية$t484$, 'insurance', 'circular', 'in_force', $u484$https://fra.gov.eg/wp-content/uploads/2022/12/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%82%D9%85-5-%D9%84%D8%B3%D9%86%D8%A9-2022.pdf$u484$, NULL)
 ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING;
 
 WITH ins_art_______________5______2022_1 AS (
@@ -19478,7 +19479,7 @@ WITH ins_art_______________5______2022_1 AS (
                                                                                                  دليل الضوابط والقواعد والمعايير المنظمة لعمل النشاط    -                                      التمويل االستهالكي)
 
                                                                                                           19$b485$
-  FROM laws WHERE law_no = 5 AND law_year = 2022
+  FROM laws WHERE law_no = 5 AND law_year = 2022 AND kind = 'circular'
   ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
