@@ -54,6 +54,8 @@ export interface ParseStats {
   downgraded: number;
   /** أحكام أُسقطت لمصدر غير صالح. */
   dropped: number;
+  /** سبب كل تخفيض (للتسجيل التشخيصى فقط): 'no_quote' | 'unverified' مع رأس المقتطف. */
+  failures: string[];
 }
 
 export type ParseStructuredResult =
@@ -166,7 +168,7 @@ export function parseStructuredAnswer(
   }
   const rawRulings = Array.isArray(obj.rulings) ? obj.rulings : [];
   const rulings: StructuredRuling[] = [];
-  const stats: ParseStats = { requested_text: 0, downgraded: 0, dropped: 0 };
+  const stats: ParseStats = { requested_text: 0, downgraded: 0, dropped: 0, failures: [] };
   for (const r of rawRulings) {
     if (!r || typeof r !== 'object') continue;
     const rr = r as Record<string, unknown>;
@@ -178,23 +180,30 @@ export function parseStructuredAnswer(
       continue;
     }
     const idx = srcNum - 1;
-    let quote: string | null = cleanStr(rr.quote, 500) || null;
-    if (quote && quote.split(/\s+/).length > MAX_QUOTE_WORDS) {
-      quote = null; // مقتطف طويل جداً = نسخ لا استشهاد؛ لا يُعرَض
+    const rawQuote: string | null = cleanStr(rr.quote, 1200) || null;
+    // التحقق يجرى على المقتطف كاملاً (حتى لو طويل)؛ المقتطف الطويل الموثَّق يُعرَض مقتطعاً
+    // بأول MAX_QUOTE_WORDS كلمة مع "…" (جزء حرفى حقيقى من النص) بدل إسقاطه كلياً.
+    const verified = rawQuote ? verifyQuote(rawQuote, articles[idx].text) : false;
+    let quote: string | null = null;
+    if (verified && rawQuote) {
+      const words = rawQuote.split(/\s+/);
+      quote = words.length > MAX_QUOTE_WORDS ? `${words.slice(0, MAX_QUOTE_WORDS).join(' ')} …` : rawQuote;
     }
-    const verified = quote ? verifyQuote(quote, articles[idx].text) : false;
     const requested = cleanStr(rr.kind, 20);
     // نص إلا إذا ثبت المقتطف الحرفى؛ أى شىء آخر (أو وسم غير معروف) = تفسير.
     const kind: RulingKind = requested === 'نص' && verified ? 'نص' : 'تفسير';
     if (requested === 'نص') {
       stats.requested_text++;
-      if (kind !== 'نص') stats.downgraded++;
+      if (kind !== 'نص') {
+        stats.downgraded++;
+        stats.failures.push(rawQuote ? `unverified(${rawQuote.split(/\s+/).length}w): ${rawQuote.slice(0, 70)}` : 'no_quote');
+      }
     }
     rulings.push({
       claim,
       kind,
       citation_index: idx,
-      quote: verified ? quote : null,
+      quote,
       quote_verified: verified,
     });
     if (rulings.length >= MAX_RULINGS) break;

@@ -173,7 +173,8 @@ describe('parseStructuredAnswer', () => {
       }),
       arts,
     );
-    expect(r2.ok && r2.stats).toEqual({ requested_text: 2, downgraded: 1, dropped: 1 });
+    expect(r2.ok && r2.stats).toMatchObject({ requested_text: 2, downgraded: 1, dropped: 1 });
+    expect(r2.ok && r2.stats.failures).toHaveLength(1);
   });
 
   it('يحتفظ بالمقتطف الموثَّق حتى مع kind=تفسير (نص مرتبط بالحكم)', () => {
@@ -188,11 +189,21 @@ describe('parseStructuredAnswer', () => {
     expect(r.ok && r.value.rulings[0].quote).toBe('استحق العامل مكافأة عن مدة خدمته');
   });
 
-  it('يتجاهل المقتطف الطويل جداً (نسخ لا استشهاد)', () => {
-    const long = ART_154.repeat(3);
-    const bad = { ...good, rulings: [{ claim: 'حكم بمقتطف مفرط الطول.', kind: 'نص', source: 1, quote: long }] };
-    const r = parseStructuredAnswer(JSON.stringify(bad), [{ text: long }, { text: ART_165 }]);
-    expect(r.ok && r.value.rulings[0].kind).toBe('تفسير');
+  it('المقتطف الطويل الموثَّق يُقتطع إلى 40 كلمة مع "…" ويبقى نصاً؛ والطويل غير الموثَّق يُخفَّض', () => {
+    const longText = Array.from({ length: 80 }, (_, i) => `كلمة${i}`).join(' ');
+    const ok = parseStructuredAnswer(
+      JSON.stringify({ ...good, rulings: [{ claim: 'حكم بمقتطف طويل موثَّق.', kind: 'نص', source: 1, quote: longText }] }),
+      [{ text: longText }, { text: ART_165 }],
+    );
+    expect(ok.ok && ok.value.rulings[0].kind).toBe('نص');
+    expect(ok.ok && ok.value.rulings[0].quote!.split(' ').length).toBe(41); // 40 كلمة + "…"
+    expect(ok.ok && ok.value.rulings[0].quote!.endsWith('…')).toBe(true);
+    const bad = parseStructuredAnswer(
+      JSON.stringify({ ...good, rulings: [{ claim: 'حكم بمقتطف طويل مختلق.', kind: 'نص', source: 1, quote: longText + ' زيادة مختلقة' }] }),
+      [{ text: longText }, { text: ART_165 }],
+    );
+    expect(bad.ok && bad.value.rulings[0].kind).toBe('تفسير');
+    expect(bad.ok && bad.stats.failures[0]).toContain('unverified');
   });
 });
 
