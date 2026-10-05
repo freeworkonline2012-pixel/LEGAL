@@ -20014,8 +20014,9 @@ SELECT id, 1, $b485$جدول بالتشريعات المطلوب معرفتها 
                                                                                                           19$b485$, now()::date, 'active' FROM ins_art_______________5______2022_1;
 
 -- ===== كتاب-دوري-رقم-5-لسنة-2023 : 5/2023 (احتياطى — نص كامل غير مُقسَّم؛ السبب: لا بنية "مادة" فى النص (كتاب دورى/دليل إجراءات على الأرجح)) =====
-INSERT INTO laws (law_no, law_year, title, short_title, category, status, official_url, enacted_at)
-VALUES (5, 2023, $t486$بشأن تحصيل رسوم أو أقساط وثائق التأمين من خلال وسطاء التأمين$t486$, $t486$بشأن تحصيل رسوم أو أقساط وثائق التأمين من خلال وسطاء التأمين$t486$, 'insurance', 'in_force', $u486$https://fra.gov.eg/wp-content/uploads/2023/11/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%82%D9%85-5-%D9%84%D8%B3%D9%86%D8%A9-2023.pdf$u486$, NULL)
+-- [تصحيح 124] يُدرَج بنوع circular (كتاب دورى) حتى لا تُعيد إعادة تشغيل هذه الهجرة صفاً مكرراً بنوع board_decision؛ المتن يُستبدل فى هجرة 124.
+INSERT INTO laws (law_no, law_year, title, short_title, category, kind, status, official_url, enacted_at)
+VALUES (5, 2023, $t486$بشأن تحصيل رسوم أو أقساط وثائق التأمين من خلال وسطاء التأمين$t486$, $t486$بشأن تحصيل رسوم أو أقساط وثائق التأمين من خلال وسطاء التأمين$t486$, 'insurance', 'circular', 'in_force', $u486$https://fra.gov.eg/wp-content/uploads/2023/11/%D9%83%D8%AA%D8%A7%D8%A8-%D8%AF%D9%88%D8%B1%D9%8A-%D8%B1%D9%82%D9%85-5-%D9%84%D8%B3%D9%86%D8%A9-2023.pdf$u486$, NULL)
 ON CONFLICT (country_code, law_no, law_year, kind) DO NOTHING;
 
 WITH ins_art_______________5______2023_1 AS (
@@ -20060,7 +20061,7 @@ WITH ins_art_______________5______2023_1 AS (
 تليفون: +7١1 80860780٠ فاكس: .لازم .لج نبنى الجسور لا المواجز 2
 
 601.6. اع |لالالالالا$b487$
-  FROM laws WHERE law_no = 5 AND law_year = 2023
+  FROM laws WHERE law_no = 5 AND law_year = 2023 AND kind = 'circular'
   ON CONFLICT (law_id, article_no, article_suffix_order) DO NOTHING
   RETURNING id
 )
