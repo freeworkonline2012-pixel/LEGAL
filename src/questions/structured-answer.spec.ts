@@ -1,4 +1,5 @@
 import {
+  hasArticleRef,
   buildStatusWarnings,
   collectProseForGate,
   computeSourceStatus,
@@ -74,7 +75,7 @@ describe('parseStructuredAnswer', () => {
       },
     ],
     open_issues: ['هل تُجمع مدد التجديدات السنوية نحو خمس سنوات غير منصوص عليه صراحةً.'],
-    warnings: ['الحق مشروط بمدة تزيد على خمس سنوات.'],
+    warnings: ['الحق مشروط بمدة تزيد على خمس سنوات (المادة 1).'],
     facts_to_confirm: ['ما مدة الخدمة الإجمالية؟'],
     not_covered: [],
   };
@@ -136,7 +137,7 @@ describe('parseStructuredAnswer', () => {
     const many = {
       ...good,
       open_issues: Array.from({ length: 20 }, (_, i) => `مسألة رقم ${i} مفتوحة`).concat(['مسألة رقم 0 مفتوحة']),
-      warnings: ['س'.repeat(2000)],
+      warnings: ['(المادة 1) ' + 'س'.repeat(2000)],
     };
     const r = parseStructuredAnswer('```json\n' + JSON.stringify(many) + '\n```', arts);
     expect(r.ok).toBe(true);
@@ -153,7 +154,7 @@ describe('parseStructuredAnswer', () => {
         { claim: 'حكم نص بلا مقتطف صحيح', kind: 'نص', source: 1, quote: 'مقتطف غير موجود إطلاقاً هنا' },
         { claim: 'حكم لمصدر غير صالح', kind: 'تفسير', source: 9 },
       ],
-      warnings: Array.from({ length: 9 }, (_, i) => `تحذير ${i} مختلف`),
+      warnings: Array.from({ length: 9 }, (_, i) => `تحذير ${i} مختلف (المادة ${i + 1})`),
       facts_to_confirm: Array.from({ length: 9 }, (_, i) => `واقعة ${i} مختلفة؟`),
     };
     const r = parseStructuredAnswer(JSON.stringify(many), arts);
@@ -204,6 +205,48 @@ describe('parseStructuredAnswer', () => {
     );
     expect(bad.ok && bad.value.rulings[0].kind).toBe('تفسير');
     expect(bad.ok && bad.stats.failures[0]).toContain('unverified');
+  });
+});
+
+describe('hasArticleRef وإسقاط التحذيرات بلا سند', () => {
+  it('يتعرف على صيغ الإحالة إلى المادة', () => {
+    expect(hasArticleRef('مهلة الإخطار ثلاثة أشهر (المادة 156).')).toBe(true);
+    expect(hasArticleRef('بحسب المواد 87 و88')).toBe(true);
+    expect(hasArticleRef('وفق م 95')).toBe(true);
+    expect(hasArticleRef('المادة (١٥٦)')).toBe(true);
+    expect(hasArticleRef('مهلة الإخطار ثلاثة أشهر كتابةً.')).toBe(false);
+    expect(hasArticleRef('تسقط الحقوق بعدم تقديم طلب خلال المدد المقررة.')).toBe(false);
+  });
+
+  it('يُسقط التحذير الذى لا يذكر مادة ويُحصيه، ويُبقى المسنَد', () => {
+    const r = parseStructuredAnswer(
+      JSON.stringify({
+        direct_answer: 'جواب مباشر مفصل كفاية.',
+        rulings: [{ claim: 'حكم موجز واحد.', kind: 'تفسير', source: 1 }],
+        warnings: ['تحذير بلا مادة تماماً.', 'مهلة الإخطار ثلاثة أشهر كتابةً (المادة 1).'],
+      }),
+      [{ text: 'نص المادة الأولى هنا' }],
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.warnings).toEqual(['مهلة الإخطار ثلاثة أشهر كتابةً (المادة 1).']);
+    expect(r.stats.warnings_dropped).toBe(1);
+  });
+
+  it('لا يعدّ التحذيرات المُسقَطة ضمن حدّ الأربعة', () => {
+    const warnings = [
+      ...Array.from({ length: 3 }, (_, i) => `بلا مادة ${i} مختلف.`),
+      ...Array.from({ length: 4 }, (_, i) => `بمادة ${i} مختلف (المادة ${i + 1}).`),
+    ];
+    const r = parseStructuredAnswer(
+      JSON.stringify({
+        direct_answer: 'جواب مباشر مفصل كفاية.',
+        rulings: [{ claim: 'حكم موجز واحد.', kind: 'تفسير', source: 1 }],
+        warnings,
+      }),
+      [{ text: 'نص' }],
+    );
+    expect(r.ok && r.value.warnings).toHaveLength(4);
   });
 });
 

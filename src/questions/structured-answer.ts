@@ -56,6 +56,8 @@ export interface ParseStats {
   dropped: number;
   /** سبب كل تخفيض (للتسجيل التشخيصى فقط): 'no_quote' | 'unverified' مع رأس المقتطف. */
   failures: string[];
+  /** تحذيرات أُسقطت لأنها لا تذكر رقم المادة المستندة إليها (حكم قانونى بلا سند). */
+  warnings_dropped: number;
 }
 
 export type ParseStructuredResult =
@@ -69,6 +71,17 @@ export const MAX_WARNINGS = 4;
 export const MAX_FACTS = 5;
 export const MAX_FIELD_CHARS = 700;
 export const MAX_QUOTE_WORDS = 40;
+
+/**
+ * تحذير النموذج لا يُقبل إلا إذا ذكر رقم المادة المستند إليها («المادة 156» / «المواد 87 و88»
+ * / «م 95»): التحذير الذى يقرر مدة أو شرطاً بلا سند حكم قانونى بلا سند، ويخالف قاعدة
+ * «السند عند كل حكم». (بوابة الهلوسة تتحقق بعدها أن كل رقم مادة مذكور ضمن النصوص المرسلة.)
+ * تحذيرات حالة المصدر (ساري/معدّل/ملغى) يضيفها الخادم من قاعدة البيانات وتُستثنى من هذا الشرط.
+ */
+const ARTICLE_REF_RE = /(?:المادة|المواد|مادة|م)\s*\.?\s*\(?\s*[0-9\u0660-\u0669]+/;
+export function hasArticleRef(text: string): boolean {
+  return ARTICLE_REF_RE.test(text);
+}
 
 /**
  * حالة المصدر لعرضها للمستخدم — مشتقة حتمياً من حالة القانون المخزَّنة.
@@ -168,7 +181,7 @@ export function parseStructuredAnswer(
   }
   const rawRulings = Array.isArray(obj.rulings) ? obj.rulings : [];
   const rulings: StructuredRuling[] = [];
-  const stats: ParseStats = { requested_text: 0, downgraded: 0, dropped: 0, failures: [] };
+  const stats: ParseStats = { requested_text: 0, downgraded: 0, dropped: 0, failures: [], warnings_dropped: 0 };
   for (const r of rawRulings) {
     if (!r || typeof r !== 'object') continue;
     const rr = r as Record<string, unknown>;
@@ -211,13 +224,16 @@ export function parseStructuredAnswer(
   if (rulings.length === 0) {
     return { ok: false, reason: 'no_valid_rulings' };
   }
+  const warningsRaw = cleanList(obj.warnings, MAX_LIST_ITEMS);
+  const warningsSourced = warningsRaw.filter((w) => hasArticleRef(w));
+  stats.warnings_dropped = warningsRaw.length - warningsSourced.length;
   return {
     ok: true,
     value: {
       direct_answer: direct,
       rulings,
       open_issues: cleanList(obj.open_issues),
-      warnings: cleanList(obj.warnings, MAX_WARNINGS),
+      warnings: warningsSourced.slice(0, MAX_WARNINGS),
       facts_to_confirm: cleanList(obj.facts_to_confirm, MAX_FACTS),
       not_covered: cleanList(obj.not_covered),
     },
