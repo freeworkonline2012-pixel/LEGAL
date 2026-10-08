@@ -88,6 +88,9 @@ export type StructuredGenerationOutcome =
   | { status: 'invalid_structure'; reason: string }
   | { status: 'hallucination_rejected' };
 
+/** ناتج محاولة واحدة: الفشل يحمل ملاحظة تُلحَق بالمحاولة التالية (داخلى). */
+type StructuredAttempt = StructuredGenerationOutcome & { retryNote?: string };
+
 /**
  * قاعدة وقائع الاستيضاح (2026-10-08، أُعيدت كتابتها بعد تقييم حى 5/10): حين يحوى السؤال قسم «[توضيحات السائل]»
  * فهو وقائع قرّرها السائل بنفسه. كانت القاعدة الأولى جملة عامة («ابنِ عليها») تغلبها قواعد السيناريوهات القديمة
@@ -554,6 +557,28 @@ export class DeepseekGenerationService {
   async composeGroundedAnswerMulti(
     input: GroundedGenerationMultiInput,
   ): Promise<GroundedGenerationOutcome> {
+    // إعادة توليد واحدة عند رفض بوابة الأرقام (2026-10-08 — تقييم حى 3.5/10): النموذج كتب إجابة جيدة ثم
+    // استحضر «المادة 10» من ذاكرته فرُفضت كلها وبقى القالب الحتمى الخام. الرفض لرقم واحد لا يستحق أن
+    // يُسقط الإجابة قبل محاولة ثانية تُلزم النموذج صراحةً بالأرقام المرفقة. المفتاح: GROUNDED_RETRY_ENABLED=false.
+    const first = await this.composeGroundedAnswerMultiOnce(input);
+    if (first.status !== 'hallucination_rejected' || process.env.GROUNDED_RETRY_ENABLED === 'false') {
+      return first;
+    }
+    this.logger.warn('composeGroundedAnswerMulti: رفض بوابة الأرقام — إعادة توليد واحدة بتنبيه صريح.');
+    const allowed = computeValidCitationNumbers(
+      input.articles.map((a) => a.articleNo),
+      input.articles.map((a) => a.articleText),
+    );
+    return this.composeGroundedAnswerMultiOnce(
+      input,
+      `تنبيه: إجابتك السابقة رُفضت لأنها ذكرت رقم مادة غير مرفق. لا تذكر رقم مادة إلا من هذه الأرقام المرفقة: [${allowed.join('، ')}]، ولا تستحضر مواد من ذاكرتك ولا من أسئلة الاستيضاح، وإن لم يكن للمسألة نص مرفق فاكتب ذلك دون رقم مادة.`,
+    );
+  }
+
+  private async composeGroundedAnswerMultiOnce(
+    input: GroundedGenerationMultiInput,
+    retryNote?: string,
+  ): Promise<GroundedGenerationOutcome> {
     if (!this.isConfigured) {
       return { status: 'not_configured' };
     }
@@ -615,7 +640,8 @@ export class DeepseekGenerationService {
       `سؤال المستخدم: ${input.question}\n\n` +
       `النصوص القانونية المرجعية (${input.articles.length} نصوص):\n${articlesText}\n\n` +
       'اشرح للمستخدم بعربية طبيعية إجابة شاملة تجمع كل ما هو ذو صلة من النصوص ' +
-      'أعلاه، مع ذكر رقم المادة والقانون داخل الشرح نفسه.';
+      'أعلاه، مع ذكر رقم المادة والقانون داخل الشرح نفسه.' +
+      (retryNote ? `\n\n${retryNote}` : '');
 
     // max_tokens يتناسب طردياً مع عدد المواد المرفقة — إجابة تُوَلِّف بين عدة
     // نصوص (خاصة سؤال مقارن يغطى نظامين قانونيين مختلفين كما فى مثال عقد
@@ -712,6 +738,33 @@ export class DeepseekGenerationService {
   async composeStructuredAnswer(
     input: GroundedGenerationMultiInput,
   ): Promise<StructuredGenerationOutcome> {
+    // إعادة محاولة ذكية (2026-10-08 — تقييم حى 3.5/10): فشل واحد عابر للنموذج (حقل direct_answer غائب فى
+    // الخرج) أسقط الإجابة المنظَّمة كلها إلى المسار القديم الذى رفضته بوابة أرقام المواد فبقى القالب الخام.
+    // الآن: حتى N محاولات (STRUCTURED_MAX_ATTEMPTS، الافتراضى 2، الحد 1..3) تُلحَق بكل محاولة لاحقة ملاحظة
+    // بسبب رفض سابقتها. لا إعادة لـnot_configured (لا جدوى منها). النتيجة الأخيرة هى ما يُعاد عند استنفاد المحاولات.
+    const raw = Number(process.env.STRUCTURED_MAX_ATTEMPTS);
+    const maxAttempts = Number.isInteger(raw) && raw >= 1 ? Math.min(raw, 3) : 2;
+    let last: StructuredAttempt = { status: 'api_error' };
+    let note: string | undefined;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      last = await this.composeStructuredAttempt(input, note);
+      if (last.status === 'ok' || last.status === 'not_configured') return last;
+      if (attempt < maxAttempts) {
+        this.logger.warn(
+          `composeStructuredAnswer: المحاولة ${attempt}/${maxAttempts} فشلت (${last.status}) — إعادة المحاولة.`,
+        );
+        note = last.retryNote;
+      }
+    }
+    const { retryNote: _drop, ...outcome } = last;
+    void _drop;
+    return outcome as StructuredGenerationOutcome;
+  }
+
+  private async composeStructuredAttempt(
+    input: GroundedGenerationMultiInput,
+    retryNote?: string,
+  ): Promise<StructuredAttempt> {
     if (!this.isConfigured) {
       return { status: 'not_configured' };
     }
@@ -789,7 +842,8 @@ export class DeepseekGenerationService {
       `سؤال المستخدم: ${input.question}\n\n` +
       `النصوص القانونية المرجعية (${input.articles.length}):\n${articlesText}\n\n` +
       referencedHint +
-      'أخرِج كائن JSON وفق المفاتيح المحددة.';
+      'أخرِج كائن JSON وفق المفاتيح المحددة.' +
+      (retryNote ? `\n\n${retryNote}` : '');
 
     const factsMode = isFactsMode(input.question);
     const finalSystem = systemWithFacts(system, input.question, true);
@@ -803,6 +857,7 @@ export class DeepseekGenerationService {
           'content-type': 'application/json',
           authorization: `Bearer ${this.apiKey}`,
         },
+        signal: AbortSignal.timeout(90_000),
         body: JSON.stringify({
           model: this.model,
           max_tokens: maxTokens,
@@ -860,9 +915,17 @@ export class DeepseekGenerationService {
       if (!parsed.ok) {
         this.logger.warn(
           `DeepSeek composeStructuredAnswer: بنية غير صالحة (${parsed.reason}، finish_reason=` +
-            `${data.choices?.[0]?.finish_reason ?? 'unknown'}) — fail-safe: رجوع للمسار القديم.`,
+            `${data.choices?.[0]?.finish_reason ?? 'unknown'}) — الخرج الخام (مقتطف للتشخيص): ` +
+            `${text.slice(0, 600).replace(/\s+/g, ' ')}`,
         );
-        return { status: 'invalid_structure', reason: parsed.reason };
+        return {
+          status: 'invalid_structure',
+          reason: parsed.reason,
+          retryNote:
+            `تنبيه: إخراجك السابق مرفوض آلياً (${parsed.reason}). أعد إخراج كائن JSON كاملاً وصالحاً ` +
+            'يتضمن الحقل "direct_answer" (جواب مباشر فى جملة أو جملتين على الأقل، وهو إلزامى) والحقل "rulings" ' +
+            '(حكم واحد على الأقل مسند إلى نص مرفق) بنفس المفاتيح المحددة، بلا أى نص خارج الـJSON.',
+        };
       }
 
       // خطوة الاستكمال (2026-10-08 — تقييم حى 8/10: المواد 6 و87 و108 و125 كانت مرسَلة للنموذج
@@ -906,7 +969,13 @@ export class DeepseekGenerationService {
           `DeepSeek composeStructuredAnswer: استشهاد بأرقام مواد غير مرسَلة [${hallucinated.join(',')}] — ` +
             `المسموح بها: [${validArticleNumbers.join(',')}]. fail-safe: رجوع للمسار القديم.`,
         );
-        return { status: 'hallucination_rejected' };
+        return {
+          status: 'hallucination_rejected',
+          retryNote:
+            `تنبيه: إخراجك السابق ذكر أرقام مواد غير مرسَلة [${hallucinated.join('، ')}] فرُفض. أعد الإخراج ` +
+            `ولا تذكر رقم مادة إلا من المواد المرفقة: [${validArticleNumbers.join('، ')}]، ولا تستحضر مواد ` +
+            'من ذاكرتك ولا من أسئلة الاستيضاح.',
+        };
       }
       return { status: 'ok', structured: structuredValue };
     } catch (err) {
@@ -1900,7 +1969,12 @@ export class DeepseekGenerationService {
       `الصياغة: حتى ${maxQuestions} أسئلة مرتبة بالأهم أولاً، لكل سؤال من 2 إلى 5 خيارات متنافية وشاملة بصياغة ` +
       'واقعية موجزة بلغة السائل العادية (اشرح المصطلح القانونى بين قوسين إن لزم)، و"allow_multiple": true فقط حين ' +
       'تكون الخيارات غير متنافية. إن كان السؤال عن مقدار (مدة أو عدد أو مبلغ) فاجعل كل خيار مقداراً أو مدى بوحدته الصريحة ' +
-      '(مثل «أقل من سنة» و«من 5 إلى 10 سنوات»)، ولا تستعمل رقماً مجرداً بلا وحدة. لا تضع خيار "أخرى" ولا "لا أعرف" (تضيفهما الواجهة). إن وُجدت توضيحات سابقة فلا ' +
+      '(مثل «أقل من سنة» و«من 5 إلى 10 سنوات»)، ولا تستعمل رقماً مجرداً بلا وحدة. لا تضع خيار "أخرى" ولا "لا أعرف" (تضيفهما الواجهة). ' +
+      'إن علّقت النصوص المسترجعة الحكم على حد عددى (مثل «تزيد على خمس سنوات») فاجعل الخيارات: أقل من الحد، الحد بالضبط، ' +
+      'أكثر من الحد — ولا تدمج الحد مع ما يزيد عليه لأن النص يفرّق بينهما. ' +
+      'ترتيب الأسئلة: ابدأ بالواقعة التى تغيّر وصف العقد أو نوعه أو تفتح للسائل مساراً أقوى بحسب النصوص المسترجعة ' +
+      '(مثل: هل طبيعة العمل مستمرة أو دائمة بطبيعتها أم مؤقتة بطبيعتها؟ هل العقد مكتوب؟ هل استمر التنفيذ بعد انتهاء المدة؟)؛ ' +
+      'وإن ظهر بين النصوص نص يميّز العقد بحسب طبيعة العمل أو يعدّد حالات تغيّر وصفه فلا تُسقِط سؤال طبيعة العمل ما لم يُجَب عنه. إن وُجدت توضيحات سابقة فلا ' +
       'تكرر منها شيئاً، واسأل فقط ما استجد منها أو ما بقى جوهرياً.\n\n' +
       'أجب بكائن JSON واحد فقط بلا أى نص خارجه: ' +
       '{"needs_clarification": true|false, "reason": "سبب موجز", "questions": [{"question": "نص السؤال", ' +
@@ -1916,7 +1990,7 @@ export class DeepseekGenerationService {
       input.articles.length === 0
         ? 'لم تُسترجَع نصوص.'
         : input.articles
-            .slice(0, 8)
+            .slice(0, 12)
             .map(
               (a, i) =>
                 `النص ${i + 1} — المادة ${a.articleNo} من ${a.lawTitle} (رقم ${a.lawNo} لسنة ${a.lawYear}): ` +

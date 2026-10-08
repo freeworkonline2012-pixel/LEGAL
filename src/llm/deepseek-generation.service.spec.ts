@@ -387,13 +387,14 @@ describe('DeepseekGenerationService — بوابة رفض الاستشهاد ب�
       const text =
         'طبقاً للمادة 108 من قانون العمل (2025)... وبموجب المادة 11 يلتزم صاحب العمل ' +
         'بمنح العامل شهادة خبرة عند انتهاء علاقة العمل...'; // 11 ليست ضمن ARTICLES — هلوسة.
-      const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+      // يرفض فى المحاولتين (إعادة التوليد الواحدة تعيد الهلوسة نفسها) فيبقى hallucination_rejected
+      const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, chatCompletion(text, 'stop')));
       global.fetch = fetchMock as unknown as typeof fetch;
 
       const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES });
 
       expect(result).toEqual({ status: 'hallucination_rejected' });
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     },
   );
 
@@ -471,7 +472,7 @@ describe('DeepseekGenerationService — الإصلاح السابع: لا ترف
     const service = new DeepseekGenerationService();
     // 999 ليست المادة الأساسية (108 أو 150) ولا إحالة داخل نص المادة 150 — هلوسة حقيقية.
     const text = 'طبقاً للمادة 108... وطبقاً للمادة 999 يلتزم صاحب العمل بكذا.';
-    const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion(text, 'stop')));
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, chatCompletion(text, 'stop')));
     global.fetch = fetchMock as unknown as typeof fetch;
 
     const result = await service.composeGroundedAnswerMulti({
@@ -480,7 +481,32 @@ describe('DeepseekGenerationService — الإصلاح السابع: لا ترف
     });
 
     expect(result).toEqual({ status: 'hallucination_rejected' });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('إعادة التوليد الواحدة: الرفض ثم إجابة سليمة ← ok، والتنبيه يسرد الأرقام المرفقة، والمفتاح يعطّلها', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const service = new DeepseekGenerationService();
+    const bad = 'طبقاً للمادة 108... وطبقاً للمادة 999 يلتزم صاحب العمل بكذا.';
+    const good = 'طبقاً للمادة 108 يلتزم صاحب العمل بالأداء خلال سبعة أيام.';
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, chatCompletion(bad, 'stop')))
+      .mockResolvedValueOnce(jsonResponse(200, chatCompletion(good, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const result = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES_WITH_150 });
+    expect(result).toEqual({ status: 'ok', text: good });
+    const second = JSON.parse(fetchMock.mock.calls[1][1].body).messages[1].content as string;
+    expect(second).toContain('رُفضت');
+    expect(second).toContain('108');
+
+    process.env.GROUNDED_RETRY_ENABLED = 'false';
+    const off = jest.fn().mockResolvedValue(jsonResponse(200, chatCompletion(bad, 'stop')));
+    global.fetch = off as unknown as typeof fetch;
+    const r2 = await service.composeGroundedAnswerMulti({ question: 'سؤال تجريبى', articles: ARTICLES_WITH_150 });
+    delete process.env.GROUNDED_RETRY_ENABLED;
+    expect(r2).toEqual({ status: 'hallucination_rejected' });
+    expect(off).toHaveBeenCalledTimes(1);
   });
 });
 

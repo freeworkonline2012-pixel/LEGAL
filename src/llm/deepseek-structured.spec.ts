@@ -42,10 +42,12 @@ describe('DeepseekGenerationService.composeStructuredAnswer', () => {
   const originalKey = process.env.DEEPSEEK_API_KEY;
   beforeEach(() => {
     process.env.DEEPSEEK_API_KEY = 'test-key';
+    process.env.STRUCTURED_MAX_ATTEMPTS = '1'; // اختبارات المحاولة الواحدة؛ إعادة المحاولة لها describe مستقل أدناه
   });
   afterEach(() => {
     global.fetch = originalFetch;
     process.env.DEEPSEEK_API_KEY = originalKey;
+    delete process.env.STRUCTURED_MAX_ATTEMPTS;
     jest.restoreAllMocks();
   });
 
@@ -331,9 +333,11 @@ describe('DeepseekGenerationService — وضع الوقائع: خطوة التط
   };
   beforeEach(() => {
     process.env.DEEPSEEK_API_KEY = 'test-key';
+    process.env.STRUCTURED_MAX_ATTEMPTS = '1';
     delete process.env.STRUCTURED_REVIEW_ENABLED;
   });
   afterEach(() => {
+    delete process.env.STRUCTURED_MAX_ATTEMPTS;
     global.fetch = originalFetch;
     process.env.DEEPSEEK_API_KEY = originalKey;
     if (originalReview === undefined) delete process.env.STRUCTURED_REVIEW_ENABLED;
@@ -445,5 +449,114 @@ describe('DeepseekGenerationService — وضع الوقائع: خطوة التط
     global.fetch = f as unknown as typeof fetch;
     await new DeepseekGenerationService().detectClarification({ question: 'س', history: [], articles: INPUT.articles });
     expect(JSON.parse(f.mock.calls[0][1].body).messages[0].content).toContain('بوحدته الصريحة');
+  });
+});
+
+describe('DeepseekGenerationService.composeStructuredAnswer — إعادة المحاولة الذكية', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+  const NO_DIRECT = { ...GOOD, direct_answer: '' };
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    delete process.env.STRUCTURED_MAX_ATTEMPTS;
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    delete process.env.STRUCTURED_MAX_ATTEMPTS;
+    jest.restoreAllMocks();
+  });
+  const seq = (...items: Array<unknown | 'HTTP500'>) => {
+    const f = jest.fn();
+    for (const it of items) {
+      f.mockResolvedValueOnce(it === 'HTTP500' ? jsonResponse(500, {}) : jsonResponse(200, completion(JSON.stringify(it))));
+    }
+    global.fetch = f as unknown as typeof fetch;
+    return f;
+  };
+
+  it('direct_answer غائب فى المحاولة الأولى ← محاولة ثانية بملاحظة السبب تنجح (لا سقوط للمسار القديم)', async () => {
+    const f = seq(NO_DIRECT, GOOD);
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(INPUT);
+    expect(r.status).toBe('ok');
+    expect(f).toHaveBeenCalledTimes(2);
+    const second = JSON.parse(f.mock.calls[1][1].body).messages[1].content as string;
+    expect(second).toContain('missing_direct_answer');
+    expect(second).toContain('direct_answer');
+    expect(JSON.parse(f.mock.calls[0][1].body).messages[1].content).not.toContain('إخراجك السابق مرفوض');
+  });
+
+  it('خطأ API عابر (500) ثم نجاح', async () => {
+    const f = seq('HTTP500', GOOD);
+    expect((await new DeepseekGenerationService().composeStructuredAnswer(INPUT)).status).toBe('ok');
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
+  it('رقم مادة غير مرسَل ← إعادة بملاحظة الأرقام المسموح بها', async () => {
+    const BAD = { ...GOOD, direct_answer: 'يستحق مكافأة طبقاً للمادة 999 من القانون.' };
+    const f = seq(BAD, GOOD);
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(INPUT);
+    expect(r.status).toBe('ok');
+    const note = JSON.parse(f.mock.calls[1][1].body).messages[1].content as string;
+    expect(note).toContain('999');
+    expect(note).toContain('154');
+  });
+
+  it('استنفاد المحاولات (الافتراضى 2) يُعيد آخر حالة فشل ليرجع المتصل للمسار القديم', async () => {
+    const f = seq(NO_DIRECT, NO_DIRECT, GOOD);
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(INPUT);
+    expect(r).toEqual({ status: 'invalid_structure', reason: 'missing_direct_answer' });
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
+  it('STRUCTURED_MAX_ATTEMPTS: 1 يعطّل الإعادة، و3 يسمح بثالثة، وغير الصالح = 2', async () => {
+    process.env.STRUCTURED_MAX_ATTEMPTS = '1';
+    let f = seq(NO_DIRECT, GOOD);
+    expect((await new DeepseekGenerationService().composeStructuredAnswer(INPUT)).status).toBe('invalid_structure');
+    expect(f).toHaveBeenCalledTimes(1);
+    process.env.STRUCTURED_MAX_ATTEMPTS = '3';
+    f = seq(NO_DIRECT, NO_DIRECT, GOOD);
+    expect((await new DeepseekGenerationService().composeStructuredAnswer(INPUT)).status).toBe('ok');
+    process.env.STRUCTURED_MAX_ATTEMPTS = 'x';
+    f = seq(NO_DIRECT, NO_DIRECT, GOOD);
+    expect((await new DeepseekGenerationService().composeStructuredAnswer(INPUT)).status).toBe('invalid_structure');
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
+  it('not_configured لا يُعاد ولا fetch', async () => {
+    delete process.env.DEEPSEEK_API_KEY;
+    const f = jest.fn();
+    global.fetch = f as unknown as typeof fetch;
+    expect(await new DeepseekGenerationService().composeStructuredAnswer(INPUT)).toEqual({ status: 'not_configured' });
+    expect(f).not.toHaveBeenCalled();
+  });
+});
+
+describe('DeepseekGenerationService.detectClarification — قواعد الصياغة (تقييم حى 3.5/10)', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+  it('الحد العددى يُقسَّم (أقل/بالضبط/أكثر)، وسؤال طبيعة العمل يتقدم ولا يُسقَط، وحتى 12 نصاً تُعرَض', async () => {
+    const f = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify({ needs_clarification: false }))));
+    global.fetch = f as unknown as typeof fetch;
+    const many = Array.from({ length: 13 }, (_, i) => ({
+      lawTitle: 'ق', lawNo: 14, lawYear: 2025, articleNo: 100 + i, articleText: `نص رقم ${i}`,
+    }));
+    await new DeepseekGenerationService().detectClarification({ question: 'س', history: [], articles: many });
+    const body = JSON.parse(f.mock.calls[0][1].body);
+    const sys = body.messages[0].content as string;
+    expect(sys).toContain('الحد بالضبط');
+    expect(sys).toContain('طبيعة العمل مستمرة');
+    expect(sys).toContain('فلا تُسقِط سؤال طبيعة العمل');
+    const user = body.messages[1].content as string;
+    expect(user).toContain('المادة 111');
+    expect(user).not.toContain('المادة 112');
   });
 });
