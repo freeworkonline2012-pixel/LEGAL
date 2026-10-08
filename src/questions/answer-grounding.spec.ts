@@ -312,3 +312,12 @@ describe('findUnsupportedTerms — مقادير مشتقة (معدل «عن كل
     expect(findUnsupportedTerms('يسقط حقك بعد 24 شهراً', [ART_165], '- مدة الخدمة ← 12 سنوات')).not.toEqual([]);
   });
 });
+
+describe('2j: إحالات أرقام المواد لا تُحسب فى تغطية الحكم', () => {
+  it('«المادة 88» و«المواد 87 و88» داخل الحكم لا تخفض التغطية؛ وكلمة «رقم 3» تُحسب مضموناً', () => {
+    const quote = 'ينتهى عقد العمل محدد المدة بانقضاء مدته دون حاجة إلى إخطار';
+    const claim = 'ينتهى عقد العمل محدد المدة بانقضاء مدته دون حاجة إلى إخطار وفق المواد 87 و88 (المادة 154)';
+    expect(claimCoverage(claim, quote)).toBeGreaterThanOrEqual(0.9);
+    expect(claimCoverage('حكم رقم 3', 'حكم')).toBeLessThan(1);
+  });
+});

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { normalizeArabic, toEnglishDigits } from '../ingestion/normalize';
-import { detectCrossReferencedArticles } from '../questions/retrieval';
+import { detectCrossReferencedArticles, mentionsUnsettledEntitlements } from '../questions/retrieval';
+import { ANSWER_CHECKLIST_TEXT, FIXED_RIGHTS_ARTICLES, applyChecklist } from '../questions/answer-checklist';
 import {
   CLARIFICATION_FACTS_MARKER,
   MAX_QUESTIONS_PER_ROUND,
@@ -152,7 +153,15 @@ export const CLARIFICATION_FACTS_BASE_RULE =
   'الاستعجالية ومدته وحد الأجر المؤقت الذى يجيزه النص إن ورد، مع التحفظ على كون عدم التجديد «فصلاً» ' +
   'إن لم يحسمه النص. وقيّد كل تنبيه بنوع العقد الذى يخصه («فى العقد غير محدد المدة فقط»). ولا تُنشئ سيناريو ' +
   'يفترض واقعة تخالف ما ذكره السائل (كأن يفترض إخطاراً كتابياً بسبب مشروع وقد ذكر أنه لم يُخطَر كتابةً)، ولا ' +
-  'تذكر حقاً لا يخص حالته (كحق العامل فى الإنهاء بعد مدة معينة وصاحب العمل هو الذى أنهى).';
+  'تذكر حقاً لا يخص حالته (كحق العامل فى الإنهاء بعد مدة معينة وصاحب العمل هو الذى أنهى).\n' +
+  '(ع) الجواب المباشر يخاطب حالة السائل: ابدأه بنتيجة حالته بوقائعه («فى حالتك، ...») مستنداً إلى المادة الحاكمة ' +
+  '(كالمادة 87 للقاعدة العامة)، ولا تكتفِ بعرض قاعدتين عامتين بصيغة «إذا كان... وإذا اعتُبر...»؛ وما قرره السائل من وقائعه لا ' +
+  'يُصاغ شرطاً (مثل: صاحب العمل هو من قرر عدم التجديد).\n' +
+  '(ف) تصفية الاحتمالات: قبل كتابة السيناريوهات استبعد كل احتمال تنفيه وقائع السائل (استمرار التنفيذ والسائل قال توقف، إنهاء ' +
+  'من العامل وصاحب العمل هو من أنهى، إنهاء بمبرر وإخطار كتابى والسائل قال لا مبرر ولا إخطار كتابى...)؛ لا تعرضه ولا تعرض ' +
+  '«وإلا» له، وابنِ الجواب المباشر على الاحتمال المنطبق وحده.\n' +
+  '(ق) قائمة الفحص الثابتة — راجع جوابك عليها قبل الإخراج، فهى أخطاء سبق وقوعها ويُرفض كل جواب يعيدها:\n' +
+  ANSWER_CHECKLIST_TEXT;
 
 /** خطوة «تطبيق على وقائعك» الإلزامية فى التوليد المنظَّم فقط (مفتاح facts_applied يسبق direct_answer). */
 export const CLARIFICATION_FACTS_STRUCTURED_RULE =
@@ -1010,6 +1019,24 @@ export class DeepseekGenerationService {
         }
       }
 
+      // تصفية الاحتمالات بالوقائع (2j — توصية تقييم حى 7/10): بند تنفيه إجابات السائل (استمرار التنفيذ والسائل
+      // قال توقف، إنهاء من العامل والسائل قال صاحب العمل...) يُحذف من الخادم بحسب معرّف لا بإعادة توليد.
+      if (factsMode && process.env.STRUCTURED_FACT_FILTER_ENABLED !== 'false') {
+        structuredValue = await this.filterInapplicableByFacts(input, structuredValue);
+      }
+      // قائمة الفحص الثابتة (حتمية): نطاق 161، صاحب مهلة 108، إسناد «طبيعة العمل»، وسم «نص» الزائد، الحقوق الثابتة.
+      if (process.env.STRUCTURED_CHECKLIST_ENABLED !== 'false') {
+        const checked = applyChecklist(
+          structuredValue,
+          input.articles.map((a) => ({ articleNo: a.articleNo, text: a.articleText })),
+          { duesMode: mentionsUnsettledEntitlements(input.question) },
+        );
+        if (checked.fixes.length > 0) {
+          this.logger.log(`composeStructuredAnswer/قائمة الفحص: ${checked.fixes.join(' || ')}`);
+        }
+        structuredValue = checked.value;
+      }
+
       // بوابة هلوسة أرقام المواد (نفس تعريف "الأرقام الصحيحة" فى المسار القديم:
       // المواد المرفقة + إحالاتها الصريحة) على كل النصوص الحرة — لا على المقتطفات
       // الحرفية (تُتحقَّق منها حرفياً فى parseStructuredAnswer).
@@ -1042,6 +1069,96 @@ export class DeepseekGenerationService {
   }
 
   /**
+   * تصفية الاحتمالات بالوقائع (2j): نداء صغير (temperature 0، مخرجه معرّفات فقط فلا يُقتطع JSON كامل كما حدث للتصحيح)
+   * يحدد البنود التى تنفيها وقائع السائل أو تخص طرفاً/حالة غير حالته. الحذف يتم فى الخادم وبقيود:
+   * أحكام الحقوق الثابتة (FIXED_RIGHTS_ARTICLES) لا تُحذف، ويبقى حكمان على الأقل. أى فشل → تبقى الإجابة كما هى.
+   */
+  private async filterInapplicableByFacts(
+    input: GroundedGenerationMultiInput,
+    value: StructuredAnswer,
+  ): Promise<StructuredAnswer> {
+    const noOf = (idx: number) => input.articles[idx]?.articleNo ?? '?';
+    const lines: string[] = [];
+    (value.scenarios ?? []).forEach((x, i) => lines.push(`S${i + 1} (م${noOf(x.citation_index)}): ${x.condition} ← ${x.outcome}`));
+    value.warnings.forEach((w, i) => lines.push(`W${i + 1}: ${w}`));
+    value.rulings.forEach((r, i) => lines.push(`R${i + 1} (م${noOf(r.citation_index)}): ${r.claim}`));
+    if (lines.length === 0) return value;
+    const system =
+      'أنت مرشِّح تطبيق على الوقائع لإجابة قانونية. قارن بنود الإجابة (سيناريوهات S وتنبيهات W وأحكام R) بوقائع السائل ' +
+      'الواردة فى قسم "' +
+      CLARIFICATION_FACTS_MARKER +
+      '" وفى صلب سؤاله، وأرجع **معرّفات البنود التى تنفيها وقائعه تأكيداً أو تخص طرفاً أو حالة غير حالته** فقط، مثل: ' +
+      'سيناريو استمرار التنفيذ بعد انتهاء المدة والسائل قال إن التنفيذ توقف؛ إنهاء من جانب العامل والسائل قال إن صاحب العمل هو من ' +
+      'قرر؛ حق للعامل فى إنهاء العقد بعد مدة والسائل يسأل عن قرار صاحب العمل؛ إنهاء بمبرر مشروع وإخطار كتابى والسائل قال لا ' +
+      'مبرر ولا إخطار كتابى. لا تُبلغ عن بند فرضيته واقعة أجاب عنها السائل بـ«لا يعرف» أو لم يذكرها، ولا عن بند مجرد الإيجاز، ' +
+      'ولا عن بند هو حق ثابت للسائل (الأجر، الإجازات، شهادة نهاية الخدمة، المخالصة، التسوية الودية، المحكمة). ' +
+      'أجب بكائن JSON واحد فقط: {"inapplicable": [{"id": "S2", "reason": "جملة قصيرة تذكر الواقعة النافية"}]} (حتى 6)، ' +
+      'أو {"inapplicable": []}.';
+    const userMsg = `سؤال المستخدم مع وقائعه:\n${input.question}\n\nبنود الإجابة:\n${lines.join('\n')}\n\nأخرِج JSON المعرّفات.`;
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
+        signal: AbortSignal.timeout(25_000),
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 700,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        this.logger.warn(`composeStructuredAnswer/تصفية الوقائع: API ${res.status} — تبقى الإجابة.`);
+        return value;
+      }
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) return value;
+      const obj = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '')) as { inapplicable?: unknown };
+      const drop = { S: new Set<number>(), W: new Set<number>(), R: new Set<number>() };
+      const reasons: string[] = [];
+      for (const it of Array.isArray(obj.inapplicable) ? obj.inapplicable : []) {
+        if (!it || typeof it !== 'object') continue;
+        const o = it as Record<string, unknown>;
+        const m = typeof o.id === 'string' ? /^([SWR])(\d{1,2})$/.exec(o.id.trim().toUpperCase()) : null;
+        if (!m) continue;
+        const kind = m[1] as 'S' | 'W' | 'R';
+        const idx = Number(m[2]) - 1;
+        const max = kind === 'S' ? (value.scenarios ?? []).length : kind === 'W' ? value.warnings.length : value.rulings.length;
+        if (idx < 0 || idx >= max) continue;
+        if (kind === 'R') {
+          const r = value.rulings[idx];
+          const no = input.articles[r.citation_index]?.articleNo;
+          if (typeof no === 'number' && FIXED_RIGHTS_ARTICLES.includes(no)) continue;
+          if (value.rulings.length - drop.R.size <= 2) continue;
+        }
+        drop[kind].add(idx);
+        reasons.push(`${m[1]}${idx + 1}: ${typeof o.reason === 'string' ? o.reason.slice(0, 120) : ''}`);
+        if (reasons.length >= 6) break;
+      }
+      if (reasons.length === 0) {
+        this.logger.log('composeStructuredAnswer/تصفية الوقائع: لا بنود منفية.');
+        return value;
+      }
+      this.logger.log(`composeStructuredAnswer/تصفية الوقائع: حُذف ${reasons.join(' || ')}`);
+      return {
+        ...value,
+        scenarios: (value.scenarios ?? []).filter((_, i) => !drop.S.has(i)),
+        warnings: value.warnings.filter((_, i) => !drop.W.has(i)),
+        rulings: value.rulings.filter((_, i) => !drop.R.has(i)),
+      };
+    } catch (err) {
+      this.logger.warn(`composeStructuredAnswer/تصفية الوقائع: فشل (${(err as Error).message}) — تبقى الإجابة.`);
+      return value;
+    }
+  }
+
+  /**
    * مراجعة الاتساق (2026-10-08): نداء ناقد مستقل (temperature 0) يعيد قائمة عيوب محددة فقط، لا إجابة بديلة.
    * يُستدعى فى وضع الوقائع وحده. السبب: تقييم حى 5/10 أظهر إجابة استلمت الوقائع وناقضتها، وأمثال هذه
    * التناقضات لا يلتقطها فحص حتمى لأنها دلالية (وحدة، مسار رئيسى، جزم فى مسألة مفتوحة).
@@ -1070,7 +1187,11 @@ export class DeepseekGenerationService {
       '- misattributed_effect: أثر أو حالة منسوبة إلى مادة لا تنص عليها (مثل إدخال حالة فى مادة تعدّد حالات حصراً لا تتضمنها)، أو جزم فى أثر مخالفة شرط لم ينص عليه النص بدل عرضه مسألةً مفتوحة.\n' +
       '- wrong_party_deadline: ميعاد أو مهلة مسندة لغير الطرف الملزم بها فى النص (كأن يُعرض ميعاد التزم به صاحب العمل كأنه مهلة على العامل)، أو ترقيم فرعى لمادة غير وارد فى نصها (مثل 108/8).\n' +
       '- incomplete_procedure: مادة إجراء مرفقة عُرضت ناقصة (حذف المسار الاستعجالى أو مدته أو حد الأجر المؤقت)، أو قيل إن التسوية الودية الاختيارية يُسقط فواتها الحق فى التقاضى بلا سند، أو تنبيه لم يُقيَّد بنوع العقد الذى يخصه.\n' +
-      '- duplicate_item: تنبيه فى warnings يكرر حكماً قائماً فى rulings.\n' +
+      '- duplicate_item: تنبيه فى warnings يكرر حكماً قائماً فى rulings، أو مسألة مفتوحة فى open_issues تكرر مضمون أخرى.\n' +
+      '- generic_direct_answer: الجواب المباشر عام لا يذكر نتيجة حالة السائل بوقائعها (مثل «فى حالتك...») ولا المادة الحاكمة، أو يترك الحيرة فى أمر قرره السائل.\n' +
+      '- checklist_violation: مخالفة لأحد بنود قائمة الفحص الثابتة التالية (اذكر رمز البند فى problem):\n' +
+      ANSWER_CHECKLIST_TEXT +
+      '\n' +
       'لكل عيب: type وproblem (جملة محددة تذكر موضعه) وfix (التعديل المطلوب فى جملة). ' +
       'وقائع السائل هى ما فى القسم المذكور وما ذكره فى صلب سؤاله. لا تُبلغ عن عيب غير مؤكد ولا عن أسلوب أو إيجاز. ' +
       'إن كانت المسودة متسقة أرجع {"defects": []}. حد أقصى 8 عيوب. ' +
@@ -1122,6 +1243,8 @@ export class DeepseekGenerationService {
         'wrong_party_deadline',
         'incomplete_procedure',
         'duplicate_item',
+        'generic_direct_answer',
+        'checklist_violation',
       ]);
       const out: Array<{ type: string; problem: string; fix: string }> = [];
       for (const d of Array.isArray(obj.defects) ? obj.defects : []) {
@@ -2073,6 +2196,9 @@ export class DeepseekGenerationService {
       'أكثر من الحد — ولا تدمج الحد مع ما يزيد عليه لأن النص يفرّق بينهما. ' +
       'ترتيب الأسئلة: ابدأ بالواقعة التى تغيّر وصف العقد أو نوعه أو تفتح للسائل مساراً أقوى بحسب النصوص المسترجعة ' +
       '(مثل: هل طبيعة العمل مستمرة أو دائمة بطبيعتها أم مؤقتة بطبيعتها؟ هل العقد مكتوب؟ هل استمر التنفيذ بعد انتهاء المدة؟)؛ ' +
+      'وفى سؤال عن انتهاء علاقة العمل (عدم تجديد أو فصل أو إنهاء) فمن الوقائع الحاسمة التى تُسأل ما لم يُجَب عنها: ' +
+      'كيف أُبلغ العامل بالإنهاء (شفاهة أم كتابة وقبل المدة بكم)، وما السبب الذى أعلنه صاحب العمل إن وُجد، وهل تسلّم مستحقاته. ' +
+      'ضعها قبل الأسئلة الأقل أثراً ولو اقتضى ذلك حذف سؤال أقل أثراً (حد أقصى للأسئلة فى الجولة). ' +
       'وإن ظهر بين النصوص نص يميّز العقد بحسب طبيعة العمل أو يعدّد حالات تغيّر وصفه فلا تُسقِط سؤال طبيعة العمل ما لم يُجَب عنه. إن وُجدت توضيحات سابقة فلا ' +
       'تكرر منها شيئاً، واسأل فقط ما استجد منها أو ما بقى جوهرياً.\n\n' +
       'أجب بكائن JSON واحد فقط بلا أى نص خارجه: ' +

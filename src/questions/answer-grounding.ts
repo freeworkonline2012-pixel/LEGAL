@@ -72,8 +72,11 @@ export function contentStems(text: string): string[] {
 }
 
 /** نسبة (0..1) من كلمات الحكم المضمونية التى يحتويها المقتطف. حكم بلا كلمات مضمونية = 0. */
+/** إحالات أرقام المواد داخل الحكم («المادة 88»، «المواد 87 و88»، «م154») ليست من مضمون المقتطف فلا تُحسب فى التغطية. */
+const ARTICLE_REF_IN_CLAIM = /(?<![ء-ي])(?:المادتين|المواد|المادة|مادة|م)\s*\(?\s*[0-9٠-٩]{1,4}\s*\)?(?:\s*(?:و|،|,)\s*[0-9٠-٩]{1,4})*/g;
+
 export function claimCoverage(claim: string, quote: string): number {
-  const claimStems = contentStems(claim);
+  const claimStems = contentStems(claim.replace(ARTICLE_REF_IN_CLAIM, ' '));
   if (claimStems.length === 0) return 0;
   const quoteStems = new Set(contentStems(quote));
   let hit = 0;

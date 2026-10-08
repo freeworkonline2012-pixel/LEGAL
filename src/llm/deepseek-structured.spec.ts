@@ -120,7 +120,7 @@ describe('DeepseekGenerationService.composeStructuredAnswer — خطوة الا�
         claim: 'يبرم عقد العمل الفردى لمدة غير محددة أو لمدة محددة إذا اقتضت طبيعة العمل ذلك.',
         kind: 'نص',
         source: 2,
-        quote: 'يبرم عقد العمل الفردى لمدة غير محددة',
+        quote: 'يبرم عقد العمل الفردى لمدة غير محددة،أو لمدة محددة إذا كانت طبيعة العمل تقتضى ذلك.',
       },
     ],
     scenarios: [{ condition: 'إذا كانت الوظيفة دائمة بطبيعتها', outcome: 'لا يجوز توقيت العقد إلا لطبيعة العمل.', source: 2 }],
@@ -371,10 +371,12 @@ describe('DeepseekGenerationService — وضع الوقائع: خطوة التط
   beforeEach(() => {
     process.env.DEEPSEEK_API_KEY = 'test-key';
     process.env.STRUCTURED_MAX_ATTEMPTS = '1';
+    process.env.STRUCTURED_FACT_FILTER_ENABLED = 'false'; // نداء تصفية الوقائع له اختبارات مستقلة أدناه
     delete process.env.STRUCTURED_REVIEW_ENABLED;
   });
   afterEach(() => {
     delete process.env.STRUCTURED_MAX_ATTEMPTS;
+    delete process.env.STRUCTURED_FACT_FILTER_ENABLED;
     global.fetch = originalFetch;
     process.env.DEEPSEEK_API_KEY = originalKey;
     if (originalReview === undefined) delete process.env.STRUCTURED_REVIEW_ENABLED;
@@ -560,6 +562,114 @@ describe('DeepseekGenerationService — وضع الوقائع: خطوة التط
     expect(revise.max_tokens).toBeLessThanOrEqual(8000);
   });
 
+  it('2j: تصفية الوقائع تحذف السيناريو الذى تنفيه وقائع السائل بالمعرّف، ولا تحذف الحكم الوحيد', async () => {
+    delete process.env.STRUCTURED_FACT_FILTER_ENABLED;
+    const withScenarios = {
+      ...GOOD,
+      scenarios: [
+        { condition: 'استمر التنفيذ بعد انتهاء المدة', outcome: 'يصير العقد غير محدد المدة.', source: 1 },
+        { condition: 'أنهى صاحب العمل العقد', outcome: 'يستحق العامل مكافأة عن مدة خدمته.', source: 1 },
+      ],
+    };
+    const f = mockSeq(withScenarios, { defects: [] }, {
+      inapplicable: [
+        { id: 'S1', reason: 'السائل قال إن التنفيذ توقف بعد انتهاء المدة' },
+        { id: 'R1', reason: 'محاولة حذف الحكم الوحيد' },
+      ],
+    });
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    expect(f).toHaveBeenCalledTimes(3);
+    const filterSys = JSON.parse(f.mock.calls[2][1].body).messages[0].content as string;
+    expect(filterSys).toContain('مرشِّح تطبيق على الوقائع');
+    const filterUser = JSON.parse(f.mock.calls[2][1].body).messages[1].content as string;
+    expect(filterUser).toContain('S1 (م');
+    expect(r.status === 'ok' && r.structured.scenarios.map((x) => x.condition)).toEqual(['أنهى صاحب العمل العقد']);
+    expect(r.status === 'ok' && r.structured.rulings).toHaveLength(1);
+  });
+
+  it('2j: فشل نداء التصفية أو معرّف غير صالح لا يغيّر الإجابة', async () => {
+    delete process.env.STRUCTURED_FACT_FILTER_ENABLED;
+    const withScenarios = {
+      ...GOOD,
+      scenarios: [{ condition: 'استمر التنفيذ بعد انتهاء المدة', outcome: 'يصير العقد غير محدد المدة.', source: 1 }],
+    };
+    const bad = jest.fn();
+    bad
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(withScenarios))))
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify({ defects: [] }))))
+      .mockResolvedValueOnce(jsonResponse(500, {}));
+    global.fetch = bad as unknown as typeof fetch;
+    const r1 = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    expect(r1.status === 'ok' && r1.structured.scenarios).toHaveLength(1);
+    mockSeq(withScenarios, { defects: [] }, { inapplicable: [{ id: 'S9', reason: 'x' }, { id: 'Z1', reason: 'y' }] });
+    const r2 = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    expect(r2.status === 'ok' && r2.structured.scenarios).toHaveLength(1);
+  });
+
+  it('2j: قاعدتا (ع) و(ف) وقائمة الفحص فى التعليمات، وأنواع الناقد الجديدة تُقبل', async () => {
+    const f = mockSeq(GOOD, { defects: [] });
+    await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    const sys = JSON.parse(f.mock.calls[0][1].body).messages[0].content as string;
+    expect(sys).toContain('فى حالتك');
+    expect(sys).toContain('تصفية الاحتمالات');
+    expect(sys).toContain('قائمة الفحص الثابتة');
+    expect(sys).toContain('C1) المادة 161 تخص العقد غير محدد المدة');
+    expect(sys).toContain('C8)');
+    const critic = JSON.parse(f.mock.calls[1][1].body).messages[0].content as string;
+    expect(critic).toContain('checklist_violation');
+    expect(critic).toContain('generic_direct_answer');
+    expect(critic).toContain('C5)');
+    const g = mockSeq(DRAFT, { defects: [{ type: 'generic_direct_answer', problem: 'الجواب المباشر عام', fix: 'ابدأ بفى حالتك' }, { type: 'checklist_violation', problem: 'C2 مخالف', fix: 'اجعل المهلة على صاحب العمل' }] }, FIXED);
+    await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    const revise = JSON.parse(g.mock.calls[2][1].body).messages[1].content as string;
+    expect(revise).toContain('generic_direct_answer');
+    expect(revise).toContain('checklist_violation');
+  });
+
+  it('2j: قائمة الفحص داخل المسار — فى وضع المستحقات يُضاف نص المادة 125 حرفياً إن تجاهلها النموذج فى الجولتين', async () => {
+    const A125 = 'يستحق العامل مقابل رصيد إجازاته السنوية عند انتهاء علاقة العمل. ويصرف له عند التسوية.';
+    const dues = {
+      question: 'انتهى عقدى ولم أستلم مستحقاتى فماذا أفعل؟',
+      articles: [
+        { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 154, articleText: ART_TEXT },
+        { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 125, articleText: A125 },
+      ],
+    };
+    const EMPTY = { rulings: [], scenarios: [], warnings: [], skipped: [] };
+    const f = mockSeq(GOOD, EMPTY, EMPTY);
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(dues);
+    expect(f).toHaveBeenCalledTimes(3);
+    expect(r.status).toBe('ok');
+    if (r.status !== 'ok') return;
+    expect(r.structured.rulings).toHaveLength(2);
+    expect(r.structured.rulings[1]).toMatchObject({
+      kind: 'نص',
+      quote_verified: true,
+      citation_index: 1,
+      quote: 'يستحق العامل مقابل رصيد إجازاته السنوية عند انتهاء علاقة العمل.',
+    });
+  });
+
+  it('2j: مفتاح STRUCTURED_CHECKLIST_ENABLED=false يعطّل القائمة', async () => {
+    process.env.STRUCTURED_CHECKLIST_ENABLED = 'false';
+    try {
+      const A125 = 'يستحق العامل مقابل رصيد إجازاته السنوية عند انتهاء علاقة العمل.';
+      const dues = {
+        question: 'انتهى عقدى ولم أستلم مستحقاتى فماذا أفعل؟',
+        articles: [
+          { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 154, articleText: ART_TEXT },
+          { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 125, articleText: A125 },
+        ],
+      };
+      const EMPTY = { rulings: [], scenarios: [], warnings: [], skipped: [] };
+      mockSeq(GOOD, EMPTY, EMPTY);
+      const r = await new DeepseekGenerationService().composeStructuredAnswer(dues);
+      expect(r.status === 'ok' && r.structured.rulings).toHaveLength(1);
+    } finally {
+      delete process.env.STRUCTURED_CHECKLIST_ENABLED;
+    }
+  });
+
   it('واقعة سُئل عنها وأُجيب عنها لا تعود فى facts_to_confirm', async () => {
     mockSeq(GOOD, { defects: [] });
     const r = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
@@ -571,6 +681,16 @@ describe('DeepseekGenerationService — وضع الوقائع: خطوة التط
     global.fetch = f as unknown as typeof fetch;
     await new DeepseekGenerationService().detectClarification({ question: 'س', history: [], articles: INPUT.articles });
     expect(JSON.parse(f.mock.calls[0][1].body).messages[0].content).toContain('بوحدته الصريحة');
+  });
+
+  it('2j: محلل الاستيضاح يسأل عن طريقة إبلاغ الإنهاء وسببه واستلام المستحقات فى أسئلة انتهاء العلاقة', async () => {
+    const f = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify({ needs_clarification: false }))));
+    global.fetch = f as unknown as typeof fetch;
+    await new DeepseekGenerationService().detectClarification({ question: 'س', history: [], articles: INPUT.articles });
+    const sys = JSON.parse(f.mock.calls[0][1].body).messages[0].content as string;
+    expect(sys).toContain('كيف أُبلغ العامل بالإنهاء');
+    expect(sys).toContain('السبب الذى أعلنه صاحب العمل');
+    expect(sys).toContain('هل تسلّم مستحقاته');
   });
 });
 
