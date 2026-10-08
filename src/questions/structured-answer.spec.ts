@@ -3,10 +3,18 @@ import {
   buildStatusWarnings,
   collectProseForGate,
   computeSourceStatus,
+  findUncoveredArticles,
+  mergeStructuredAddition,
   normalizeForQuote,
+  parseStructuredAddition,
   parseStructuredAnswer,
   renderStructuredAsText,
+  stripConditionLead,
   verifyQuote,
+  MAX_RULINGS,
+  MAX_SCENARIOS,
+  MAX_WARNINGS,
+  type StructuredAnswer,
 } from './structured-answer';
 
 const ART_154 =
@@ -146,7 +154,7 @@ describe('parseStructuredAnswer', () => {
     expect(r.value.warnings[0].length).toBeLessThanOrEqual(700);
   });
 
-  it('يحدّ التحذيرات (4) والوقائع (5) والأحكام (8) ويُرجع إحصاءات التخفيض والإسقاط', () => {
+  it('يحدّ التحذيرات (5) والوقائع (5) والأحكام (10) ويُرجع إحصاءات التخفيض والإسقاط', () => {
     const many = {
       ...good,
       rulings: [
@@ -160,8 +168,10 @@ describe('parseStructuredAnswer', () => {
     const r = parseStructuredAnswer(JSON.stringify(many), arts);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.value.rulings).toHaveLength(8);
-    expect(r.value.warnings).toHaveLength(4);
+    expect(r.value.rulings).toHaveLength(MAX_RULINGS);
+    expect(MAX_RULINGS).toBe(10);
+    expect(r.value.warnings).toHaveLength(MAX_WARNINGS);
+    expect(MAX_WARNINGS).toBe(5);
     expect(r.value.facts_to_confirm).toHaveLength(5);
     const r2 = parseStructuredAnswer(
       JSON.stringify({
@@ -233,10 +243,10 @@ describe('hasArticleRef وإسقاط التحذيرات بلا سند', () => {
     expect(r.stats.warnings_dropped).toBe(1);
   });
 
-  it('لا يعدّ التحذيرات المُسقَطة ضمن حدّ الأربعة', () => {
+  it('لا يعدّ التحذيرات المُسقَطة ضمن حدّ التحذيرات', () => {
     const warnings = [
       ...Array.from({ length: 3 }, (_, i) => `بلا مادة ${i} مختلف.`),
-      ...Array.from({ length: 4 }, (_, i) => `بمادة ${i} مختلف (المادة ${i + 1}).`),
+      ...Array.from({ length: 7 }, (_, i) => `بمادة ${i} مختلف (المادة ${i + 1}).`),
     ];
     const r = parseStructuredAnswer(
       JSON.stringify({
@@ -246,7 +256,7 @@ describe('hasArticleRef وإسقاط التحذيرات بلا سند', () => {
       }),
       [{ text: 'نص' }],
     );
-    expect(r.ok && r.value.warnings).toHaveLength(4);
+    expect(r.ok && r.value.warnings).toHaveLength(MAX_WARNINGS);
   });
 });
 
@@ -298,5 +308,120 @@ describe('collectProseForGate / renderStructuredAsText / buildStatusWarnings', (
     expect(w.join('|')).toContain('ملغاة');
     expect(w.join('|')).toContain('معدَّلة');
     expect(w.join('|')).toContain('غير محسومة');
+  });
+});
+
+describe('stripConditionLead وتنظيف شرط السيناريو («إذا إذا»)', () => {
+  it('يزيل أداة الشرط الافتتاحية بصيغها ولا يمسّ ما فى وسط الجملة', () => {
+    expect(stripConditionLead('إذا استمر تنفيذ العقد بعد انتهاء مدته')).toBe('استمر تنفيذ العقد بعد انتهاء مدته');
+    expect(stripConditionLead('اذا كان العقد غير مكتوب')).toBe('كان العقد غير مكتوب');
+    expect(stripConditionLead('إن كانت المدة أقل من خمس سنوات')).toBe('كانت المدة أقل من خمس سنوات');
+    expect(stripConditionLead('فى حال استمرار العمل')).toBe('استمرار العمل');
+    expect(stripConditionLead('في حالة عدم الكتابة')).toBe('عدم الكتابة');
+    expect(stripConditionLead('وإذا لم يتفق الطرفان')).toBe('لم يتفق الطرفان');
+    expect(stripConditionLead('كانت المدة أقل من خمس سنوات إذا لم تُجدَّد')).toBe('كانت المدة أقل من خمس سنوات إذا لم تُجدَّد');
+    expect(stripConditionLead('إنهاء العقد من جانب صاحب العمل')).toBe('إنهاء العقد من جانب صاحب العمل');
+  });
+
+  it('parseStructuredAnswer يخزّن الشرط بلا «إذا» فلا يُعرَض «إذا إذا»', () => {
+    const r = parseStructuredAnswer(
+      JSON.stringify({
+        direct_answer: 'جواب مباشر مفصل كفاية.',
+        rulings: [{ claim: 'حكم موجز واحد.', kind: 'تفسير', source: 1 }],
+        scenarios: [{ condition: 'إذا استمر تنفيذ العقد بعد انتهاء مدته', outcome: 'يعامل كغير محدد المدة.', source: 1 }],
+      }),
+      [{ text: 'نص المادة' }],
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.scenarios[0].condition).toBe('استمر تنفيذ العقد بعد انتهاء مدته');
+    const text = renderStructuredAsText(r.value, [
+      { law: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 88, sourceStatus: 'ساري' },
+    ]);
+    expect(text).toContain('- إذا استمر تنفيذ العقد');
+    expect(text).not.toContain('إذا إذا');
+  });
+});
+
+describe('خطوة الاستكمال: findUncoveredArticles / parseStructuredAddition / mergeStructuredAddition', () => {
+  const ART_87 = 'يبرم عقد العمل الفردى لمدة غير محددة،أو لمدة محددة إذا كانت طبيعة العمل تقتضى ذلك.';
+  const ART_6 = 'يقع باطلا كل شرط أو اتفاق يخالف أحكام هذا القانون،إذا تضمن إبراء من حقوق العامل خلال ثلاثة أشهر من تاريخ انتهائه.';
+  const ART_108 = 'إذا انتهت علاقة العمل لأى سبب يؤدى صاحب العمل للعامل أجره وجميع المبالغ المستحقة له فى مدة لا تجاوز سبعة أيام من تاريخ المطالبة.';
+  const articles = [
+    { text: ART_154, articleNo: 154 },
+    { text: ART_87, articleNo: 87 },
+    { text: ART_6, articleNo: 6 },
+    { text: ART_108, articleNo: 108 },
+  ];
+  const base: StructuredAnswer = {
+    direct_answer: 'ينتهى العقد محدد المدة بانقضاء مدته.',
+    rulings: [
+      { claim: 'يستحق العامل مكافأة إذا كان الإنهاء من جانب صاحب العمل.', kind: 'نص', citation_index: 0, quote: null, quote_verified: false },
+    ],
+    scenarios: [],
+    open_issues: [],
+    warnings: ['مبلغ التسوية يُصرف خلال سبعة أيام من المطالبة (المادة 108).'],
+    facts_to_confirm: [],
+    not_covered: [],
+  };
+
+  it('findUncoveredArticles: يستثنى المواد المستند إليها فى حكم/سيناريو/تنبيه ويُبقى ما عداها مرتبة', () => {
+    expect(findUncoveredArticles(base, articles)).toEqual([6, 87]);
+    const withScenario = { ...base, scenarios: [{ condition: 'عقد دائم بطبيعته', outcome: 'ينعقد غير محدد المدة.', citation_index: 1 }] };
+    expect(findUncoveredArticles(withScenario, articles)).toEqual([6]);
+  });
+
+  it('parseStructuredAddition: نفس فحوص التأصيل والاقتباس، ويقبل بلا أحكام، ويقرأ skipped', () => {
+    const r = parseStructuredAddition(
+      JSON.stringify({
+        rulings: [
+          { claim: 'يبرم عقد العمل لمدة غير محددة أو لمدة محددة إذا اقتضت طبيعة العمل ذلك.', kind: 'نص', source: 2, quote: 'يبرم عقد العمل الفردى لمدة غير محددة' },
+          { claim: 'يسقط حق العامل فى المطالبة بعد ثلاثين يوماً.', kind: 'تفسير', source: 3 },
+        ],
+        scenarios: [{ condition: 'إذا كانت طبيعة العمل دائمة', outcome: 'يكون العقد غير محدد المدة.', source: 2 }],
+        warnings: ['تبطل أى مخالصة توقع خلال ثلاثة أشهر من انتهاء العقد (المادة 6).'],
+        skipped: [{ article: 95, reason: 'تدريب بعيد الصلة' }, { article: 'x' }],
+      }),
+      articles,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.rulings).toHaveLength(1);
+    expect(r.value.rulings[0]).toMatchObject({ citation_index: 1, kind: 'نص', quote_verified: true });
+    expect(r.stats.guard_dropped.rulings).toBe(1);
+    expect(r.value.scenarios[0].condition).toBe('كانت طبيعة العمل دائمة');
+    expect(r.value.warnings).toHaveLength(1);
+    expect(r.value.skipped).toEqual([{ article: 95, reason: 'تدريب بعيد الصلة' }]);
+    expect(parseStructuredAddition('{}', articles).ok).toBe(true);
+    expect(parseStructuredAddition('not json', articles)).toEqual({ ok: false, reason: 'unparseable_json' });
+  });
+
+  it('mergeStructuredAddition: الأساسى أولاً بلا حذف أو إعادة ترتيب، ويمنع التكرار ويحترم السقوف', () => {
+    const add = {
+      rulings: [
+        { claim: 'يستحق العامل مكافأة إذا كان الإنهاء من جانب صاحب العمل.', kind: 'نص' as const, citation_index: 0, quote: null, quote_verified: false },
+        { claim: 'يبرم عقد العمل لمدة غير محددة أو محددة إذا اقتضت طبيعة العمل.', kind: 'تفسير' as const, citation_index: 1, quote: null, quote_verified: false },
+      ],
+      scenarios: [{ condition: 'كانت طبيعة العمل دائمة', outcome: 'يكون العقد غير محدد المدة.', citation_index: 1 }],
+      warnings: ['مبلغ التسوية يُصرف خلال سبعة أيام من المطالبة (المادة 108).', 'تبطل أى مخالصة خلال ثلاثة أشهر من انتهاء العقد (المادة 6).'],
+      skipped: [],
+    };
+    const m = mergeStructuredAddition(base, add);
+    expect(m.added).toEqual({ rulings: 1, scenarios: 1, warnings: 1 });
+    expect(m.value.rulings.map((x) => x.citation_index)).toEqual([0, 1]);
+    expect(m.value.warnings[0]).toBe(base.warnings[0]);
+    expect(m.value.warnings).toHaveLength(2);
+    expect(findUncoveredArticles(m.value, articles)).toEqual([]);
+    // السقوف
+    const many = {
+      rulings: Array.from({ length: 20 }, (_, i) => ({ claim: `حكم رقم ${i} مختلف تماماً عن غيره ${'ك'.repeat(i + 1)}`, kind: 'تفسير' as const, citation_index: 1, quote: null, quote_verified: false })),
+      scenarios: Array.from({ length: 20 }, (_, i) => ({ condition: `واقعة ${i} مختلفة ${'ك'.repeat(i + 1)}`, outcome: `نتيجة ${i} مختلفة ${'ك'.repeat(i + 1)}`, citation_index: 2 })),
+      warnings: Array.from({ length: 20 }, (_, i) => `تنبيه ${i} مختلف ${'ك'.repeat(i + 1)} (المادة 6)`),
+      skipped: [],
+    };
+    const capped = mergeStructuredAddition(base, many).value;
+    expect(capped.rulings.length).toBe(MAX_RULINGS);
+    expect(capped.scenarios.length).toBe(MAX_SCENARIOS);
+    expect(capped.warnings.length).toBe(MAX_WARNINGS);
   });
 });

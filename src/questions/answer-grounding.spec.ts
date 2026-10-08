@@ -235,7 +235,7 @@ describe('parseStructuredAnswer — فحص التأصيل والوسم الحت�
     expect(r.ok && r.stats.coverage_upgraded).toBe(1);
   });
 
-  it('سيناريوهات تطبيقية: تُقبَل المؤصَّلة، وتُسقَط ذات المقدار غير الوارد أو المصدر الفاسد، وتُحَدّ بأربعة', () => {
+  it('سيناريوهات تطبيقية: تُقبَل المؤصَّلة، وتُسقَط ذات المقدار غير الوارد أو المصدر الفاسد، وتُحَدّ بستة', () => {
     const r = parseStructuredAnswer(
       mk({
         scenarios: [
@@ -250,9 +250,9 @@ describe('parseStructuredAnswer — فحص التأصيل والوسم الحت�
     );
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.value.scenarios.length).toBe(4);
-    expect(r.value.scenarios[0]).toMatchObject({ citation_index: 1 });
-    expect(r.value.scenarios.map((s) => s.condition)).not.toContain('إذا كانت مدة الخدمة أكثر من عشر سنوات');
+    expect(r.value.scenarios.length).toBe(6);
+    expect(r.value.scenarios[0]).toMatchObject({ citation_index: 1, condition: 'كانت مدة الخدمة أقل من خمس سنوات' });
+    expect(r.value.scenarios.map((s) => s.condition)).not.toContain('كانت مدة الخدمة أكثر من عشر سنوات');
     expect(r.stats.guard_dropped.scenarios).toBe(1);
   });
 

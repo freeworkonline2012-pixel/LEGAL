@@ -3,6 +3,9 @@ import { normalizeArabic, toEnglishDigits } from '../ingestion/normalize';
 import { detectCrossReferencedArticles } from '../questions/retrieval';
 import {
   collectProseForGate,
+  findUncoveredArticles,
+  mergeStructuredAddition,
+  parseStructuredAddition,
   parseStructuredAnswer,
   referencedProvidedArticles,
   type StructuredAnswer,
@@ -666,9 +669,9 @@ export class DeepseekGenerationService {
       '(1..N) الذى يستند إليه الحكم, "quote": "مقتطف حرفى منسوخ كما هو من ذلك النص الذى يستند ' +
       'إليه الحكم (حتى 40 كلمة؛ إلزامى عند kind=نص، ومطلوب أيضاً عند kind=تفسير ليُعرَض النص ' +
       'المرتبط بالحكم)" } ],\n' +
-      '  "scenarios": [ { "condition": "واقعة أو شرط محتمل فى حالة السائل لم يحدده السؤال (مثل: إن كانت مدة الخدمة الإجمالية أقل من خمس سنوات)", "outcome": "النتيجة القانونية المترتبة عليها **بحسب النص المرفق وحده**، ويجوز أن تكون نفياً (لا يستحق/لا يلزم) متى كان النص يعلّق الحق على شرط لا يتحقق فى هذه الحالة", "source": رقم النص المرفق (1..N) الذى تُستنبَط منه النتيجة } ],\n' +
+      '  "scenarios": [ { "condition": "واقعة أو شرط محتمل فى حالة السائل لم يحدده السؤال، تُكتب وصفاً مجرداً **بلا أداة شرط فى أولها** (لا تبدأ بـ«إذا/إن/فى حال/عند» فالعرض يضيف «إذا» تلقائياً)، مثل: كانت مدة الخدمة الإجمالية أقل من خمس سنوات", "outcome": "النتيجة القانونية المترتبة عليها **بحسب النص المرفق وحده**، ويجوز أن تكون نفياً (لا يستحق/لا يلزم) متى كان النص يعلّق الحق على شرط لا يتحقق فى هذه الحالة", "source": رقم النص المرفق (1..N) الذى تُستنبَط منه النتيجة } ],\n' +
       '  "open_issues": ["مسائل خلافية أو غير محسومة نصاً أو قضاءً، كل مسألة فى جملة"],\n' +
-      '  "warnings": ["حتى 3 تحذيرات عملية فقط (مواعيد أو مدد أو شروط يتوقف عليها الحق) لا يتكرر فيها ما ورد فى rulings أو open_issues، كل تحذير فى جملة مفهومة تامة **وتنتهى بذكر رقم المادة التى يستند إليها بين قوسين مثل (المادة 156)**. لا تنسب إلى مادة أثراً لا يرد بلفظه فيها: ميعاد الوفاء (كمدة لصرف المستحقات من تاريخ المطالبة) ليس ميعاد سقوط، ولا تكتب «يسقط/تقادم/بطلان/يحرم/يفقد» ولا مدة إلا إذا وردت بلفظها فى نص المادة المذكورة — الخادم يحذف تلقائياً أى تحذير لا يذكر رقم مادة أو يذكر أثراً أو مدة لا أصل لها فى نصها. ممنوع أن يتضمن التحذير قاعدة قانونية جديدة لم ترد فى rulings"],\n' +
+      '  "warnings": ["حتى 4 تحذيرات عملية فقط (مواعيد أو مدد أو شروط يتوقف عليها الحق، أو ما يبطله النص أو يقيده مما قد يوقّعه السائل أو يتفق عليه كإبراء أو مخالصة أو تنازل) لا يتكرر فيها ما ورد فى rulings أو open_issues، كل تحذير فى جملة مفهومة تامة **وتنتهى بذكر رقم المادة التى يستند إليها بين قوسين مثل (المادة 156)**، وإن كان التحذير خاصاً بنوع عقد أو حالة بعينها فابدأه بتحديد نطاقه (مثل «فى العقد غير محدد المدة فقط:») حتى لا يظنه القارئ منطبقاً على عقده هو إن كان من نوع آخر. لا تنسب إلى مادة أثراً لا يرد بلفظه فيها: ميعاد الوفاء (كمدة لصرف المستحقات من تاريخ المطالبة) ليس ميعاد سقوط، ولا تكتب «يسقط/تقادم/بطلان/يحرم/يفقد» ولا مدة إلا إذا وردت بلفظها فى نص المادة المذكورة — الخادم يحذف تلقائياً أى تحذير لا يذكر رقم مادة أو يذكر أثراً أو مدة لا أصل لها فى نصها. ممنوع أن يتضمن التحذير قاعدة قانونية جديدة لم ترد فى rulings"],\n' +
       '  "facts_to_confirm": ["حتى 4 وقائع غير مذكورة فى السؤال ويتوقف عليها الحكم (مثل: مدة الخدمة، ' +
       'نوع العقد، هل التجديد كتابى)، كل واقعة فى جملة سؤال قصيرة"],\n' +
       '  "not_covered": ["أجزاء من سؤال المستخدم نفسه فقط لا تجيب عنها أى من النصوص المرفقة رغم فحصها كلها؛ ' +
@@ -678,7 +681,7 @@ export class DeepseekGenerationService {
       'وكان نصها ضمن النصوص المرفقة فأدرجها أولاً فى rulings بسندها ووسمها؛ ولا تُشِر لمدة أو شرط ' +
       'لا سند له فى النصوص المرفقة.\n' +
       'القوائم الفارغة تُكتب [] — لا تملأها لمجرد الملء. الأحكام فى rulings تُرتَّب بترتيب أهميتها ' +
-      'للسؤال (لا أكثر من 6، ولا تُدرج حكماً إلا إذا أجاب مباشرةً عن السؤال أو كان شرطاً أو مدة أو ' +
+      'للسؤال (لا أكثر من 8، ولا تُدرج حكماً إلا إذا أجاب مباشرةً عن السؤال أو كان شرطاً أو مدة أو ' +
       'إجراءً تتوقف عليه الإجابة — المواد الهامشية بعيدة الصلة لا تُدرج ولو كانت ضمن النصوص ' +
       'المرفقة). لا تُكرِّر الحكم نفسه فى أكثر من حقل. صياغة claim لا تُضيف شرطاً أو عبارة أو نتيجة لم ترد ' +
       'فى النص الذى تستند إليه. لا تذكر حالة سريان القانون (ساري/ملغى) فى أى حقل؛ يضيفها الخادم ' +
@@ -687,7 +690,10 @@ export class DeepseekGenerationService {
       'الأصل ثم الاستثناء: إن تضمنت النصوص المرفقة قاعدة عامة تحدد وصف العقد أو الواقعة أو تحوّله (الأصل العام، أو متى يتحول العقد إلى نوع آخر) أو أثراً عاماً على ما يوقّعه صاحب الشأن، فأدرجها حكماً مستقلاً بسندها قبل الأحكام الخاصة المبنية عليها.\n' +
       'التمييز الحاسم: إن اختلف الجواب باختلاف حالتين (مثل نوعى عقد)، فاذكر فى direct_answer الشرط الحاسم لكل حالة بإيجاز، بما فيه ما يزيد على الإجراء إن نص عليه (كاشتراط مبرر مشروع فوق الإخطار).\n' +
       'open_issues للخلاف فى تفسير النص أو تطبيقه فقط؛ أما ما يتوقف على إثبات وقائع (هل التجديد كتابى؟ ما مدة الخدمة؟) فمكانه facts_to_confirm لا open_issues، ولا تعرض كخلاف ما يحسمه النص صراحةً.\n' +
-      'قاعدة التطبيق على الحالة (scenarios): إن توقفت الإجابة على وقائع لم يذكرها السؤال، أو سأل المستخدم عن حالتين أو أكثر، فاكتب فى scenarios (حتى 4) خلاصة تطبيقية يقرؤها السائل كجواب عن حالته: سيناريو واحد لكل احتمال مؤثر (أقل من الحد الزمنى/أكثر منه، العقد مكتوب/غير مكتوب، الطرف الذى أنهى...) بشرطه ونتيجته وسنده دون تداخل. اقتصر على الشروط والمقادير والآثار الواردة فى نص المادة المستند إليها؛ لا تُدخل مدة أو أثراً (سقوط، تقادم، بطلان، حرمان...) لم يرد بلفظه فى ذلك النص — الخادم يحذف أى سيناريو يخالف ذلك. ولا تُدرج فى الأحكام أو السيناريوهات ما يخص طرفاً أو واقعة تخالف ما ذكره السؤال (مثل حق للعامل فى الإنهاء والسائل يقول إن صاحب العمل هو الذى أنهى) إلا إن كان شرطاً مؤثراً فى الجواب. اترك scenarios [] إن لم يتوقف الجواب على وقائع مجهولة.\n\n' +
+      'قاعدة التطبيق على الحالة (scenarios): إن توقفت الإجابة على وقائع لم يذكرها السؤال، أو سأل المستخدم عن حالتين أو أكثر، فاكتب فى scenarios (حتى 6) خلاصة تطبيقية يقرؤها السائل كجواب عن حالته: سيناريو واحد لكل احتمال مؤثر (أقل من الحد الزمنى/أكثر منه، العقد مكتوب/غير مكتوب، الطرف الذى أنهى...) بشرطه ونتيجته وسنده دون تداخل. اقتصر على الشروط والمقادير والآثار الواردة فى نص المادة المستند إليها؛ لا تُدخل مدة أو أثراً (سقوط، تقادم، بطلان، حرمان...) لم يرد بلفظه فى ذلك النص — الخادم يحذف أى سيناريو يخالف ذلك. ولا تُدرج فى الأحكام أو السيناريوهات ما يخص طرفاً أو واقعة تخالف ما ذكره السؤال (مثل حق للعامل فى الإنهاء والسائل يقول إن صاحب العمل هو الذى أنهى) إلا إن كان شرطاً مؤثراً فى الجواب. اترك scenarios [] إن لم يتوقف الجواب على وقائع مجهولة. وإن عدّدت المواد المرفقة حالات تغيّر وصف العقد أو نتيجته (مثل: العقد غير المكتوب، أو الذى لم يُحدَّد مدته، أو الذى استمر تنفيذه بعد انتهاء مدته دون اتفاق مكتوب، أو الذى تقتضى طبيعة العمل توقيته أو لا تقتضيها) فأفرد لكل حالة منها سيناريو مستقلاً، لا الاكتفاء بذكرها فى rulings.\n' +
+      'حقوق نهاية العلاقة: إن سأل المستخدم عما يستحقه عند انتهاء علاقة العمل أو عدم التجديد أو الفصل، فعدِّد فى rulings **بالاسم** كل حق أو التزام ورد فى النصوص المرفقة لمصلحته (الأجر وما يُستحق معه وميعاد أدائه، مقابل رصيد الإجازات، شهادة الخبرة والأوراق وإخلاء الطرف... وغيرها مما ورد)، ولا تكتفِ بعبارة «باقى حقوقه المقررة قانوناً».\n' +
+      'عدم تجديد العقد محدد المدة: إن كان النص ينهيه بانقضاء مدته فبيّن أنه ينتهى بذاته، وأن ما اشترطته نصوص أخرى من إخطار أو مبرر خاص بالعقد غير محدد المدة فلا يُنسب لعقد محدد المدة ما لم ينص على ذلك (استنباط يوسَم تفسيراً).\n' +
+      'أمانة التسمية: لا تغيّر تسمية الحق عن لفظ النص: المكافأة تبقى «مكافأة»، وبدل مهلة الإخطار «مبلغ يعادل أجر مدة المهلة» لا «تعويض»، ولا تستعمل «تعويض» إلا لما سماه النص تعويضاً بلفظه.\n\n' +
       STRUCTURED_KIND_RULE +
       '\n\n' +
       GENERATION_CONDITIONAL_FIDELITY_RULE;
@@ -783,6 +789,18 @@ export class DeepseekGenerationService {
         return { status: 'invalid_structure', reason: parsed.reason };
       }
 
+      // خطوة الاستكمال (2026-10-08 — تقييم حى 8/10: المواد 6 و87 و108 و125 كانت مرسَلة للنموذج
+      // ولم يستخدمها لأن تعليمة الإيجاز تقيّده، وتكرر إهمال 87 ثلاث مرات رغم التلميح فى الـprompt):
+      // كل مادة مرسَلة اختارتها بوابات الصلة لا بد أن يُستند إليها أو يُقَرّ صراحةً بعدم صلتها،
+      // والتحقق من ذلك حتمى لا يعتمد على التزام النموذج. المفتاح: STRUCTURED_COMPLETION_ENABLED=false.
+      let structuredValue = parsed.value;
+      if (process.env.STRUCTURED_COMPLETION_ENABLED !== 'false') {
+        const uncovered = findUncoveredArticles(structuredValue, input.articles);
+        if (uncovered.length > 0) {
+          structuredValue = await this.completeStructuredAnswer(input, structuredValue, uncovered);
+        }
+      }
+
       // بوابة هلوسة أرقام المواد (نفس تعريف "الأرقام الصحيحة" فى المسار القديم:
       // المواد المرفقة + إحالاتها الصريحة) على كل النصوص الحرة — لا على المقتطفات
       // الحرفية (تُتحقَّق منها حرفياً فى parseStructuredAnswer).
@@ -791,7 +809,7 @@ export class DeepseekGenerationService {
         input.articles.map((a) => a.articleText),
       );
       const hallucinated = findHallucinatedArticleCitations(
-        collectProseForGate(parsed.value),
+        collectProseForGate(structuredValue),
         validArticleNumbers,
       );
       if (hallucinated.length > 0) {
@@ -801,10 +819,144 @@ export class DeepseekGenerationService {
         );
         return { status: 'hallucination_rejected' };
       }
-      return { status: 'ok', structured: parsed.value };
+      return { status: 'ok', structured: structuredValue };
     } catch (err) {
       this.logger.error(`DeepSeek composeStructuredAnswer API call failed: ${(err as Error).message}`);
       return { status: 'api_error' };
+    }
+  }
+
+  /**
+   * خطوة الاستكمال (2026-10-08): تضمن حتمياً أن كل مادة مرسَلة للنموذج (اختارتها بوابات الصلة) إما
+   * يُستند إليها فى حكم/سيناريو/تنبيه أو يُقِرّ النموذج صراحةً بعدم صلتها. نداء إضافى واحد فقط حين
+   * توجد مواد غير مستخدمة، ويمر خرجه بنفس فحوص التأصيل والاقتباس والوسم الحتمى ثم يُدمج بعد
+   * الأساسى (لا يعيد ترتيب ولا يحذف). أى فشل (شبكة، JSON، مهلة) → تبقى الإجابة الأساسية كما هى.
+   */
+  private async completeStructuredAnswer(
+    input: GroundedGenerationMultiInput,
+    base: StructuredAnswer,
+    uncovered: number[],
+  ): Promise<StructuredAnswer> {
+    const guard = process.env.STRUCTURED_GUARD_ENABLED !== 'false';
+    const system =
+      'أنت تستكمل إجابة قانونية منظَّمة قائمة بناءً حصراً على النصوص المرفقة، بنفس انضباط الإجابة ' +
+      'الأصلية: ممنوع إضافة أى معلومة أو رقم مادة أو مدة أو أثر قانونى غير وارد لفظاً فى النص الذى ' +
+      'تستند إليه، ولا تُكرِّر ما فى الإجابة الحالية.\n\n' +
+      'اختارت بوابات الصلة كل النصوص المرفقة لأنها مرتبطة بسؤال المستخدم، لكن الإجابة الحالية لم ' +
+      'تستند إلى النصوص المسرودة فى «نصوص لم تُستخدم». افحص كل نص منها على حدة:\n' +
+      '- إن كان يقرر حقاً أو التزاماً أو شرطاً أو مدة أو قاعدة أصلية أو استثناءً أو حالة تغيّر وصف ' +
+      'الواقعة أو نتيجتها، أو يبطل أو يقيّد ما قد يوقّعه السائل أو يتفق عليه (إبراء، مخالصة، تنازل)، ' +
+      'ويفيد جواب السائل فأضف له بنداً: حكماً فى rulings، أو سيناريو فى scenarios إن كان احتمالاً ' +
+      'تطبيقياً على حالة السائل، أو تنبيهاً فى warnings إن كان تحذيراً عملياً (ينتهى برقم المادة ' +
+      'بين قوسين، ويُبدأ بنطاقه إن كان خاصاً بنوع عقد أو حالة).\n' +
+      '- وإن كان بعيداً عن سؤال المستخدم أو مكرراً لما فى الإجابة الحالية أو إجرائياً لا يتوقف عليه ' +
+      'الجواب فلا تضف له شيئاً، واذكره فى skipped مع سبب موجز.\n\n' +
+      'أخرِج **كائن JSON واحداً فقط** بهذه المفاتيح (كلها إضافات فقط، وتُترك [] إن لم تكن هناك إضافة):\n' +
+      '{\n' +
+      '  "rulings": [ { "claim": "حكم/حق/التزام واحد فى جملة موجزة (حتى 40 كلمة) بشروطه", "kind": "نص" أو "تفسير", "source": رقم النص المرفق (1..N), "quote": "مقتطف حرفى منسوخ من ذلك النص (حتى 40 كلمة)" } ],\n' +
+      '  "scenarios": [ { "condition": "واقعة محتملة بلا أداة شرط فى أولها", "outcome": "نتيجتها بحسب النص وحده", "source": رقم النص } ],\n' +
+      '  "warnings": ["تنبيه عملى فى جملة تامة ينتهى بـ(المادة N)"],\n' +
+      '  "skipped": [ { "article": رقم المادة, "reason": "سبب عدم الإدراج فى جملة قصيرة" } ]\n' +
+      '}\n' +
+      'الحد الأقصى للإضافات: 6 أحكام و3 سيناريوهات و2 تنبيهات. لا تغيّر تسمية الحق عن لفظ النص ' +
+      '(مكافأة/مبلغ يعادل أجراً/تعويض/أجر مقابل). الخادم يحذف أى بند لا أصل فى نص مادته لمدة أو ' +
+      'أثر (سقوط/تقادم/بطلان/حرمان/فقدان) يذكره.\n\n' +
+      STRUCTURED_KIND_RULE +
+      '\n\n' +
+      GENERATION_CONDITIONAL_FIDELITY_RULE;
+
+    const articlesText = input.articles
+      .map(
+        (a, i) =>
+          `النص ${i + 1} — المادة ${a.articleNo} من ${a.lawTitle} (رقم ${a.lawNo} لسنة ${a.lawYear}):\n"""${a.articleText}"""`,
+      )
+      .join('\n\n');
+    const no = (idx: number) => input.articles[idx]?.articleNo ?? '؟';
+    const current = [
+      `الجواب المباشر: ${base.direct_answer}`,
+      ...base.rulings.map((r) => `- حكم (م${no(r.citation_index)}): ${r.claim}`),
+      ...(base.scenarios ?? []).map((x) => `- سيناريو (م${no(x.citation_index)}): ${x.condition} ← ${x.outcome}`),
+      ...base.warnings.map((w) => `- تنبيه: ${w}`),
+    ].join('\n');
+    const userMsg =
+      `سؤال المستخدم: ${input.question}\n\n` +
+      `النصوص القانونية المرجعية (${input.articles.length}):\n${articlesText}\n\n` +
+      `الإجابة الحالية (لا تُكرِّر ما فيها):\n${current}\n\n` +
+      `نصوص لم تُستخدم: ${uncovered.map((n) => `المادة ${n}`).join('، ')}\n\n` +
+      'أخرِج كائن JSON وفق المفاتيح المحددة.';
+
+    const maxTokens = Math.min(3500, 1200 + uncovered.length * 350);
+    const articleMeta = input.articles.map((a) => ({ text: a.articleText, articleNo: a.articleNo }));
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        signal: AbortSignal.timeout(45_000),
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: maxTokens,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        this.logger.warn(`composeStructuredAnswer/استكمال: API ${res.status} — تبقى الإجابة الأساسية.`);
+        return base;
+      }
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        this.logger.warn('composeStructuredAnswer/استكمال: content فارغ — تبقى الإجابة الأساسية.');
+        return base;
+      }
+      const parsed = parseStructuredAddition(text, articleMeta, { guard });
+      if (!parsed.ok) {
+        this.logger.warn(`composeStructuredAnswer/استكمال: بنية غير صالحة (${parsed.reason}) — تبقى الإجابة الأساسية.`);
+        return base;
+      }
+      // بوابة هلوسة أرقام المواد على الإضافات وحدها: إضافة تستشهد بمادة غير مرسَلة تُهمَل كلها
+      // وتبقى الإجابة الأساسية سليمة (لا نُسقط إجابة جيدة بسبب إضافة سيئة).
+      const additionProse = [
+        ...parsed.value.rulings.map((r) => r.claim),
+        ...parsed.value.scenarios.flatMap((x) => [x.condition, x.outcome]),
+        ...parsed.value.warnings,
+      ].join('\n');
+      const hallucinated = findHallucinatedArticleCitations(
+        additionProse,
+        computeValidCitationNumbers(
+          input.articles.map((a) => a.articleNo),
+          input.articles.map((a) => a.articleText),
+        ),
+      );
+      if (hallucinated.length > 0) {
+        this.logger.warn(
+          `composeStructuredAnswer/استكمال: الإضافة تستشهد بأرقام مواد غير مرسَلة [${hallucinated.join(',')}] — أُهمِلت وتبقى الإجابة الأساسية.`,
+        );
+        return base;
+      }
+      const merged = mergeStructuredAddition(base, parsed.value);
+      const stillUncovered = findUncoveredArticles(merged.value, input.articles);
+      const skippedNos = parsed.value.skipped.map((x) => x.article);
+      this.logger.log(
+        `composeStructuredAnswer/استكمال: مواد_غير_مستخدمة=[${uncovered.join(',')}] ` +
+          `أُضيف(أحكام/سيناريوهات/تنبيهات)=${merged.added.rulings}/${merged.added.scenarios}/${merged.added.warnings} ` +
+          `أقرّ_بعدم_صلتها=[${skippedNos.join(',')}] ` +
+          `بقيت_بلا_استناد_ولا_إقرار=[${stillUncovered.filter((n) => !skippedNos.includes(n)).join(',')}] ` +
+          `خُفِّض=${parsed.stats.downgraded} أُسقط_بفحص_التأصيل(أحكام/تحذيرات/سيناريوهات)=` +
+          `${parsed.stats.guard_dropped.rulings}/${parsed.stats.guard_dropped.warnings}/${parsed.stats.guard_dropped.scenarios}` +
+          (parsed.stats.guard_details.length > 0 ? ` تفاصيل: ${parsed.stats.guard_details.join(' || ')}` : ''),
+      );
+      return merged.value;
+    } catch (err) {
+      this.logger.warn(`composeStructuredAnswer/استكمال: فشل (${(err as Error).message}) — تبقى الإجابة الأساسية.`);
+      return base;
     }
   }
 

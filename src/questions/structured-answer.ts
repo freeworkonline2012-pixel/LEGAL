@@ -2,6 +2,7 @@ import {
   TEXT_COVERAGE_MIN,
   TEXT_UPGRADE_COVERAGE_MIN,
   claimCoverage,
+  contentStems,
   extractArticleNumbers,
   findUnsupportedTerms,
   normalizeForQuote,
@@ -101,11 +102,11 @@ export type ParseStructuredResult =
   | { ok: true; value: StructuredAnswer; stats: ParseStats }
   | { ok: false; reason: string };
 
-export const MAX_RULINGS = 8;
-export const MAX_SCENARIOS = 4;
+export const MAX_RULINGS = 10;
+export const MAX_SCENARIOS = 6;
 export const MAX_LIST_ITEMS = 8;
 /** إيجاز العرض: حدود أضيق لقوائم التحذيرات والوقائع (المسائل المفتوحة تبقى حتى MAX_LIST_ITEMS). */
-export const MAX_WARNINGS = 4;
+export const MAX_WARNINGS = 5;
 export const MAX_FACTS = 5;
 export const MAX_FIELD_CHARS = 700;
 export const MAX_QUOTE_WORDS = 40;
@@ -185,34 +186,17 @@ function stripFences(raw: string): string {
 }
 
 /**
- * يحوّل مخرَج النموذج (نص JSON) إلى StructuredAnswer نظيف ومُتحقَّق منه.
- * الأرقام فى rulings[].source تبدأ من 1 (كما تُرقَّم النصوص فى الـprompt) وتُحوَّل
- * هنا إلى citation_index يبدأ من صفر. أى حكم يشير لنص غير موجود يُسقَط (لا
- * يُخمَّن) — وإن سقطت كل الأحكام تُرفَض البنية كلياً.
+ * يزيل أداة الشرط الافتتاحية («إذا/إن/لو/فى حال/عند») من بداية شرط السيناريو: العرض (الخادم والواجهة)
+ * يضيف «إذا» قبل الشرط، فكان شرط يبدأ بها أصلاً يُعرَض «إذا إذا ...» (تقييم حى 8/10، 2026-10-08).
  */
-export function parseStructuredAnswer(
-  raw: string,
-  articles: readonly StructuredArticleMeta[],
-  options: ParseOptions = {},
-): ParseStructuredResult {
-  const guard = options.guard !== false;
-  let data: unknown;
-  try {
-    data = JSON.parse(stripFences(raw));
-  } catch {
-    return { ok: false, reason: 'unparseable_json' };
-  }
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    return { ok: false, reason: 'not_an_object' };
-  }
-  const obj = data as Record<string, unknown>;
-  const direct = cleanStr(obj.direct_answer, 900);
-  if (direct.length < 8) {
-    return { ok: false, reason: 'missing_direct_answer' };
-  }
-  const rawRulings = Array.isArray(obj.rulings) ? obj.rulings : [];
-  const rulings: StructuredRuling[] = [];
-  const stats: ParseStats = {
+export function stripConditionLead(condition: string): string {
+  return condition
+    .replace(/^\s*(?:[وف]\s*)?(?:(?:إذا|اذا|إن|لو)|فى\s+حال(?:ة)?|في\s+حال(?:ة)?|عند(?:ما)?)\s+/, '')
+    .trim();
+}
+
+function newParseStats(): ParseStats {
+  return {
     requested_text: 0,
     downgraded: 0,
     dropped: 0,
@@ -223,7 +207,18 @@ export function parseStructuredAnswer(
     guard_dropped: { rulings: 0, warnings: 0, scenarios: 0 },
     guard_details: [],
   };
-  for (const r of rawRulings) {
+}
+
+interface ParseCtx {
+  articles: readonly StructuredArticleMeta[];
+  guard: boolean;
+  stats: ParseStats;
+}
+
+function parseRulingsList(rawRulings: unknown, ctx: ParseCtx): StructuredRuling[] {
+  const { articles, guard, stats } = ctx;
+  const rulings: StructuredRuling[] = [];
+  for (const r of Array.isArray(rawRulings) ? rawRulings : []) {
     if (!r || typeof r !== 'object') continue;
     const rr = r as Record<string, unknown>;
     const claim = cleanStr(rr.claim);
@@ -269,7 +264,12 @@ export function parseStructuredAnswer(
         stats.downgraded++;
         if (verified) {
           stats.coverage_downgraded++;
-          stats.failures.push(`coverage(${coverage.toFixed(2)}): ${claim.slice(0, 60)}`);
+          // الكلمات المضمونية فى الحكم غير الواردة فى المقتطف الظاهر: تشخيص حى لضبط العتبة بدليل.
+          const shown = new Set(contentStems(quote ?? ''));
+          const missing = contentStems(claim).filter((w) => !shown.has(w));
+          stats.failures.push(
+            `coverage(${coverage.toFixed(2)}): ${claim.slice(0, 60)} غير_مغطى=[${missing.join(' ')}]`,
+          );
         } else {
           stats.failures.push(rawQuote ? `unverified(${rawQuote.split(/\s+/).length}w): ${rawQuote.slice(0, 70)}` : 'no_quote');
         }
@@ -286,9 +286,11 @@ export function parseStructuredAnswer(
     });
     if (rulings.length >= MAX_RULINGS) break;
   }
-  if (rulings.length === 0) {
-    return { ok: false, reason: 'no_valid_rulings' };
-  }
+  return rulings;
+}
+
+function parseWarningsList(rawWarnings: unknown, ctx: ParseCtx): string[] {
+  const { articles, guard, stats } = ctx;
   // نصوص المواد حسب الرقم (لربط «(المادة 108)» المذكورة فى تحذير بنص تلك المادة فعلاً).
   const textsByNo = new Map<number, string[]>();
   for (const a of articles) {
@@ -296,8 +298,9 @@ export function parseStructuredAnswer(
       textsByNo.set(a.articleNo, [...(textsByNo.get(a.articleNo) ?? []), a.text]);
     }
   }
-  const warningsRaw = cleanList(obj.warnings, MAX_LIST_ITEMS);
+  const warningsRaw = cleanList(rawWarnings, MAX_LIST_ITEMS);
   const warningsSourced: string[] = [];
+  let guardDroppedHere = 0;
   for (const w of warningsRaw) {
     if (!hasArticleRef(w)) continue;
     if (guard) {
@@ -309,26 +312,31 @@ export function parseStructuredAnswer(
           : nos.flatMap((n) => textsByNo.get(n) ?? []);
       if (support.length === 0) {
         stats.guard_dropped.warnings++;
+        guardDroppedHere++;
         stats.guard_details.push(`warning[مادة غير مرسَلة ${nos.join(',')}]: ${w.slice(0, 50)}`);
         continue;
       }
       const unsupported = findUnsupportedTerms(w, support);
       if (unsupported.length > 0) {
         stats.guard_dropped.warnings++;
+        guardDroppedHere++;
         stats.guard_details.push(`warning[م${nos.join(',')}]: ${unsupported.join('،')} — ${w.slice(0, 50)}`);
         continue;
       }
     }
     warningsSourced.push(w);
   }
-  stats.warnings_dropped = warningsRaw.length - warningsSourced.length - stats.guard_dropped.warnings;
+  stats.warnings_dropped += warningsRaw.length - warningsSourced.length - guardDroppedHere;
+  return warningsSourced;
+}
 
+function parseScenariosList(rawScenarios: unknown, ctx: ParseCtx): StructuredScenario[] {
+  const { articles, guard, stats } = ctx;
   const scenarios: StructuredScenario[] = [];
-  const rawScenarios = Array.isArray(obj.scenarios) ? obj.scenarios : [];
-  for (const sc of rawScenarios) {
+  for (const sc of Array.isArray(rawScenarios) ? rawScenarios : []) {
     if (!sc || typeof sc !== 'object') continue;
     const ss = sc as Record<string, unknown>;
-    const condition = cleanStr(ss.condition, 260);
+    const condition = stripConditionLead(cleanStr(ss.condition, 260));
     const outcome = cleanStr(ss.outcome, 360);
     const srcNum = Number(ss.source);
     if (condition.length < 5 || outcome.length < 5) continue;
@@ -346,6 +354,43 @@ export function parseStructuredAnswer(
     scenarios.push({ condition, outcome, citation_index: idx });
     if (scenarios.length >= MAX_SCENARIOS) break;
   }
+  return scenarios;
+}
+
+/**
+ * يحوّل مخرَج النموذج (نص JSON) إلى StructuredAnswer نظيف ومُتحقَّق منه.
+ * الأرقام فى rulings[].source تبدأ من 1 (كما تُرقَّم النصوص فى الـprompt) وتُحوَّل
+ * هنا إلى citation_index يبدأ من صفر. أى حكم يشير لنص غير موجود يُسقَط (لا
+ * يُخمَّن) — وإن سقطت كل الأحكام تُرفَض البنية كلياً.
+ */
+export function parseStructuredAnswer(
+  raw: string,
+  articles: readonly StructuredArticleMeta[],
+  options: ParseOptions = {},
+): ParseStructuredResult {
+  const guard = options.guard !== false;
+  let data: unknown;
+  try {
+    data = JSON.parse(stripFences(raw));
+  } catch {
+    return { ok: false, reason: 'unparseable_json' };
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { ok: false, reason: 'not_an_object' };
+  }
+  const obj = data as Record<string, unknown>;
+  const direct = cleanStr(obj.direct_answer, 900);
+  if (direct.length < 8) {
+    return { ok: false, reason: 'missing_direct_answer' };
+  }
+  const stats = newParseStats();
+  const ctx: ParseCtx = { articles, guard, stats };
+  const rulings = parseRulingsList(obj.rulings, ctx);
+  if (rulings.length === 0) {
+    return { ok: false, reason: 'no_valid_rulings' };
+  }
+  const warningsSourced = parseWarningsList(obj.warnings, ctx);
+  const scenarios = parseScenariosList(obj.scenarios, ctx);
   return {
     ok: true,
     value: {
@@ -358,6 +403,135 @@ export function parseStructuredAnswer(
       not_covered: cleanList(obj.not_covered),
     },
     stats,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// خطوة الاستكمال: مواد مُرسَلة لم يُستند إليها (2026-10-08 — من تقييم حى 8/10)
+// ---------------------------------------------------------------------------
+
+/** إضافات الاستكمال بعد التحقق: أحكام/سيناريوهات/تنبيهات + مواد أقرّ النموذج بعدم صلتها. */
+export interface StructuredAddition {
+  rulings: StructuredRuling[];
+  scenarios: StructuredScenario[];
+  warnings: string[];
+  /** مواد قرر النموذج عدم إدراجها مع سبب موجز (للتسجيل فقط). */
+  skipped: Array<{ article: number; reason: string }>;
+}
+
+export type ParseAdditionResult =
+  | { ok: true; value: StructuredAddition; stats: ParseStats }
+  | { ok: false; reason: string };
+
+/**
+ * يحلل مخرَج خطوة الاستكمال: {rulings, scenarios, warnings, skipped}. نفس فحوص التأصيل والاقتباس
+ * والوسم الحتمى للمسار الأول بالحرف (دوال مشتركة)، وبلا اشتراط جواب مباشر أو حكم واحد على الأقل
+ * (قد يقر النموذج بعدم صلة كل المواد المتبقية).
+ */
+export function parseStructuredAddition(
+  raw: string,
+  articles: readonly StructuredArticleMeta[],
+  options: ParseOptions = {},
+): ParseAdditionResult {
+  let data: unknown;
+  try {
+    data = JSON.parse(stripFences(raw));
+  } catch {
+    return { ok: false, reason: 'unparseable_json' };
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { ok: false, reason: 'not_an_object' };
+  }
+  const obj = data as Record<string, unknown>;
+  const stats = newParseStats();
+  const ctx: ParseCtx = { articles, guard: options.guard !== false, stats };
+  const skipped: Array<{ article: number; reason: string }> = [];
+  for (const sk of Array.isArray(obj.skipped) ? obj.skipped : []) {
+    if (!sk || typeof sk !== 'object') continue;
+    const o = sk as Record<string, unknown>;
+    const article = Number(o.article);
+    if (Number.isInteger(article) && article > 0) skipped.push({ article, reason: cleanStr(o.reason, 160) });
+  }
+  return {
+    ok: true,
+    value: {
+      rulings: parseRulingsList(obj.rulings, ctx),
+      scenarios: parseScenariosList(obj.scenarios, ctx),
+      warnings: parseWarningsList(obj.warnings, ctx),
+      skipped,
+    },
+    stats,
+  };
+}
+
+/** أرقام المواد المرسَلة التى لم يستند إليها أى حكم أو سيناريو ولم يذكرها أى تحذير فى الإجابة. */
+export function findUncoveredArticles(
+  value: StructuredAnswer,
+  articles: ReadonlyArray<{ articleNo: number }>,
+): number[] {
+  const used = new Set<number>();
+  for (const r of value.rulings) {
+    const a = articles[r.citation_index];
+    if (a) used.add(a.articleNo);
+  }
+  for (const sc of value.scenarios ?? []) {
+    const a = articles[sc.citation_index];
+    if (a) used.add(a.articleNo);
+  }
+  for (const w of value.warnings) for (const n of extractArticleNumbers(w)) used.add(n);
+  const out = new Set<number>();
+  for (const a of articles) if (!used.has(a.articleNo)) out.add(a.articleNo);
+  return [...out].sort((x, y) => x - y);
+}
+
+const DUP_COVERAGE = 0.8;
+function nearDuplicate(a: string, b: string): boolean {
+  return claimCoverage(a, b) >= DUP_COVERAGE && claimCoverage(b, a) >= DUP_COVERAGE;
+}
+
+/**
+ * يدمج إضافات الاستكمال فى الإجابة الأساسية دون تكرار ودون تجاوز السقوف (الأساسى أولاً دائماً:
+ * الاستكمال لا يعيد ترتيب ما رآه المستخدم ولا يحذف منه شيئاً).
+ */
+export function mergeStructuredAddition(
+  base: StructuredAnswer,
+  add: StructuredAddition,
+): { value: StructuredAnswer; added: { rulings: number; scenarios: number; warnings: number } } {
+  const rulings = [...base.rulings];
+  let addedRulings = 0;
+  for (const r of add.rulings) {
+    if (rulings.length >= MAX_RULINGS) break;
+    if (rulings.some((x) => x.citation_index === r.citation_index && nearDuplicate(x.claim, r.claim))) continue;
+    rulings.push(r);
+    addedRulings++;
+  }
+  const scenarios = [...(base.scenarios ?? [])];
+  let addedScenarios = 0;
+  for (const sc of add.scenarios) {
+    if (scenarios.length >= MAX_SCENARIOS) break;
+    if (
+      scenarios.some(
+        (x) =>
+          (x.condition === sc.condition && x.outcome === sc.outcome) ||
+          (x.citation_index === sc.citation_index && nearDuplicate(`${x.condition} ${x.outcome}`, `${sc.condition} ${sc.outcome}`)),
+      )
+    ) {
+      continue;
+    }
+    scenarios.push(sc);
+    addedScenarios++;
+  }
+  const warnings = [...base.warnings];
+  let addedWarnings = 0;
+  for (const w of add.warnings) {
+    if (warnings.length >= MAX_WARNINGS) break;
+    if (warnings.some((x) => x === w || nearDuplicate(x, w))) continue;
+    warnings.push(w);
+    addedWarnings++;
+  }
+  return {
+    value: { ...base, rulings, scenarios, warnings },
+    added: { rulings: addedRulings, scenarios: addedScenarios, warnings: addedWarnings },
   };
 }
 

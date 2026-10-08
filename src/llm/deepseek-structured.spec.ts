@@ -97,3 +97,124 @@ describe('DeepseekGenerationService.composeStructuredAnswer', () => {
     expect(await svc.composeStructuredAnswer(INPUT)).toEqual({ status: 'empty_response' });
   });
 });
+
+
+describe('DeepseekGenerationService.composeStructuredAnswer — خطوة الاستكمال', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+  const originalFlag = process.env.STRUCTURED_COMPLETION_ENABLED;
+  const ART_87 = 'يبرم عقد العمل الفردى لمدة غير محددة،أو لمدة محددة إذا كانت طبيعة العمل تقتضى ذلك.';
+  const TWO = {
+    question: 'عقدى محدد المدة ولم يجدد، ما حقوقى؟',
+    articles: [
+      { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 154, articleText: ART_TEXT },
+      { lawTitle: 'قانون العمل', lawNo: 14, lawYear: 2025, articleNo: 87, articleText: ART_87 },
+    ],
+  };
+  const ADD_87 = {
+    rulings: [
+      {
+        claim: 'يبرم عقد العمل الفردى لمدة غير محددة أو لمدة محددة إذا اقتضت طبيعة العمل ذلك.',
+        kind: 'نص',
+        source: 2,
+        quote: 'يبرم عقد العمل الفردى لمدة غير محددة',
+      },
+    ],
+    scenarios: [{ condition: 'إذا كانت الوظيفة دائمة بطبيعتها', outcome: 'لا يجوز توقيت العقد إلا لطبيعة العمل.', source: 2 }],
+    warnings: [],
+    skipped: [],
+  };
+
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    delete process.env.STRUCTURED_COMPLETION_ENABLED;
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    if (originalFlag === undefined) delete process.env.STRUCTURED_COMPLETION_ENABLED;
+    else process.env.STRUCTURED_COMPLETION_ENABLED = originalFlag;
+    jest.restoreAllMocks();
+  });
+
+  it('مادة مرسَلة لم يُستند إليها ← نداء استكمال يضيف حكمها وسيناريوها بعد الأساسى', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))))
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(ADD_87))));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(TWO);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(r.status).toBe('ok');
+    if (r.status !== 'ok') return;
+    expect(r.structured.rulings.map((x) => x.citation_index)).toEqual([0, 1]);
+    expect(r.structured.rulings[1]).toMatchObject({ kind: 'نص', quote_verified: true });
+    expect(r.structured.scenarios[0]).toMatchObject({ condition: 'كانت الوظيفة دائمة بطبيعتها', citation_index: 1 });
+    const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    expect(body.messages[1].content).toContain('نصوص لم تُستخدم: المادة 87');
+    expect(body.messages[1].content).toContain(GOOD.rulings[0].claim);
+  });
+
+  it('فشل نداء الاستكمال (500/شبكة/JSON تالف) لا يُسقط الإجابة الأساسية', async () => {
+    const seconds: Array<() => Promise<Response>> = [
+      () => Promise.resolve(jsonResponse(500, { e: 1 })),
+      () => Promise.reject(new Error('net')),
+      () => Promise.resolve(jsonResponse(200, completion('{"rulings": [ناقص'))),
+      () => Promise.resolve(jsonResponse(200, completion(''))),
+    ];
+    for (const second of seconds) {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))))
+        .mockImplementationOnce(second) as unknown as typeof fetch;
+      const r = await new DeepseekGenerationService().composeStructuredAnswer(TWO);
+      expect(r.status).toBe('ok');
+      if (r.status === 'ok') expect(r.structured.rulings).toHaveLength(1);
+    }
+  });
+
+  it('إضافة تستشهد بمادة غير مرسَلة تُهمَل كلها وتبقى الإجابة الأساسية', async () => {
+    const bad = {
+      ...ADD_87,
+      rulings: [{ ...ADD_87.rulings[0], claim: `${ADD_87.rulings[0].claim} وفق المادة 999.` }],
+    };
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))))
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(bad)))) as unknown as typeof fetch;
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(TWO);
+    expect(r.status).toBe('ok');
+    if (r.status === 'ok') expect(r.structured.rulings).toHaveLength(1);
+  });
+
+  it('إقرار النموذج بعدم صلة المادة (skipped) لا يضيف شيئاً ولا يفشل', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))))
+      .mockResolvedValueOnce(
+        jsonResponse(200, completion(JSON.stringify({ rulings: [], scenarios: [], warnings: [], skipped: [{ article: 87, reason: 'بعيدة' }] }))),
+      ) as unknown as typeof fetch;
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(TWO);
+    expect(r.status).toBe('ok');
+    if (r.status === 'ok') expect(r.structured.rulings).toHaveLength(1);
+  });
+
+  it('لا نداء ثانياً حين تُستخدم كل المواد أو عند تعطيل المفتاح STRUCTURED_COMPLETION_ENABLED=false', async () => {
+    const both = {
+      ...GOOD,
+      rulings: [...GOOD.rulings, ADD_87.rulings[0]],
+    };
+    let fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(both))));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await new DeepseekGenerationService().composeStructuredAnswer(TWO);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    process.env.STRUCTURED_COMPLETION_ENABLED = 'false';
+    fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(TWO);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(r.status === 'ok' && r.structured.rulings).toHaveLength(1);
+  });
+});
