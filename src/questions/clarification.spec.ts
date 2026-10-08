@@ -5,7 +5,10 @@ import {
   buildRetrievalQuery,
   clarificationEnabled,
   clarificationMaxRounds,
+  extractClarificationAnswers,
   extractClarificationFacts,
+  isAlreadyAnsweredFact,
+  parseClarificationFacts,
   normalizeClarificationInput,
   parseClarificationDetection,
   type ClarificationAnswer,
@@ -173,5 +176,34 @@ describe('parseClarificationDetection — الخادم هو الحَكَم', () 
     expect(d.questions[0].options).toHaveLength(6);
     expect(d.questions[0].allow_multiple).toBe(true);
     expect(d.questions[1].allow_multiple).toBe(false);
+  });
+});
+
+describe('clarification — وقائع 2d: وحدة الرقم المجرد والتفكيك وفلتر المكرر', () => {
+  const num = (question: string, answer: string) => buildEnrichedQuestion('س', [{ question, answer, kind: 'custom' }]);
+  it('رقم مجرد يأخذ وحدة السؤال (سنوات/أشهر/أيام)، وإلا يُوسَم صراحةً بلا وحدة', () => {
+    expect(num('كم إجمالى مدة الخدمة بالسنوات؟', '12')).toContain('← 12 سنوات (بصياغة السائل)');
+    expect(num('كم شهراً عملت؟', '8')).toContain('8 أشهر');
+    expect(num('كم يوماً تأخر الأجر؟', '20')).toContain('20 أيام');
+    expect(num('ما الرقم المطلوب؟', '12')).toContain('رقم بلا وحدة');
+    expect(num('كم إجمالى مدة الخدمة بالسنوات؟', '12 عاماً')).not.toContain('رقم بلا وحدة');
+  });
+  it('parseClarificationFacts تفكّك السطور وتميّز «لا يعرف»، وextractClarificationAnswers تأخذ الإجابات وحدها', () => {
+    const q = buildEnrichedQuestion('س', [A1, A2, A3]);
+    const facts = parseClarificationFacts(extractClarificationFacts(q));
+    expect(facts.map((f) => f.unknown)).toEqual([false, true, false]);
+    expect(facts[0]).toMatchObject({ question: 'ما نوع عقد العمل؟' });
+    const answers = extractClarificationAnswers(q);
+    expect(answers).toContain('عقد محدد المدة');
+    expect(answers).toContain('عشر سنوات ونصف');
+    expect(answers).not.toContain('الذى أنهى');
+    expect(extractClarificationAnswers('سؤال بلا توضيحات')).toBe('');
+  });
+  it('isAlreadyAnsweredFact: المُجاب عنه يُعدّ معروفاً، و«لا يعرف» وغير المرتبط لا', () => {
+    const facts = parseClarificationFacts(extractClarificationFacts(buildEnrichedQuestion('س', [A1, A2, A3])));
+    expect(isAlreadyAnsweredFact('ما نوع عقد العمل؟', facts)).toBe(true);
+    expect(isAlreadyAnsweredFact('من الذى أنهى العلاقة؟', facts)).toBe(false);
+    expect(isAlreadyAnsweredFact('هل لديك نسخة من العقد؟', facts)).toBe(false);
+    expect(isAlreadyAnsweredFact('ما نوع عقد العمل؟', [])).toBe(false);
   });
 });

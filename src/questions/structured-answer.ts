@@ -8,6 +8,7 @@ import {
   normalizeForQuote,
 } from './answer-grounding';
 import { detectCrossReferencedArticles } from './retrieval';
+import { isAlreadyAnsweredFact, type ParsedFact } from './clarification';
 
 export { normalizeForQuote };
 
@@ -54,8 +55,22 @@ export interface StructuredScenario {
   citation_index: number;
 }
 
+/**
+ * تطبيق واقعة ذكرها السائل (فى سؤاله أو إجابته عن أسئلة الاستيضاح) على نص: «الواقعة ← أثرها القانونى ← المادة».
+ * خطوة إلزامية فى وضع الوقائع تُكتب قبل الجواب المباشر فتُلزم النموذج بتطبيق ما قاله السائل بدل تجاهله
+ * (تقييم حى 5/10، 2026-10-08)، وتُعرَض للسائل قسماً مستقلاً «تطبيق على وقائعك».
+ */
+export interface StructuredFactApplied {
+  fact: string;
+  effect: string;
+  /** فهرس (من صفر) للمادة المستند إليها الأثر، أو null إن لم يُسنَد لمادة بعينها. */
+  citation_index: number | null;
+}
+
 export interface StructuredAnswer {
   direct_answer: string;
+  /** وقائع السائل مطبَّقة على النصوص — موجودة فقط فى وضع الوقائع (بعد الاستيضاح). */
+  facts_applied?: StructuredFactApplied[];
   rulings: StructuredRuling[];
   scenarios: StructuredScenario[];
   open_issues: string[];
@@ -96,8 +111,10 @@ export interface ParseStats {
 export interface ParseOptions {
   /** مفتاح إيقاف فحص التأصيل (الافتراضى مفعَّل). يُقرأ من STRUCTURED_GUARD_ENABLED عند الاستدعاء. */
   guard?: boolean;
-  /** وقائع السائل من الاستيضاح: تُقبل مقاديرها (لا آثارها) فى بوابة التأصيل. */
+  /** إجابات السائل من الاستيضاح: تُقبل مقاديرها (لا آثارها) فى بوابة التأصيل، ويُفعَّل بها وضع الوقائع. */
   factsText?: string;
+  /** وقائع أجاب عنها السائل: تُحذف من facts_to_confirm أى واقعة تكررها (لا نسأله ثانيةً عما أجاب). */
+  answeredFacts?: readonly ParsedFact[];
 }
 
 export type ParseStructuredResult =
@@ -110,6 +127,7 @@ export const MAX_LIST_ITEMS = 8;
 /** إيجاز العرض: حدود أضيق لقوائم التحذيرات والوقائع (المسائل المفتوحة تبقى حتى MAX_LIST_ITEMS). */
 export const MAX_WARNINGS = 5;
 export const MAX_FACTS = 5;
+export const MAX_FACTS_APPLIED = 6;
 export const MAX_FIELD_CHARS = 700;
 export const MAX_QUOTE_WORDS = 40;
 
@@ -216,6 +234,7 @@ interface ParseCtx {
   guard: boolean;
   stats: ParseStats;
   factsText?: string;
+  answeredFacts?: readonly ParsedFact[];
 }
 
 function parseRulingsList(rawRulings: unknown, ctx: ParseCtx): StructuredRuling[] {
@@ -327,10 +346,43 @@ function parseWarningsList(rawWarnings: unknown, ctx: ParseCtx): string[] {
         continue;
       }
     }
+    if (warningsSourced.some((x) => sameArticleWarning(x, w))) continue;
     warningsSourced.push(w);
   }
   stats.warnings_dropped += warningsRaw.length - warningsSourced.length - guardDroppedHere;
   return warningsSourced;
+}
+
+/**
+ * تطبيقات الوقائع (facts_applied): كل بند «واقعة ← أثر» يخضع لنفس بوابة التأصيل: أثره لا يحمل أثراً شديداً
+ * أو مقداراً بلا أصل فى المادة المستند إليها (أو فى إجابات السائل للمقادير). بند بلا مادة يُفحَص بلا مادة
+ * (أى أثر شديد فيه يُسقطه). لا يُقبل أى بند خارج وضع الوقائع.
+ */
+function parseFactsAppliedList(rawFacts: unknown, ctx: ParseCtx): StructuredFactApplied[] {
+  const { articles, guard, stats, factsText } = ctx;
+  if (!factsText || factsText.trim().length === 0) return [];
+  const out: StructuredFactApplied[] = [];
+  for (const it of Array.isArray(rawFacts) ? rawFacts : []) {
+    if (!it || typeof it !== 'object') continue;
+    const o = it as Record<string, unknown>;
+    const fact = cleanStr(o.fact, 260);
+    const effect = cleanStr(o.effect, 420);
+    if (fact.length < 3 || effect.length < 5) continue;
+    const srcNum = Number(o.source);
+    const hasSrc = Number.isInteger(srcNum) && srcNum >= 1 && srcNum <= articles.length;
+    const idx = hasSrc ? srcNum - 1 : null;
+    if (guard) {
+      const unsupported = findUnsupportedTerms(effect, idx === null ? [] : [articles[idx].text], factsText);
+      if (unsupported.length > 0) {
+        stats.guard_details.push(`facts_applied[${idx === null ? '-' : `م${articles[idx].articleNo ?? srcNum}`}]: ${unsupported.join('،')}`);
+        continue;
+      }
+    }
+    if (out.some((x) => x.fact === fact && x.effect === effect)) continue;
+    out.push({ fact, effect, citation_index: idx });
+    if (out.length >= MAX_FACTS_APPLIED) break;
+  }
+  return out;
 }
 
 function parseScenariosList(rawScenarios: unknown, ctx: ParseCtx): StructuredScenario[] {
@@ -387,22 +439,33 @@ export function parseStructuredAnswer(
     return { ok: false, reason: 'missing_direct_answer' };
   }
   const stats = newParseStats();
-  const ctx: ParseCtx = { articles, guard, stats, factsText: options.factsText };
+  const ctx: ParseCtx = {
+    articles,
+    guard,
+    stats,
+    factsText: options.factsText,
+    answeredFacts: options.answeredFacts,
+  };
   const rulings = parseRulingsList(obj.rulings, ctx);
   if (rulings.length === 0) {
     return { ok: false, reason: 'no_valid_rulings' };
   }
   const warningsSourced = parseWarningsList(obj.warnings, ctx);
   const scenarios = parseScenariosList(obj.scenarios, ctx);
+  const factsApplied = parseFactsAppliedList(obj.facts_applied, ctx);
+  const factsToConfirm = cleanList(obj.facts_to_confirm, MAX_FACTS).filter(
+    (f) => !isAlreadyAnsweredFact(f, options.answeredFacts ?? []),
+  );
   return {
     ok: true,
     value: {
       direct_answer: direct,
+      ...(factsApplied.length > 0 ? { facts_applied: factsApplied } : {}),
       rulings,
       scenarios,
       open_issues: cleanList(obj.open_issues),
       warnings: warningsSourced.slice(0, MAX_WARNINGS),
-      facts_to_confirm: cleanList(obj.facts_to_confirm, MAX_FACTS),
+      facts_to_confirm: factsToConfirm,
       not_covered: cleanList(obj.not_covered),
     },
     stats,
@@ -447,7 +510,7 @@ export function parseStructuredAddition(
   }
   const obj = data as Record<string, unknown>;
   const stats = newParseStats();
-  const ctx: ParseCtx = { articles, guard: options.guard !== false, stats, factsText: options.factsText };
+  const ctx: ParseCtx = { articles, guard: options.guard !== false, stats, factsText: options.factsText, answeredFacts: options.answeredFacts };
   const skipped: Array<{ article: number; reason: string }> = [];
   for (const sk of Array.isArray(obj.skipped) ? obj.skipped : []) {
     if (!sk || typeof sk !== 'object') continue;
@@ -493,6 +556,30 @@ function nearDuplicate(a: string, b: string): boolean {
 }
 
 /**
+ * تنبيهان مكرران: متطابقان تقريباً، أو يستندان إلى المجموعة نفسها من المواد ويشتركان فى معظم كلماتهما المضمونية
+ * (تقييم حى 5/10: تنبيه المادة 161 ورد مرتين بصياغتين). الاشتراك ≥ 0.5 من الأصغر وكلمتان على الأقل.
+ */
+export function sameWarning(a: string, b: string): boolean {
+  return a === b || nearDuplicate(a, b) || sameArticleWarning(a, b);
+}
+
+/** تنبيهان يستندان إلى المجموعة نفسها من المواد ويشتركان فى معظم كلماتهما المضمونية (يُستعمل وحده فى التحليل). */
+export function sameArticleWarning(a: string, b: string): boolean {
+  if (a === b) return true;
+  const na = extractArticleNumbers(a).sort((x, y) => x - y).join(',');
+  const nb = extractArticleNumbers(b).sort((x, y) => x - y).join(',');
+  if (!na || na !== nb) return false;
+  // الإشارة إلى المادة نفسها («المادة 161») لا تُحسب اشتراكاً مضمونياً.
+  const strip = (t: string) => t.replace(/(?:ال)?ماد[ةه]\s*\(?\d+\)?(?:\s*[و،,]\s*\d+)*/g, ' ');
+  const sa = new Set(contentStems(strip(a)));
+  const sb = new Set(contentStems(strip(b)));
+  if (sa.size === 0 || sb.size === 0) return false;
+  let inter = 0;
+  for (const x of sa) if (sb.has(x)) inter++;
+  return inter >= 2 && inter / Math.min(sa.size, sb.size) >= 0.5;
+}
+
+/**
  * يدمج إضافات الاستكمال فى الإجابة الأساسية دون تكرار ودون تجاوز السقوف (الأساسى أولاً دائماً:
  * الاستكمال لا يعيد ترتيب ما رآه المستخدم ولا يحذف منه شيئاً).
  */
@@ -528,7 +615,7 @@ export function mergeStructuredAddition(
   let addedWarnings = 0;
   for (const w of add.warnings) {
     if (warnings.length >= MAX_WARNINGS) break;
-    if (warnings.some((x) => x === w || nearDuplicate(x, w))) continue;
+    if (warnings.some((x) => sameWarning(x, w))) continue;
     warnings.push(w);
     addedWarnings++;
   }
@@ -542,6 +629,7 @@ export function mergeStructuredAddition(
 export function collectProseForGate(s: StructuredAnswer): string {
   return [
     s.direct_answer,
+    ...(s.facts_applied ?? []).flatMap((x) => [x.fact, x.effect]),
     ...s.rulings.map((r) => r.claim),
     ...(s.scenarios ?? []).flatMap((x) => [x.condition, x.outcome]),
     ...s.open_issues,
@@ -571,6 +659,17 @@ export function renderStructuredAsText(
 ): string {
   const parts: string[] = [];
   parts.push(`الجواب المباشر:\n${s.direct_answer}`);
+  const applied = s.facts_applied ?? [];
+  if (applied.length > 0) {
+    parts.push(
+      `تطبيق على وقائعك (ما ذكرتَه فى إجاباتك):\n${applied
+        .map((x) => {
+          const c = x.citation_index === null ? undefined : cites[x.citation_index];
+          return `- ${x.fact} ← ${x.effect}${c ? ` (المادة ${c.articleNo})` : ''}`;
+        })
+        .join('\n')}`,
+    );
+  }
   const scenarios = s.scenarios ?? [];
   if (scenarios.length > 0) {
     parts.push(
@@ -642,4 +741,39 @@ export function referencedProvidedArticles(
     }
   }
   return [...out].sort((x, y) => x - y);
+}
+
+/**
+ * يحوّل إجابة منظَّمة محقَّقة إلى الصيغة الخام نفسها التى يُنتجها النموذج (source = رقم النص 1..N)،
+ * ليُعرَض مسودةً فى نداء المراجعة/التصحيح فيعدّلها النموذج بدل أن يبدأ من الصفر. نقية ولا تُسرِّب
+ * أى حقل خاص بالعرض (quote_verified وحالة المصدر).
+ */
+export function toRawSchema(s: StructuredAnswer): Record<string, unknown> {
+  return {
+    ...((s.facts_applied ?? []).length > 0
+      ? {
+          facts_applied: (s.facts_applied ?? []).map((x) => ({
+            fact: x.fact,
+            effect: x.effect,
+            source: x.citation_index === null ? null : x.citation_index + 1,
+          })),
+        }
+      : {}),
+    direct_answer: s.direct_answer,
+    rulings: s.rulings.map((r) => ({
+      claim: r.claim,
+      kind: r.kind,
+      source: r.citation_index + 1,
+      quote: r.quote ?? '',
+    })),
+    scenarios: (s.scenarios ?? []).map((x) => ({
+      condition: x.condition,
+      outcome: x.outcome,
+      source: x.citation_index + 1,
+    })),
+    open_issues: s.open_issues,
+    warnings: s.warnings,
+    facts_to_confirm: s.facts_to_confirm,
+    not_covered: s.not_covered,
+  };
 }

@@ -94,6 +94,24 @@ export class StructuredScenarioDto {
 }
 
 /**
+ * تطبيق واقعة ذكرها السائل على نص (2026-10-08): «الواقعة ← أثرها القانونى ← المادة». موجود فقط بعد الاستيضاح.
+ */
+export class StructuredFactAppliedDto {
+  @ApiProperty({ example: 'مدة الخدمة 12 سنة' })
+  fact: string;
+
+  @ApiProperty({ example: 'تستحق تعويضاً لا يقل عن شهرين من الأجر عن كل سنة خدمة.' })
+  effect: string;
+
+  @ApiProperty({
+    example: 0,
+    nullable: true,
+    description: 'فهرس (من صفر) المادة المستند إليها داخل citations، أو null.',
+  })
+  citation_index: number | null;
+}
+
+/**
  * الإجابة المنظَّمة (2026-10-05): جواب مباشر أولاً، ثم الأحكام بسندها ووسمها،
  * ثم التحذيرات والمسائل المفتوحة والوقائع المطلوب تأكيدها. حقل إضافى اختيارى
  * فى AnswerResponseDto — غائب عندما يرجع الخادم للمسار القديم (answer نصى فقط).
@@ -101,6 +119,13 @@ export class StructuredScenarioDto {
 export class StructuredAnswerDto {
   @ApiProperty({ example: 'نعم، يستحق مكافأة بشرط أن تتجاوز مدة العقد خمس سنوات.' })
   direct_answer: string;
+
+  @ApiPropertyOptional({
+    type: StructuredFactAppliedDto,
+    isArray: true,
+    description: 'وقائع ذكرها السائل فى الاستيضاح مطبَّقة على النصوص (قبل الأحكام). غائبة فى الأسئلة العادية.',
+  })
+  facts_applied?: StructuredFactAppliedDto[];
 
   @ApiProperty({ type: StructuredRulingDto, isArray: true })
   rulings: StructuredRulingDto[];

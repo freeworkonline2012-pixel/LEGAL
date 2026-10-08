@@ -416,7 +416,7 @@ describe('خطوة الاستكمال: findUncoveredArticles / parseStructuredAd
     const many = {
       rulings: Array.from({ length: 20 }, (_, i) => ({ claim: `حكم رقم ${i} مختلف تماماً عن غيره ${'ك'.repeat(i + 1)}`, kind: 'تفسير' as const, citation_index: 1, quote: null, quote_verified: false })),
       scenarios: Array.from({ length: 20 }, (_, i) => ({ condition: `واقعة ${i} مختلفة ${'ك'.repeat(i + 1)}`, outcome: `نتيجة ${i} مختلفة ${'ك'.repeat(i + 1)}`, citation_index: 2 })),
-      warnings: Array.from({ length: 20 }, (_, i) => `تنبيه ${i} مختلف ${'ك'.repeat(i + 1)} (المادة 6)`),
+      warnings: ['الإخطار الكتابى', 'ميعاد الصرف', 'المخالصة الباطلة', 'الإجازة السنوية', 'شهادة الخبرة', 'الأجر الأساسى', 'بدل الإنذار', 'التأمينات'].map((t, i) => `${t} (المادة 6)`),
       skipped: [],
     };
     const capped = mergeStructuredAddition(base, many).value;

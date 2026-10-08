@@ -4,7 +4,9 @@ import { detectCrossReferencedArticles } from '../questions/retrieval';
 import {
   CLARIFICATION_FACTS_MARKER,
   MAX_QUESTIONS_PER_ROUND,
+  extractClarificationAnswers,
   extractClarificationFacts,
+  parseClarificationFacts,
   type ClarificationAnswer,
 } from '../questions/clarification';
 import {
@@ -14,6 +16,7 @@ import {
   parseStructuredAddition,
   parseStructuredAnswer,
   referencedProvidedArticles,
+  toRawSchema,
   type StructuredAnswer,
 } from '../questions/structured-answer';
 
@@ -86,21 +89,64 @@ export type StructuredGenerationOutcome =
   | { status: 'hallucination_rejected' };
 
 /**
- * قاعدة وقائع الاستيضاح (2026-10-08): حين يحوى السؤال قسم «[توضيحات السائل]» فهو وقائع قرّرها
- * السائل بنفسه بعد أسئلة الاستيضاح. تُلحَق بتعليمات التوليد فقط عند وجود القسم، فلا تتغير
- * معايرة المسار العادى إطلاقاً.
+ * قاعدة وقائع الاستيضاح (2026-10-08، أُعيدت كتابتها بعد تقييم حى 5/10): حين يحوى السؤال قسم «[توضيحات السائل]»
+ * فهو وقائع قرّرها السائل بنفسه. كانت القاعدة الأولى جملة عامة («ابنِ عليها») تغلبها قواعد السيناريوهات القديمة
+ * الأطول منها، فاستلمت الإجابة الوقائع ولم تطبقها (جواب مباشر ينفى ما قاله السائل، ومسار «العمل مستمر بطبيعته» غائب،
+ * وأسئلة عن وقائع أُجيب عنها). هذه القاعدة تُلحَق بتعليمات التوليد فقط عند وجود القسم (فلا تتغير معايرة المسار العادى)
+ * وتنص صراحةً أنها تُقدَّم على أى قاعدة سابقة تخالفها.
  */
-export const CLARIFICATION_FACTS_RULE =
-  'وقائع السائل (إلزامية): يحوى السؤال قسم "' +
+export const CLARIFICATION_FACTS_BASE_RULE =
+  'وقائع السائل (إلزامية، وتُقدَّم على أى قاعدة سابقة تخالفها): يحوى السؤال قسم "' +
   CLARIFICATION_FACTS_MARKER +
-  '" وهو وقائع قرّرها السائل بنفسه فى إجابته عن أسئلة استيضاحية — اعتبرها معطيات الحالة، وابنِ عليها ' +
-  'direct_answer وrulings وscenarios، واستبعد الحالات التى تنفيها هذه الوقائع. ما أجاب عنه بـ"لا يعرف" ' +
-  'فغطِّ احتمالاته المؤثرة فى scenarios. وقائعه ليست مصدراً قانونياً: لا تستشهد بها ولا تجعلها quote؛ ' +
-  'كل حكم يبقى مسنداً إلى النصوص المرفقة وحدها، ولا تُدخل نصاً أو أثراً أو مقداراً قانونياً لم يرد فيها ' +
-  'بدعوى أن السائل ذكر واقعة.';
+  '" وهو وقائع قرّرها السائل بنفسه فى إجابته عن أسئلة استيضاحية — هى معطيات الحالة لا احتمالات.\n' +
+  '(أ) لا يخالف أى حقل فى إجابتك واقعة ذكرها السائل أو وحدتها: لا تكتب نفياً أو حداً زمنياً أو وصفاً يناقضها. ' +
+  'الرقم المجرد يُفهم بوحدته من سؤاله (مثل «12» جواباً عن مدة الخدمة = 12 سنة) ولا تغيّر وحدته. ' +
+  'الجمل المتتالية فى الجواب المباشر يكمل بعضها بعضاً ولا ينقض بعضها بعضاً.\n' +
+  '(ب) طبّق الوقائع الحاسمة مساراً رئيسياً: إن انطبقت وقائعه على حالة تغيّر وصف العقد أو نتيجته فى النصوص ' +
+  '(كأن ينص النص على أن العقد غير محدد المدة ما لم تقتضِ طبيعة العمل توقيته، ويذكر السائل أن العمل مستمر بطبيعته) ' +
+  'فاجعلها **المسار الأول** فى الجواب المباشر والسيناريوهات بآثارها كاملة: شروطها وما يترتب عليها من حقوق ومبالغ، وحدّها ' +
+  'الأدنى إن نص عليه النص، ويجوز حساب الناتج بضرب المعدل الوارد فى النص (مثل «عن كل سنة خدمة») فى المدة التى ذكرها ' +
+  'السائل. ثم رتّب بقية المسارات من الأقوى إلى الاحتياطى مع شرط كل مسار، وبيّن ما يسقط منها بالنص.\n' +
+  '(ج) إن كانت نتيجة ما تتوقف على مسألة تفسيرية مفتوحة لم يحسمها النص (مثل: هل تُجمع مدد التجديدات؟ هل تدخل هذه الحالة ' +
+  'فى الحالات المعدودة؟) فلا تجزم فى الجواب المباشر بنفى أو إثبات؛ اعرض القراءتين ونتيجة كل منهما صراحةً وأدرج المسألة فى open_issues.\n' +
+  '(د) لا تطلب فى facts_to_confirm واقعة أجاب عنها السائل (فيما عدا ما أجاب عنه بـ«لا يعرف»)، ولا تدرج تنبيهاً أو حكماً ' +
+  'لا ينطبق على وقائعه (مثل حق للعامل فى الإنهاء والسائل يقول إن صاحب العمل هو الذى أنهى)، ولا تكرر التنبيه نفسه.\n' +
+  '(هـ) ما أجاب عنه بـ«لا يعرف» فغطِّ احتمالاته المؤثرة فى السيناريوهات.\n' +
+  '(و) وقائعه ليست مصدراً قانونياً: لا تستشهد بها ولا تجعلها quote؛ كل حكم يبقى مسنداً إلى النصوص المرفقة وحدها، ' +
+  'ولا تُدخل نصاً أو أثراً أو مقداراً قانونياً لم يرد فيها بدعوى أن السائل ذكر واقعة.';
 
-function systemWithFacts(system: string, question: string): string {
-  return question.includes(CLARIFICATION_FACTS_MARKER) ? `${system}\n\n${CLARIFICATION_FACTS_RULE}` : system;
+/** خطوة «تطبيق على وقائعك» الإلزامية فى التوليد المنظَّم فقط (مفتاح facts_applied يسبق direct_answer). */
+export const CLARIFICATION_FACTS_STRUCTURED_RULE =
+  CLARIFICATION_FACTS_BASE_RULE +
+  '\n(ز) ابدأ JSON بالمفتاح facts_applied قبل direct_answer: لكل واقعة حاسمة ذكرها السائل (حتى 6) اكتب ' +
+  '{"fact": الواقعة بوحدتها كما ذكرها, "effect": أثرها القانونى بحسب نص مرفق وحده, "source": رقم النص المرفق (1..N)}. ' +
+  'ثم ابنِ direct_answer وrulings وscenarios على هذه الخلاصة بحيث يتفق كل منها مع facts_applied.';
+
+export const CLARIFICATION_FACTS_RULE = CLARIFICATION_FACTS_BASE_RULE;
+
+const FACTS_APPLIED_SCHEMA_LINE =
+  '  "facts_applied": [ { "fact": "واقعة حاسمة ذكرها السائل بوحدتها", "effect": "أثرها القانونى بحسب النص المرفق وحده", "source": رقم النص المرفق (1..N) } ],\n';
+
+function isFactsMode(question: string): boolean {
+  return question.includes(CLARIFICATION_FACTS_MARKER);
+}
+
+function systemWithFacts(system: string, question: string, structured = false): string {
+  if (!isFactsMode(question)) return system;
+  if (!structured) return `${system}\n\n${CLARIFICATION_FACTS_BASE_RULE}`;
+  const marker = 'بهذه المفاتيح بالضبط:\n{\n';
+  const withSchema = system.includes(marker)
+    ? system.replace(marker, `${marker}${FACTS_APPLIED_SCHEMA_LINE}`)
+    : system;
+  return `${withSchema}\n\n${CLARIFICATION_FACTS_STRUCTURED_RULE}`;
+}
+
+/** خيارات التحقق لوضع الوقائع: مقادير إجابات السائل وحدها تُقبل، والوقائع المُجاب عنها تُحذف من facts_to_confirm. */
+function factsParseOptions(question: string): { factsText: string; answeredFacts: ReturnType<typeof parseClarificationFacts> } {
+  return {
+    factsText: extractClarificationAnswers(question),
+    answeredFacts: parseClarificationFacts(extractClarificationFacts(question)),
+  };
 }
 
 /**
@@ -745,7 +791,10 @@ export class DeepseekGenerationService {
       referencedHint +
       'أخرِج كائن JSON وفق المفاتيح المحددة.';
 
-    const maxTokens = Math.min(4000, 1400 + input.articles.length * 300);
+    const factsMode = isFactsMode(input.question);
+    const finalSystem = systemWithFacts(system, input.question, true);
+    const factsOpts = factsMode ? factsParseOptions(input.question) : {};
+    const maxTokens = Math.min(4000, 1400 + input.articles.length * 300 + (factsMode ? 400 : 0));
 
     try {
       const res = await fetch('https://api.deepseek.com/chat/completions', {
@@ -760,7 +809,7 @@ export class DeepseekGenerationService {
           thinking: { type: 'disabled' },
           response_format: { type: 'json_object' },
           messages: [
-            { role: 'system', content: systemWithFacts(system, input.question) },
+            { role: 'system', content: finalSystem },
             { role: 'user', content: userMsg },
           ],
         }),
@@ -788,7 +837,7 @@ export class DeepseekGenerationService {
         input.articles.map((a) => ({ text: a.articleText, articleNo: a.articleNo })),
         {
           guard: process.env.STRUCTURED_GUARD_ENABLED !== 'false',
-          factsText: extractClarificationFacts(input.question),
+          ...factsOpts,
         },
       );
       if (parsed.ok) {
@@ -821,6 +870,19 @@ export class DeepseekGenerationService {
       // كل مادة مرسَلة اختارتها بوابات الصلة لا بد أن يُستند إليها أو يُقَرّ صراحةً بعدم صلتها،
       // والتحقق من ذلك حتمى لا يعتمد على التزام النموذج. المفتاح: STRUCTURED_COMPLETION_ENABLED=false.
       let structuredValue = parsed.value;
+      // مراجعة الاتساق + تصحيح (2026-10-08، وضع الوقائع فقط): ناقد مستقل يفحص الإجابة مقابل وقائع السائل
+      // والنصوص، وإن وجد عيباً مؤكداً (تناقض مع واقعة، تجاهل واقعة حاسمة، جزم فى مسألة مفتوحة، بند لا ينطبق،
+      // سؤال عن واقعة معروفة، تناقض داخلى) أُعيد التوليد مرة واحدة بالعيوب. fail-open: أى فشل → تبقى المسودة.
+      if (factsMode && process.env.STRUCTURED_REVIEW_ENABLED !== 'false') {
+        structuredValue = await this.reviewAndReviseStructured({
+          input,
+          system: finalSystem,
+          userMsg,
+          draft: structuredValue,
+          maxTokens,
+          parseOpts: { guard: process.env.STRUCTURED_GUARD_ENABLED !== 'false', ...factsOpts },
+        });
+      }
       if (process.env.STRUCTURED_COMPLETION_ENABLED !== 'false') {
         const uncovered = findUncoveredArticles(structuredValue, input.articles);
         if (uncovered.length > 0) {
@@ -850,6 +912,155 @@ export class DeepseekGenerationService {
     } catch (err) {
       this.logger.error(`DeepSeek composeStructuredAnswer API call failed: ${(err as Error).message}`);
       return { status: 'api_error' };
+    }
+  }
+
+  /**
+   * مراجعة الاتساق (2026-10-08): نداء ناقد مستقل (temperature 0) يعيد قائمة عيوب محددة فقط، لا إجابة بديلة.
+   * يُستدعى فى وضع الوقائع وحده. السبب: تقييم حى 5/10 أظهر إجابة استلمت الوقائع وناقضتها، وأمثال هذه
+   * التناقضات لا يلتقطها فحص حتمى لأنها دلالية (وحدة، مسار رئيسى، جزم فى مسألة مفتوحة).
+   * أى فشل (شبكة/JSON/مهلة) → null (فتبقى المسودة).
+   */
+  private async reviewStructuredAnswer(
+    input: GroundedGenerationMultiInput,
+    draft: StructuredAnswer,
+  ): Promise<Array<{ type: string; problem: string; fix: string }> | null> {
+    const system =
+      'أنت مراجع اتساق لإجابة قانونية منظَّمة. لا تُعد كتابة الإجابة ولا تضف حكماً قانونياً من عندك. ' +
+      'قارن مسودة الإجابة (JSON) بوقائع السائل الواردة فى قسم "' +
+      CLARIFICATION_FACTS_MARKER +
+      '" من سؤاله وبالنصوص المرفقة، وأرجع **عيوباً مؤكدة فقط** من الأنواع التالية:\n' +
+      '- contradicts_fact: بند يناقض واقعة ذكرها السائل أو يغيّر وحدتها (الرقم المجرد يُفهم بوحدة سؤاله).\n' +
+      '- ignores_decisive_fact: واقعة حاسمة ذكرها السائل تنطبق على حالة أو أثر فى النصوص المرفقة ولم تُطبَّق كمسار رئيسى فى الجواب المباشر والسيناريوهات.\n' +
+      '- categorical_on_open_issue: جزم بنفى أو إثبات فى الجواب المباشر فى مسألة تفسيرية مفتوحة (مثل جمع مدد التجديدات) بدل عرض القراءتين.\n' +
+      '- inapplicable_item: حكم أو تنبيه أو سيناريو لا ينطبق على وقائع السائل (طرف أو حالة مخالفة لما ذكره).\n' +
+      '- asks_known_fact: بند فى facts_to_confirm عن واقعة أجاب عنها السائل.\n' +
+      '- internal_contradiction: جملتان أو بندان فى المسودة ينقض أحدهما الآخر.\n' +
+      'لكل عيب: type وproblem (جملة محددة تذكر موضعه) وfix (التعديل المطلوب فى جملة). ' +
+      'لا تُبلغ عن عيب غير مؤكد ولا عن أسلوب أو إيجاز. إن كانت المسودة متسقة أرجع {"defects": []}. حد أقصى 5 عيوب. ' +
+      'أجب بكائن JSON واحد فقط: {"defects": [{"type": "...", "problem": "...", "fix": "..."}]}';
+    const articlesText = input.articles
+      .map((a, i) => `النص ${i + 1} — المادة ${a.articleNo} من ${a.lawTitle}:\n"""${a.articleText}"""`)
+      .join('\n\n');
+    const userMsg =
+      `سؤال المستخدم مع وقائعه:\n${input.question}\n\nالنصوص المرفقة:\n${articlesText}\n\n` +
+      `مسودة الإجابة:\n${JSON.stringify(toRawSchema(draft))}\n\nأخرِج JSON العيوب.`;
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
+        signal: AbortSignal.timeout(30_000),
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 900,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        this.logger.warn(`composeStructuredAnswer/مراجعة: API ${res.status} — تبقى المسودة.`);
+        return null;
+      }
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) return null;
+      const obj = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '')) as { defects?: unknown };
+      const allowed = new Set([
+        'contradicts_fact',
+        'ignores_decisive_fact',
+        'categorical_on_open_issue',
+        'inapplicable_item',
+        'asks_known_fact',
+        'internal_contradiction',
+      ]);
+      const out: Array<{ type: string; problem: string; fix: string }> = [];
+      for (const d of Array.isArray(obj.defects) ? obj.defects : []) {
+        if (!d || typeof d !== 'object') continue;
+        const o = d as Record<string, unknown>;
+        const type = typeof o.type === 'string' ? o.type.trim() : '';
+        const problem = typeof o.problem === 'string' ? o.problem.trim().slice(0, 400) : '';
+        const fix = typeof o.fix === 'string' ? o.fix.trim().slice(0, 400) : '';
+        if (!allowed.has(type) || problem.length < 5 || fix.length < 5) continue;
+        out.push({ type, problem, fix });
+        if (out.length >= 5) break;
+      }
+      return out;
+    } catch (err) {
+      this.logger.warn(`composeStructuredAnswer/مراجعة: فشل (${(err as Error).message}) — تبقى المسودة.`);
+      return null;
+    }
+  }
+
+  /**
+   * مراجعة ثم تصحيح واحد (وضع الوقائع). الناتج المُصحَّح لا يُقبل إلا إذا اجتاز نفس التحليل والفحوص الحتمية
+   * (وسم، مقتطف، تأصيل، وقائع) وإلا تبقى المسودة الأصلية. لا حلقات: مراجعة واحدة وتصحيح واحد على الأكثر.
+   */
+  private async reviewAndReviseStructured(args: {
+    input: GroundedGenerationMultiInput;
+    system: string;
+    userMsg: string;
+    draft: StructuredAnswer;
+    maxTokens: number;
+    parseOpts: Parameters<typeof parseStructuredAnswer>[2];
+  }): Promise<StructuredAnswer> {
+    const { input, system, userMsg, draft, maxTokens, parseOpts } = args;
+    const defects = await this.reviewStructuredAnswer(input, draft);
+    if (defects === null) return draft;
+    if (defects.length === 0) {
+      this.logger.log('composeStructuredAnswer/مراجعة: لا عيوب — تبقى المسودة.');
+      return draft;
+    }
+    const defectsText = defects.map((d, i) => `${i + 1}. [${d.type}] ${d.problem} ← المطلوب: ${d.fix}`).join('\n');
+    const reviseMsg =
+      `${userMsg}\n\nمسودتك السابقة:\n${JSON.stringify(toRawSchema(draft))}\n\n` +
+      `وجدت مراجعة الاتساق العيوب التالية فيها:\n${defectsText}\n\n` +
+      'أعد إخراج **كائن JSON كاملاً** بنفس المفاتيح بعد إصلاح كل عيب منها، وأبقِ ما سلم منها كما هو، ' +
+      'والتزم بقواعد وقائع السائل وبالقيود الأصلية كلها (التأصيل فى النصوص المرفقة، المقتطفات الحرفية).';
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
+        signal: AbortSignal.timeout(60_000),
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: maxTokens,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: reviseMsg },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        this.logger.warn(`composeStructuredAnswer/تصحيح: API ${res.status} — تبقى المسودة.`);
+        return draft;
+      }
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) return draft;
+      const revised = parseStructuredAnswer(
+        text,
+        input.articles.map((a) => ({ text: a.articleText, articleNo: a.articleNo })),
+        parseOpts,
+      );
+      if (!revised.ok) {
+        this.logger.warn(`composeStructuredAnswer/تصحيح: بنية غير صالحة (${revised.reason}) — تبقى المسودة.`);
+        return draft;
+      }
+      this.logger.log(
+        `composeStructuredAnswer/مراجعة: عيوب=[${defects.map((d) => d.type).join(',')}] — اعتُمد التصحيح ` +
+          `(أحكام ${draft.rulings.length}→${revised.value.rulings.length}، سيناريوهات ${(draft.scenarios ?? []).length}→${(revised.value.scenarios ?? []).length}).`,
+      );
+      return revised.value;
+    } catch (err) {
+      this.logger.warn(`composeStructuredAnswer/تصحيح: فشل (${(err as Error).message}) — تبقى المسودة.`);
+      return draft;
     }
   }
 
@@ -943,7 +1154,10 @@ export class DeepseekGenerationService {
         this.logger.warn('composeStructuredAnswer/استكمال: content فارغ — تبقى الإجابة الأساسية.');
         return base;
       }
-      const parsed = parseStructuredAddition(text, articleMeta, { guard, factsText: extractClarificationFacts(input.question) });
+      const parsed = parseStructuredAddition(text, articleMeta, {
+        guard,
+        ...(isFactsMode(input.question) ? factsParseOptions(input.question) : {}),
+      });
       if (!parsed.ok) {
         this.logger.warn(`composeStructuredAnswer/استكمال: بنية غير صالحة (${parsed.reason}) — تبقى الإجابة الأساسية.`);
         return base;
@@ -1685,7 +1899,8 @@ export class DeepseekGenerationService {
       '"needs_clarification": false.\n\n' +
       `الصياغة: حتى ${maxQuestions} أسئلة مرتبة بالأهم أولاً، لكل سؤال من 2 إلى 5 خيارات متنافية وشاملة بصياغة ` +
       'واقعية موجزة بلغة السائل العادية (اشرح المصطلح القانونى بين قوسين إن لزم)، و"allow_multiple": true فقط حين ' +
-      'تكون الخيارات غير متنافية. لا تضع خيار "أخرى" ولا "لا أعرف" (تضيفهما الواجهة). إن وُجدت توضيحات سابقة فلا ' +
+      'تكون الخيارات غير متنافية. إن كان السؤال عن مقدار (مدة أو عدد أو مبلغ) فاجعل كل خيار مقداراً أو مدى بوحدته الصريحة ' +
+      '(مثل «أقل من سنة» و«من 5 إلى 10 سنوات»)، ولا تستعمل رقماً مجرداً بلا وحدة. لا تضع خيار "أخرى" ولا "لا أعرف" (تضيفهما الواجهة). إن وُجدت توضيحات سابقة فلا ' +
       'تكرر منها شيئاً، واسأل فقط ما استجد منها أو ما بقى جوهرياً.\n\n' +
       'أجب بكائن JSON واحد فقط بلا أى نص خارجه: ' +
       '{"needs_clarification": true|false, "reason": "سبب موجز", "questions": [{"question": "نص السؤال", ' +

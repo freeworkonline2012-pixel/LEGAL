@@ -28,6 +28,7 @@ import {
   extractArticleNumbers,
   extractQuantities,
   findUnsupportedTerms,
+  perYearRates,
 } from './answer-grounding';
 import { parseStructuredAnswer, referencedProvidedArticles } from './structured-answer';
 
@@ -286,5 +287,28 @@ describe('findUnsupportedTerms — وقائع السائل (quantitySupport)', (
     expect(findUnsupportedTerms('يسقط حقك بالتقادم', [ART], '- كم مدة الخدمة؟ ← عشر سنوات')).toEqual(
       expect.arrayContaining([expect.stringContaining('أثر:')]),
     );
+  });
+});
+
+describe('findUnsupportedTerms — مقادير مشتقة (معدل «عن كل سنة» × سنوات السائل)', () => {
+  const ART_165 = 'يستحق العامل تعويضاً لا يقل عن أجر شهرين عن كل سنة من سنوات الخدمة إذا أنهى صاحب العمل العقد لسبب غير مشروع.';
+  const ART_154 = 'استحق العامل مكافأة تعادل أجر شهر عن كل سنة من سنوات الخدمة.';
+  it('perYearRates تستخرج المعدل من نص المادة (شهرين = 2 شهر، شهر = 1)', () => {
+    expect(perYearRates(ART_165)).toEqual([{ n: 2, unit: 'شهر' }]);
+    expect(perYearRates(ART_154)).toEqual([{ n: 1, unit: 'شهر' }]);
+    expect(perYearRates('يستحق مكافأة عن مدة خدمته')).toEqual([]);
+  });
+  it('الحاصل (12 سنة × شهرين = 24 شهراً) مؤصَّل بوجود سنوات السائل، وغير مؤصَّل بدونها', () => {
+    const facts = '- كم مدة الخدمة؟ ← 12 سنوات';
+    expect(findUnsupportedTerms('تعويض لا يقل عن 24 شهراً من الأجر', [ART_165], facts)).toEqual([]);
+    expect(findUnsupportedTerms('تعويض لا يقل عن 24 شهراً من الأجر', [ART_165])).not.toEqual([]);
+  });
+  it('حاصل خاطئ (30 شهراً) أو بلا معدل فى المادة يُرفض', () => {
+    const facts = '- كم مدة الخدمة؟ ← 12 سنوات';
+    expect(findUnsupportedTerms('تعويض 30 شهراً من الأجر', [ART_165], facts)).not.toEqual([]);
+    expect(findUnsupportedTerms('تعويض 24 شهراً من الأجر', ['يستحق العامل تعويضاً.'], facts)).not.toEqual([]);
+  });
+  it('الأثر الشديد لا يُشتق أبداً مهما كانت الوقائع', () => {
+    expect(findUnsupportedTerms('يسقط حقك بعد 24 شهراً', [ART_165], '- مدة الخدمة ← 12 سنوات')).not.toEqual([]);
   });
 });

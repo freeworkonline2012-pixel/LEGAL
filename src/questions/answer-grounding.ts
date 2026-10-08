@@ -157,8 +157,38 @@ function effectKeys(normalized: string): string[] {
 }
 
 /**
+ * معدلات «عن كل سنة» الواردة فى نص مادة: «أجر شهرين عن كل سنة من سنوات الخدمة» → (2، شهر)،
+ * «أجر شهر عن كل سنة» → (1، شهر). تُستعمل لقبول حاصل ضربها فى سنوات خدمة السائل (12 سنة × شهرين = 24 شهراً)
+ * مقداراً مؤصَّلاً (مشتقاً حسابياً من نص المادة ووقائع السائل) لا مقداراً ملفَّقاً.
+ */
+export function perYearRates(text: string): Quantity[] {
+  const tokens = normalizeForQuote(text).split(' ').filter(Boolean);
+  const out: Quantity[] = [];
+  for (let i = 0; i + 2 < tokens.length; i++) {
+    if (tokens[i] !== 'عن' || tokens[i + 1] !== 'كل' || UNITS[tokens[i + 2]] !== 'سنه') continue;
+    // أقرب كمية قبل العبارة: مثنى (شهرين) أو «عدد + وحدة» أو وحدة مفردة (شهر = 1)
+    for (let j = i - 1; j >= Math.max(0, i - 4); j--) {
+      const t = tokens[j];
+      if (t in DUALS) {
+        out.push({ n: DUALS[t][0], unit: DUALS[t][1] });
+        break;
+      }
+      const unit = UNITS[t];
+      if (unit && unit !== 'سنه') {
+        const prev = j > 0 ? numberOf(tokens[j - 1]) : undefined;
+        out.push({ n: prev ?? 1, unit });
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * الألفاظ الحاملة للحكم الواردة فى `text` والغائبة عن كل نصوص `supportTexts`.
  * فارغة = كل ما تدّعيه العبارة من أثر شديد أو مقدار له أصل لفظى فى المادة المستند إليها.
+ * `quantitySupport` (إجابات السائل): تُقبل منها المقادير وحدها، ويُقبل أيضاً حاصل ضرب معدل «عن كل سنة»
+ * فى المادة × سنوات خدمة السائل. أما الآثار الشديدة (سقوط/بطلان...) فلا بد من أصلها فى المادة دائماً.
  */
 export function findUnsupportedTerms(
   text: string,
@@ -172,13 +202,17 @@ export function findUnsupportedTerms(
   for (const k of effectKeys(norm)) {
     if (!supportEffects.has(k)) out.push(`أثر:${k}`);
   }
-  // quantitySupport: وقائع السائل (من الاستيضاح) — تُقبل منها المقادير وحدها (مدة خدمته مثلاً)،
-  // أما الآثار الشديدة (سقوط/بطلان...) فلا بد من أصلها فى المادة دائماً.
-  const supportQty = new Set(
+  const supported = new Set(
     extractQuantities(`${supportNorm} ${normalizeForQuote(quantitySupport)}`).map((q) => `${q.n}|${q.unit}`),
   );
+  if (quantitySupport.trim().length > 0) {
+    const years = extractQuantities(quantitySupport).filter((q) => q.unit === 'سنه');
+    for (const rate of supportTexts.flatMap((t) => perYearRates(t))) {
+      for (const y of years) supported.add(`${rate.n * y.n}|${rate.unit}`);
+    }
+  }
   for (const q of extractQuantities(norm)) {
-    if (!supportQty.has(`${q.n}|${q.unit}`)) out.push(`مقدار:${q.n} ${q.unit}`);
+    if (!supported.has(`${q.n}|${q.unit}`)) out.push(`مقدار:${q.n} ${q.unit}`);
   }
   return out;
 }

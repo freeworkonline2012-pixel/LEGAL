@@ -1,4 +1,5 @@
 import { DeepseekGenerationService } from './deepseek-generation.service';
+import { buildEnrichedQuestion } from '../questions/clarification';
 
 function jsonResponse(status: number, body: unknown) {
   return {
@@ -276,7 +277,7 @@ describe('DeepseekGenerationService — الاستيضاح', () => {
     const plain = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))));
     global.fetch = plain as unknown as typeof fetch;
     await svc.composeStructuredAnswer(INPUT);
-    expect(JSON.parse(plain.mock.calls[0][1].body).messages[0].content).not.toContain('وقائع السائل (إلزامية)');
+    expect(JSON.parse(plain.mock.calls[0][1].body).messages[0].content).not.toContain('وقائع السائل (إلزامية');
 
     const enriched = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))));
     global.fetch = enriched as unknown as typeof fetch;
@@ -284,7 +285,7 @@ describe('DeepseekGenerationService — الاستيضاح', () => {
       ...INPUT,
       question: `${INPUT.question}\n\n[توضيحات السائل]\n- ما نوع العقد؟ ← محدد المدة`,
     });
-    expect(JSON.parse(enriched.mock.calls[0][1].body).messages[0].content).toContain('وقائع السائل (إلزامية)');
+    expect(JSON.parse(enriched.mock.calls[0][1].body).messages[0].content).toContain('وقائع السائل (إلزامية');
   });
 
   it('مقدار ذكره السائل فى توضيحاته يُقبل فى شرط السيناريو، وأثر شديد غير وارد فى المادة يُسقَط رغم ذلك', async () => {
@@ -308,5 +309,141 @@ describe('DeepseekGenerationService — الاستيضاح', () => {
     if (withFacts.status !== 'ok') return;
     expect(withFacts.structured.scenarios).toHaveLength(1);
     expect(withFacts.structured.scenarios[0].outcome).toContain('تستحق');
+  });
+});
+
+describe('DeepseekGenerationService — وضع الوقائع: خطوة التطبيق ومراجعة الاتساق', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+  const originalReview = process.env.STRUCTURED_REVIEW_ENABLED;
+  const FACTS_Q = {
+    ...INPUT,
+    question: buildEnrichedQuestion(INPUT.question, [
+      { question: 'كم إجمالى مدة الخدمة بالسنوات؟', answer: '12', kind: 'custom' },
+    ]),
+  };
+  const DRAFT = { ...GOOD, direct_answer: 'لا تستحق شيئاً لأن مدة خدمتك لم تتجاوز خمس سنوات.' };
+  const FIXED = { ...GOOD, direct_answer: 'تستحق مكافأة إذا أنهى صاحب العمل العقد، ومدة خدمتك 12 سنة.' };
+  const DEFECTS = {
+    defects: [
+      { type: 'contradicts_fact', problem: 'الجواب المباشر ينفى تجاوز خمس سنوات والسائل ذكر 12 سنة', fix: 'اعتمد مدة 12 سنة' },
+    ],
+  };
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    delete process.env.STRUCTURED_REVIEW_ENABLED;
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    if (originalReview === undefined) delete process.env.STRUCTURED_REVIEW_ENABLED;
+    else process.env.STRUCTURED_REVIEW_ENABLED = originalReview;
+    jest.restoreAllMocks();
+  });
+  const mockSeq = (...bodies: unknown[]) => {
+    const f = jest.fn();
+    for (const b of bodies) f.mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(b))));
+    global.fetch = f as unknown as typeof fetch;
+    return f;
+  };
+
+  it('تعليمات التوليد فى وضع الوقائع: مفتاح facts_applied قبل direct_answer وقاعدة التطبيق، والوحدة تُلحَق بالرقم المجرد', async () => {
+    const f = mockSeq(GOOD, { defects: [] });
+    await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    const body = JSON.parse(f.mock.calls[0][1].body);
+    const sys = body.messages[0].content as string;
+    expect(sys.indexOf('"facts_applied"')).toBeGreaterThan(-1);
+    expect(sys.indexOf('"facts_applied"')).toBeLessThan(sys.indexOf('"direct_answer"'));
+    expect(sys).toContain('المسار الأول');
+    expect(sys).toContain('لا تجزم');
+    expect(body.messages[1].content).toContain('12 سنوات');
+  });
+
+  it('المسار العادى (بلا توضيحات): لا facts_applied ولا نداء مراجعة', async () => {
+    const f = mockSeq(GOOD);
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(INPUT);
+    expect(r.status).toBe('ok');
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(f.mock.calls[0][1].body).messages[0].content).not.toContain('facts_applied');
+  });
+
+  it('عيب مؤكد ← تصحيح واحد يُعتمد، والناقد يرى الوقائع والمسودة، والمصحِّح يرى العيب', async () => {
+    const f = mockSeq(DRAFT, DEFECTS, FIXED);
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    expect(f).toHaveBeenCalledTimes(3);
+    expect(r.status === 'ok' && r.structured.direct_answer).toBe(FIXED.direct_answer);
+    const critic = JSON.parse(f.mock.calls[1][1].body);
+    expect(critic.temperature).toBe(0);
+    expect(critic.messages[1].content).toContain('12');
+    expect(critic.messages[1].content).toContain(DRAFT.direct_answer);
+    const revise = JSON.parse(f.mock.calls[2][1].body).messages[1].content as string;
+    expect(revise).toContain('contradicts_fact');
+    expect(revise).toContain('اعتمد مدة 12 سنة');
+    expect(revise).toContain(DRAFT.direct_answer);
+  });
+
+  it('بلا عيوب ← تبقى المسودة ولا نداء تصحيح', async () => {
+    const f = mockSeq(DRAFT, { defects: [] });
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    expect(f).toHaveBeenCalledTimes(2);
+    expect(r.status === 'ok' && r.structured.direct_answer).toBe(DRAFT.direct_answer);
+  });
+
+  it('فشل الناقد (500/شبكة/JSON تالف) أو تصحيح غير صالح أو يستشهد بمادة غير مرسَلة ← تبقى المسودة', async () => {
+    const svc = new DeepseekGenerationService();
+    const bad = jest.fn();
+    bad.mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(DRAFT)))).mockResolvedValueOnce(jsonResponse(500, {}));
+    global.fetch = bad as unknown as typeof fetch;
+    expect((await svc.composeStructuredAnswer(FACTS_Q)).status).toBe('ok');
+
+    const net = jest.fn();
+    net.mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(DRAFT)))).mockRejectedValueOnce(new Error('net'));
+    global.fetch = net as unknown as typeof fetch;
+    const r2 = await svc.composeStructuredAnswer(FACTS_Q);
+    expect(r2.status === 'ok' && r2.structured.direct_answer).toBe(DRAFT.direct_answer);
+
+    const junk = jest.fn();
+    junk
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(DRAFT))))
+      .mockResolvedValueOnce(jsonResponse(200, completion('{bad')));
+    global.fetch = junk as unknown as typeof fetch;
+    const r3 = await svc.composeStructuredAnswer(FACTS_Q);
+    expect(r3.status === 'ok' && r3.structured.direct_answer).toBe(DRAFT.direct_answer);
+
+    mockSeq(DRAFT, DEFECTS, { not: 'valid' });
+    const r4 = await svc.composeStructuredAnswer(FACTS_Q);
+    expect(r4.status === 'ok' && r4.structured.direct_answer).toBe(DRAFT.direct_answer);
+
+    // تصحيح يستشهد بمادة 999 غير مرسَلة ← بوابة الهلوسة تُسقط الإجابة كلها (المسار القديم) لا تمرّر الاستشهاد الخاطئ
+    mockSeq(DRAFT, DEFECTS, { ...FIXED, direct_answer: 'تستحق مكافأة طبقاً للمادة 999.' });
+    const r5 = await svc.composeStructuredAnswer(FACTS_Q);
+    expect(r5.status).toBe('hallucination_rejected');
+  });
+
+  it('مفتاح STRUCTURED_REVIEW_ENABLED=false يعطّل المراجعة', async () => {
+    process.env.STRUCTURED_REVIEW_ENABLED = 'false';
+    const f = mockSeq(DRAFT);
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(r.status).toBe('ok');
+  });
+
+  it('أنواع عيوب غير معروفة وعيوب بلا إصلاح تُهمَل (لا تصحيح بلا سبب)', async () => {
+    const f = mockSeq(DRAFT, { defects: [{ type: 'style', problem: 'الأسلوب ركيك جداً', fix: 'حسّنه' }, { type: 'contradicts_fact', problem: 'قصير', fix: '' }] }, FIXED);
+    await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
+  it('واقعة سُئل عنها وأُجيب عنها لا تعود فى facts_to_confirm', async () => {
+    mockSeq(GOOD, { defects: [] });
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    expect(r.status === 'ok' && r.structured.facts_to_confirm).toEqual([]);
+  });
+
+  it('محلل الاستيضاح: قاعدة المقادير بوحدتها الصريحة فى تعليمات النظام', async () => {
+    const f = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify({ needs_clarification: false }))));
+    global.fetch = f as unknown as typeof fetch;
+    await new DeepseekGenerationService().detectClarification({ question: 'س', history: [], articles: INPUT.articles });
+    expect(JSON.parse(f.mock.calls[0][1].body).messages[0].content).toContain('بوحدته الصريحة');
   });
 });

@@ -104,13 +104,35 @@ export function normalizeClarificationInput(raw: unknown, maxRounds: number): Cl
 // وقائع السائل -> السؤال المُثرى واستعلام الاسترجاع
 // ---------------------------------------------------------------------------
 
+const NUMERIC_ONLY = /^[\d\u0660-\u0669]+(?:[.,\u066b]\d+)?$/;
+
+/** وحدة الزمن المذكورة فى نص السؤال (لرقم كتبه السائل بلا وحدة) أو null. */
+function unitFromQuestion(question: string): string | null {
+  const q = normalizeForQuote(question);
+  if (/(?:^| )(?:سنه|سنوات|سنين|عاما?|اعوام|سنه)(?: |$)|بالسنوات|بالاعوام/.test(q)) return 'سنوات';
+  if (/(?:^| )(?:شهرا?|اشهر|شهور)(?: |$)|بالاشهر|بالشهور/.test(q)) return 'أشهر';
+  if (/(?:^| )(?:يوما?|ايام)(?: |$)|بالايام/.test(q)) return 'أيام';
+  return null;
+}
+
+/**
+ * رقم كتبه السائل بلا وحدة (مثل «12» جواباً عن «ما إجمالى مدة الخدمة؟») يُكمَّل بوحدة السؤال إن وُجدت
+ * (تقييم حى 5/10: «12» فُسِّر خطأً فاستُنتج أن الخدمة أقل من خمس سنوات)، وإلا يُوسَم صراحةً أنه بلا وحدة.
+ */
+function annotateBareNumber(question: string, answer: string): string {
+  const a = answer.trim();
+  if (!NUMERIC_ONLY.test(a)) return answer;
+  const unit = unitFromQuestion(question);
+  return unit ? `${a} ${unit}` : `${a} (رقم بلا وحدة — فسّره بحسب سياق السؤال)`;
+}
+
 function factLine(a: ClarificationAnswer): string {
   const reply =
     a.kind === 'unknown'
       ? 'لا يعرف (غطِّ الاحتمالات المختلفة فى السيناريوهات)'
       : a.kind === 'custom'
-        ? `${a.answer} (بصياغة السائل)`
-        : a.answer;
+        ? `${annotateBareNumber(a.question, a.answer)} (بصياغة السائل)`
+        : annotateBareNumber(a.question, a.answer);
   return `- ${a.question} ← ${reply}`;
 }
 
@@ -118,6 +140,57 @@ function factLine(a: ClarificationAnswer): string {
 export function buildEnrichedQuestion(original: string, answers: readonly ClarificationAnswer[]): string {
   if (answers.length === 0) return original;
   return `${original}\n\n${CLARIFICATION_FACTS_MARKER}\n${answers.map(factLine).join('\n')}`;
+}
+
+export interface ParsedFact {
+  question: string;
+  answer: string;
+  /** أجاب السائل «لا أعرف» — الواقعة غير معلومة (يجوز أن يُطلب تأكيدها). */
+  unknown: boolean;
+}
+
+const FACT_SEP = ' ← ';
+
+/** يفكّك قسم الوقائع (سطر لكل «سؤال ← جواب») إلى بنود. سطر بلا فاصل يُتجاهل. */
+export function parseClarificationFacts(factsText: string): ParsedFact[] {
+  const out: ParsedFact[] = [];
+  for (const raw of factsText.split('\n')) {
+    const line = raw.replace(/^\s*-\s*/, '').trim();
+    const i = line.indexOf(FACT_SEP);
+    if (i < 0) continue;
+    const question = line.slice(0, i).trim();
+    const answer = line.slice(i + FACT_SEP.length).trim();
+    if (!question || !answer) continue;
+    out.push({ question, answer, unknown: answer.startsWith('لا يعرف') });
+  }
+  return out;
+}
+
+/** إجابات السائل وحدها (دون صياغة الأسئلة) مجمَّعة فى نص: مرجع «الوقائع» لبوابة المقادير. */
+export function extractClarificationAnswers(question: string): string {
+  return parseClarificationFacts(extractClarificationFacts(question))
+    .filter((f) => !f.unknown)
+    .map((f) => f.answer)
+    .join(' ؛ ');
+}
+
+/**
+ * هل واقعة يطلب النموذج تأكيدها (facts_to_confirm) سبق أن أجاب عنها السائل؟ (تقييم حى 5/10: عادت الإجابة
+ * تسأل عن طبيعة العمل وكتابة الإخطار وقد أجاب السائل عنهما.) تقاطع جذور الكلمات المضمونية ≥ 0.6 من الأصغر
+ * (وكلمتان على الأقل). «لا أعرف» لا تُعد جواباً فيجوز طلب تأكيدها.
+ */
+export function isAlreadyAnsweredFact(item: string, facts: readonly ParsedFact[]): boolean {
+  const mine = new Set(contentStems(item));
+  if (mine.size === 0) return false;
+  for (const f of facts) {
+    if (f.unknown) continue;
+    const theirs = new Set(contentStems(f.question));
+    if (theirs.size === 0) continue;
+    let inter = 0;
+    for (const x of mine) if (theirs.has(x)) inter++;
+    if (inter >= 2 && inter / Math.min(mine.size, theirs.size) >= 0.6) return true;
+  }
+  return false;
 }
 
 /** نص قسم الوقائع من سؤال مُثرى ('' إن لم يوجد) — يُستعمل لقبول مقادير السائل فى بوابة التأصيل. */
