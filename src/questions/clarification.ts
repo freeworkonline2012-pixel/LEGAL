@@ -193,6 +193,25 @@ export function isAlreadyAnsweredFact(item: string, facts: readonly ParsedFact[]
   return false;
 }
 
+/**
+ * هل بند facts_to_confirm يخص واقعة أجاب عنها السائل «لا أعرف»؟ (2i — تقييم حى بعد 2h: عادت الإجابة تطلب تأكيد
+ * «هل زادت المدة على خمس سنوات؟» و«هل العمل يقتضى توقيت المدة؟» و«هل الإنهاء بمبرر؟» وقد أجاب السائل عنها، لأن
+ * مرشح التكرار المعجمى يفشل أمام إعادة صياغة النموذج للسؤال، ولأن نداء التصحيح الذى كان سيصلحها فشل.)
+ * فى وضع الوقائع لا يبقى فى facts_to_confirm إلا ما يرتبط بواقعة «لا أعرف»؛ كل احتمال آخر مكانه السيناريوهات
+ * الشرطية لا طلب تأكيد من سائل استُوضح بالفعل. تقاطع جذرين مضمونيين على الأقل مع نص سؤال الاستيضاح.
+ */
+export function isTiedToUnknownFact(item: string, facts: readonly ParsedFact[]): boolean {
+  const mine = new Set(contentStems(item));
+  if (mine.size === 0) return false;
+  for (const f of facts) {
+    if (!f.unknown) continue;
+    let inter = 0;
+    for (const x of contentStems(f.question)) if (mine.has(x)) inter++;
+    if (inter >= 2) return true;
+  }
+  return false;
+}
+
 /** نص قسم الوقائع من سؤال مُثرى ('' إن لم يوجد) — يُستعمل لقبول مقادير السائل فى بوابة التأصيل. */
 export function extractClarificationFacts(question: string): string {
   const i = question.indexOf(CLARIFICATION_FACTS_MARKER);

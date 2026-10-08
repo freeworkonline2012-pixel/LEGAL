@@ -112,7 +112,9 @@ export const CLARIFICATION_FACTS_BASE_RULE =
   'السائل. ثم رتّب بقية المسارات (الأصل العام أولاً ثم الاستثناء أو الاحتياطى) مع شرط كل مسار، وبيّن ما يسقط منها بالنص.\n' +
   '(ج) إن كانت نتيجة ما تتوقف على مسألة تفسيرية مفتوحة لم يحسمها النص (مثل: هل تُجمع مدد التجديدات؟ هل تدخل هذه الحالة ' +
   'فى الحالات المعدودة؟) فلا تجزم فى الجواب المباشر بنفى أو إثبات؛ اعرض القراءتين ونتيجة كل منهما صراحةً وأدرج المسألة فى open_issues.\n' +
-  '(د) لا تطلب فى facts_to_confirm واقعة أجاب عنها السائل (فيما عدا ما أجاب عنه بـ«لا يعرف»)، ولا تدرج تنبيهاً أو حكماً ' +
+  '(د) السائل استُوضح بالفعل: اترك facts_to_confirm فارغة [] إلا لواقعة أجاب عنها بـ«لا يعرف»؛ ولا تطلب تأكيد واقعة أجاب عنها ' +
+  'ولا ما يقتضيه سؤال استيضاحى طُرح عليه (مدة الخدمة، طبيعة العمل، مبرر الإنهاء، شكل الإخطار...)، وما بقى احتمالاً فعالجه ' +
+  'بسيناريوهات شرطية لا بسؤال. ولا تدرج تنبيهاً أو حكماً ' +
   'أو سيناريو لا تنطبق مقدّمته على وقائعه: مثل حق للعامل فى الإنهاء والسائل يقول إن صاحب العمل هو الذى أنهى، أو ' +
   'ضمانات مهلة إخطار جارية (حظر الإخطار أثناء الإجازة، التغيب أثناء المهلة) والعلاقة انتهت فعلاً. ولا تكرر فى warnings ' +
   'ما قررته فى rulings (كمدة الإخطار أو التعويض) ولا التنبيه نفسه.\n' +
@@ -1173,7 +1175,9 @@ export class DeepseekGenerationService {
         signal: AbortSignal.timeout(60_000),
         body: JSON.stringify({
           model: this.model,
-          max_tokens: maxTokens,
+          // التصحيح يعيد JSON كاملاً وقد يزيد على المسودة (2i: «unparseable_json» أبطل تصحيحاً كاملاً؛ الأرجح اقتطاع
+          // بحد max_tokens نفسه الذى وُلِّدت به المسودة) فيُمنح هامشاً أكبر.
+          max_tokens: Math.min(8000, Math.round(maxTokens * 1.6)),
           thinking: { type: 'disabled' },
           response_format: { type: 'json_object' },
           messages: [
@@ -1186,16 +1190,19 @@ export class DeepseekGenerationService {
         this.logger.warn(`composeStructuredAnswer/تصحيح: API ${res.status} — تبقى المسودة.`);
         return draft;
       }
-      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string }; finish_reason?: string }> };
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) return draft;
+      const finishReason = data.choices?.[0]?.finish_reason ?? '?';
       const revised = parseStructuredAnswer(
         text,
         input.articles.map((a) => ({ text: a.articleText, articleNo: a.articleNo })),
         parseOpts,
       );
       if (!revised.ok) {
-        this.logger.warn(`composeStructuredAnswer/تصحيح: بنية غير صالحة (${revised.reason}) — تبقى المسودة.`);
+        this.logger.warn(
+          `composeStructuredAnswer/تصحيح: بنية غير صالحة (${revised.reason}) finish_reason=${finishReason} طول=${text.length} نهاية=«${text.slice(-120)}» — تبقى المسودة.`,
+        );
         return draft;
       }
       this.logger.log(

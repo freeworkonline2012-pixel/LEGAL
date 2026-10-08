@@ -549,6 +549,17 @@ describe('DeepseekGenerationService — وضع الوقائع: خطوة التط
     expect(revise).toContain('لا تحذف حكماً أو تنبيهاً سليماً');
   });
 
+  it('2i: قاعدة (د) تُبقي facts_to_confirm فارغة إلا لـ«لا يعرف»، وتصحيح الناقد يُمنح حد مخرجات أكبر من المسودة', async () => {
+    const f = mockSeq(DRAFT, { defects: [{ type: 'asks_known_fact', problem: 'يسأل عن مدة الخدمة', fix: 'احذفه' }] }, FIXED);
+    await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    const first = JSON.parse(f.mock.calls[0][1].body);
+    expect(first.messages[0].content).toContain('السائل استُوضح بالفعل');
+    expect(first.messages[0].content).toContain('facts_to_confirm فارغة');
+    const revise = JSON.parse(f.mock.calls[2][1].body);
+    expect(revise.max_tokens).toBeGreaterThan(first.max_tokens);
+    expect(revise.max_tokens).toBeLessThanOrEqual(8000);
+  });
+
   it('واقعة سُئل عنها وأُجيب عنها لا تعود فى facts_to_confirm', async () => {
     mockSeq(GOOD, { defects: [] });
     const r = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);

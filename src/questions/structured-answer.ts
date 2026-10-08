@@ -8,7 +8,7 @@ import {
   normalizeForQuote,
 } from './answer-grounding';
 import { detectCrossReferencedArticles } from './retrieval';
-import { isAlreadyAnsweredFact, type ParsedFact } from './clarification';
+import { isAlreadyAnsweredFact, isTiedToUnknownFact, type ParsedFact } from './clarification';
 
 export { normalizeForQuote };
 
@@ -488,8 +488,11 @@ export function parseStructuredAnswer(
   const warningsSourced = parseWarningsList(obj.warnings, ctx);
   const scenarios = parseScenariosList(obj.scenarios, ctx);
   const factsApplied = parseFactsAppliedList(obj.facts_applied, ctx);
-  const factsToConfirm = cleanList(obj.facts_to_confirm, MAX_FACTS).filter(
-    (f) => !isAlreadyAnsweredFact(f, options.answeredFacts ?? []),
+  // وضع الوقائع (السائل أجاب عن أسئلة استيضاح): لا يبقى إلا ما يخص واقعة «لا أعرف»؛ وبدونه (المسار العادى)
+  // يُحذف ما كرّر واقعة مُجاب عنها فقط.
+  const answered = options.answeredFacts ?? [];
+  const factsToConfirm = cleanList(obj.facts_to_confirm, MAX_FACTS).filter((f) =>
+    answered.length > 0 ? isTiedToUnknownFact(f, answered) : !isAlreadyAnsweredFact(f, answered),
   );
   return {
     ok: true,

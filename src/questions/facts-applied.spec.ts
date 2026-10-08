@@ -113,7 +113,37 @@ describe('facts_to_confirm — لا يُسأل السائل عما أجاب', ()
       ARTS,
       { factsText: 'نعم', answeredFacts: facts },
     );
-    expect(r.ok && r.value.facts_to_confirm).toEqual(['هل الإخطار كان مكتوباً؟', 'هل لديك نسخة من العقد؟']);
+    // 2i: فى وضع الوقائع لا يبقى إلا ما يخص واقعة «لا أعرف»؛ سؤال لم يُطرح أصلاً («نسخة من العقد») يُحذف أيضاً.
+    expect(r.ok && r.value.facts_to_confirm).toEqual(['هل الإخطار كان مكتوباً؟']);
+  });
+
+  it('2i: أسئلة معاد صياغتها عن وقائع أُجيب عنها (المدة، طبيعة العمل، المبرر) تُحذف حتى لو فشل التطابق المعجمى', () => {
+    const facts = parseClarificationFacts(
+      '- ما إجمالى مدة خدمتك لدى صاحب العمل؟ ← أكثر من 5 سنوات\n' +
+        '- هل طبيعة عملك تقتضى تحديد مدة للعقد؟ ← لا، العمل مستمر بطبيعته\n' +
+        '- هل كان لدى صاحب العمل مبرر مشروع للإنهاء؟ ← لا',
+    );
+    const r = parseStructuredAnswer(
+      JSON.stringify({
+        ...base,
+        facts_to_confirm: [
+          'هل كانت المدة الإجمالية للعقد محدد المدة تزيد على خمس سنوات؟',
+          'هل العمل بطبيعته يقتضى تحديد المدة؟',
+          'هل تم الإنهاء من جانب صاحب العمل مع مبرر مشروع أم لا؟',
+        ],
+      }),
+      ARTS,
+      { factsText: 'أكثر من 5 سنوات', answeredFacts: facts },
+    );
+    expect(r.ok && r.value.facts_to_confirm).toEqual([]);
+  });
+
+  it('2i: المسار العادى بلا وقائع استيضاح لا يتغير (يُحذف المكرر فقط ويبقى غيره)', () => {
+    const r = parseStructuredAnswer(
+      JSON.stringify({ ...base, facts_to_confirm: ['هل لديك نسخة من العقد؟'] }),
+      ARTS,
+    );
+    expect(r.ok && r.value.facts_to_confirm).toEqual(['هل لديك نسخة من العقد؟']);
   });
 });
 
