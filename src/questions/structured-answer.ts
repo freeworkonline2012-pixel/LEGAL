@@ -1,4 +1,14 @@
-import { normalizeArabic, toEnglishDigits } from '../ingestion/normalize';
+import {
+  TEXT_COVERAGE_MIN,
+  TEXT_UPGRADE_COVERAGE_MIN,
+  claimCoverage,
+  extractArticleNumbers,
+  findUnsupportedTerms,
+  normalizeForQuote,
+} from './answer-grounding';
+import { detectCrossReferencedArticles } from './retrieval';
+
+export { normalizeForQuote };
 
 /**
  * الإجابة المنظَّمة (2026-10-05 — طلب صريح من صاحب المشروع: "جواب مباشر أولاً،
@@ -32,9 +42,21 @@ export interface StructuredRuling {
   quote_verified: boolean;
 }
 
+/**
+ * سيناريو تطبيقى: «إن كانت الواقعة كذا فالنتيجة كذا» مستنبَط من مادة واحدة مرفقة
+ * (تطبيق للنص على احتمال فى حالة السائل — ليس نصاً حرفياً ولا يُوسَم نصاً أبداً).
+ */
+export interface StructuredScenario {
+  condition: string;
+  outcome: string;
+  /** فهرس (من صفر) للمادة التى يُستنبَط منها السيناريو. */
+  citation_index: number;
+}
+
 export interface StructuredAnswer {
   direct_answer: string;
   rulings: StructuredRuling[];
+  scenarios: StructuredScenario[];
   open_issues: string[];
   warnings: string[];
   facts_to_confirm: string[];
@@ -44,6 +66,8 @@ export interface StructuredAnswer {
 export interface StructuredArticleMeta {
   /** نص المادة المرفق فعلياً للنموذج (للتحقق الحرفى من المقتطفات). */
   text: string;
+  /** رقم المادة (لربط رقم المادة المذكور فى تحذير بنصها وفحص تأصيله). اختيارى للتوافق. */
+  articleNo?: number;
 }
 
 /** إحصاءات تشخيصية للتسجيل فقط (لا تُعرَض للمستخدم). */
@@ -58,6 +82,19 @@ export interface ParseStats {
   failures: string[];
   /** تحذيرات أُسقطت لأنها لا تذكر رقم المادة المستندة إليها (حكم قانونى بلا سند). */
   warnings_dropped: number;
+  /** أحكام خُفِّضت من «نص» إلى «تفسير» لأن المقتطف الظاهر لا يغطى الحكم (تغطية < العتبة). */
+  coverage_downgraded: number;
+  /** أحكام رُفعت من «تفسير» إلى «نص» لأنها تطابق مقتطفها الموثَّق عملياً. */
+  coverage_upgraded: number;
+  /** بنود أُسقطت لأن أثراً شديداً أو مقداراً فيها لا أصل لفظياً له فى المادة المستند إليها. */
+  guard_dropped: { rulings: number; warnings: number; scenarios: number };
+  /** تفاصيل الإسقاط للتسجيل التشخيصى فقط (لا تُعرَض للمستخدم). */
+  guard_details: string[];
+}
+
+export interface ParseOptions {
+  /** مفتاح إيقاف فحص التأصيل (الافتراضى مفعَّل). يُقرأ من STRUCTURED_GUARD_ENABLED عند الاستدعاء. */
+  guard?: boolean;
 }
 
 export type ParseStructuredResult =
@@ -65,6 +102,7 @@ export type ParseStructuredResult =
   | { ok: false; reason: string };
 
 export const MAX_RULINGS = 8;
+export const MAX_SCENARIOS = 4;
 export const MAX_LIST_ITEMS = 8;
 /** إيجاز العرض: حدود أضيق لقوائم التحذيرات والوقائع (المسائل المفتوحة تبقى حتى MAX_LIST_ITEMS). */
 export const MAX_WARNINGS = 4;
@@ -100,15 +138,6 @@ export function computeSourceStatus(input: {
   if (s === 'repealed') return 'ملغى';
   if (s === 'amended') return input.lastAmended ? 'معدّل' : 'غير محسوم';
   return 'غير محسوم';
-}
-
-/** تطبيع للمقارنة الحرفية: أرقام لاتينية، توحيد الهمزات، حذف التشكيل والتطويل وعلامات الترقيم. */
-export function normalizeForQuote(input: string): string {
-  return normalizeArabic(toEnglishDigits(input))
-    .replace(/[ً-ْـ‎‏‪-‮]/g, '')
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 /**
@@ -164,7 +193,9 @@ function stripFences(raw: string): string {
 export function parseStructuredAnswer(
   raw: string,
   articles: readonly StructuredArticleMeta[],
+  options: ParseOptions = {},
 ): ParseStructuredResult {
+  const guard = options.guard !== false;
   let data: unknown;
   try {
     data = JSON.parse(stripFences(raw));
@@ -181,7 +212,17 @@ export function parseStructuredAnswer(
   }
   const rawRulings = Array.isArray(obj.rulings) ? obj.rulings : [];
   const rulings: StructuredRuling[] = [];
-  const stats: ParseStats = { requested_text: 0, downgraded: 0, dropped: 0, failures: [], warnings_dropped: 0 };
+  const stats: ParseStats = {
+    requested_text: 0,
+    downgraded: 0,
+    dropped: 0,
+    failures: [],
+    warnings_dropped: 0,
+    coverage_downgraded: 0,
+    coverage_upgraded: 0,
+    guard_dropped: { rulings: 0, warnings: 0, scenarios: 0 },
+    guard_details: [],
+  };
   for (const r of rawRulings) {
     if (!r || typeof r !== 'object') continue;
     const rr = r as Record<string, unknown>;
@@ -193,6 +234,16 @@ export function parseStructuredAnswer(
       continue;
     }
     const idx = srcNum - 1;
+    // فحص التأصيل: أثر شديد (سقوط/تقادم/بطلان...) أو مقدار (عدد+وحدة) فى الحكم لا أصل لفظياً له
+    // فى المادة المستند إليها → يُسقَط الحكم (لا يُخفَّض): حكم بمدة أو أثر ملفَّق أخطر من حكم ناقص.
+    if (guard) {
+      const unsupported = findUnsupportedTerms(claim, [articles[idx].text]);
+      if (unsupported.length > 0) {
+        stats.guard_dropped.rulings++;
+        stats.guard_details.push(`ruling[م${articles[idx].articleNo ?? srcNum}]: ${unsupported.join('،')}`);
+        continue;
+      }
+    }
     const rawQuote: string | null = cleanStr(rr.quote, 1200) || null;
     // التحقق يجرى على المقتطف كاملاً (حتى لو طويل)؛ المقتطف الطويل الموثَّق يُعرَض مقتطعاً
     // بأول MAX_QUOTE_WORDS كلمة مع "…" (جزء حرفى حقيقى من النص) بدل إسقاطه كلياً.
@@ -203,14 +254,28 @@ export function parseStructuredAnswer(
       quote = words.length > MAX_QUOTE_WORDS ? `${words.slice(0, MAX_QUOTE_WORDS).join(' ')} …` : rawQuote;
     }
     const requested = cleanStr(rr.kind, 20);
-    // نص إلا إذا ثبت المقتطف الحرفى؛ أى شىء آخر (أو وسم غير معروف) = تفسير.
-    const kind: RulingKind = requested === 'نص' && verified ? 'نص' : 'تفسير';
+    // الوسم يُحسَب حتمياً لا بادعاء النموذج وحده: «نص» يتطلب (1) مقتطفاً حرفياً صحيحاً و(2) أن
+    // يغطى المقتطف *الظاهر للمستخدم* كلمات الحكم المضمونية (عتبة TEXT_COVERAGE_MIN)؛ وحكم وسمه
+    // النموذج «تفسير» لكنه يكاد يطابق مقتطفه الموثَّق (≥ TEXT_UPGRADE_COVERAGE_MIN) يُرفَع إلى «نص».
+    const coverage = verified && quote ? claimCoverage(claim, quote) : 0;
+    let kind: RulingKind = 'تفسير';
+    if (verified) {
+      if (requested === 'نص' && coverage >= TEXT_COVERAGE_MIN) kind = 'نص';
+      else if (requested !== 'نص' && coverage >= TEXT_UPGRADE_COVERAGE_MIN) kind = 'نص';
+    }
     if (requested === 'نص') {
       stats.requested_text++;
       if (kind !== 'نص') {
         stats.downgraded++;
-        stats.failures.push(rawQuote ? `unverified(${rawQuote.split(/\s+/).length}w): ${rawQuote.slice(0, 70)}` : 'no_quote');
+        if (verified) {
+          stats.coverage_downgraded++;
+          stats.failures.push(`coverage(${coverage.toFixed(2)}): ${claim.slice(0, 60)}`);
+        } else {
+          stats.failures.push(rawQuote ? `unverified(${rawQuote.split(/\s+/).length}w): ${rawQuote.slice(0, 70)}` : 'no_quote');
+        }
       }
+    } else if (kind === 'نص') {
+      stats.coverage_upgraded++;
     }
     rulings.push({
       claim,
@@ -224,14 +289,69 @@ export function parseStructuredAnswer(
   if (rulings.length === 0) {
     return { ok: false, reason: 'no_valid_rulings' };
   }
+  // نصوص المواد حسب الرقم (لربط «(المادة 108)» المذكورة فى تحذير بنص تلك المادة فعلاً).
+  const textsByNo = new Map<number, string[]>();
+  for (const a of articles) {
+    if (typeof a.articleNo === 'number') {
+      textsByNo.set(a.articleNo, [...(textsByNo.get(a.articleNo) ?? []), a.text]);
+    }
+  }
   const warningsRaw = cleanList(obj.warnings, MAX_LIST_ITEMS);
-  const warningsSourced = warningsRaw.filter((w) => hasArticleRef(w));
-  stats.warnings_dropped = warningsRaw.length - warningsSourced.length;
+  const warningsSourced: string[] = [];
+  for (const w of warningsRaw) {
+    if (!hasArticleRef(w)) continue;
+    if (guard) {
+      // بلا أرقام مواد فى بيانات المواد (استدعاء قديم/اختبار) يُفحَص على اتحاد كل النصوص.
+      const nos = extractArticleNumbers(w);
+      const support =
+        textsByNo.size === 0
+          ? articles.map((a) => a.text)
+          : nos.flatMap((n) => textsByNo.get(n) ?? []);
+      if (support.length === 0) {
+        stats.guard_dropped.warnings++;
+        stats.guard_details.push(`warning[مادة غير مرسَلة ${nos.join(',')}]: ${w.slice(0, 50)}`);
+        continue;
+      }
+      const unsupported = findUnsupportedTerms(w, support);
+      if (unsupported.length > 0) {
+        stats.guard_dropped.warnings++;
+        stats.guard_details.push(`warning[م${nos.join(',')}]: ${unsupported.join('،')} — ${w.slice(0, 50)}`);
+        continue;
+      }
+    }
+    warningsSourced.push(w);
+  }
+  stats.warnings_dropped = warningsRaw.length - warningsSourced.length - stats.guard_dropped.warnings;
+
+  const scenarios: StructuredScenario[] = [];
+  const rawScenarios = Array.isArray(obj.scenarios) ? obj.scenarios : [];
+  for (const sc of rawScenarios) {
+    if (!sc || typeof sc !== 'object') continue;
+    const ss = sc as Record<string, unknown>;
+    const condition = cleanStr(ss.condition, 260);
+    const outcome = cleanStr(ss.outcome, 360);
+    const srcNum = Number(ss.source);
+    if (condition.length < 5 || outcome.length < 5) continue;
+    if (!Number.isInteger(srcNum) || srcNum < 1 || srcNum > articles.length) continue;
+    const idx = srcNum - 1;
+    if (guard) {
+      const unsupported = findUnsupportedTerms(`${condition} ${outcome}`, [articles[idx].text]);
+      if (unsupported.length > 0) {
+        stats.guard_dropped.scenarios++;
+        stats.guard_details.push(`scenario[م${articles[idx].articleNo ?? srcNum}]: ${unsupported.join('،')}`);
+        continue;
+      }
+    }
+    if (scenarios.some((x) => x.condition === condition && x.outcome === outcome)) continue;
+    scenarios.push({ condition, outcome, citation_index: idx });
+    if (scenarios.length >= MAX_SCENARIOS) break;
+  }
   return {
     ok: true,
     value: {
       direct_answer: direct,
       rulings,
+      scenarios,
       open_issues: cleanList(obj.open_issues),
       warnings: warningsSourced.slice(0, MAX_WARNINGS),
       facts_to_confirm: cleanList(obj.facts_to_confirm, MAX_FACTS),
@@ -246,6 +366,7 @@ export function collectProseForGate(s: StructuredAnswer): string {
   return [
     s.direct_answer,
     ...s.rulings.map((r) => r.claim),
+    ...(s.scenarios ?? []).flatMap((x) => [x.condition, x.outcome]),
     ...s.open_issues,
     ...s.warnings,
     ...s.facts_to_confirm,
@@ -273,6 +394,17 @@ export function renderStructuredAsText(
 ): string {
   const parts: string[] = [];
   parts.push(`الجواب المباشر:\n${s.direct_answer}`);
+  const scenarios = s.scenarios ?? [];
+  if (scenarios.length > 0) {
+    parts.push(
+      `تطبيق على حالتك (بحسب الوقائع):\n${scenarios
+        .map((x) => {
+          const c = cites[x.citation_index];
+          return `- إذا ${x.condition}: ${x.outcome}${c ? ` (المادة ${c.articleNo})` : ''}`;
+        })
+        .join('\n')}`,
+    );
+  }
   const warnings = [...platformWarnings, ...s.warnings];
   if (warnings.length > 0) {
     parts.push(`تنبيهات:\n${warnings.map((w) => `- ${w}`).join('\n')}`);
@@ -314,4 +446,23 @@ export function buildStatusWarnings(cites: readonly RenderCitationMeta[]): strin
     }
   }
   return out;
+}
+
+/**
+ * أرقام المواد المرفقة التى أحالت إليها صراحةً مادة مرفقة *أخرى* (مثل 87 و88 المُحال
+ * إليهما فى نص المادة 154). تُمرَّر للنموذج كتوجيه («افحص صلة كل منها بوصف الواقعة») وتُسجَّل
+ * مع ما لم يُستَند إليه منها فى أى حكم أو سيناريو لقياس التغطية حياً. لا تُفرَض قسراً لأن الصلة
+ * بسؤال بعينه حكم قانونى لا يُحسَم حتمياً.
+ */
+export function referencedProvidedArticles(
+  articles: ReadonlyArray<{ articleNo: number; text: string }>,
+): number[] {
+  const provided = new Set(articles.map((a) => a.articleNo));
+  const out = new Set<number>();
+  for (const a of articles) {
+    for (const n of detectCrossReferencedArticles(a.text, a.articleNo)) {
+      if (provided.has(n)) out.add(n);
+    }
+  }
+  return [...out].sort((x, y) => x - y);
 }

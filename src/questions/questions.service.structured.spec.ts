@@ -45,6 +45,7 @@ function build(opts: { structured: unknown; legacy?: unknown }) {
 const STRUCTURED = {
   direct_answer: 'يعتمد على مدة الخدمة.',
   rulings: [{ claim: 'حكم.', kind: 'نص', citation_index: 0, quote: 'نص المادة', quote_verified: true }],
+  scenarios: [{ condition: 'إذا كانت الخدمة أقل من خمس سنوات', outcome: 'لا مكافأة', citation_index: 0 }],
   open_issues: [],
   warnings: [],
   facts_to_confirm: ['ما مدة الخدمة؟'],
@@ -62,6 +63,7 @@ describe('QuestionsService.ask — الإجابة المنظَّمة', () => {
     const r = await svc.ask({ question: 'سؤال؟' } as never, CTX as never);
     expect(r.refused).toBe(false);
     expect(r.structured?.direct_answer).toBe('يعتمد على مدة الخدمة.');
+    expect(r.structured?.scenarios?.[0].outcome).toBe('لا مكافأة');
     expect(r.answer.startsWith('الجواب المباشر:')).toBe(true);
     expect(r.citations[0].source_status).toBe('ساري');
     expect(generation.composeGroundedAnswerMulti).not.toHaveBeenCalled();

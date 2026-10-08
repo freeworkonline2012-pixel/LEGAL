@@ -76,6 +76,24 @@ export class StructuredRulingDto {
 }
 
 /**
+ * سيناريو تطبيقى (2026-10-08): «إن كانت الواقعة كذا فالنتيجة كذا» مستنبَط من مادة واحدة مرفقة.
+ * تطبيق للنص على احتمال فى حالة السائل؛ ليس نصاً حرفياً (لا مقتطف ولا وسم نص).
+ */
+export class StructuredScenarioDto {
+  @ApiProperty({ example: 'إذا كانت مدة الخدمة الإجمالية أقل من خمس سنوات' })
+  condition: string;
+
+  @ApiProperty({ example: 'ينتهى العقد بانقضاء مدته ولا تستحق مكافأة المادة 154.' })
+  outcome: string;
+
+  @ApiProperty({
+    example: 0,
+    description: 'فهرس (من صفر) المادة التى يُستنبَط منها السيناريو داخل citations فى نفس الاستجابة.',
+  })
+  citation_index: number;
+}
+
+/**
  * الإجابة المنظَّمة (2026-10-05): جواب مباشر أولاً، ثم الأحكام بسندها ووسمها،
  * ثم التحذيرات والمسائل المفتوحة والوقائع المطلوب تأكيدها. حقل إضافى اختيارى
  * فى AnswerResponseDto — غائب عندما يرجع الخادم للمسار القديم (answer نصى فقط).
@@ -86,6 +104,13 @@ export class StructuredAnswerDto {
 
   @ApiProperty({ type: StructuredRulingDto, isArray: true })
   rulings: StructuredRulingDto[];
+
+  @ApiPropertyOptional({
+    type: StructuredScenarioDto,
+    isArray: true,
+    description: 'تطبيق على حالة السائل بحسب الوقائع المحتملة (كل سيناريو بسنده). قد تكون فارغة.',
+  })
+  scenarios?: StructuredScenarioDto[];
 
   @ApiProperty({
     type: [String],

@@ -62,7 +62,7 @@ describe('parseStructuredAnswer', () => {
     direct_answer: 'نعم، يستحق مكافأة بشرط أن تتجاوز المدة خمس سنوات.',
     rulings: [
       {
-        claim: 'يستحق العامل مكافأة إذا أنهى صاحب العمل العقد بعد مدة تزيد على خمس سنوات.',
+        claim: 'استحق العامل مكافأة إذا كان الإنهاء من جانب صاحب العمل.',
         kind: 'نص',
         source: 1,
         quote: 'فإذا كان الإنهاء من جانب صاحب العمل استحق العامل مكافأة',
@@ -193,7 +193,7 @@ describe('parseStructuredAnswer', () => {
   it('المقتطف الطويل الموثَّق يُقتطع إلى 40 كلمة مع "…" ويبقى نصاً؛ والطويل غير الموثَّق يُخفَّض', () => {
     const longText = Array.from({ length: 80 }, (_, i) => `كلمة${i}`).join(' ');
     const ok = parseStructuredAnswer(
-      JSON.stringify({ ...good, rulings: [{ claim: 'حكم بمقتطف طويل موثَّق.', kind: 'نص', source: 1, quote: longText }] }),
+      JSON.stringify({ ...good, rulings: [{ claim: Array.from({ length: 10 }, (_, i) => `كلمة${i}`).join(' '), kind: 'نص', source: 1, quote: longText }] }),
       [{ text: longText }, { text: ART_165 }],
     );
     expect(ok.ok && ok.value.rulings[0].kind).toBe('نص');
@@ -225,7 +225,7 @@ describe('hasArticleRef وإسقاط التحذيرات بلا سند', () => {
         rulings: [{ claim: 'حكم موجز واحد.', kind: 'تفسير', source: 1 }],
         warnings: ['تحذير بلا مادة تماماً.', 'مهلة الإخطار ثلاثة أشهر كتابةً (المادة 1).'],
       }),
-      [{ text: 'نص المادة الأولى هنا' }],
+      [{ text: 'نص المادة الأولى: مهلة الإخطار ثلاثة أشهر.' }],
     );
     expect(r.ok).toBe(true);
     if (!r.ok) return;
@@ -257,6 +257,7 @@ describe('collectProseForGate / renderStructuredAsText / buildStatusWarnings', (
       { claim: 'حكم أول.', kind: 'نص' as const, citation_index: 0, quote: 'ق', quote_verified: true },
       { claim: 'حكم ثانٍ.', kind: 'تفسير' as const, citation_index: 1, quote: null, quote_verified: false },
     ],
+    scenarios: [{ condition: 'كانت الخدمة أقل من خمس سنوات', outcome: 'لا مكافأة.', citation_index: 0 }],
     open_issues: ['مسألة مفتوحة.'],
     warnings: ['تحذير.'],
     facts_to_confirm: ['ما مدة الخدمة؟'],
@@ -271,17 +272,19 @@ describe('collectProseForGate / renderStructuredAsText / buildStatusWarnings', (
     const t = collectProseForGate(structured);
     expect(t).toContain('حكم أول.');
     expect(t).toContain('جزء غير مغطى.');
+    expect(t).toContain('لا مكافأة.');
     expect(t).not.toContain('\nق\n');
   });
 
-  it('العرض النصى: الجواب المباشر أولاً ثم التنبيهات ثم المسائل المفتوحة ثم الوقائع ثم الأحكام بسندها', () => {
+  it('العرض النصى: الجواب المباشر أولاً ثم التطبيق على الحالة ثم التنبيهات ثم المسائل المفتوحة ثم الوقائع ثم الأحكام بسندها', () => {
     const text = renderStructuredAsText(structured, cites, buildStatusWarnings(cites));
-    const order = ['الجواب المباشر:', 'تنبيهات:', 'مسائل مفتوحة', 'وقائع يلزم تأكيدها', 'الأحكام وسندها:', 'أجزاء من السؤال'].map(
+    const order = ['الجواب المباشر:', 'تطبيق على حالتك', 'تنبيهات:', 'مسائل مفتوحة', 'وقائع يلزم تأكيدها', 'الأحكام وسندها:', 'أجزاء من السؤال'].map(
       (h) => text.indexOf(h),
     );
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(text).toContain('1. حكم أول. [نص]');
+    expect(text).toContain('- إذا كانت الخدمة أقل من خمس سنوات: لا مكافأة. (المادة 154)');
     expect(text).toContain('السند: المادة 165 من قانون العمل (رقم 14 لسنة 2025) — غير محسوم');
   });
 

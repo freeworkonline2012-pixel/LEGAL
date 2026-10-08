@@ -173,7 +173,7 @@ export class QuestionsService {
    * نفسها (= طول الحزمة الكاملة فعلياً، إذ حجمها الأصغر من حزمة نهاية العلاقة
    * لا يستدعى سقفاً منفصلاً عن الحد الأقصى الطبيعى).
    */
-  private static readonly ITB_BUNDLE_MAX_ADDITIONS = 5;
+  private static readonly ITB_BUNDLE_MAX_ADDITIONS = 6;
 
   /**
    * "إلغاء بادج الثقة بالكامل" (2026-09-25 — قرار صريح من رجل الأعمال):
@@ -1312,12 +1312,19 @@ export class QuestionsService {
     // محلي منفصل — كان بالقيمة 8 هنا أصلاً، لا تغيير فى القيمة الفعلية.
     const MAX_TOTAL_CITATIONS = QuestionsService.MAX_TOTAL_CITATIONS;
 
+    // ⚠️ إصلاح جذرى (2026-10-08 — من تقييم حى لإجابة ظهرت فيها المادة 88 مرتين [5] و[7]):
+    // كان فحص التكرار يستخدم مفتاحين مختلفى الشكل: الاستشهادات الأصلية تُسجَّل بمعرِّف المادة
+    // (articleId) بينما فحص الإحالة يبحث بالمفتاح `${lawId}-${articleNo}` — فلا يجد أبداً مادة
+    // مُسترجَعة أصلاً ويجلبها ثانيةً كنسخة مكررة كلما أحالت إليها مادة أخرى (م154 تُحيل إلى 88).
+    // الآن يُسجَّل المفتاحان معاً لكل استشهاد، ويُفحَص معرِّف المادة المُحلَّلة أيضاً قبل إضافتها.
     const seenArticleIds = new Set<string>();
+    const seenArticleNos = new Set<string>();
     const result: RetrievedCitation[] = [];
     for (const c of citations) {
       const key = c.articleId ?? `${c.lawId}-${c.articleNo}`;
       if (!seenArticleIds.has(key)) {
         seenArticleIds.add(key);
+        seenArticleNos.add(`${c.lawId}-${c.articleNo}`);
         result.push(c);
       }
     }
@@ -1347,12 +1354,17 @@ export class QuestionsService {
           break;
         }
         const key = `${citation.lawId}-${articleNo}`;
-        if (seenArticleIds.has(key)) {
+        if (seenArticleNos.has(key) || seenArticleIds.has(key)) {
           continue;
         }
         const resolved = await this.resolveArticleCitation(law, articleNo);
         if (resolved) {
+          if (resolved.articleId && seenArticleIds.has(resolved.articleId)) {
+            seenArticleNos.add(key);
+            continue;
+          }
           seenArticleIds.add(resolved.articleId ?? key);
+          seenArticleNos.add(key);
           result.push(resolved);
         }
       }

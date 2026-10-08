@@ -340,6 +340,16 @@ describe('isIndefiniteContractTerminationTopic', () => {
   );
 });
 
+describe('محتوى الحزم بعد تقييم 2026-10-08', () => {
+  it('حزمة نهاية العلاقة تضم المادة 6 (بطلان الإبراء/المخالصة) ولا تضم 87 و88', () => {
+    expect(END_OF_RELATIONSHIP_BUNDLE_ARTICLES).toContain(6);
+    expect(END_OF_RELATIONSHIP_BUNDLE_ARTICLES).not.toContain(87);
+  });
+  it('حزمة العقد غير محدد المدة تضم الأصل العام 87 وحالات التحول 88', () => {
+    expect(INDEFINITE_TERMINATION_BUNDLE_ARTICLES).toEqual(expect.arrayContaining([87, 88, 156, 157]));
+  });
+});
+
 describe('INDEFINITE_TERMINATION_BUNDLE_ARTICLES', () => {
   it('يحتوي فقط على أرقام مواد صحيحة موجبة، بلا تكرار، ومنفصلة عن حزمة نهاية العلاقة العامة', () => {
     const seen = new Set<number>();
