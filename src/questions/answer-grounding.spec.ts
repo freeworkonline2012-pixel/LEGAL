@@ -275,3 +275,16 @@ describe('referencedProvidedArticles', () => {
     expect(referencedProvidedArticles([{ articleNo: 108, text: ART_108 }, { articleNo: 6, text: ART_6 }])).toEqual([]);
   });
 });
+
+describe('findUnsupportedTerms — وقائع السائل (quantitySupport)', () => {
+  const ART = 'يستحق العامل مكافأة عن مدة خدمته إذا أنهى صاحب العمل العقد.';
+  it('مقدار ذكره السائل يُقبل، ويُرفض بدونه', () => {
+    expect(findUnsupportedTerms('تستحق المكافأة بعد خدمة عشر سنوات', [ART])).toEqual([expect.stringContaining('مقدار:10')]);
+    expect(findUnsupportedTerms('تستحق المكافأة بعد خدمة عشر سنوات', [ART], '- كم مدة الخدمة؟ ← عشر سنوات')).toEqual([]);
+  });
+  it('الأثر الشديد لا يُقبل من وقائع السائل أبداً', () => {
+    expect(findUnsupportedTerms('يسقط حقك بالتقادم', [ART], '- كم مدة الخدمة؟ ← عشر سنوات')).toEqual(
+      expect.arrayContaining([expect.stringContaining('أثر:')]),
+    );
+  });
+});

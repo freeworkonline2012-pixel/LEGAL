@@ -160,7 +160,11 @@ function effectKeys(normalized: string): string[] {
  * الألفاظ الحاملة للحكم الواردة فى `text` والغائبة عن كل نصوص `supportTexts`.
  * فارغة = كل ما تدّعيه العبارة من أثر شديد أو مقدار له أصل لفظى فى المادة المستند إليها.
  */
-export function findUnsupportedTerms(text: string, supportTexts: readonly string[]): string[] {
+export function findUnsupportedTerms(
+  text: string,
+  supportTexts: readonly string[],
+  quantitySupport = '',
+): string[] {
   const norm = normalizeForQuote(text);
   const supportNorm = supportTexts.map((s) => normalizeForQuote(s)).join(' ');
   const out: string[] = [];
@@ -168,7 +172,11 @@ export function findUnsupportedTerms(text: string, supportTexts: readonly string
   for (const k of effectKeys(norm)) {
     if (!supportEffects.has(k)) out.push(`أثر:${k}`);
   }
-  const supportQty = new Set(extractQuantities(supportNorm).map((q) => `${q.n}|${q.unit}`));
+  // quantitySupport: وقائع السائل (من الاستيضاح) — تُقبل منها المقادير وحدها (مدة خدمته مثلاً)،
+  // أما الآثار الشديدة (سقوط/بطلان...) فلا بد من أصلها فى المادة دائماً.
+  const supportQty = new Set(
+    extractQuantities(`${supportNorm} ${normalizeForQuote(quantitySupport)}`).map((q) => `${q.n}|${q.unit}`),
+  );
   for (const q of extractQuantities(norm)) {
     if (!supportQty.has(`${q.n}|${q.unit}`)) out.push(`مقدار:${q.n} ${q.unit}`);
   }

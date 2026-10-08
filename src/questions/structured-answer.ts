@@ -96,6 +96,8 @@ export interface ParseStats {
 export interface ParseOptions {
   /** مفتاح إيقاف فحص التأصيل (الافتراضى مفعَّل). يُقرأ من STRUCTURED_GUARD_ENABLED عند الاستدعاء. */
   guard?: boolean;
+  /** وقائع السائل من الاستيضاح: تُقبل مقاديرها (لا آثارها) فى بوابة التأصيل. */
+  factsText?: string;
 }
 
 export type ParseStructuredResult =
@@ -213,10 +215,11 @@ interface ParseCtx {
   articles: readonly StructuredArticleMeta[];
   guard: boolean;
   stats: ParseStats;
+  factsText?: string;
 }
 
 function parseRulingsList(rawRulings: unknown, ctx: ParseCtx): StructuredRuling[] {
-  const { articles, guard, stats } = ctx;
+  const { articles, guard, stats, factsText } = ctx;
   const rulings: StructuredRuling[] = [];
   for (const r of Array.isArray(rawRulings) ? rawRulings : []) {
     if (!r || typeof r !== 'object') continue;
@@ -232,7 +235,7 @@ function parseRulingsList(rawRulings: unknown, ctx: ParseCtx): StructuredRuling[
     // فحص التأصيل: أثر شديد (سقوط/تقادم/بطلان...) أو مقدار (عدد+وحدة) فى الحكم لا أصل لفظياً له
     // فى المادة المستند إليها → يُسقَط الحكم (لا يُخفَّض): حكم بمدة أو أثر ملفَّق أخطر من حكم ناقص.
     if (guard) {
-      const unsupported = findUnsupportedTerms(claim, [articles[idx].text]);
+      const unsupported = findUnsupportedTerms(claim, [articles[idx].text], factsText);
       if (unsupported.length > 0) {
         stats.guard_dropped.rulings++;
         stats.guard_details.push(`ruling[م${articles[idx].articleNo ?? srcNum}]: ${unsupported.join('،')}`);
@@ -290,7 +293,7 @@ function parseRulingsList(rawRulings: unknown, ctx: ParseCtx): StructuredRuling[
 }
 
 function parseWarningsList(rawWarnings: unknown, ctx: ParseCtx): string[] {
-  const { articles, guard, stats } = ctx;
+  const { articles, guard, stats, factsText } = ctx;
   // نصوص المواد حسب الرقم (لربط «(المادة 108)» المذكورة فى تحذير بنص تلك المادة فعلاً).
   const textsByNo = new Map<number, string[]>();
   for (const a of articles) {
@@ -316,7 +319,7 @@ function parseWarningsList(rawWarnings: unknown, ctx: ParseCtx): string[] {
         stats.guard_details.push(`warning[مادة غير مرسَلة ${nos.join(',')}]: ${w.slice(0, 50)}`);
         continue;
       }
-      const unsupported = findUnsupportedTerms(w, support);
+      const unsupported = findUnsupportedTerms(w, support, factsText);
       if (unsupported.length > 0) {
         stats.guard_dropped.warnings++;
         guardDroppedHere++;
@@ -331,7 +334,7 @@ function parseWarningsList(rawWarnings: unknown, ctx: ParseCtx): string[] {
 }
 
 function parseScenariosList(rawScenarios: unknown, ctx: ParseCtx): StructuredScenario[] {
-  const { articles, guard, stats } = ctx;
+  const { articles, guard, stats, factsText } = ctx;
   const scenarios: StructuredScenario[] = [];
   for (const sc of Array.isArray(rawScenarios) ? rawScenarios : []) {
     if (!sc || typeof sc !== 'object') continue;
@@ -343,7 +346,7 @@ function parseScenariosList(rawScenarios: unknown, ctx: ParseCtx): StructuredSce
     if (!Number.isInteger(srcNum) || srcNum < 1 || srcNum > articles.length) continue;
     const idx = srcNum - 1;
     if (guard) {
-      const unsupported = findUnsupportedTerms(`${condition} ${outcome}`, [articles[idx].text]);
+      const unsupported = findUnsupportedTerms(`${condition} ${outcome}`, [articles[idx].text], factsText);
       if (unsupported.length > 0) {
         stats.guard_dropped.scenarios++;
         stats.guard_details.push(`scenario[م${articles[idx].articleNo ?? srcNum}]: ${unsupported.join('،')}`);
@@ -384,7 +387,7 @@ export function parseStructuredAnswer(
     return { ok: false, reason: 'missing_direct_answer' };
   }
   const stats = newParseStats();
-  const ctx: ParseCtx = { articles, guard, stats };
+  const ctx: ParseCtx = { articles, guard, stats, factsText: options.factsText };
   const rulings = parseRulingsList(obj.rulings, ctx);
   if (rulings.length === 0) {
     return { ok: false, reason: 'no_valid_rulings' };
@@ -444,7 +447,7 @@ export function parseStructuredAddition(
   }
   const obj = data as Record<string, unknown>;
   const stats = newParseStats();
-  const ctx: ParseCtx = { articles, guard: options.guard !== false, stats };
+  const ctx: ParseCtx = { articles, guard: options.guard !== false, stats, factsText: options.factsText };
   const skipped: Array<{ article: number; reason: string }> = [];
   for (const sk of Array.isArray(obj.skipped) ? obj.skipped : []) {
     if (!sk || typeof sk !== 'object') continue;

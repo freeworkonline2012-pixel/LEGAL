@@ -1,3 +1,12 @@
+import {
+  buildEnrichedQuestion,
+  buildRetrievalQuery,
+  clarificationEnabled,
+  clarificationMaxRounds,
+  normalizeClarificationInput,
+  parseClarificationDetection,
+  type ClarificationInput,
+} from './clarification';
 import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -221,7 +230,20 @@ export class QuestionsService {
   async ask(dto: AskQuestionDto, context: AskContext): Promise<AnswerResponseDto> {
     const startedAt = Date.now();
 
-    const retrieval = await this.retrieve(dto.question);
+    // الاستيضاح (2026-10-08): عديم الحالة — العميل يعيد الإجابات المتراكمة مع كل طلب. السؤال الذى
+    // يدخل التوليد والتخزين = الأصل + وقائع السائل الموسومة؛ والاسترجاع يستعمل استعلاماً مضغوطاً
+    // (الأصل + إجاباته الفعلية) حتى لا تلوّث صياغة الأسئلة التشابه الدلالى.
+    const maxRounds = clarificationMaxRounds();
+    const clar = normalizeClarificationInput(dto.clarification, maxRounds);
+    const questionText = buildEnrichedQuestion(dto.question, clar.answers);
+    const retrievalQuery = buildRetrievalQuery(dto.question, clar.answers);
+
+    const retrieval = await this.retrieve(retrievalQuery);
+
+    const clarificationResponse = await this.tryClarification(dto, clar, maxRounds, retrieval, context);
+    if (clarificationResponse) {
+      return clarificationResponse;
+    }
 
     // EP-04: صياغة الإجابة عبر Claude إن كان مفعَّلاً — يُستدعى فقط بعد أن يحدد
     // الاسترجاع الحتمي (FTS/دلالي، أعلاه) المادة الصحيحة والمتحقَّق منها في
@@ -245,7 +267,7 @@ export class QuestionsService {
     }));
     if (retrieval.citations.length > 0 && process.env.STRUCTURED_ANSWERS_ENABLED !== 'false') {
       const structuredOutcome = await this.generationService.composeStructuredAnswer({
-        question: dto.question,
+        question: questionText,
         articles: retrieval.citations.map((c) => ({
           lawTitle: c.law,
           lawNo: c.lawNo,
@@ -274,7 +296,7 @@ export class QuestionsService {
       // بدل نص واحد فقط، فيقدر التوليف بينها بدل التصريح الخاطئ بعدم كفاية
       // النص حين تكون الإجابة الكاملة موزَّعة فعلياً على أكثر من مادة.
       const llmOutcome = await this.generationService.composeGroundedAnswerMulti({
-        question: dto.question,
+        question: questionText,
         articles: retrieval.citations.map((c) => ({
           lawTitle: c.law,
           lawNo: c.lawNo,
@@ -303,8 +325,8 @@ export class QuestionsService {
     // (إن وُجدت) تُرفَق فى حقل webFallback الإضافي المنفصل فقط.
     let webFallbackResult: Awaited<ReturnType<WebSearchFallbackService['tryWebFallback']>> = null;
     if (retrieval.citations.length === 0 && this.webFallbackService.isConfigured) {
-      webFallbackResult = await this.webFallbackService.tryWebFallback(dto.question, (context) =>
-        this.generationService.composeWebFallbackAnswer(dto.question, context),
+      webFallbackResult = await this.webFallbackService.tryWebFallback(retrievalQuery, (context) =>
+        this.generationService.composeWebFallbackAnswer(questionText, context),
       );
     }
 
@@ -337,7 +359,7 @@ export class QuestionsService {
       const question = manager.getRepository(Question).create({
         userId: context.userId,
         conversationId: dto.conversation_id ?? null,
-        question: dto.question,
+        question: questionText,
         category: null,
       });
       // save (وليس insert): نحتاج question.id لربط الإجابة.
@@ -583,6 +605,71 @@ export class QuestionsService {
     });
 
     return { success: true };
+  }
+
+  /**
+   * الاستيضاح: يُرجع رداً من نوع clarification إن لزم سؤال السائل، وإلا null (الإجابة المباشرة).
+   * fail-open كامل: أى عطل أو تعطيل أو تخطٍّ أو بلوغ حد الجولات → null. سؤال برقم مادة صريح لا يُستوضح
+   * أبداً (محدد بذاته). لا تُحفظ إجابة ولا سؤال فى هذه الجولة (لا شىء يستحق المراجعة بعد)؛ يُسجَّل تدقيق فقط.
+   */
+  private async tryClarification(
+    dto: AskQuestionDto,
+    clar: ClarificationInput,
+    maxRounds: number,
+    retrieval: RetrievalResult,
+    context: AskContext,
+  ): Promise<AnswerResponseDto | null> {
+    if (!clarificationEnabled() || clar.skip || clar.round >= maxRounds) return null;
+    if (detectArticleReference(dto.question)?.lawNo) return null;
+    try {
+      const outcome = await this.generationService.detectClarification({
+        question: dto.question,
+        history: clar.answers,
+        articles: retrieval.citations.map((c) => ({
+          lawTitle: c.law,
+          lawNo: c.lawNo,
+          lawYear: c.lawYear,
+          articleNo: c.articleNo,
+          articleText: c.snippet,
+        })),
+      });
+      if (outcome.status !== 'ok') {
+        this.logger.warn(`الاستيضاح غير متاح (${outcome.status}) — إجابة مباشرة.`);
+        return null;
+      }
+      const detection = parseClarificationDetection(outcome.raw, clar.answers);
+      this.logger.log(
+        `استيضاح: qHash=${this.hashQuestion(dto.question)} جولة=${clar.round + 1}/${maxRounds} ` +
+          `أسئلة=${detection.questions.length} أُسقط=${detection.dropped.length}` +
+          (detection.dropped.length ? ` [${detection.dropped.join(' | ')}]` : ''),
+      );
+      if (detection.questions.length === 0) return null;
+
+      await this.auditService.record({
+        actorId: context.userId,
+        actorRole: context.role ?? null,
+        action: 'question.clarification_requested',
+        resourceType: 'question',
+        ipAddress: context.ipAddress ?? null,
+        userAgent: context.userAgent ?? null,
+        metadata: { round: clar.round + 1, questions: detection.questions.length },
+      });
+      return {
+        answer: 'لأجيبك بدقة أحتاج إلى بعض التوضيحات — اختر الأنسب لحالتك أو اكتب إجابتك بنفسك.',
+        citations: [],
+        refused: false,
+        structured: null,
+        clarification: {
+          round: clar.round + 1,
+          max_rounds: maxRounds,
+          reason: detection.reason,
+          questions: detection.questions,
+        },
+      };
+    } catch (err) {
+      this.logger.warn(`الاستيضاح فشل — إجابة مباشرة (fail-open): ${(err as Error).message}`);
+      return null;
+    }
   }
 
   // ===== استرجاع =====

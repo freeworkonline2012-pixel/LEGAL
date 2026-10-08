@@ -2,6 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { normalizeArabic, toEnglishDigits } from '../ingestion/normalize';
 import { detectCrossReferencedArticles } from '../questions/retrieval';
 import {
+  CLARIFICATION_FACTS_MARKER,
+  MAX_QUESTIONS_PER_ROUND,
+  extractClarificationFacts,
+  type ClarificationAnswer,
+} from '../questions/clarification';
+import {
   collectProseForGate,
   findUncoveredArticles,
   mergeStructuredAddition,
@@ -78,6 +84,24 @@ export type StructuredGenerationOutcome =
   | { status: 'empty_response' }
   | { status: 'invalid_structure'; reason: string }
   | { status: 'hallucination_rejected' };
+
+/**
+ * قاعدة وقائع الاستيضاح (2026-10-08): حين يحوى السؤال قسم «[توضيحات السائل]» فهو وقائع قرّرها
+ * السائل بنفسه بعد أسئلة الاستيضاح. تُلحَق بتعليمات التوليد فقط عند وجود القسم، فلا تتغير
+ * معايرة المسار العادى إطلاقاً.
+ */
+export const CLARIFICATION_FACTS_RULE =
+  'وقائع السائل (إلزامية): يحوى السؤال قسم "' +
+  CLARIFICATION_FACTS_MARKER +
+  '" وهو وقائع قرّرها السائل بنفسه فى إجابته عن أسئلة استيضاحية — اعتبرها معطيات الحالة، وابنِ عليها ' +
+  'direct_answer وrulings وscenarios، واستبعد الحالات التى تنفيها هذه الوقائع. ما أجاب عنه بـ"لا يعرف" ' +
+  'فغطِّ احتمالاته المؤثرة فى scenarios. وقائعه ليست مصدراً قانونياً: لا تستشهد بها ولا تجعلها quote؛ ' +
+  'كل حكم يبقى مسنداً إلى النصوص المرفقة وحدها، ولا تُدخل نصاً أو أثراً أو مقداراً قانونياً لم يرد فيها ' +
+  'بدعوى أن السائل ذكر واقعة.';
+
+function systemWithFacts(system: string, question: string): string {
+  return question.includes(CLARIFICATION_FACTS_MARKER) ? `${system}\n\n${CLARIFICATION_FACTS_RULE}` : system;
+}
 
 /**
  * قاعدة الوسم "نص/تفسير" فى التوليد المنظَّم — تحل محل العبارة الثابتة
@@ -566,7 +590,7 @@ export class DeepseekGenerationService {
           max_tokens: maxTokens,
           thinking: { type: 'disabled' },
           messages: [
-            { role: 'system', content: system },
+            { role: 'system', content: systemWithFacts(system, input.question) },
             { role: 'user', content: userMsg },
           ],
         }),
@@ -736,7 +760,7 @@ export class DeepseekGenerationService {
           thinking: { type: 'disabled' },
           response_format: { type: 'json_object' },
           messages: [
-            { role: 'system', content: system },
+            { role: 'system', content: systemWithFacts(system, input.question) },
             { role: 'user', content: userMsg },
           ],
         }),
@@ -762,7 +786,10 @@ export class DeepseekGenerationService {
       const parsed = parseStructuredAnswer(
         text,
         input.articles.map((a) => ({ text: a.articleText, articleNo: a.articleNo })),
-        { guard: process.env.STRUCTURED_GUARD_ENABLED !== 'false' },
+        {
+          guard: process.env.STRUCTURED_GUARD_ENABLED !== 'false',
+          factsText: extractClarificationFacts(input.question),
+        },
       );
       if (parsed.ok) {
         const usedNos = new Set(
@@ -901,7 +928,7 @@ export class DeepseekGenerationService {
           thinking: { type: 'disabled' },
           response_format: { type: 'json_object' },
           messages: [
-            { role: 'system', content: system },
+            { role: 'system', content: systemWithFacts(system, input.question) },
             { role: 'user', content: userMsg },
           ],
         }),
@@ -916,7 +943,7 @@ export class DeepseekGenerationService {
         this.logger.warn('composeStructuredAnswer/استكمال: content فارغ — تبقى الإجابة الأساسية.');
         return base;
       }
-      const parsed = parseStructuredAddition(text, articleMeta, { guard });
+      const parsed = parseStructuredAddition(text, articleMeta, { guard, factsText: extractClarificationFacts(input.question) });
       if (!parsed.ok) {
         this.logger.warn(`composeStructuredAnswer/استكمال: بنية غير صالحة (${parsed.reason}) — تبقى الإجابة الأساسية.`);
         return base;
@@ -1621,6 +1648,108 @@ export class DeepseekGenerationService {
       this.logger.warn(
         `DeepSeek selectIndefiniteTerminationBundleArticles call failed: ${(err as Error).message}`,
       );
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
+
+
+  /**
+   * كاشف الاستيضاح (2026-10-08): يقرر هل يلزم سؤال السائل عن وقائع قبل الإجابة، ويصيغ الأسئلة
+   * بخيارات مبنية على ما تُظهره **النصوص المسترجعة فعلاً** (لا على تخمين عام). يُرجع JSON الخام فقط؛
+   * التحقق الحتمى (عدد الأسئلة/الخيارات، البيانات الشخصية، المكرر) يتم فى parseClarificationDetection.
+   * أى عطل → status!='ok' ويتجاوز المستدعى الاستيضاح (fail-open: يُجاب السؤال مباشرة كالمعتاد).
+   */
+  async detectClarification(input: {
+    question: string;
+    history: readonly ClarificationAnswer[];
+    articles: readonly GroundedGenerationArticleInput[];
+    maxQuestions?: number;
+  }): Promise<{ status: 'ok'; raw: unknown } | { status: 'not_configured' } | { status: 'error'; detail: string }> {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+    const maxQuestions = Math.min(Math.max(input.maxQuestions ?? MAX_QUESTIONS_PER_ROUND, 1), MAX_QUESTIONS_PER_ROUND);
+
+    const system =
+      'أنت مُحلِّل استيضاح فى منصة قانونية مصرية. مهمتك الوحيدة: تقرير هل يحتاج سؤال المستخدم إلى أسئلة ' +
+      'استيضاحية قبل الإجابة، وصياغتها إن لزم. لا تُجب عن السؤال القانونى نفسه.\n\n' +
+      'اسأل **فقط** إذا تحققت الشروط الثلاثة معاً:\n' +
+      '1) السؤال مبهم أو مركّب أو ناقص الوقائع بحيث يتغير الحكم القانونى جوهرياً (النص المنطبق، وجود الحق من عدمه، ' +
+      'المدة، الأثر) بحسب واقعة لم يذكرها السائل.\n' +
+      '2) لا يمكن استنتاج تلك الواقعة من نص السؤال ولا من التوضيحات السابقة.\n' +
+      '3) للواقعة أثر ظاهر فى النصوص المرفقة (اربط كل سؤال بتمييز تقرره النصوص: مثل نوع العقد، من أنهى العلاقة، ' +
+      'مدة الخدمة، وجود كتابة، سبب الإنهاء...). ضع هذا الربط فى "why" بجملة قصيرة تقول للسائل لماذا نسأله.\n\n' +
+      'لا تسأل أبداً عن: بيانات شخصية (أسماء، أرقام هواتف أو قومية أو حسابات، عناوين، بريد)، ولا عن تفاصيل لا تغيّر ' +
+      'الحكم، ولا عما يجيب عنه السؤال نفسه، ولا عما سبق سؤاله أو الإجابة عنه. إن كان السؤال واضحاً وكافياً، أو ' +
+      'كانت الإجابة الكاملة تغطى الاحتمالات بلا عبء على السائل، أو كان السؤال غير قانونى أو غير مفهوم تماماً، فأرجع ' +
+      '"needs_clarification": false.\n\n' +
+      `الصياغة: حتى ${maxQuestions} أسئلة مرتبة بالأهم أولاً، لكل سؤال من 2 إلى 5 خيارات متنافية وشاملة بصياغة ` +
+      'واقعية موجزة بلغة السائل العادية (اشرح المصطلح القانونى بين قوسين إن لزم)، و"allow_multiple": true فقط حين ' +
+      'تكون الخيارات غير متنافية. لا تضع خيار "أخرى" ولا "لا أعرف" (تضيفهما الواجهة). إن وُجدت توضيحات سابقة فلا ' +
+      'تكرر منها شيئاً، واسأل فقط ما استجد منها أو ما بقى جوهرياً.\n\n' +
+      'أجب بكائن JSON واحد فقط بلا أى نص خارجه: ' +
+      '{"needs_clarification": true|false, "reason": "سبب موجز", "questions": [{"question": "نص السؤال", ' +
+      '"why": "لماذا نسأل", "options": ["خيار", "خيار"], "allow_multiple": false}]}';
+
+    const historyText =
+      input.history.length === 0
+        ? 'لا توجد.'
+        : input.history
+            .map((h) => `- ${h.question} ← ${h.kind === 'unknown' ? 'لا يعرف' : h.answer}`)
+            .join('\n');
+    const articlesText =
+      input.articles.length === 0
+        ? 'لم تُسترجَع نصوص.'
+        : input.articles
+            .slice(0, 8)
+            .map(
+              (a, i) =>
+                `النص ${i + 1} — المادة ${a.articleNo} من ${a.lawTitle} (رقم ${a.lawNo} لسنة ${a.lawYear}): ` +
+                `${a.articleText.length > 500 ? `${a.articleText.slice(0, 500)}…` : a.articleText}`,
+            )
+            .join('\n');
+    const userMsg =
+      `السؤال: ${input.question}\n\nتوضيحات سابقة:\n${historyText}\n\n` +
+      `النصوص القانونية المسترجَعة لهذا السؤال:\n${articlesText}\n\nقرّر وأجب بصيغة JSON فقط.`;
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        signal: AbortSignal.timeout(25_000),
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 1200,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek detectClarification API error ${res.status}: ${errText.slice(0, 200)}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        return { status: 'error', detail: 'empty_response' };
+      }
+      try {
+        return { status: 'ok', raw: JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '')) };
+      } catch {
+        this.logger.warn(`DeepSeek detectClarification: JSON غير قابل للتحليل: ${text.slice(0, 200)}`);
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+    } catch (err) {
+      this.logger.warn(`DeepSeek detectClarification call failed: ${(err as Error).message}`);
       return { status: 'error', detail: (err as Error).message };
     }
   }

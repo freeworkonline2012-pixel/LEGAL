@@ -159,6 +159,37 @@ export class WebFallbackResponseDto {
   provider: string;
 }
 
+export class ClarificationQuestionDto {
+  @ApiProperty({ example: 'q1' })
+  id: string;
+
+  @ApiProperty({ example: 'ما نوع عقد العمل؟' })
+  question: string;
+
+  @ApiPropertyOptional({ nullable: true, example: 'الحكم يختلف بين المحدد المدة وغير المحدد (المادتان 87 و88)' })
+  why?: string | null;
+
+  @ApiProperty({ type: String, isArray: true })
+  options: string[];
+
+  @ApiProperty({ example: false })
+  allow_multiple: boolean;
+}
+
+export class ClarificationRequestDto {
+  @ApiProperty({ example: 1, description: 'رقم الجولة المطلوب الإجابة عنها (تبدأ من 1)' })
+  round: number;
+
+  @ApiProperty({ example: 2 })
+  max_rounds: number;
+
+  @ApiPropertyOptional({ nullable: true })
+  reason?: string | null;
+
+  @ApiProperty({ type: ClarificationQuestionDto, isArray: true })
+  questions: ClarificationQuestionDto[];
+}
+
 export class AnswerResponseDto {
   @ApiProperty({
     example: 'a-uuid',
@@ -216,4 +247,13 @@ export class AnswerResponseDto {
       'الأخرى، بما فيها كل الاستخدام الحالى قبل تفعيل ENABLE_WEB_FALLBACK.',
   })
   web_fallback?: WebFallbackResponseDto | null;
+
+  @ApiPropertyOptional({
+    type: ClarificationRequestDto,
+    nullable: true,
+    description:
+      'يظهر فقط حين تحتاج المنصة توضيحات قبل الإجابة: answer حينها جملة تمهيد قصيرة وcitations فارغة، ولا تُحفظ ' +
+      'إجابة. يعيد العميل نفس السؤال مع clarification.answers فى الطلب التالى. غائب/null فى الإجابات العادية.',
+  })
+  clarification?: ClarificationRequestDto | null;
 }

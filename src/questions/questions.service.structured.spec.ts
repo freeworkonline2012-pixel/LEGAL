@@ -97,3 +97,123 @@ describe('QuestionsService.ask — الإجابة المنظَّمة', () => {
     expect(r.citations[0].source_status).toBe('ملغى');
   });
 });
+
+describe('QuestionsService.ask — الاستيضاح', () => {
+  const DETECT_OK = {
+    status: 'ok',
+    raw: {
+      needs_clarification: true,
+      reason: 'يختلف الحكم باختلاف نوع العقد',
+      questions: [
+        {
+          question: 'ما نوع عقد العمل؟',
+          why: 'تختلف الحقوق',
+          options: ['عقد محدد المدة', 'عقد غير محدد المدة'],
+          allow_multiple: false,
+        },
+      ],
+    },
+  };
+  const ANSWERS = [{ question: 'ما نوع عقد العمل؟', answer: 'عقد محدد المدة', kind: 'option' }];
+
+  function buildClar(detect: unknown) {
+    const b = build({ structured: { status: 'ok', structured: STRUCTURED } });
+    const gen = b.generation as unknown as Record<string, jest.Mock>;
+    gen.detectClarification = jest.fn().mockResolvedValue(detect);
+    return { ...b, gen };
+  }
+  afterEach(() => {
+    delete process.env.CLARIFICATION_ENABLED;
+    delete process.env.CLARIFICATION_MAX_ROUNDS;
+  });
+
+  it('أول طلب غامض: يُرجع clarification بلا إجابة ولا توليد ولا حفظ، مع تدقيق', async () => {
+    const { svc, gen, generation } = buildClar(DETECT_OK);
+    const r = await svc.ask({ question: 'ما حقوقى عند الفصل؟' } as never, CTX as never);
+    expect(r.clarification?.round).toBe(1);
+    expect(r.clarification?.max_rounds).toBe(2);
+    expect(r.clarification?.questions[0].options).toEqual(['عقد محدد المدة', 'عقد غير محدد المدة']);
+    expect(r.citations).toEqual([]);
+    expect(r.refused).toBe(false);
+    expect(r.id).toBeUndefined();
+    expect(generation.composeStructuredAnswer).not.toHaveBeenCalled();
+    expect(gen.detectClarification.mock.calls[0][0].articles[0].articleNo).toBe(154);
+    const audit = (svc as unknown as { auditService: { record: jest.Mock } }).auditService.record;
+    expect(audit.mock.calls.map((c) => c[0].action)).toEqual(['question.clarification_requested']);
+  });
+
+  it('بعد الإجابة: السؤال المُثرى يدخل التوليد، والاسترجاع بالاستعلام المضغوط، ويُمرَّر التاريخ للكاشف', async () => {
+    const { svc, gen, generation } = buildClar({ status: 'ok', raw: { needs_clarification: false } });
+    const r = await svc.ask(
+      { question: 'ما حقوقى عند الفصل؟', clarification: { round: 1, answers: ANSWERS } } as never,
+      CTX as never,
+    );
+    expect(r.clarification).toBeUndefined();
+    expect(r.structured?.direct_answer).toBe('يعتمد على مدة الخدمة.');
+    const retrieve = (svc as unknown as { retrieve: jest.Mock }).retrieve;
+    expect(retrieve.mock.calls[0][0]).toBe('ما حقوقى عند الفصل؟ عقد محدد المدة');
+    const genQuestion = generation.composeStructuredAnswer.mock.calls[0][0].question as string;
+    expect(genQuestion).toContain('[توضيحات السائل]');
+    expect(genQuestion).toContain('ما نوع عقد العمل؟ ← عقد محدد المدة');
+    expect(gen.detectClarification.mock.calls[0][0].history).toHaveLength(1);
+  });
+
+  it('جولة ثانية مسموحة؛ وبلوغ الحد الأقصى يُجيب مباشرة بلا نداء للكاشف', async () => {
+    const second = buildClar(DETECT_OK);
+    const r2 = await second.svc.ask(
+      { question: 'س؟؟؟', clarification: { round: 1, answers: [{ question: 'سؤال آخر مختلف تماماً؟', answer: 'ج', kind: 'option' }] } } as never,
+      CTX as never,
+    );
+    expect(r2.clarification?.round).toBe(2);
+
+    const last = buildClar(DETECT_OK);
+    const r3 = await last.svc.ask(
+      { question: 'س؟؟؟', clarification: { round: 2, answers: ANSWERS } } as never,
+      CTX as never,
+    );
+    expect(last.gen.detectClarification).not.toHaveBeenCalled();
+    expect(r3.clarification).toBeUndefined();
+    expect(r3.structured).not.toBeNull();
+  });
+
+  it('skip=true: إجابة مباشرة بما أُجيب حتى الآن بلا نداء للكاشف', async () => {
+    const { svc, gen, generation } = buildClar(DETECT_OK);
+    const r = await svc.ask({ question: 'س؟؟؟', clarification: { skip: true, round: 0, answers: [] } } as never, CTX as never);
+    expect(gen.detectClarification).not.toHaveBeenCalled();
+    expect(r.clarification).toBeUndefined();
+    expect(generation.composeStructuredAnswer.mock.calls[0][0].question).toBe('س؟؟؟');
+  });
+
+  it('CLARIFICATION_ENABLED=false: لا كاشف إطلاقاً', async () => {
+    process.env.CLARIFICATION_ENABLED = 'false';
+    const { svc, gen } = buildClar(DETECT_OK);
+    const r = await svc.ask({ question: 'س؟؟؟' } as never, CTX as never);
+    expect(gen.detectClarification).not.toHaveBeenCalled();
+    expect(r.structured).not.toBeNull();
+  });
+
+  it('سؤال برقم مادة صريح لا يُستوضح أبداً', async () => {
+    const { svc, gen } = buildClar(DETECT_OK);
+    await svc.ask({ question: 'ما نص المادة 154 من قانون رقم 14 لسنة 2025؟' } as never, CTX as never);
+    expect(gen.detectClarification).not.toHaveBeenCalled();
+  });
+
+  it('fail-open: عطل الكاشف (خطأ/استثناء/ناتج غير صالح/أسئلة كلها مرفوضة) = إجابة مباشرة', async () => {
+    const bad = [
+      { status: 'error', detail: 'http_500' },
+      { status: 'not_configured' },
+      { status: 'ok', raw: 'تالف' },
+      { status: 'ok', raw: { needs_clarification: true, questions: [{ question: 'ما اسمك الكامل؟', options: ['أ', 'ب'] }] } },
+    ];
+    for (const d of bad) {
+      const { svc } = buildClar(d);
+      const r = await svc.ask({ question: 'س؟؟؟' } as never, CTX as never);
+      expect(r.clarification).toBeUndefined();
+      expect(r.structured).not.toBeNull();
+    }
+    const thrower = buildClar(DETECT_OK);
+    thrower.gen.detectClarification.mockRejectedValue(new Error('boom'));
+    const r = await thrower.svc.ask({ question: 'س؟؟؟' } as never, CTX as never);
+    expect(r.clarification).toBeUndefined();
+  });
+});

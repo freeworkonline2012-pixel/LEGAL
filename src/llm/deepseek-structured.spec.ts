@@ -218,3 +218,95 @@ describe('DeepseekGenerationService.composeStructuredAnswer — خطوة الا�
     expect(r.status === 'ok' && r.structured.rulings).toHaveLength(1);
   });
 });
+
+describe('DeepseekGenerationService — الاستيضاح', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+  const DETECT_INPUT = {
+    question: 'ما حقوقى عند الفصل؟',
+    history: [{ question: 'ما نوع العقد؟', answer: 'محدد المدة', kind: 'option' as const }],
+    articles: INPUT.articles,
+  };
+
+  it('detectClarification: not_configured بلا fetch عند غياب المفتاح', async () => {
+    delete process.env.DEEPSEEK_API_KEY;
+    const fetchMock = jest.fn();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    expect(await new DeepseekGenerationService().detectClarification(DETECT_INPUT)).toEqual({ status: 'not_configured' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('detectClarification: يرسل السؤال والتاريخ والمواد المسترجعة فى JSON-mode ويُرجع JSON الخام', async () => {
+    const raw = { needs_clarification: true, questions: [{ question: 'س؟', options: ['أ', 'ب'] }] };
+    const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(raw))));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const r = await new DeepseekGenerationService().detectClarification(DETECT_INPUT);
+    expect(r).toEqual({ status: 'ok', raw });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    expect(body.thinking).toEqual({ type: 'disabled' });
+    const user = body.messages[1].content as string;
+    expect(user).toContain('ما حقوقى عند الفصل؟');
+    expect(user).toContain('ما نوع العقد؟ ← محدد المدة');
+    expect(user).toContain('المادة 154');
+  });
+
+  it('detectClarification: أخطاء (500، شبكة، فارغ، JSON تالف) تُرجع error لا استثناء', async () => {
+    const svc = new DeepseekGenerationService();
+    global.fetch = jest.fn().mockResolvedValueOnce(jsonResponse(500, {})) as unknown as typeof fetch;
+    expect((await svc.detectClarification(DETECT_INPUT)).status).toBe('error');
+    global.fetch = jest.fn().mockRejectedValueOnce(new Error('net')) as unknown as typeof fetch;
+    expect((await svc.detectClarification(DETECT_INPUT)).status).toBe('error');
+    global.fetch = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(null))) as unknown as typeof fetch;
+    expect((await svc.detectClarification(DETECT_INPUT)).status).toBe('error');
+    global.fetch = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion('{bad'))) as unknown as typeof fetch;
+    expect((await svc.detectClarification(DETECT_INPUT)).status).toBe('error');
+  });
+
+  it('قاعدة وقائع السائل تُلحَق بتعليمات التوليد فقط عند وجود قسم التوضيحات', async () => {
+    const svc = new DeepseekGenerationService();
+    const plain = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))));
+    global.fetch = plain as unknown as typeof fetch;
+    await svc.composeStructuredAnswer(INPUT);
+    expect(JSON.parse(plain.mock.calls[0][1].body).messages[0].content).not.toContain('وقائع السائل (إلزامية)');
+
+    const enriched = jest.fn().mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))));
+    global.fetch = enriched as unknown as typeof fetch;
+    await svc.composeStructuredAnswer({
+      ...INPUT,
+      question: `${INPUT.question}\n\n[توضيحات السائل]\n- ما نوع العقد؟ ← محدد المدة`,
+    });
+    expect(JSON.parse(enriched.mock.calls[0][1].body).messages[0].content).toContain('وقائع السائل (إلزامية)');
+  });
+
+  it('مقدار ذكره السائل فى توضيحاته يُقبل فى شرط السيناريو، وأثر شديد غير وارد فى المادة يُسقَط رغم ذلك', async () => {
+    const withScenarios = {
+      ...GOOD,
+      scenarios: [
+        { condition: 'مدة خدمتك عشر سنوات', outcome: 'تستحق المكافأة عن مدة خدمتك', source: 1 },
+        { condition: 'مدة خدمتك عشر سنوات', outcome: 'يسقط حقك بالتقادم', source: 1 },
+      ],
+    };
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(200, completion(JSON.stringify(withScenarios)))) as unknown as typeof fetch;
+    const noFacts = await new DeepseekGenerationService().composeStructuredAnswer(INPUT);
+    expect(noFacts.status === 'ok' && noFacts.structured.scenarios).toHaveLength(0);
+    const withFacts = await new DeepseekGenerationService().composeStructuredAnswer({
+      ...INPUT,
+      question: `${INPUT.question}\n\n[توضيحات السائل]\n- كم مدة الخدمة؟ ← عشر سنوات`,
+    });
+    expect(withFacts.status).toBe('ok');
+    if (withFacts.status !== 'ok') return;
+    expect(withFacts.structured.scenarios).toHaveLength(1);
+    expect(withFacts.structured.scenarios[0].outcome).toContain('تستحق');
+  });
+});
