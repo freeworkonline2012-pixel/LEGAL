@@ -37,10 +37,12 @@ import {
   confidenceFromRank,
   detectArticleReference,
   detectCrossReferencedArticles,
+  DISPUTE_PROCEDURE_ARTICLES,
   END_OF_RELATIONSHIP_BUNDLE_ARTICLES,
   INDEFINITE_TERMINATION_BUNDLE_ARTICLES,
   isConfident,
   isEndOfRelationshipTopic,
+  mentionsUnsettledEntitlements,
   isIndefiniteContractTerminationTopic,
   toCitationStatus,
 } from './retrieval';
@@ -1569,7 +1571,20 @@ export class QuestionsService {
 
       this.logger.log(`EOR: qHash=${qHash} نتيجة selectSupplementaryEntitlements=${JSON.stringify(selection)}`);
 
-      if (selection.status !== 'ok' || selection.selectedIndices.length === 0) {
+      // 2026-10-08: إجراء المنازعة (149/150) يُضاف قسراً حين يذكر السائل أنه لم يستلم مستحقاته أو أن نزاعاً
+      // قائماً — البوابة الدلالية كانت تُسقطهما دائماً فتغيب خطوة التسوية الودية ثم المحكمة العمالية.
+      const forcedIdx: number[] = [];
+      if (mentionsUnsettledEntitlements(questionText)) {
+        candidates.forEach((c, i) => {
+          if (DISPUTE_PROCEDURE_ARTICLES.includes(c.articleNo)) forcedIdx.push(i);
+        });
+        if (forcedIdx.length > 0) {
+          this.logger.log(`EOR: qHash=${qHash} مستحقات غير مستلمة/نزاع → إضافة قسرية لمواد الإجراء=${forcedIdx.map((i) => candidates[i].articleNo).join(',')}`);
+        }
+      }
+      const pickedIdx = selection.status === 'ok' ? selection.selectedIndices : [];
+      const mergedIdx = [...pickedIdx, ...forcedIdx.filter((i) => !pickedIdx.includes(i))];
+      if (mergedIdx.length === 0) {
         return citations;
       }
 
@@ -1578,7 +1593,7 @@ export class QuestionsService {
       // إنتاج حى (qHash=53ef75df) أثبت أن الحساب القديم (المتبقى من الميزانية
       // العامة فقط) كان يُسقِط اختيارات صحيحة لبوابة الحكم القانونى بلا مبرر.
       const room = QuestionsService.EOR_BUNDLE_MAX_ADDITIONS;
-      const chosen = selection.selectedIndices
+      const chosen = mergedIdx
         .map((idx) => candidates[idx])
         .filter((c): c is RetrievedCitation => c !== undefined)
         .slice(0, room);

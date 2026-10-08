@@ -438,6 +438,41 @@ describe('DeepseekGenerationService — وضع الوقائع: خطوة التط
     expect(f).toHaveBeenCalledTimes(2);
   });
 
+  it('قواعد 2g فى وضع الوقائع: اتساق المسارات، شكل الإجراء، الخطوات العملية، صياغة الجواب المباشر', async () => {
+    const f = mockSeq(GOOD, { defects: [] });
+    await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    const sys = JSON.parse(f.mock.calls[0][1].body).messages[0].content as string;
+    expect(sys).toContain('اتساق المسارات');
+    expect(sys).toContain('قيّد النفى بمساره');
+    expect(sys).toContain('شكل الإجراء وميعاده');
+    expect(sys).toContain('الخطوات العملية');
+    expect(sys).toContain('لا يبدأ بنفى');
+    expect(sys).toContain('الأصلى');
+    expect(sys).toContain('الاحتياطى');
+    // ضمانات مهلة الإخطار الجارية لا تُدرج حين انتهت العلاقة فعلاً
+    expect(sys).toContain('ضمانات مهلة إخطار جارية');
+  });
+
+  it('أنواع الناقد الجديدة (تناقض المسارات، شكل الإجراء، خطوة عملية، افتتاح بنفى، تكرار) تُقبل وتُمرَّر للمصحِّح', async () => {
+    const defects = {
+      defects: [
+        { type: 'path_inconsistency', problem: 'ينفى م165 مطلقاً وهى تنطبق على المسار الأول', fix: 'قيّد النفى بالمسار الثانى' },
+        { type: 'ignores_stated_formality', problem: 'الإخطار الشفهى لم يقارن بشرط الكتابة', fix: 'قارنه بالمادة 156' },
+        { type: 'missing_practical_step', problem: 'لا خطوة عملية رغم عدم استلام المستحقات', fix: 'أضف المطالبة والتسوية الودية' },
+        { type: 'negative_lead', problem: 'الجواب يبدأ بفلا تعويض', fix: 'ابدأ بالمسار الأصلى' },
+        { type: 'duplicate_item', problem: 'تنبيه يكرر مدة الإخطار', fix: 'احذفه' },
+      ],
+    };
+    const f = mockSeq(DRAFT, defects, FIXED);
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    expect(f).toHaveBeenCalledTimes(3);
+    expect(r.status === 'ok' && r.structured.direct_answer).toBe(FIXED.direct_answer);
+    const revise = JSON.parse(f.mock.calls[2][1].body).messages[1].content as string;
+    for (const t of ['path_inconsistency', 'ignores_stated_formality', 'missing_practical_step', 'negative_lead', 'duplicate_item']) {
+      expect(revise).toContain(t);
+    }
+  });
+
   it('واقعة سُئل عنها وأُجيب عنها لا تعود فى facts_to_confirm', async () => {
     mockSeq(GOOD, { defects: [] });
     const r = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);

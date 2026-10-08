@@ -10,6 +10,8 @@ import {
   isConfident,
   isEndOfRelationshipTopic,
   isIndefiniteContractTerminationTopic,
+  mentionsUnsettledEntitlements,
+  DISPUTE_PROCEDURE_ARTICLES,
   toCitationStatus,
 } from './retrieval';
 
@@ -378,5 +380,32 @@ describe('isConfident', () => {
 
   it('يُرجع false لثقة صفرية', () => {
     expect(isConfident(0)).toBe(false);
+  });
+});
+
+describe('mentionsUnsettledEntitlements — مستحقات غير مستلمة أو نزاع قائم', () => {
+  it.each([
+    'لم أحصل على أى مستحقات حتى الآن',
+    'لم يتم صرف مستحقاتى بعد انتهاء العقد',
+    'الشركة لم تصرف لى رصيد الإجازات',
+    'لم استلم اى حقوق من الشركة',
+    'رفضت الشركة صرف مستحقاتى',
+    'خرجت بدون مستحقات',
+    'بيننا نزاع على المستحقات',
+  ])('يكتشف: %s', (t) => {
+    expect(mentionsUnsettledEntitlements(t)).toBe(true);
+  });
+
+  it.each([
+    'ما هى حقوق الموظف عند عدم تجديد العقد؟',
+    'عقدى سنوى يتجدد وأريد معرفة مدة الإخطار',
+    'استلمت كل مستحقاتى وشهادة الخبرة',
+  ])('لا يكتشف: %s', (t) => {
+    expect(mentionsUnsettledEntitlements(t)).toBe(false);
+  });
+
+  it('مواد الإجراء هى 149 و150 وهما ضمن حزمة نهاية العلاقة', () => {
+    expect([...DISPUTE_PROCEDURE_ARTICLES]).toEqual([149, 150]);
+    for (const n of DISPUTE_PROCEDURE_ARTICLES) expect(END_OF_RELATIONSHIP_BUNDLE_ARTICLES).toContain(n);
   });
 });
