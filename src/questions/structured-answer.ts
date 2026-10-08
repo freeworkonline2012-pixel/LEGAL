@@ -182,9 +182,19 @@ export function verifyQuote(quote: string, articleText: string): boolean {
   return totalWords >= 3;
 }
 
-function cleanStr(v: unknown, max = MAX_FIELD_CHARS): string {
+/**
+ * ترقيم فرعى مبتكر (2h — تقييم حى 7.5/10: «المادة 108/8» والبند الصحيح 4): الترقيم بالشرطة المائلة بعد رقم المادة
+ * لا يرد فى مصدرنا (البنود تُذكر نصاً: «البند 4») فيُحذف الجزء الفرعى ويبقى رقم المادة وحده، كى لا يُنسَب للمادة
+ * بند غير موجود. لا يُطبَّق على المقتطفات الحرفية.
+ */
+export function stripInventedSubCitation(text: string): string {
+  return text.replace(/((?:المادة|مادة|المادتين|م)\s*\(?\s*[0-9٠-٩]{1,4})\s*\/\s*[0-9٠-٩]{1,3}(?![0-9٠-٩])/g, '$1');
+}
+
+function cleanStr(v: unknown, max = MAX_FIELD_CHARS, verbatim = false): string {
   if (typeof v !== 'string') return '';
-  const s = v.replace(/\s+/g, ' ').trim();
+  const s0 = v.replace(/\s+/g, ' ').trim();
+  const s = verbatim ? s0 : stripInventedSubCitation(s0);
   return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
 }
 
@@ -237,6 +247,32 @@ interface ParseCtx {
   answeredFacts?: readonly ParsedFact[];
 }
 
+/**
+ * اقتطاع المقتطف الطويل الموثَّق (2h — تقييم حى 7.5/10: حكم المادة 88 وُسم «تفسير» رغم أنه نص حرفى): كان الاقتطاع
+ * يأخذ أول MAX_QUOTE_WORDS كلمة دائماً، فإن جاءت كلمات الحكم المضمونية فى ذيل مادة طويلة سقطت من المقتطف الظاهر
+ * وهبط الوسم. الآن يُختار أفضل نافذة متصلة من MAX_QUOTE_WORDS كلمة (أعلى تغطية لكلمات الحكم؛ التعادل للأبكر).
+ * النافذة جزء حرفى متصل من المقتطف الموثَّق، وتُعلَّم بـ«…» عند كل طرف مقتطع.
+ */
+export function clipQuoteToBestWindow(rawQuote: string, claim: string): string {
+  const words = rawQuote.split(/\s+/);
+  if (words.length <= MAX_QUOTE_WORDS) return rawQuote;
+  let bestStart = 0;
+  let bestScore = -1;
+  for (let i = 0; i + MAX_QUOTE_WORDS <= words.length; i += 3) {
+    const score = claimCoverage(claim, words.slice(i, i + MAX_QUOTE_WORDS).join(' '));
+    if (score > bestScore + 1e-9) {
+      bestScore = score;
+      bestStart = i;
+    }
+  }
+  const lastStart = words.length - MAX_QUOTE_WORDS;
+  const lastScore = claimCoverage(claim, words.slice(lastStart).join(' '));
+  if (lastScore > bestScore + 1e-9) bestStart = lastStart;
+  const end = bestStart + MAX_QUOTE_WORDS;
+  const body = words.slice(bestStart, end).join(' ');
+  return `${bestStart > 0 ? '… ' : ''}${body}${end < words.length ? ' …' : ''}`;
+}
+
 function parseRulingsList(rawRulings: unknown, ctx: ParseCtx): StructuredRuling[] {
   const { articles, guard, stats, factsText } = ctx;
   const rulings: StructuredRuling[] = [];
@@ -261,14 +297,13 @@ function parseRulingsList(rawRulings: unknown, ctx: ParseCtx): StructuredRuling[
         continue;
       }
     }
-    const rawQuote: string | null = cleanStr(rr.quote, 1200) || null;
+    const rawQuote: string | null = cleanStr(rr.quote, 1200, true) || null;
     // التحقق يجرى على المقتطف كاملاً (حتى لو طويل)؛ المقتطف الطويل الموثَّق يُعرَض مقتطعاً
     // بأول MAX_QUOTE_WORDS كلمة مع "…" (جزء حرفى حقيقى من النص) بدل إسقاطه كلياً.
     const verified = rawQuote ? verifyQuote(rawQuote, articles[idx].text) : false;
     let quote: string | null = null;
     if (verified && rawQuote) {
-      const words = rawQuote.split(/\s+/);
-      quote = words.length > MAX_QUOTE_WORDS ? `${words.slice(0, MAX_QUOTE_WORDS).join(' ')} …` : rawQuote;
+      quote = clipQuoteToBestWindow(rawQuote, claim);
     }
     const requested = cleanStr(rr.kind, 20);
     // الوسم يُحسَب حتمياً لا بادعاء النموذج وحده: «نص» يتطلب (1) مقتطفاً حرفياً صحيحاً و(2) أن

@@ -220,6 +220,43 @@ describe('DeepseekGenerationService.composeStructuredAnswer — خطوة الا�
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(r.status === 'ok' && r.structured.rulings).toHaveLength(1);
   });
+
+  it('2h: مادة تُركت بلا استناد ولا إقرار ← جولة استكمال ثانية تطلبها صراحةً فتُضاف', async () => {
+    const EMPTY = { rulings: [], scenarios: [], warnings: [], skipped: [] };
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))))
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(EMPTY))))
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(ADD_87))));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(TWO);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(r.status === 'ok' && r.structured.rulings.map((x) => x.citation_index)).toEqual([0, 1]);
+    const second = JSON.parse(fetchMock.mock.calls[2][1].body).messages[1].content as string;
+    expect(second).toContain('لم تتناولها الإجابة ولم يُذكر لها إقرار');
+    expect(second).toContain('نصوص لم تُستخدم: المادة 87');
+  });
+
+  it('2h: لا جولة ثانية إذا أقرّ النموذج بعدم الصلة أو فشل النداء الأول', async () => {
+    const skip = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))))
+      .mockResolvedValueOnce(
+        jsonResponse(200, completion(JSON.stringify({ rulings: [], scenarios: [], warnings: [], skipped: [{ article: 87, reason: 'بعيدة' }] }))),
+      );
+    global.fetch = skip as unknown as typeof fetch;
+    await new DeepseekGenerationService().composeStructuredAnswer(TWO);
+    expect(skip).toHaveBeenCalledTimes(2);
+
+    const fail = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, completion(JSON.stringify(GOOD))))
+      .mockResolvedValueOnce(jsonResponse(500, {}));
+    global.fetch = fail as unknown as typeof fetch;
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(TWO);
+    expect(fail).toHaveBeenCalledTimes(2);
+    expect(r.status).toBe('ok');
+  });
 });
 
 describe('DeepseekGenerationService — الاستيضاح', () => {
@@ -471,6 +508,45 @@ describe('DeepseekGenerationService — وضع الوقائع: خطوة التط
     for (const t of ['path_inconsistency', 'ignores_stated_formality', 'missing_practical_step', 'negative_lead', 'duplicate_item']) {
       expect(revise).toContain(t);
     }
+  });
+
+  it('قواعد 2h فى وضع الوقائع: ترتيب الأصل العام، إسناد الأثر، صاحب الميعاد، تمام الإجراء', async () => {
+    const f = mockSeq(GOOD, { defects: [] });
+    await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    const sys = JSON.parse(f.mock.calls[0][1].body).messages[0].content as string;
+    // لم يعد «الأصلى» معرَّفاً بأنه الأقوى للسائل بل بأنه القاعدة العامة فى النص
+    expect(sys).not.toContain('الأقوى للسائل');
+    expect(sys).toContain('القاعدة العامة');
+    expect(sys).toContain('ممنوع أن تصف مساراً يقرره نص');
+    expect(sys).toContain('إسناد الأثر لمصدره');
+    expect(sys).toContain('لا تُدخل فيها حالة لم تُذكر فيها');
+    expect(sys).toContain('open_issues');
+    expect(sys).toContain('صاحب الميعاد');
+    expect(sys).toContain('108/8');
+    expect(sys).toContain('تمام الإجراء');
+    expect(sys).toContain('اختيارية');
+    expect(sys).toContain('فى العقد غير محدد المدة فقط');
+    expect(sys).toContain('حق العامل فى الإنهاء بعد مدة معينة');
+  });
+
+  it('أنواع الناقد 2h (انقلاب المسارات، خطأ الإسناد، ميعاد لغير صاحبه، إجراء ناقص) تُقبل وتُمرَّر للمصحِّح', async () => {
+    const defects = {
+      defects: [
+        { type: 'inverted_paths', problem: 'قدّم العقد المحدد كأصل ووصف غير المحدد بالاحتياطى', fix: 'اجعل غير المحدد أولاً' },
+        { type: 'misattributed_effect', problem: 'نسب طبيعة العمل إلى المادة 88', fix: 'أسندها إلى المادة 87' },
+        { type: 'wrong_party_deadline', problem: 'عرض السبعة أيام كمهلة على العامل مع ترقيم 108/8', fix: 'اجعلها على صاحب العمل' },
+        { type: 'incomplete_procedure', problem: 'حُذف المسار الاستعجالى فى المادة 150', fix: 'أضف مدته وحد الأجر المؤقت' },
+      ],
+    };
+    const f = mockSeq(DRAFT, defects, FIXED);
+    const r = await new DeepseekGenerationService().composeStructuredAnswer(FACTS_Q);
+    expect(f).toHaveBeenCalledTimes(3);
+    expect(r.status === 'ok' && r.structured.direct_answer).toBe(FIXED.direct_answer);
+    const revise = JSON.parse(f.mock.calls[2][1].body).messages[1].content as string;
+    for (const t of ['inverted_paths', 'misattributed_effect', 'wrong_party_deadline', 'incomplete_procedure']) {
+      expect(revise).toContain(t);
+    }
+    expect(revise).toContain('لا تحذف حكماً أو تنبيهاً سليماً');
   });
 
   it('واقعة سُئل عنها وأُجيب عنها لا تعود فى facts_to_confirm', async () => {

@@ -10,6 +10,8 @@ import {
   parseStructuredAnswer,
   renderStructuredAsText,
   stripConditionLead,
+  stripInventedSubCitation,
+  clipQuoteToBestWindow,
   verifyQuote,
   MAX_RULINGS,
   MAX_SCENARIOS,
@@ -423,5 +425,55 @@ describe('خطوة الاستكمال: findUncoveredArticles / parseStructuredAd
     expect(capped.rulings.length).toBe(MAX_RULINGS);
     expect(capped.scenarios.length).toBe(MAX_SCENARIOS);
     expect(capped.warnings.length).toBe(MAX_WARNINGS);
+  });
+});
+
+describe('2h: الترقيم الفرعى المبتكر واقتطاع أفضل نافذة', () => {
+  it('stripInventedSubCitation يحذف الجزء الفرعى بعد رقم المادة ولا يمس غيره', () => {
+    expect(stripInventedSubCitation('يصرف خلال سبعة أيام (المادة 108/8).')).toBe('يصرف خلال سبعة أيام (المادة 108).');
+    expect(stripInventedSubCitation('وفق م 108/4 و المادة ١٠٨/٨')).toBe('وفق م 108 و المادة ١٠٨');
+    expect(stripInventedSubCitation('المادة 108 البند 4')).toBe('المادة 108 البند 4');
+    expect(stripInventedSubCitation('بتاريخ 2025/10/08 صدر القرار')).toBe('بتاريخ 2025/10/08 صدر القرار');
+  });
+
+  it('الحكم والتحذير يمران بالتنظيف لكن المقتطف الحرفى لا يُعدَّل', () => {
+    const r = parseStructuredAnswer(
+      JSON.stringify({
+        direct_answer: 'يطالب العامل ويستحق مكافأة (المادة 154/8).',
+        rulings: [{ claim: 'يستحق العامل مكافأة إذا كان الإنهاء من جانب صاحب العمل وفق المادة 154/8.', kind: 'نص', source: 1, quote: 'فإذا كان الإنهاء من جانب صاحب العمل استحق العامل مكافأة' }],
+      }),
+      [{ text: ART_154, articleNo: 154 }],
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.direct_answer).not.toContain('108/8');
+    expect(r.value.rulings[0].claim).not.toContain('108/8');
+    expect(r.value.rulings[0].quote).toBe('فإذا كان الإنهاء من جانب صاحب العمل استحق العامل مكافأة');
+  });
+
+  it('clipQuoteToBestWindow: النص القصير كما هو، والطويل يُقتطع حول كلمات الحكم لا من أوله', () => {
+    expect(clipQuoteToBestWindow('نص قصير جداً', 'حكم')).toBe('نص قصير جداً');
+    const filler = Array.from({ length: 60 }, (_, i) => `حشو${i}`).join(' ');
+    const tail = 'يكون العقد غير محدد المدة منذ بدايته إذا استمر العامل فى العمل بعد انتهاء مدته';
+    const long = `${filler} ${tail}`;
+    const out = clipQuoteToBestWindow(long, 'يكون العقد غير محدد المدة إذا استمر العامل فى العمل بعد انتهاء مدته');
+    expect(out.startsWith('… ')).toBe(true);
+    expect(out).toContain('غير محدد المدة');
+    expect(out.endsWith('…')).toBe(false); // انتهى عند آخر النص
+    expect(long).toContain(out.replace(/^… /, '').replace(/ …$/, ''));
+  });
+
+  it('حكم كلماته فى ذيل مادة طويلة يحتفظ بوسم «نص» بفضل النافذة المختارة', () => {
+    const filler = Array.from({ length: 60 }, (_, i) => `حشو${i}`).join(' ');
+    const tail = 'يكون العقد غير محدد المدة منذ بدايته إذا استمر العامل فى العمل بعد انتهاء مدته';
+    const art = `${filler} ${tail}`;
+    const r = parseStructuredAnswer(
+      JSON.stringify({
+        direct_answer: 'العقد يصبح غير محدد المدة.',
+        rulings: [{ claim: 'يكون العقد غير محدد المدة منذ بدايته إذا استمر العامل فى العمل بعد انتهاء مدته.', kind: 'نص', source: 1, quote: art }],
+      }),
+      [{ text: art, articleNo: 88 }],
+    );
+    expect(r.ok && r.value.rulings[0].kind).toBe('نص');
   });
 });

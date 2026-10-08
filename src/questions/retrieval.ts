@@ -276,6 +276,13 @@ export const END_OF_RELATIONSHIP_BUNDLE_ARTICLES: readonly number[] = [6, 7, 108
  */
 export const DISPUTE_PROCEDURE_ARTICLES: readonly number[] = [149, 150];
 
+/**
+ * حزمة المستحقات غير المستلمة (2h — تقييم حى 7.5/10): المادة 125 (مقابل رصيد الإجازات) و175 (شهادة نهاية الخدمة)
+ * غابتا عن الإجابة لأن بوابة الصلة اختارت 6 و108 فقط، فضاع جزء من «ما يطالب به السائل الآن». حين يذكر السائل أنه لم
+ * يستلم مستحقاته أو أن نزاعاً قائماً تُضاف الحزمة كاملة مع مواد الإجراء (6 مواد = سعة EOR_BUNDLE_MAX_ADDITIONS).
+ */
+export const UNSETTLED_ENTITLEMENTS_KIT_ARTICLES: readonly number[] = [6, 108, 125, 175];
+
 export function mentionsUnsettledEntitlements(text: string): boolean {
   const normalized = normalizeArabic(toEnglishDigits(text));
   const receive = '(?:تسلم|ستلم|حصل|قبض|صرف|دفع|اخذ|تلق|وصل)';

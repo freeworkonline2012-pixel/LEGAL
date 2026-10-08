@@ -12,6 +12,7 @@ import {
   isIndefiniteContractTerminationTopic,
   mentionsUnsettledEntitlements,
   DISPUTE_PROCEDURE_ARTICLES,
+  UNSETTLED_ENTITLEMENTS_KIT_ARTICLES,
   toCitationStatus,
 } from './retrieval';
 
@@ -407,5 +408,12 @@ describe('mentionsUnsettledEntitlements — مستحقات غير مستلمة �
   it('مواد الإجراء هى 149 و150 وهما ضمن حزمة نهاية العلاقة', () => {
     expect([...DISPUTE_PROCEDURE_ARTICLES]).toEqual([149, 150]);
     for (const n of DISPUTE_PROCEDURE_ARTICLES) expect(END_OF_RELATIONSHIP_BUNDLE_ARTICLES).toContain(n);
+  });
+
+  it('2h: حزمة المستحقات 6/108/125/175 ضمن حزمة نهاية العلاقة، ومع 149/150 تساوى سعة الإضافة (6)', () => {
+    expect([...UNSETTLED_ENTITLEMENTS_KIT_ARTICLES]).toEqual([6, 108, 125, 175]);
+    for (const n of UNSETTLED_ENTITLEMENTS_KIT_ARTICLES) expect(END_OF_RELATIONSHIP_BUNDLE_ARTICLES).toContain(n);
+    const forced = new Set([...UNSETTLED_ENTITLEMENTS_KIT_ARTICLES, ...DISPUTE_PROCEDURE_ARTICLES]);
+    expect(forced.size).toBe(6);
   });
 });

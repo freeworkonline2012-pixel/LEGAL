@@ -43,6 +43,7 @@ import {
   isConfident,
   isEndOfRelationshipTopic,
   mentionsUnsettledEntitlements,
+  UNSETTLED_ENTITLEMENTS_KIT_ARTICLES,
   isIndefiniteContractTerminationTopic,
   toCitationStatus,
 } from './retrieval';
@@ -1576,14 +1577,20 @@ export class QuestionsService {
       const forcedIdx: number[] = [];
       if (mentionsUnsettledEntitlements(questionText)) {
         candidates.forEach((c, i) => {
-          if (DISPUTE_PROCEDURE_ARTICLES.includes(c.articleNo)) forcedIdx.push(i);
+          if (
+            DISPUTE_PROCEDURE_ARTICLES.includes(c.articleNo) ||
+            UNSETTLED_ENTITLEMENTS_KIT_ARTICLES.includes(c.articleNo)
+          ) {
+            forcedIdx.push(i);
+          }
         });
         if (forcedIdx.length > 0) {
-          this.logger.log(`EOR: qHash=${qHash} مستحقات غير مستلمة/نزاع → إضافة قسرية لمواد الإجراء=${forcedIdx.map((i) => candidates[i].articleNo).join(',')}`);
+          this.logger.log(`EOR: qHash=${qHash} مستحقات غير مستلمة/نزاع → إضافة قسرية لحزمة المستحقات والإجراء=${forcedIdx.map((i) => candidates[i].articleNo).join(',')}`);
         }
       }
       const pickedIdx = selection.status === 'ok' ? selection.selectedIndices : [];
-      const mergedIdx = [...pickedIdx, ...forcedIdx.filter((i) => !pickedIdx.includes(i))];
+      // القسرى أولاً كى لا يزاحمه اختيار البوابة عند ضيق السعة.
+      const mergedIdx = [...forcedIdx, ...pickedIdx.filter((i) => !forcedIdx.includes(i))];
       if (mergedIdx.length === 0) {
         return citations;
       }
