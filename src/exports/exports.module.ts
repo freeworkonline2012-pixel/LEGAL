@@ -6,6 +6,7 @@ import { Citation } from '../database/entities/citation.entity';
 import { Contract } from '../database/entities/contract.entity';
 import { ContractClause } from '../database/entities/contract-clause.entity';
 import { GovernanceAssessment } from '../database/entities/governance-assessment.entity';
+import { LegalMemo } from '../database/entities/legal-memo.entity';
 import { Question } from '../database/entities/question.entity';
 import { ExportsController } from './exports.controller';
 import { ExportsRetentionService } from './exports-retention.service';
@@ -19,7 +20,7 @@ import { PdfRenderer } from './renderers/pdf.renderer';
 @Module({
   imports: [
     AuditModule,
-    TypeOrmModule.forFeature([Answer, Citation, Question, Contract, ContractClause, GovernanceAssessment]),
+    TypeOrmModule.forFeature([Answer, Citation, Question, Contract, ContractClause, GovernanceAssessment, LegalMemo]),
   ],
   controllers: [ExportsController],
   providers: [ExportsService, ExportsRetentionService, PdfRenderer],

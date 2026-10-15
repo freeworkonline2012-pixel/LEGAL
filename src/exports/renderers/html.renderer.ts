@@ -85,7 +85,7 @@ table.grid tr{break-inside:avoid}
 .status{display:inline-block;font-size:9.5pt;padding:0 8px;border-radius:10px;border:1px solid var(--line);background:#f6f8fa;margin-inline-start:6px}
 footer.disc{margin-top:22px;border-top:2px solid var(--line);padding-top:8px;font-size:10pt;color:var(--muted);break-inside:avoid}
 .gen{font-size:9.5pt;color:var(--muted);margin-top:4px}
-.watermark{position:fixed;top:42%;left:0;right:0;text-align:center;transform:rotate(-28deg);font-size:50pt;font-weight:700;color:rgba(192,57,43,.11);z-index:50;pointer-events:none}
+.watermark{position:fixed;top:42%;left:0;right:0;text-align:center;transform:rotate(-28deg);white-space:nowrap;font-size:38pt;font-weight:700;color:rgba(192,57,43,.11);z-index:50;pointer-events:none}
 `;
 
 /** قواعد الصفحة: تذييل بترقيم الصفحات ورقم المرجع (مرجع مُنظَّف إلى [A-Za-z0-9-] فقط قبل إدراجه فى CSS). */

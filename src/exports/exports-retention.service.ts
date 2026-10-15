@@ -5,11 +5,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { GovernanceAssessment } from '../database/entities/governance-assessment.entity';
+import { LegalMemo } from '../database/entities/legal-memo.entity';
 
 const DEFAULT_LINK_RETENTION_DAYS = 730;
 
 /**
- * سياسة الاحتفاظ لتقييمات الحوكمة المحفوظة (migrations/203) — نفس نافذة وفلسفة DataRetentionService
+ * سياسة الاحتفاظ لتقييمات الحوكمة (migrations/203) والمذكرات القانونية (migrations/204) — نفس نافذة وفلسفة DataRetentionService
  * للأسئلة (151/2020): بعد DATA_RETENTION_LINK_DAYS يُفصَل الربط بالمستخدم فيبقى المحتوى مُشفَّراً بلا هوية.
  * خدمة مستقلة عمداً كى لا تُغيَّر خدمة الاحتفاظ القائمة ولا اختباراتها.
  */
@@ -20,6 +21,8 @@ export class ExportsRetentionService {
   constructor(
     @InjectRepository(GovernanceAssessment)
     private readonly repository: Repository<GovernanceAssessment>,
+    @InjectRepository(LegalMemo)
+    private readonly memoRepository: Repository<LegalMemo>,
     private readonly auditService: AuditService,
     private readonly configService: ConfigService,
   ) {}
@@ -37,11 +40,25 @@ export class ExportsRetentionService {
         .andWhere('created_at < :cutoff', { cutoff })
         .execute();
       const unlinked = result.affected ?? 0;
-      this.logger.log(`[retention] فصل ${unlinked} ربط user_id قديم من تقييمات الحوكمة.`);
+      const memoResult = await this.memoRepository
+        .createQueryBuilder()
+        .update(LegalMemo)
+        .set({ userId: null })
+        .where('user_id IS NOT NULL')
+        .andWhere('created_at < :cutoff', { cutoff })
+        .execute();
+      const memosUnlinked = memoResult.affected ?? 0;
+      this.logger.log(
+        `[retention] فصل ${unlinked} ربط user_id قديم من تقييمات الحوكمة و${memosUnlinked} من المذكرات.`,
+      );
       await this.auditService.record({
         action: 'privacy.retention_sweep_executed',
         resourceType: 'system',
-        metadata: { governance_assessments_unlinked: unlinked, link_retention_days: days },
+        metadata: {
+          governance_assessments_unlinked: unlinked,
+          legal_memos_unlinked: memosUnlinked,
+          link_retention_days: days,
+        },
       });
     } catch (err) {
       this.logger.error('[retention] فشلت دورة احتفاظ تقييمات الحوكمة — سيُعاد المحاولة غداً.', err as Error);

@@ -6,10 +6,12 @@ import { Answer } from '../database/entities/answer.entity';
 import { Contract } from '../database/entities/contract.entity';
 import { ContractClause } from '../database/entities/contract-clause.entity';
 import { GovernanceAssessment } from '../database/entities/governance-assessment.entity';
+import { LegalMemo } from '../database/entities/legal-memo.entity';
 import { Question } from '../database/entities/question.entity';
 import { buildAnswerDocument, NotExportableError } from './builders/answer-document.builder';
 import { buildContractDocument } from './builders/contract-document.builder';
 import { buildGovernanceDocument } from './builders/governance-document.builder';
+import { buildMemoDocument } from './builders/memo-document.builder';
 import { DEFAULT_BRAND, type LegalDocument } from './document-model';
 import { renderDocx } from './renderers/docx.renderer';
 import { PdfRenderer } from './renderers/pdf.renderer';
@@ -114,6 +116,56 @@ export class ExportsService {
       }),
     );
     return this.deliver(doc, format, actor, 'governance', row.id);
+  }
+
+  /**
+   * مذكرة/تقرير قانونى (migrations/204): الأسانيد من الإجابة المنظَّمة المحفوظة المرتبطة بالمذكرة
+   * (answer_id)، والوقائع والطلبات من سجل المذكرة المُشفَّر. المالك أو admin فقط؛ المستند مسودة دائماً.
+   */
+  async exportMemo(memoId: string, format: ExportFormat, actor: ExportActor): Promise<ExportedFile> {
+    const memo = await this.dataSource.getRepository(LegalMemo).findOne({ where: { id: memoId } });
+    if (!memo || !this.canAccess(memo.userId, actor)) {
+      throw new NotFoundException('المذكرة غير موجودة');
+    }
+    const answer = await this.dataSource.getRepository(Answer).findOne({
+      where: { id: memo.answerId },
+      relations: { citations: true },
+    });
+    if (!answer || answer.refused || (answer.citations ?? []).length === 0) {
+      throw new ConflictException('أسانيد هذه المذكرة غير متاحة (قد تكون حُذفت)، فلا يمكن تنزيلها.');
+    }
+    const rawRequests = memo.requests?.items;
+    const requests = Array.isArray(rawRequests)
+      ? rawRequests.filter((r): r is string => typeof r === 'string' && r.trim().length > 0)
+      : [];
+    const doc = this.guard(() =>
+      buildMemoDocument({
+        memoId: memo.id,
+        memoType: memo.memoType,
+        partyRole: memo.partyRole,
+        title: memo.title,
+        issue: memo.issue,
+        facts: memo.facts,
+        requests,
+        answerText: answer.answer,
+        structured: answer.structured,
+        citations: (answer.citations ?? []).map((c) => ({
+          law: c.law,
+          lawNo: c.lawNo,
+          lawYear: c.lawYear,
+          articleNo: c.articleNo,
+          status: c.status,
+          lastAmended: c.lastAmended,
+          officialUrl: c.officialUrl,
+          snippet: c.snippet,
+          position: c.position,
+        })),
+        createdAt: memo.createdAt,
+        generatedAt: new Date(),
+        brand: this.brand,
+      }),
+    );
+    return this.deliver(doc, format, actor, 'legal_memo', memo.id, { memoType: memo.memoType });
   }
 
   async exportContract(contractId: string, format: ExportFormat, actor: ExportActor): Promise<ExportedFile> {

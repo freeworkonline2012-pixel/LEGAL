@@ -14,6 +14,7 @@ import { CountriesModule } from './countries/countries.module';
 import { validate } from './config/env.validation';
 import { buildTypeOrmOptions, createResilientDataSource } from './config/typeorm.config';
 import { ExportsModule } from './exports/exports.module';
+import { MemosModule } from './memos/memos.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { GovernanceModule } from './governance/governance.module';
 import { GuidanceModule } from './guidance/guidance.module';
@@ -71,6 +72,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     IngestionModule,
     PrivacyModule,
     ExportsModule,
+    MemosModule,
   ],
   controllers: [AppController],
   providers: [

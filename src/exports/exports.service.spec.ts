@@ -3,6 +3,7 @@ import { Answer } from '../database/entities/answer.entity';
 import { Contract } from '../database/entities/contract.entity';
 import { ContractClause } from '../database/entities/contract-clause.entity';
 import { GovernanceAssessment } from '../database/entities/governance-assessment.entity';
+import { LegalMemo } from '../database/entities/legal-memo.entity';
 import { Question } from '../database/entities/question.entity';
 import { ExportsService, type ExportActor } from './exports.service';
 
@@ -11,12 +12,13 @@ const OTHER: ExportActor = { userId: 'u-other', role: 'user', ipAddress: null, u
 const ADMIN: ExportActor = { userId: 'u-admin', role: 'admin', ipAddress: null, userAgent: null };
 const NOW = new Date('2026-10-15T09:00:00Z');
 
-function setup(rows: { answer?: unknown; question?: unknown; governance?: unknown; contract?: unknown; clauses?: unknown[] }) {
+function setup(rows: { answer?: unknown; question?: unknown; governance?: unknown; contract?: unknown; clauses?: unknown[]; memo?: unknown }) {
   const update = jest.fn().mockResolvedValue(undefined);
   const repos = new Map<unknown, unknown>([
     [Answer, { findOne: jest.fn().mockResolvedValue(rows.answer ?? null) }],
     [Question, { findOne: jest.fn().mockResolvedValue(rows.question ?? null) }],
     [GovernanceAssessment, { findOne: jest.fn().mockResolvedValue(rows.governance ?? null) }],
+    [LegalMemo, { findOne: jest.fn().mockResolvedValue(rows.memo ?? null) }],
     [Contract, { findOne: jest.fn().mockResolvedValue(rows.contract ?? null), update }],
     [ContractClause, { find: jest.fn().mockResolvedValue(rows.clauses ?? []) }],
   ]);
@@ -154,5 +156,53 @@ describe('ExportsService — تقرير العقد والاعتماد البشر
     process.env.CONTRACT_REPORT_REQUIRES_APPROVAL = 'false';
     const { service } = setup({ contract: contract(), clauses: [clause] });
     await expect(service.exportContract('c', 'docx', OWNER)).resolves.toBeDefined();
+  });
+});
+
+const memoRow = (over: Record<string, unknown> = {}) => ({
+  id: 'bbbbbbbb-1111-2222-3333-444444444444',
+  userId: OWNER.userId,
+  answerId: 'aaaaaaaa-1111-2222-3333-444444444444',
+  memoType: 'defense_memo',
+  partyRole: 'claimant',
+  title: 'مذكرة',
+  issue: 'مسألة قانونية للبحث',
+  facts: 'وقائع مفصلة بما يكفى للمذكرة',
+  requests: { items: ['طلب أول'] },
+  createdAt: NOW,
+  ...over,
+});
+
+describe('ExportsService — المذكرات والتقارير', () => {
+  it('المالك يحصل على PDF ويُسجَّل التنزيل بنوع المذكرة', async () => {
+    const { service, audit, pdf } = setup({ memo: memoRow(), answer: answerRow() });
+    const file = await service.exportMemo('m', 'pdf', OWNER);
+    expect(file.filename).toMatch(/^memo-bbbbbbbb-\d{8}\.pdf$/);
+    expect(pdf.render).toHaveBeenCalledTimes(1);
+    expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ resourceType: 'legal_memo', metadata: expect.objectContaining({ kind: 'memo', memoType: 'defense_memo' }) }));
+  });
+
+  it('المستند مسودة بعلامة مائية دائماً حتى للمالك', async () => {
+    const { service, pdf } = setup({ memo: memoRow(), answer: answerRow() });
+    await service.exportMemo('m', 'pdf', OWNER);
+    expect((pdf.render.mock.calls[0][0] as { watermark: string }).watermark).toContain('مسودة');
+  });
+
+  it('غير المالك 404، وadmin مسموح', async () => {
+    const a = setup({ memo: memoRow(), answer: answerRow() });
+    await expect(a.service.exportMemo('m', 'pdf', OTHER)).rejects.toThrow(NotFoundException);
+    const b = setup({ memo: memoRow(), answer: answerRow() });
+    await expect(b.service.exportMemo('m', 'docx', ADMIN)).resolves.toBeDefined();
+  });
+
+  it('مذكرة غير موجودة 404، وإجابة مصدرها محذوفة أو مرفوضة 409', async () => {
+    await expect(setup({}).service.exportMemo('m', 'pdf', OWNER)).rejects.toThrow(NotFoundException);
+    await expect(setup({ memo: memoRow(), answer: null }).service.exportMemo('m', 'pdf', OWNER)).rejects.toThrow(ConflictException);
+    await expect(setup({ memo: memoRow(), answer: answerRow({ refused: true }) }).service.exportMemo('m', 'pdf', OWNER)).rejects.toThrow(ConflictException);
+  });
+
+  it('طلبات تالفة فى الصف لا تكسر البناء', async () => {
+    const { service } = setup({ memo: memoRow({ requests: { items: 'ليست مصفوفة' } }), answer: answerRow() });
+    await expect(service.exportMemo('m', 'docx', OWNER)).resolves.toBeDefined();
   });
 });

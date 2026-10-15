@@ -100,6 +100,17 @@ export class ExportsController {
     return send(res, await this.exportsService.exportGovernance(id, parseFormat(format), actorOf(request)));
   }
 
+  @Get('memos/:id')
+  @ApiQuery({ name: 'format', enum: ['pdf', 'docx'], required: false })
+  async memo(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query('format') format: string | undefined,
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    return send(res, await this.exportsService.exportMemo(id, parseFormat(format), actorOf(request)));
+  }
+
   @Get('contracts/:id')
   @ApiQuery({ name: 'format', enum: ['pdf', 'docx'], required: false })
   async contract(
