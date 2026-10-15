@@ -2,6 +2,7 @@ import { BadRequestException, ServiceUnavailableException, UnprocessableEntityEx
 import { validate } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
 import { AnalyzeDocumentDto } from './dto/analyze-document.dto';
+import { DocumentReaderService } from './document-reader.service';
 import { DocumentsService, looksLikeVisualOrderArabic } from './documents.service';
 
 const PDF = Buffer.from('%PDF-1.7\n' + 'x'.repeat(50));
@@ -33,7 +34,8 @@ function setup(over: {
     extract: jest.fn().mockResolvedValue(over.model ?? { status: 'ok', raw: FACT_RAW }),
   };
   const audit = { record: jest.fn().mockResolvedValue(undefined) };
-  const service = new DocumentsService(extraction as never, ocr as never, factsModel as never, audit as never);
+  const reader = new DocumentReaderService(extraction as never, ocr as never);
+  const service = new DocumentsService(reader, factsModel as never, audit as never);
   return { service, extraction, ocr, factsModel, audit };
 }
 

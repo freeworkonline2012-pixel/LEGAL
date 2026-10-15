@@ -24,5 +24,7 @@ import { PdfRenderer } from './renderers/pdf.renderer';
   ],
   controllers: [ExportsController],
   providers: [ExportsService, ExportsRetentionService, PdfRenderer],
+  // يُشارك مُخرِج PDF (متصفح واحد مشترك) مع الترجمة القانونية
+  exports: [PdfRenderer],
 })
 export class ExportsModule {}

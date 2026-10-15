@@ -107,7 +107,23 @@ export class PdfRenderer implements OnModuleDestroy {
   }
 
   private async renderOnce(doc: LegalDocument): Promise<Buffer> {
-    const html = renderHtml(doc);
+    return this.renderHtmlOnce(renderHtml(doc));
+  }
+
+  /** HTML مُولَّد داخلياً بهروب شامل (مثل مستند الترجمة) — نفس الحبس الشبكى والحدود الزمنية. */
+  async renderHtmlString(html: string): Promise<Buffer> {
+    if (!this.isAvailable()) {
+      throw new ServiceUnavailableException('تصدير PDF غير متاح مؤقتاً — يمكن تنزيل نسخة Word.');
+    }
+    await this.acquire();
+    try {
+      return await this.renderHtmlOnce(html);
+    } finally {
+      this.release();
+    }
+  }
+
+  private async renderHtmlOnce(html: string): Promise<Buffer> {
     const browser = await this.getBrowser();
     const page = await browser.newPage();
     try {

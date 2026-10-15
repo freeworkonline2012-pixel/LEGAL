@@ -33,7 +33,7 @@ const FONT_FACES: FontFace[] = [
 let fontCss: string | null = null;
 
 /** @font-face مضمَّنة (data URI) من خط Noto Naskh Arabic (OFL) — لا اعتماد على خطوط النظام ولا على الشبكة. */
-function embeddedFontCss(): string {
+export function embeddedFontCss(): string {
   if (fontCss !== null) return fontCss;
   const pkgDir = dirname(require.resolve('@fontsource/noto-naskh-arabic/package.json'));
   fontCss = FONT_FACES.map((f) => {

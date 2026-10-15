@@ -3,26 +3,15 @@ import {
   Injectable,
   Logger,
   ServiceUnavailableException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
-import { ExtractionService } from '../contracts/extraction.service';
 import { clipForModel, parseDocumentFacts, type DocumentFact } from './document-facts';
 import { DocumentFactsService } from './document-facts.service';
-import { imageDimensions, MAX_IMAGE_PIXELS, sniffFileType } from './file-sniff';
-import { OcrService, OCR_MAX_PAGES } from './ocr.service';
+import { DocumentReaderService, looksLikeVisualOrderArabic } from './document-reader.service';
 import { redactPersonalData, type RedactionKind } from './pii-redactor';
 
-/**
- * PDF عربى بترتيب بصرى معكوس وبأشكال العرض (U+FE70–FEFF/FB50–FDFF): أشهر عيوب الاستخراج من PDF، والنص
- * الناتج لا يصلح للتحليل ولا للمطابقة الحرفية. القراءة الآلية لصور الصفحات هى الحل الجذرى.
- */
-export function looksLikeVisualOrderArabic(text: string): boolean {
-  const arabic = (text.match(/[\u0600-\u06ff\ufb50-\ufdff\ufe70-\ufefc]/g) ?? []).length;
-  if (arabic < 20) return false;
-  const presentation = (text.match(/[\ufb50-\ufdff\ufe70-\ufefc]/g) ?? []).length;
-  return presentation / arabic > 0.25;
-}
+// أُعيد تصديره للتوافق مع الاختبارات والمستوردين القدامى (المنطق انتقل إلى document-reader.service.ts)
+export { looksLikeVisualOrderArabic };
 
 /** يُسجَّل مع كل رفع (مسار تدقيق الموافقة). ارفع الرقم عند أى تعديل جوهرى لنص الموافقة فى الواجهة. */
 export const DOCUMENT_CONSENT_VERSION = '2026-10-15-v1';
@@ -44,10 +33,14 @@ export interface AnalyzeDocumentResult {
   warnings: string[];
 }
 
-const MIME_BY_TYPE = {
-  pdf: 'application/pdf',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-} as const;
+const FACTS_READ_MESSAGES = {
+  unsupportedType: 'نوع ملف غير مدعوم — المسموح: PDF أو DOCX أو صورة PNG/JPEG',
+  ocrUnavailable:
+    'هذا المستند صورة أو ممسوح ضوئياً والقراءة الآلية غير متاحة حالياً — ارفع نسخة نصية (PDF نصى أو Word) أو اكتب الوقائع يدوياً.',
+  ocrFailed: 'تعذّرت قراءة المستند آلياً — جرّب صورة أوضح أو اكتب الوقائع يدوياً.',
+  unreadable: 'تعذّرت قراءة الملف — جرّب ملفاً آخر أو اكتب الوقائع يدوياً.',
+  tooLittleText: 'لم نتمكن من قراءة نص كافٍ من المستند — صوّره بوضوح أو اكتب الوقائع يدوياً.',
+};
 
 /**
  * تحليل مستند العميل لاستخراج وقائعه (الغرض: استيضاح سؤاله). التصميم يقلّل البيانات إلى أدنى حد:
@@ -61,8 +54,7 @@ export class DocumentsService {
   private readonly logger = new Logger(DocumentsService.name);
 
   constructor(
-    private readonly extraction: ExtractionService,
-    private readonly ocr: OcrService,
+    private readonly reader: DocumentReaderService,
     private readonly factsModel: DocumentFactsService,
     private readonly audit: AuditService,
   ) {}
@@ -73,53 +65,12 @@ export class DocumentsService {
     actor: DocumentActor,
   ): Promise<AnalyzeDocumentResult> {
     if (!file.buffer || file.buffer.length === 0) throw new BadRequestException('الملف فارغ');
-    const type = sniffFileType(file.buffer);
-    if (!type) {
-      throw new BadRequestException('نوع ملف غير مدعوم — المسموح: PDF أو DOCX أو صورة PNG/JPEG');
-    }
     if (!this.factsModel.isConfigured) {
       throw new ServiceUnavailableException('تحليل المستندات غير متاح مؤقتاً — حاول لاحقاً أو اكتب الوقائع يدوياً.');
     }
 
-    const warnings: string[] = [];
-    let text = '';
-    let usedOcr = false;
-
-    if (type === 'png' || type === 'jpeg') {
-      const dim = imageDimensions(file.buffer, type);
-      if (!dim || dim.width * dim.height > MAX_IMAGE_PIXELS) {
-        throw new BadRequestException('أبعاد الصورة غير صالحة أو كبيرة جداً — صوّر المستند بدقة أقل.');
-      }
-      text = await this.runOcr(file.buffer, type, warnings);
-      usedOcr = true;
-    } else {
-      const extracted = await this.extraction.extract(
-        file.buffer,
-        MIME_BY_TYPE[type],
-        type === 'pdf' ? 'document.pdf' : 'document.docx',
-      );
-      const visualOrder = extracted.status === 'ok' && looksLikeVisualOrderArabic(extracted.text);
-      if (extracted.status === 'ok' && !(type === 'pdf' && visualOrder)) {
-        text = extracted.text;
-      } else if (
-        type === 'pdf' &&
-        (visualOrder || extracted.status === 'empty' || extracted.status === 'corrupted_encoding')
-      ) {
-        // PDF ممسوح ضوئياً أو بترميز تالف: القراءة الآلية للصفحات هى الحل الجذرى
-        text = await this.runOcr(file.buffer, 'pdf', warnings);
-        usedOcr = true;
-      } else {
-        throw new UnprocessableEntityException(
-          extracted.status === 'empty'
-            ? 'لم نستخرج نصاً من الملف.'
-            : 'تعذّرت قراءة الملف — جرّب ملفاً آخر أو اكتب الوقائع يدوياً.',
-        );
-      }
-    }
-
-    if (text.replace(/\s+/g, '').length < 20) {
-      throw new UnprocessableEntityException('لم نتمكن من قراءة نص كافٍ من المستند — صوّره بوضوح أو اكتب الوقائع يدوياً.');
-    }
+    const read = await this.reader.read(file.buffer, { messages: FACTS_READ_MESSAGES });
+    const { text, type, usedOcr, warnings } = read;
     if (usedOcr) {
       warnings.push('قُرئ المستند آلياً من صورة — راجع الأرقام والتواريخ بعناية قبل اعتماد الوقائع.');
     }
@@ -169,19 +120,5 @@ export class DocumentsService {
       ocr: usedOcr,
       warnings,
     };
-  }
-
-  private async runOcr(buffer: Buffer, kind: 'pdf' | 'png' | 'jpeg', warnings: string[]): Promise<string> {
-    const r = await this.ocr.recognize(buffer, kind);
-    if (r.status === 'unavailable') {
-      throw new UnprocessableEntityException(
-        'هذا المستند صورة أو ممسوح ضوئياً والقراءة الآلية غير متاحة حالياً — ارفع نسخة نصية (PDF نصى أو Word) أو اكتب الوقائع يدوياً.',
-      );
-    }
-    if (r.status === 'error') {
-      throw new UnprocessableEntityException('تعذّرت قراءة المستند آلياً — جرّب صورة أوضح أو اكتب الوقائع يدوياً.');
-    }
-    if (r.truncatedPages) warnings.push(`قُرئت أول ${OCR_MAX_PAGES} صفحات فقط من المستند.`);
-    return r.text;
   }
 }
