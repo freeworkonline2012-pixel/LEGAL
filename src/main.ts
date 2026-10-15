@@ -28,6 +28,9 @@ async function bootstrap(): Promise<void> {
   app.enableCors({
     origin: corsOrigins,
     credentials: true,
+    // الواجهة على نطاق آخر (Vercel): بدون هذا الرأس لا يستطيع المتصفح قراءة
+    // اسم ملف التنزيل (مستندات PDF/Word) من Content-Disposition فينزل باسم عام.
+    exposedHeaders: ['Content-Disposition'],
   });
 
   app.useGlobalPipes(
