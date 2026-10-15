@@ -15,6 +15,7 @@ import { validate } from './config/env.validation';
 import { buildTypeOrmOptions, createResilientDataSource } from './config/typeorm.config';
 import { ExportsModule } from './exports/exports.module';
 import { MemosModule } from './memos/memos.module';
+import { DocumentsModule } from './documents/documents.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { GovernanceModule } from './governance/governance.module';
 import { GuidanceModule } from './guidance/guidance.module';
@@ -73,6 +74,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     PrivacyModule,
     ExportsModule,
     MemosModule,
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [

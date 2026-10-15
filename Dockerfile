@@ -32,6 +32,11 @@ RUN addgroup -S app && adduser -S app -G app
 RUN apk add --no-cache chromium
 ENV PDF_CHROMIUM_PATH=/usr/bin/chromium
 
+# OCR للمستندات الممسوحة والصور (ميزة إرفاق مستند لتوضيح السؤال — src/documents): tesseract (عربى+إنجليزى)
+# وpdftoppm (من poppler) لتحويل صفحات PDF الممسوحة إلى صور. تُستدعى عبر execFile دون shell.
+# إن غابت هذه الحزم يبقى استخراج نص PDF/DOCX الرقمى يعمل وتُرجع الصور/الممسوحات رسالة 422 واضحة.
+RUN apk add --no-cache tesseract-ocr tesseract-ocr-data-ara tesseract-ocr-data-eng poppler-utils
+
 COPY --from=builder --chown=app:app /app/dist ./dist
 COPY --from=builder --chown=app:app /app/node_modules ./node_modules
 COPY --from=builder --chown=app:app /app/package.json ./package.json
