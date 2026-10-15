@@ -50,6 +50,14 @@ export class Answer {
   @Column({ name: 'web_fallback', type: 'jsonb', nullable: true })
   webFallback: Record<string, unknown> | null;
 
+  /**
+   * الإجابة المنظَّمة كاملة (StructuredAnswer + تحذيرات المنصة) كما أُرسلت للعميل —
+   * مصدر بناء مستند التنزيل على الخادم (migrations/203). NULL للإجابات القديمة
+   * وللمسار النصى (يُبنى لها المستند من النص المحفوظ والاستشهادات).
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  structured: Record<string, unknown> | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

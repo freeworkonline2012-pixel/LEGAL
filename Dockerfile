@@ -26,6 +26,12 @@ WORKDIR /app
 
 RUN addgroup -S app && adduser -S app -G app
 
+# Chromium لتوليد PDF العربى (ميزة تنزيل الإجابات والتقارير — src/exports). الخط العربى مضمَّن داخل
+# المستند نفسه (Noto Naskh عبر @fontsource) فلا حاجة لخطوط نظام. المسار يُقرأ من PDF_CHROMIUM_PATH.
+# إن تعذّر Chromium يبقى تنزيل Word متاحاً ويرجع PDF بـ503 دون أثر على بقية الخدمة.
+RUN apk add --no-cache chromium
+ENV PDF_CHROMIUM_PATH=/usr/bin/chromium
+
 COPY --from=builder --chown=app:app /app/dist ./dist
 COPY --from=builder --chown=app:app /app/node_modules ./node_modules
 COPY --from=builder --chown=app:app /app/package.json ./package.json

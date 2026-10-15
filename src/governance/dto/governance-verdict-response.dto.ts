@@ -249,4 +249,13 @@ export class GovernanceVerdictResponseDto {
     description: 'طبقة العرض المنظَّم (2026-10-05) — إضافية اختيارية؛ العملاء القدامى يتجاهلونها.',
   })
   presentation?: GovernancePresentationDto | null;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    example: 'a-uuid',
+    description:
+      'معرّف الحكم المحفوظ لتنزيله كمستند (GET /api/exports/governance/{id}.pdf|docx) — يُرجَع للمستخدم ' +
+      'المسجَّل فقط؛ غائب لحكم الزائر (لا مالك له) أو إن تعذّر الحفظ.',
+  })
+  assessment_id?: string | null;
 }

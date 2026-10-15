@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
+import { GovernanceAssessment } from '../database/entities/governance-assessment.entity';
 import { LlmModule } from '../llm/llm.module';
 import { GovernanceController } from './governance.controller';
 import { GovernanceService } from './governance.service';
@@ -11,7 +13,9 @@ import { GovernanceService } from './governance.service';
  * (نفس نمط QuestionsService) بدل @InjectRepository لكل كيان على حدة.
  */
 @Module({
-  imports: [AuditModule, LlmModule],
+  // TypeOrmModule.forFeature إلزامى لتسجيل GovernanceAssessment (كيان جديد لا يستعمله موديول آخر) —
+  // راجع التعليق التاريخى فى contracts.module.ts عن EntityMetadataNotFoundError.
+  imports: [AuditModule, LlmModule, TypeOrmModule.forFeature([GovernanceAssessment])],
   controllers: [GovernanceController],
   providers: [GovernanceService],
   exports: [GovernanceService],

@@ -13,6 +13,7 @@ import { ContractsModule } from './contracts/contracts.module';
 import { CountriesModule } from './countries/countries.module';
 import { validate } from './config/env.validation';
 import { buildTypeOrmOptions, createResilientDataSource } from './config/typeorm.config';
+import { ExportsModule } from './exports/exports.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { GovernanceModule } from './governance/governance.module';
 import { GuidanceModule } from './guidance/guidance.module';
@@ -69,6 +70,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     AuditModule,
     IngestionModule,
     PrivacyModule,
+    ExportsModule,
   ],
   controllers: [AppController],
   providers: [

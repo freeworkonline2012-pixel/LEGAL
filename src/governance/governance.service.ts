@@ -8,6 +8,7 @@ import { VoyageEmbeddingsService, toPgVectorLiteral } from '../llm/voyage-embedd
 import { WebSearchFallbackService } from '../llm/web-search-fallback.service';
 import { Article } from '../database/entities/article.entity';
 import { ArticleVersion } from '../database/entities/article-version.entity';
+import { GovernanceAssessment } from '../database/entities/governance-assessment.entity';
 import { Law } from '../database/entities/law.entity';
 import { computeSourceStatus } from '../questions/structured-answer';
 import { buildGovernancePresentation } from './governance-presentation';
@@ -191,7 +192,7 @@ export class GovernanceService {
       );
       result.recommendation = await this.attemptWebAdvisory(question, qHash);
       await this.audit(context, qHash, [], { status: 'no_candidates' }, result);
-      return this.attachPresentation(result);
+      return this.persistForExport(this.attachPresentation(result), question, context);
     }
 
     const rerankResults = await this.embeddingsService.rerank(
@@ -404,7 +405,36 @@ export class GovernanceService {
       result,
     );
 
-    return this.attachPresentation(result);
+    return this.persistForExport(this.attachPresentation(result), question, context);
+  }
+
+  /**
+   * حفظ الحكم لتمكين تنزيله (migrations/203) — للمستخدم المسجَّل فقط: حكم الزائر لا مالك له
+   * فلا يمكن تنزيله، وعدم حفظه تقليلٌ للبيانات المحتفَظ بها (151/2020). fail-open كامل: أى عطل هنا
+   * يُسجَّل ويُرجَع الحكم كما هو بلا assessment_id (لا يُعطَّل الحكم الأساسى بسبب ميزة التنزيل).
+   */
+  private async persistForExport(
+    result: GovernanceVerdictResponseDto,
+    requestText: string,
+    context: { userId: string | null },
+  ): Promise<GovernanceVerdictResponseDto> {
+    if (!context.userId) return result;
+    try {
+      const repo = this.dataSource.getRepository(GovernanceAssessment);
+      const saved = await repo.save(
+        repo.create({
+          userId: context.userId,
+          requestText,
+          // النتيجة تُحفظ قبل إضافة assessment_id إليها (يُضاف للعميل بعد الحفظ فقط)
+          result: JSON.parse(JSON.stringify(result)) as Record<string, unknown>,
+          verdict: result.verdict,
+        }),
+      );
+      result.assessment_id = saved.id;
+    } catch (err) {
+      this.logger.warn(`governance persist for export failed (non-fatal): ${(err as Error).message}`);
+    }
+    return result;
   }
 
   /**

@@ -42,6 +42,16 @@ export class Contract {
   @Column({ name: 'clause_count', type: 'int', nullable: true })
   clauseCount: number | null;
 
+  /** اعتماد المراجعة البشرية لتقرير العقد (migrations/203) — شرط تصدير التقرير للعميل. */
+  @Column({ name: 'report_approved_by', type: 'uuid', nullable: true })
+  reportApprovedBy: string | null;
+
+  @Column({ name: 'report_approved_at', type: 'timestamptz', nullable: true })
+  reportApprovedAt: Date | null;
+
+  @Column({ name: 'report_approval_note', type: 'text', nullable: true })
+  reportApprovalNote: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

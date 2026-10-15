@@ -389,6 +389,8 @@ export class QuestionsService {
               queriedAt: webFallbackResult.queriedAt,
             }
           : null,
+        // الإجابة المنظَّمة كما أُرسلت للعميل بالضبط (مع تحذيرات المنصة) — مصدر مستند التنزيل (203).
+        structured: answer.structured ? (answer.structured as unknown as Record<string, unknown>) : null,
       });
       // save: نحتاج answerEntity.id لربط الاستشهاد.
       const savedAnswer = await manager.getRepository(Answer).save(answerEntity);
