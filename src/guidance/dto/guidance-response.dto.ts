@@ -29,6 +29,9 @@ export class GuidanceListItemDto {
   @ApiProperty({ example: 'aml_cft', enum: DOMAIN_KEYS })
   category: string;
 
+  @ApiProperty({ example: 'EG', description: 'ISO 3166-1 alpha-2 (أو XA = الوطن العربى)' })
+  country_code: string;
+
   @ApiPropertyOptional({ example: 'https://fra.gov.eg/...', nullable: true })
   official_url: string | null;
 

@@ -32,6 +32,9 @@ export class GuidanceService {
     if (query.category) {
       qb.andWhere('g.category = :category', { category: query.category });
     }
+    if (query.country) {
+      qb.andWhere('g.country_code = :country', { country: query.country });
+    }
 
     // ملاحظة جوهرية: بما أن الاستعلام يجمع بين leftJoinAndSelect و skip/take،
     // يلجأ TypeORM داخلياً لمسار "الاستعلام المدمج" (createOrderByCombined-
@@ -72,6 +75,7 @@ export class GuidanceService {
       title: item.title,
       issuing_authority: item.issuingAuthority,
       category: item.category,
+      country_code: item.countryCode,
       official_url: item.officialUrl,
       issued_at: item.issuedAt,
       related_law: item.relatedLaw
