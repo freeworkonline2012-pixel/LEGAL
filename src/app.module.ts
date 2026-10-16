@@ -20,6 +20,7 @@ import { TranslationModule } from './translation/translation.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { GovernanceModule } from './governance/governance.module';
 import { GuidanceModule } from './guidance/guidance.module';
+import { LegalReferencesModule } from './legal-references/legal-references.module';
 import { HealthModule } from './health/health.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { LawsModule } from './laws/laws.module';
@@ -65,6 +66,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     LawsModule,
     ArticlesModule,
     GuidanceModule,
+    LegalReferencesModule,
     QuestionsModule,
     GovernanceModule,
     ContractsModule,
