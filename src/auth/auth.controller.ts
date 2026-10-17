@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../common/interfaces/authenticated-user.
 import { AuditService } from '../audit/audit.service';
 import { AuthService } from './auth.service';
 import { AuthResponseDto, LogoutResponseDto, UserResponseDto } from './dto/auth-response.dto';
+import { CreateGuestDto, GuestConfigResponseDto } from './dto/guest.dto';
 import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -14,6 +15,9 @@ import { RegisterDto } from './dto/register.dto';
 
 /** عتبة أشد على نقاط المصادقة (10 محاولات/دقيقة لكل IP) */
 const AUTH_THROTTLE = { default: { limit: 10, ttl: 60_000 } };
+
+/** إنشاء جلسات زائر: 30 جلسة/ساعة لكل IP (يمنع إغراق جدول users، ويكفى اختبار فريق خلف شبكة واحدة) */
+const GUEST_CREATE_THROTTLE = { default: { limit: 30, ttl: 3_600_000 } };
 
 @ApiTags('auth')
 @Controller('auth')
@@ -66,6 +70,36 @@ export class AuthController {
       action: 'auth.logged_in',
       resourceType: 'user',
       resourceId: result.user.id,
+    });
+    return result;
+  }
+
+  @Get('guest-config')
+  @ApiOkResponse({
+    description: 'هل وضع الزائر مفعّل؟ (عام — لا يكشف شيئاً حساساً)',
+    type: GuestConfigResponseDto,
+  })
+  guestConfig(): GuestConfigResponseDto {
+    return this.authService.getGuestConfig();
+  }
+
+  @Post('guest')
+  @Throttle(GUEST_CREATE_THROTTLE)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiCreatedResponse({
+    description: 'بدء جلسة زائر مؤقتة (وضع الاختبار) — 404 إن كان الوضع معطلاً',
+    type: AuthResponseDto,
+  })
+  async guest(@Body() dto: CreateGuestDto): Promise<AuthResponseDto> {
+    // dto.consent مضمون true (@Equals(true))
+    const result = await this.authService.createGuest();
+    await this.auditService.record({
+      actorId: result.user.id,
+      actorRole: result.user.role,
+      action: 'auth.guest_created',
+      resourceType: 'user',
+      resourceId: result.user.id,
+      metadata: { consent_version: result.user.consent_version },
     });
     return result;
   }

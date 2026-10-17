@@ -1,5 +1,7 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, Optional } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { isGuestAccessEnabled, isGuestEmail } from '../../auth/guest.constants';
 import type { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
 import type { RequestWithUser } from '../interfaces/request-with-user.interface';
 import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
@@ -11,7 +13,10 @@ import type { JwtPayload } from '../../auth/interfaces/jwt-payload.interface';
  */
 @Injectable()
 export class OptionalJwtAuthGuard implements CanActivate {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    @Optional() private readonly configService?: ConfigService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithUser>();
@@ -27,6 +32,15 @@ export class OptionalJwtAuthGuard implements CanActivate {
 
     try {
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
+      // توكن زائر بعد تعطيل وضع الزائر = زائر مجهول (لا ربط بحساب)
+      if (
+        isGuestEmail(payload.email) &&
+        !isGuestAccessEnabled(
+          this.configService?.get<string>('GUEST_ACCESS_ENABLED') ?? process.env.GUEST_ACCESS_ENABLED,
+        )
+      ) {
+        return true;
+      }
       const user: AuthenticatedUser = {
         userId: payload.sub,
         email: payload.email,

@@ -127,6 +127,18 @@ export class EnvironmentVariables {
   @IsNumber()
   @Min(1)
   DATA_RETENTION_IP_DAYS?: number;
+
+  // ===== وضع الزائر للاختبار قبل الإطلاق التجريبى (2026-10-17) =====
+  // راجع src/auth/guest.constants.ts. نص حرفى (لا Boolean): enableImplicitConversion
+  // كان سيحوّل 'false' إلى true. التفعيل فقط بالقيمة الحرفية true. الافتراضى معطَّل.
+  @IsOptional()
+  @IsString()
+  GUEST_ACCESS_ENABLED?: string;
+
+  /** مدة توكن وصول الزائر (مثال 12h). الافتراضى 12h */
+  @IsOptional()
+  @IsString()
+  GUEST_JWT_EXPIRES_IN?: string;
 }
 
 export function validate(config: Record<string, unknown>): EnvironmentVariables {

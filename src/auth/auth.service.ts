@@ -1,15 +1,29 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcryptjs';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, randomUUID } from 'crypto';
 import type { StringValue } from 'ms';
 import { Repository } from 'typeorm';
 import { PRIVACY_POLICY_VERSION } from '../common/constants/privacy-policy';
 import { RefreshToken } from '../database/entities/refresh-token.entity';
 import { User } from '../database/entities/user.entity';
 import { AuthResponseDto, UserResponseDto } from './dto/auth-response.dto';
+import { GuestConfigResponseDto } from './dto/guest.dto';
+import {
+  GUEST_DEFAULT_ACCESS_TOKEN_TTL,
+  GUEST_EMAIL_DOMAIN,
+  GUEST_REFRESH_TOKEN_DAYS,
+  GUEST_UNUSABLE_PASSWORD_HASH,
+  isGuestAccessEnabled,
+  isGuestEmail,
+} from './guest.constants';
 import type { JwtPayload, TokenPair } from './interfaces/jwt-payload.interface';
 
 const BCRYPT_ROUNDS = 12;
@@ -32,6 +46,11 @@ export class AuthService {
     fullName?: string,
   ): Promise<UserResponseDto> {
     const normalizedEmail = email.trim().toLowerCase();
+
+    // النطاق guest.invalid محجوز لحسابات الزوار المؤقتة فقط
+    if (isGuestEmail(normalizedEmail)) {
+      throw new ConflictException('email already registered');
+    }
 
     const existing = await this.userRepository.findOne({
       where: { email: normalizedEmail },
@@ -64,6 +83,11 @@ export class AuthService {
 
   async login(email: string, password: string): Promise<AuthResponseDto> {
     const normalizedEmail = email.trim().toLowerCase();
+
+    // حسابات الزوار بلا كلمة مرور — لا يُسمح بتسجيل الدخول لها عبر هذا المسار إطلاقاً
+    if (isGuestEmail(normalizedEmail)) {
+      throw new UnauthorizedException('invalid credentials');
+    }
 
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail },
@@ -101,6 +125,9 @@ export class AuthService {
     if (!stored.user.isActive) {
       throw new UnauthorizedException('account disabled');
     }
+    if (isGuestEmail(stored.user.email) && !this.isGuestEnabled()) {
+      throw new UnauthorizedException('guest access disabled');
+    }
 
     // تدوير التوكن: إبطال القديم وإصدار جديد
     stored.revokedAt = new Date();
@@ -122,6 +149,41 @@ export class AuthService {
     return { success: true };
   }
 
+  /** هل وضع الزائر مفعّل؟ (GUEST_ACCESS_ENABLED=true حرفياً) */
+  isGuestEnabled(): boolean {
+    return isGuestAccessEnabled(this.configService.get<string>('GUEST_ACCESS_ENABLED'));
+  }
+
+  getGuestConfig(): GuestConfigResponseDto {
+    return { enabled: this.isGuestEnabled(), consent_version: PRIVACY_POLICY_VERSION };
+  }
+
+  /**
+   * ينشئ حساب زائر مؤقتاً معزولاً (بريد عشوائى على نطاق محجوز، بلا كلمة مرور)
+   * ويُصدر له توكن عادى. الدور دائماً 'user' — لا وصول لطابور مراجعة المحامين
+   * ولا لأدوات admin. يتطلب موافقة صريحة (يتحقق منها CreateGuestDto).
+   * 404 عند تعطيل الوضع (لا يكشف وجود الميزة).
+   */
+  async createGuest(): Promise<AuthResponseDto> {
+    if (!this.isGuestEnabled()) {
+      throw new NotFoundException();
+    }
+
+    const user = this.userRepository.create({
+      email: `guest-${randomUUID()}@${GUEST_EMAIL_DOMAIN}`,
+      passwordHash: GUEST_UNUSABLE_PASSWORD_HASH,
+      fullName: null,
+      role: 'user',
+      isActive: true,
+      consentGivenAt: new Date(),
+      consentVersion: PRIVACY_POLICY_VERSION,
+    });
+    await this.userRepository.save(user);
+
+    const pair = await this.createTokenPair(user);
+    return this.toAuthResponse(user, pair);
+  }
+
   async getProfile(userId: string): Promise<UserResponseDto> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -137,16 +199,23 @@ export class AuthService {
       role: user.role,
     };
 
+    // الزائر: توكن وصول أطول (افتراضى 12 ساعة) لأن الواجهة لا تجدّد التوكن آلياً،
+    // وتوكن تحديث ليوم واحد فقط. المستخدم العادى: بلا أى تغيير.
+    const guest = isGuestEmail(user.email);
+    const accessTtl = guest
+      ? (this.configService.get<string>('GUEST_JWT_EXPIRES_IN') ?? GUEST_DEFAULT_ACCESS_TOKEN_TTL)
+      : (this.configService.get<string>('JWT_EXPIRES_IN') ?? '15m');
+
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
-      expiresIn: (this.configService.get<string>('JWT_EXPIRES_IN') ?? '15m') as StringValue,
+      expiresIn: accessTtl as StringValue,
       algorithm: ACCESS_TOKEN_ALGO,
     });
 
     const refreshToken = randomBytes(48).toString('base64url');
-    const expiresInDays = this.parseDays(
-      this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN') ?? '30d',
-    );
+    const expiresInDays = guest
+      ? GUEST_REFRESH_TOKEN_DAYS
+      : this.parseDays(this.configService.get<string>('REFRESH_TOKEN_EXPIRES_IN') ?? '30d');
 
     await this.refreshTokenRepository.insert({
       userId: user.id,
