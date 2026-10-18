@@ -10,6 +10,12 @@ export class MatchedArticleDto implements MatchedArticle {
   @ApiPropertyOptional({ nullable: true }) official_url: string | null;
 }
 
+export class SuggestedRedraftDto {
+  @ApiProperty() text: string;
+  @ApiProperty({ type: [String] }) changes: string[];
+  @ApiProperty() disclaimer: string;
+}
+
 export class ContractClauseResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() clause_index: number;
@@ -21,4 +27,5 @@ export class ContractClauseResponseDto {
   @ApiPropertyOptional({ nullable: true }) assessment_reasoning: string | null;
   @ApiPropertyOptional({ type: [MatchedArticleDto] }) matched_articles: MatchedArticle[] | null;
   @ApiPropertyOptional({ nullable: true }) assessment_confidence: number | null;
+  @ApiPropertyOptional({ type: SuggestedRedraftDto, nullable: true }) suggested_redraft: SuggestedRedraftDto | null;
 }

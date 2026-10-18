@@ -3257,6 +3257,100 @@ export class DeepseekGenerationService {
       return { status: 'error', detail: (err as Error).message };
     }
   }
+
+  /**
+   * صياغة بديلة مقترحة لبند عقد حُكم عليه "يحتاج مراجعة" وله استشهاد معتمَد. لا تُستدعى
+   * إلا بعد التحقق من ذلك فى ContractsService، ولا يُعرَض ناتجها قبل أن يجتاز
+   * validateRedraft (لا أرقام مخترعة، لا أرقام مواد داخل النص، لا تسرب مرشحين).
+   */
+  async proposeClauseRedraft(input: {
+    clauseText: string;
+    reviewNote: string;
+    articles: Array<{ lawTitle: string; lawNo: number; lawYear: number; articleNo: number; articleText: string }>;
+  }): Promise<
+    | { status: 'not_configured' }
+    | { status: 'error'; detail: string }
+    | { status: 'ok'; proposedText: string; changes: string[]; canResolve: boolean }
+  > {
+    if (!this.isConfigured) {
+      return { status: 'not_configured' };
+    }
+
+    const system =
+      'أنت محامٍ مصرى متخصص فى صياغة العقود. أمامك بند من عقد مع ملاحظة مراجعة تبيّن ' +
+      'سبب الحاجة لمراجعته، ومعها المواد القانونية المصرية المعتمَدة التى بُنيت عليها ' +
+      'الملاحظة. اكتب صياغة بديلة للبند تزيل الخطر المبيَّن فى الملاحظة وتتوافق مع ' +
+      'المواد المعروضة، وتحافظ على الغرض التجارى للبند وعلى لغته وأسلوبه وصفة طرفيه كما وردت.\n\n' +
+      'قواعد صارمة:\n' +
+      '(1) لا تضف أى مبلغ أو نسبة أو مدة أو تاريخ أو عدد أو اسم لم يرد فى البند ' +
+      'الأصلى أو فى نص المواد المعروضة. ما يلزم من بيانات ولا تعرفه اتركه فراغاً ' +
+      'بهذا الشكل [____] ليملأه صاحب العقد أو محاميه.\n' +
+      '(2) لا تذكر رقم أى مادة قانونية داخل نص البند المقترح. يجوز ذكر رقم مادة ' +
+      'فقط من المواد المعروضة وفى قائمة التغييرات (changes) وليس فى نص البند.\n' +
+      '(3) لا تُدخل شرطاً يخالف قاعدة آمرة أو ناهية وردت فى المواد المعروضة. وإن كانت ' +
+      'المادة تُجيز الاتفاق على خلافها فلا تعدّل البند إلا بقدر ما تقتضيه الملاحظة.\n' +
+      '(4) لا تتحدث عن مرشحين ولا تُرقّم مواد على أنها "مرشح". غيّر أقل ما يلزم من ' +
+      'البند؛ وأبقِ ما لا خطر فيه كما هو حرفياً.\n' +
+      '(5) إن كان إزالة الخطر تتطلب وقائع أو قراراً تجارياً لا تعرفهما (مثل اختيار ' +
+      'مدة أو مبلغ)، فاترك فراغاً [____] وقل ذلك فى التغييرات. وإن تعذّر الحل كلياً ' +
+      'دون هذه المعلومات فاجعل can_resolve=false.\n\n' +
+      'أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى، بالضبط بهذا الشكل: ' +
+      '{"proposed_text": "نص البند البديل كاملاً", "changes": ["جملة قصيرة لكل ' +
+      'تعديل تشرح ما غُيّر ولماذا (مع رقم المادة المعتمَدة إن لزم)"], ' +
+      '"can_resolve": true أو false}';
+
+    const articlesText = input.articles
+      .map((a) => `المادة ${a.articleNo} من ${a.lawTitle} (رقم ${a.lawNo} لسنة ${a.lawYear}):\n"""${a.articleText}"""`)
+      .join('\n\n');
+
+    const userMsg =
+      `البند الأصلى: """${input.clauseText}"""\n\n` +
+      `ملاحظة المراجعة (الخطر المطلوب إزالته): """${input.reviewNote}"""\n\n` +
+      `المواد المعتمَدة:\n${articlesText}\n\nاكتب الصياغة البديلة. رد بـJSON فقط كما هو محدد.`;
+
+    try {
+      const res = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 1200,
+          temperature: 0,
+          thinking: { type: 'disabled' },
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: userMsg },
+          ],
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek proposeClauseRedraft API error ${res.status}: ${errText}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+
+      const data = (await res.json()) as {
+        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+      };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) {
+        return { status: 'error', detail: 'empty_response' };
+      }
+      const parsed = parseRedraftJson(text);
+      if (!parsed) {
+        this.logger.warn(`DeepSeek proposeClauseRedraft: unparseable JSON (finish_reason=${data.choices?.[0]?.finish_reason ?? 'unknown'})`);
+        return { status: 'error', detail: 'unparseable_json' };
+      }
+      return { status: 'ok', ...parsed };
+    } catch (err) {
+      this.logger.warn(`DeepSeek proposeClauseRedraft call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
 }
 
 export type GovernanceVerdict = 'متوافق' | 'غير متوافق' | 'متوافق جزئياً' | 'معلومات غير كافية';
@@ -3595,5 +3689,34 @@ function parseSelectionJson(
     }
   }
 
+  return null;
+}
+
+
+/** تحليل دفاعي لرد proposeClauseRedraft. */
+export function parseRedraftJson(
+  text: string,
+): { proposedText: string; changes: string[]; canResolve: boolean } | null {
+  const attempts = [text];
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    attempts.push(match[0]);
+  }
+  for (const attempt of attempts) {
+    try {
+      const parsed = JSON.parse(attempt) as { proposed_text?: unknown; changes?: unknown; can_resolve?: unknown };
+      if (typeof parsed.proposed_text === 'string') {
+        return {
+          proposedText: parsed.proposed_text,
+          changes: Array.isArray(parsed.changes)
+            ? parsed.changes.filter((c): c is string => typeof c === 'string')
+            : [],
+          canResolve: parsed.can_resolve !== false,
+        };
+      }
+    } catch {
+      // جرّب المحاولة التالية
+    }
+  }
   return null;
 }

@@ -1,4 +1,11 @@
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
@@ -24,7 +31,9 @@ import {
   stripInternalCandidateRefs,
   tidyNoTextReasoning,
 } from './reasoning.util';
+import { REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
 import { SegmentationService, SegmentedClause } from './segmentation.service';
+import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
 import { ContractResponseDto } from './dto/contract-response.dto';
 
 interface ClauseCitation {
@@ -159,6 +168,114 @@ export class ContractsService {
       order: { clauseIndex: 'ASC' },
     });
     return this.toResponseDto(contract, clauses, []);
+  }
+
+  /**
+   * صياغة بديلة مقترحة لبند "يحتاج مراجعة" له استشهاد معتمَد فقط. عند الطلب (لا عند
+   * الرفع) كى لا تُضاعَف تكلفة ومدة معالجة العقد. الاقتراح يمر ببوابة حتمية
+   * (validateRedraft) وإلا يُرفض بلا عرض، ويُخزَّن بعد اجتيازها فيُعاد كما هو عند
+   * الطلب التالى.
+   */
+  async proposeRedraft(
+    contractId: string,
+    clauseId: string,
+    context: { userId: string; role: string; ipAddress: string | null; userAgent: string | null },
+  ): Promise<ContractClauseResponseDto> {
+    const contract = await this.contractRepository.findOne({ where: { id: contractId } });
+    if (!contract) {
+      throw new NotFoundException('العقد غير موجود');
+    }
+    if (contract.uploadedBy !== context.userId && context.role !== 'admin') {
+      throw new ForbiddenException('لا تملك صلاحية الاطّلاع على هذا العقد');
+    }
+    const clause = await this.clauseRepository.findOne({ where: { id: clauseId, contractId } });
+    if (!clause) {
+      throw new NotFoundException('البند غير موجود');
+    }
+    const matched = clause.matchedArticles ?? [];
+    if (clause.assessmentStatus !== 'يحتاج مراجعة' || matched.length === 0) {
+      throw new BadRequestException(
+        'لا تتوفر صياغة بديلة إلا للبنود التى تحتاج مراجعة ولها سند قانونى معتمَد.',
+      );
+    }
+
+    if (!clause.suggestedWording) {
+      const outcome = await this.generationService.proposeClauseRedraft({
+        clauseText: clause.clauseText,
+        reviewNote: clause.assessmentReasoning ?? '',
+        articles: matched.map((m) => ({
+          lawTitle: m.law,
+          lawNo: m.law_no,
+          lawYear: m.law_year,
+          articleNo: m.article_no,
+          articleText: m.snippet,
+        })),
+      });
+      if (outcome.status === 'not_configured') {
+        throw new UnprocessableEntityException('خدمة الصياغة الآلية غير مُفعَّلة على هذه البيئة.');
+      }
+      if (outcome.status === 'error') {
+        throw new UnprocessableEntityException('تعذَّر توليد صياغة بديلة تقنياً الآن؛ أعد المحاولة لاحقاً.');
+      }
+      if (!outcome.canResolve) {
+        throw new UnprocessableEntityException(
+          'لا يمكن اقتراح صياغة آمنة لهذا البند دون معلومات تجارية إضافية؛ يلزم نظر محامٍ مختص.',
+        );
+      }
+      const verdict = validateRedraft({
+        proposedText: outcome.proposedText,
+        changes: outcome.changes,
+        originalText: clause.clauseText,
+        articleTexts: matched.map((m) => m.snippet),
+        approvedArticleNos: matched.map((m) => m.article_no),
+      });
+      if (!verdict.ok) {
+        this.logger.warn(`redraft rejected clauseId=${clauseId} reason=${verdict.reason}`);
+        await this.audit(context, 'contracts.redraft_rejected', contractId, {
+          clauseIndex: clause.clauseIndex,
+          reason: verdict.reason,
+        });
+        throw new UnprocessableEntityException(
+          'لم تجتز الصياغة المقترحة فحوص الأمان الآلية (أرقام أو إحالات غير موثَّقة)، فلم تُعرَض؛ يلزم نظر محامٍ مختص.',
+        );
+      }
+      clause.suggestedWording = JSON.stringify(verdict.proposal);
+      await this.clauseRepository.save(clause);
+      await this.audit(context, 'contracts.redraft_generated', contractId, { clauseIndex: clause.clauseIndex });
+    }
+
+    return this.toClauseDto(clause);
+  }
+
+  private parseRedraft(raw: string | null): { text: string; changes: string[]; disclaimer: string } | null {
+    if (!raw) return null;
+    try {
+      const p = JSON.parse(raw) as Partial<RedraftProposal>;
+      if (typeof p.text !== 'string' || !p.text) return null;
+      return {
+        text: p.text,
+        changes: Array.isArray(p.changes) ? p.changes.filter((c): c is string => typeof c === 'string') : [],
+        disclaimer: REDRAFT_DISCLAIMER,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private toClauseDto(c: ContractClause): ContractClauseResponseDto {
+    return {
+      id: c.id,
+      clause_index: c.clauseIndex,
+      clause_label: c.clauseLabel,
+      clause_title: c.clauseTitle,
+      clause_type_guess: c.clauseTypeGuess,
+      clause_text: c.clauseText,
+      assessment_status: c.assessmentStatus,
+      assessment_reasoning: c.assessmentReasoning,
+      matched_articles: c.matchedArticles,
+      assessment_confidence: c.assessmentConfidence,
+      suggested_redraft: this.parseRedraft(c.suggestedWording),
+    };
   }
 
   private async persistInitialClause(contractId: string, clause: SegmentedClause): Promise<ContractClause> {
@@ -350,18 +467,7 @@ export class ContractsService {
       extraction_error: contract.extractionError,
       clause_count: contract.clauseCount,
       warnings,
-      clauses: clauses.map((c) => ({
-        id: c.id,
-        clause_index: c.clauseIndex,
-        clause_label: c.clauseLabel,
-        clause_title: c.clauseTitle,
-        clause_type_guess: c.clauseTypeGuess,
-        clause_text: c.clauseText,
-        assessment_status: c.assessmentStatus,
-        assessment_reasoning: c.assessmentReasoning,
-        matched_articles: c.matchedArticles,
-        assessment_confidence: c.assessmentConfidence,
-      })),
+      clauses: clauses.map((c) => this.toClauseDto(c)),
       created_at: contract.createdAt,
     };
   }

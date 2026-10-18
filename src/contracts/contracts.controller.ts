@@ -16,6 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import type { RequestWithUser } from '../common/interfaces/request-with-user.interface';
+import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
 import { ContractResponseDto } from './dto/contract-response.dto';
 import { ContractsService } from './contracts.service';
 import { normalizeUploadedFilename } from './filename.util';
@@ -82,5 +83,25 @@ export class ContractsController {
   ): Promise<ContractResponseDto> {
     const user = request.user!;
     return this.contractsService.findById(id, { userId: user.userId, role: user.role });
+  }
+
+  @Post(':id/clauses/:clauseId/redraft')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description: 'صياغة بديلة مقترحة لبند يحتاج مراجعة وله سند قانونى معتمَد (للاسترشاد، تُراجَع من محامٍ)',
+    type: ContractClauseResponseDto,
+  })
+  async proposeRedraft(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('clauseId', ParseUUIDPipe) clauseId: string,
+    @Req() request: RequestWithUser,
+  ): Promise<ContractClauseResponseDto> {
+    const user = request.user!;
+    return this.contractsService.proposeRedraft(id, clauseId, {
+      userId: user.userId,
+      role: user.role,
+      ipAddress: request.ip ?? null,
+      userAgent: request.headers['user-agent'] ?? null,
+    });
   }
 }
