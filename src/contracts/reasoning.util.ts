@@ -102,7 +102,7 @@ export function guardMandatoryClaims(input: GuardInput): GuardResult {
  * تعليلاً عن نصوص استبعدها ("فالمادة 191 من قانون التجارة تخص...") — تفصيل داخلى
  * مربك للمستخدم، فنقتطع الشرح عند أول إشارة لذلك ونُلحق جملة موحّدة.
  */
-const NO_TEXT_CUT = /(?:\s*[،,]?\s*و?لا\s+(?:يوجد|يحكم|يسرى|يسري|توجد)|\s*[،,]?\s*فالماد|\s*[،,]?\s*بينما\s+الماد)/;
+const NO_TEXT_CUT = /(?:\s*[،,]?\s*و?لا\s+(?:يوجد|يحكم|يسرى|يسري|توجد)|\s*[،,]?\s*فالماد|\s*[،,]?\s*بينما\s+الماد|\s*[،,]?\s*و?(?:ال)?مرش(?:ح|حان|حون|حين|حو)(?![\u0621-\u064A]))/;
 const NO_TEXT_SUFFIX = 'لم نجد نصاً مفهرَساً يحكم هذا البند مباشرة.';
 
 export function tidyNoTextReasoning(reasoning: string): string {
@@ -113,4 +113,15 @@ export function tidyNoTextReasoning(reasoning: string): string {
     return 'لا يوجد نص قانونى مصرى مفهرَس يحكم هذا البند مباشرة.';
   }
   return `${topic}. ${NO_TEXT_SUFFIX}`;
+}
+
+/**
+ * اختلاف البند عن قاعدة مكملة ليس "مخالفة" (الطرفان حران فى الاتفاق على خلافها): نصحّح
+ * الصياغة الجارية "يخالف القاعدة المكملة" إلى "يختلف عن القاعدة المكملة". جولة اختبار حى 3.
+ */
+export function softenSupplementaryWording(reasoning: string): string {
+  return (reasoning ?? '').replace(
+    /(?:يخالف|تخالف)\s+(?=(?:ال)?قواعد?\s+(?:ال)?مكملة|(?:ال)?قاعدة\s+(?:ال)?مكملة)/g,
+    'يختلف عن ',
+  );
 }

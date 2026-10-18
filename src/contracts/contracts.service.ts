@@ -11,7 +11,12 @@ import { buildFtsQuery, confidenceFromRank } from '../questions/retrieval';
 import { Contract, ContractStatus } from '../database/entities/contract.entity';
 import { ContractClause, MatchedArticle } from '../database/entities/contract-clause.entity';
 import { ExtractionService } from './extraction.service';
-import { guardMandatoryClaims, stripInternalCandidateRefs, tidyNoTextReasoning } from './reasoning.util';
+import {
+  guardMandatoryClaims,
+  softenSupplementaryWording,
+  stripInternalCandidateRefs,
+  tidyNoTextReasoning,
+} from './reasoning.util';
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractResponseDto } from './dto/contract-response.dto';
 
@@ -264,7 +269,7 @@ export class ContractsService {
               text: topCandidates[i].citation.snippet,
             })),
           });
-          row.assessmentReasoning = guarded.reasoning;
+          row.assessmentReasoning = softenSupplementaryWording(guarded.reasoning);
         }
         row.matchedArticles = matched;
         row.assessmentConfidence = assessment.confidence;

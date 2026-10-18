@@ -101,3 +101,25 @@ describe('tidyNoTextReasoning', () => {
     expect(tidyNoTextReasoning('ولا يوجد نص.')).toBe('لا يوجد نص قانونى مصرى مفهرَس يحكم هذا البند مباشرة.');
   });
 });
+
+import { softenSupplementaryWording } from './reasoning.util';
+
+describe('tidyNoTextReasoning — إشارات المرشحين (جولة 3)', () => {
+  it('يقتطع "والمرشحان 1 و2 يخصان..." الملحق بوصف الموضوع', () => {
+    const input = 'البند يتعلق باعتبار التمهيد جزءاً لا يتجزأ من العقد، والمرشحان 1 و2 يخصان نماذج عقود تأمين جماعى.';
+    expect(tidyNoTextReasoning(input)).toBe(
+      'البند يتعلق باعتبار التمهيد جزءاً لا يتجزأ من العقد. لم نجد نصاً مفهرَساً يحكم هذا البند مباشرة.',
+    );
+  });
+});
+
+describe('softenSupplementaryWording', () => {
+  it('يحوّل "يخالف القاعدة المكملة" إلى "يختلف عن القاعدة المكملة"', () => {
+    expect(softenSupplementaryWording('وهذا يخالف القاعدة المكملة في المادة 604.')).toBe(
+      'وهذا يختلف عن القاعدة المكملة في المادة 604.',
+    );
+  });
+  it('لا يمسّ "يخالف" فى سياق آخر', () => {
+    expect(softenSupplementaryWording('يخالف نص المادة 5.')).toBe('يخالف نص المادة 5.');
+  });
+});
