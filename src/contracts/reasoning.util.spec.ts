@@ -202,19 +202,22 @@ describe('guardMandatoryClaims: عبارة بلا أثر ملزم لا تُثب�
 
   it('بند "سليم": لا تُستبدل شروحه بجملة اختلاف؛ تُحذف الجملة القاطعة فقط', () => {
     const out = guardMandatoryClaims({
-      reasoning: 'البند يتفق مع المادة 583 فى التزام المستأجر بالمحافظة على العين. ولا يوجد ما يخالف قاعدة آمرة أو يقع باطلا.',
+      reasoning:
+        'البند يتفق مع المادة 583 فى التزام المستأجر بالمحافظة على العين. ولا يوجد ما يخالف قاعدة آمرة أو يقع باطلا. البند يخالف صراحة نصاً آمراً.',
       violationType: 'none',
       mandatoryQuote: '',
       assessmentStatus: 'سليم',
       matched: [{ law: 'القانون المدنى 131/1948', articleNo: 583, text: 'نص' }],
     });
-    expect(out.reasoning).toBe('البند يتفق مع المادة 583 فى التزام المستأجر بالمحافظة على العين.');
+    expect(out.reasoning).toBe(
+      'البند يتفق مع المادة 583 فى التزام المستأجر بالمحافظة على العين. ولا يوجد ما يخالف قاعدة آمرة أو يقع باطلا.',
+    );
     expect(out.reasoning).not.toContain('يختلف');
   });
 
   it('بند "سليم" كل جمله قاطعة: جملة محايدة بدل اختلاف مناقض للحالة', () => {
     const out = guardMandatoryClaims({
-      reasoning: 'لا يجوز الاتفاق على خلافه.',
+      reasoning: 'البند يخالف صراحة نصاً آمراً.',
       violationType: 'none',
       mandatoryQuote: '',
       assessmentStatus: 'سليم',
@@ -232,5 +235,20 @@ describe('softenSupplementaryWording: يخالف قاعدة / يتعارض مع'
   it('لا يمسّها عند ثبوت المخالفة', () => {
     const t = 'هذا يخالف قاعدة المادة 224.';
     expect(softenSupplementaryWording(t, true)).toBe(t);
+  });
+});
+
+describe('guardMandatoryClaims: المادة المحورية = المادة فى جملة الادعاء', () => {
+  it('يسمّى 224 لا 598 حين تحمل جملة الادعاء رقم 224', () => {
+    const out = guardMandatoryClaims({
+      reasoning: 'البند يتفق مع المادة 598 فى انتهاء الإيجار بانتهاء المدة، لكنه يفرض تعويضاً جزافياً باطلاً وفق المادة 224.',
+      violationType: 'mandatory_violation',
+      mandatoryQuote: 'عبارة غير موجودة',
+      matched: [
+        { law: 'القانون المدنى', articleNo: 598, text: 'ينتهى الايجار بانتهاء المدة المحددة فى العقد' },
+        { law: 'القانون المدنى', articleNo: 224, text: 'ويقع باطلا كل اتفاق يخالف احكام الفقرتين' },
+      ],
+    });
+    expect(out.reasoning).toContain('المادة 224');
   });
 });

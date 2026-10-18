@@ -3415,6 +3415,31 @@ const CLAUSE_ASSESSMENT_STATUSES: readonly ClauseAssessmentStatus[] = [
 ];
 
 /** تحليل دفاعي لرد assessClause — نفس منهجية parseVerdictJson بالضبط. */
+/**
+ * محاولات قراءة JSON من رد النموذج: النص كما هو، ثم أكبر كائن {...}، ثم كلاهما بعد إصلاح الفاصلة
+ * العربية "،" التى يكتبها النموذج أحياناً بدل "," بين الحقول (سجلات الإنتاج 18/10/2026: البند 8
+ * عُدّ "تعذَّر التقييم" لهذا السبب وحده). الإصلاح لا يمسّ "،" داخل النصوص: يُطبَّق فقط حين تقع
+ * بين علامتى تنصيص بنيويتين (أو بعد رقم/true/false/null/قوس) وقبل علامة تنصيص مفتوحة.
+ */
+export function repairArabicCommaJson(text: string): string {
+  return text
+    .replace(/(?<!\\)"\s*،\s*(?=")/g, '", ')
+    .replace(/(\d|true|false|null|\]|\})\s*،\s*(?=")/g, '$1, ');
+}
+
+function jsonAttempts(text: string): string[] {
+  const attempts = [text];
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    attempts.push(match[0]);
+  }
+  for (const a of [...attempts]) {
+    const fixed = repairArabicCommaJson(a);
+    if (fixed !== a) attempts.push(fixed);
+  }
+  return attempts;
+}
+
 function parseClauseJson(
   text: string,
   maxIndex: number,
@@ -3426,11 +3451,7 @@ function parseClauseJson(
   violationType: 'none' | 'supplementary_difference' | 'mandatory_violation';
   mandatoryQuote: string;
 } | null {
-  const attempts = [text];
-  const match = text.match(/\{[\s\S]*\}/);
-  if (match) {
-    attempts.push(match[0]);
-  }
+  const attempts = jsonAttempts(text);
 
   const isValidAssessment = (v: unknown): v is ClauseAssessmentStatus =>
     typeof v === 'string' && (CLAUSE_ASSESSMENT_STATUSES as readonly string[]).includes(v);
@@ -3749,11 +3770,7 @@ export function parseRedraftJson(text: string): {
   needsChange: boolean;
   noChangeReason: string;
 } | null {
-  const attempts = [text];
-  const match = text.match(/\{[\s\S]*\}/);
-  if (match) {
-    attempts.push(match[0]);
-  }
+  const attempts = jsonAttempts(text);
   for (const attempt of attempts) {
     try {
       const parsed = JSON.parse(attempt) as {

@@ -29,6 +29,8 @@ import { ExtractionService } from './extraction.service';
 import {
   dropUnapprovedArticleSentences,
   guardMandatoryClaims,
+  hasMandatoryMarker,
+  isQuoteInArticles,
   softenSupplementaryWording,
   stripInternalCandidateRefs,
   tidyNoTextReasoning,
@@ -395,7 +397,7 @@ export class ContractsService {
       // المواد المرجعية تُضاف بعد أفضل 3 نتائج عامة (لا تحلّ محلها)، بلا تكرار
       const topCandidates = [...topGeneral, ...anchors.filter((a) => !seen.has(this.candidateKey(a)))];
 
-      const assessment = await this.generationService.assessClause({
+      const assessRequest = {
         clauseText: row.clauseText,
         clientPosition: describePosition(position),
         candidates: topCandidates.map((c) => ({
@@ -405,7 +407,13 @@ export class ContractsService {
           articleNo: c.citation.articleNo,
           articleText: c.citation.snippet,
         })),
-      });
+      };
+      let assessment = await this.generationService.assessClause(assessRequest);
+      if (assessment.status === 'error') {
+        // عطل عابر أو رد غير مقروء: محاولة ثانية واحدة قبل الإقرار بالفشل (يبقى fail-closed بعدها)
+        this.logger.warn(`assessClause retry clauseIndex=${row.clauseIndex} detail=${assessment.detail}`);
+        assessment = await this.generationService.assessClause(assessRequest);
+      }
 
       if (assessment.status === 'not_configured' || assessment.status === 'error') {
         // fail-closed اتساقاً مع GovernanceService: عدم القدرة التقنية على
@@ -462,6 +470,14 @@ export class ContractsService {
               text: topCandidates[i].citation.snippet,
             })),
           });
+          if (assessment.violationType === 'mandatory_violation' && !guarded.mandatoryVerified) {
+            // تشخيص فقط (لا نص عقد): لماذا خُفِّض ادعاء المخالفة الآمرة؟
+            const q = assessment.mandatoryQuote ?? '';
+            this.logger.warn(
+              `mandatory claim downgraded clauseIndex=${row.clauseIndex} quoteLen=${q.length} hasMarker=${hasMandatoryMarker(q)} ` +
+                `inArticles=${isQuoteInArticles(q, topCandidates.map((c) => c.citation.snippet))}`,
+            );
+          }
           row.assessmentReasoning = softenSupplementaryWording(guarded.reasoning, guarded.mandatoryVerified);
         }
         row.matchedArticles = matched;

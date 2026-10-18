@@ -64,6 +64,10 @@ export function isQuoteInArticles(quote: string, articleTexts: string[]): boolea
 const MANDATORY_LANGUAGE =
   /(?:قاعدة\s+آمرة|القاعدة\s+الآمرة|القواعد\s+الآمرة|لا\s+يجوز\s+الاتفاق|يخالف\s+صراحة|تخالف\s+صراحة|مخالفة\s+صريحة|يخالف\s+نصاً\s+آمراً|باطل)/;
 
+const AFFIRMATIVE_VIOLATION =
+  /(?:يخالف|تخالف)\s+(?:صراحة|نصاً|نصا|قاعدة\s+آمرة|القاعدة\s+الآمرة)|مخالفة\s+صريحة|باطل(?:ة|اً|ا)?\b|يقع\s+باطل/;
+const NEGATION = /(?:^|\s)(?:لا|ولا|دون|بلا|غير|ليس|ليست|لم|لن)\s/;
+
 export interface GuardInput {
   reasoning: string;
   violationType: ViolationType;
@@ -88,18 +92,20 @@ export interface GuardResult {
 export function guardMandatoryClaims(input: GuardInput): GuardResult {
   if (input.assessmentStatus === 'سليم') {
     // بند سليم لا يحمل ادعاء مخالفة: الجملة البديلة "يختلف عن القاعدة" تناقض حالته (اختبار حى 5،
-    // البند 11). نُسقط فقط الجمل ذات اللغة القاطعة ونُبقى بقية الشرح.
+    // البند 11). نُسقط فقط الجمل التى تُثبت مخالفة قاطعة (لا الجمل المنفية كـ"لا يخالف قاعدة آمرة")،
+    // فيبقى شرح البند كما هو.
     const sentences = (input.reasoning ?? '')
       .split(/(?<=[.؟!])\s+/)
       .map((x) => x.trim())
       .filter(Boolean)
-      .filter((x) => !MANDATORY_LANGUAGE.test(x));
+      .filter((x) => !(AFFIRMATIVE_VIOLATION.test(x) && !NEGATION.test(x)));
     return {
       reasoning: sentences.length > 0 ? sentences.join(' ') : 'لا مخالفة ظاهرة لنص آمر فى النصوص المعروضة.',
       violationType: 'none',
       mandatoryVerified: false,
     };
   }
+
   const verified =
     input.violationType === 'mandatory_violation' &&
     hasMandatoryMarker(input.mandatoryQuote) &&
@@ -120,8 +126,15 @@ export function guardMandatoryClaims(input: GuardInput): GuardResult {
 
   // المادة المحورية هى أول مادة معتمَدة يذكرها شرح النموذج نفسه (لا أول مرشح بالضرورة):
   // اختبار حى 5: كان الشرح عن المادة 224 فحلّت محله جملة عن المادة 598 غير ذات صلة.
-  const mentioned = articleNumbersIn(input.reasoning ?? '');
-  const first = input.matched.find((m) => mentioned.includes(m.articleNo)) ?? input.matched[0];
+  const sentencesOf = (input.reasoning ?? '').split(/(?<=[.؟!])\s+/);
+  const inClaim = sentencesOf.filter((x) => MANDATORY_LANGUAGE.test(x)).flatMap((x) => articleNumbersIn(x));
+  const mentioned = [...inClaim, ...articleNumbersIn(input.reasoning ?? '')];
+  const mentionedArticles = mentioned
+    .map((n) => input.matched.find((m) => m.articleNo === n))
+    .filter((m): m is (typeof input.matched)[number] => m !== undefined);
+  // المادة التى تحمل نصها صيغة ملزمة صريحة أولى بالتسمية من مادة عادية ذُكرت قبلها فى الجملة نفسها
+  const first =
+    mentionedArticles.find((m) => hasMandatoryMarker(m.text)) ?? mentionedArticles[0] ?? input.matched[0];
   const safe = first
     ? `البند يختلف عن القاعدة العامة الواردة فى المادة ${first.articleNo} من ${first.law}، ويستحق نظر محامٍ مختص لتقدير أثر هذا الاختلاف.`
     : 'يلزم نظر محامٍ مختص فى هذا البند.';
@@ -159,12 +172,12 @@ export function softenSupplementaryWording(reasoning: string, verifiedMandatory 
   );
   if (!verifiedMandatory) {
     out = out.replace(
-      /(?:يخالف|تخالف)\s+(?=(?:مقتضى|حكم|نص|ما\s+تقضى|ما\s+تقضي|الماد[ةه]|(?:ال)?قاعد[ةه]))/g,
+      /(?:يخالف|تخالف)\s+(?=(?:مقتضى|حكم|نص|ما\s+تقضى|ما\s+تقضي|الماد[ةه]|(?:ال)?قاعد[ةه]|(?:ال)?مبدأ|(?:ال)?مبدا))/g,
       'يختلف عن ',
     );
     // "يتعارض مع" ادعاء قاطع كذلك (البند 6: "يتعارض مع المادة 598" وهى لا تمنع الإنهاء بإخطار)
     out = out.replace(
-      /(?:يتعارض|تتعارض)\s+مع\s+(?=(?:مقتضى|حكم|نص|ما\s+تقضى|ما\s+تقضي|الماد[ةه]|(?:ال)?قاعد[ةه]))/g,
+      /(?:يتعارض|تتعارض)\s+مع\s+(?=(?:مقتضى|حكم|نص|ما\s+تقضى|ما\s+تقضي|الماد[ةه]|(?:ال)?قاعد[ةه]|(?:ال)?مبدأ|(?:ال)?مبدا))/g,
       'يختلف عن ',
     );
   }

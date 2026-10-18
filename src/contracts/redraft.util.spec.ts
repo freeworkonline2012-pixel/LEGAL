@@ -50,7 +50,23 @@ describe('validateRedraft', () => {
       ...base,
       proposedText: 'يلتزم المستأجر بسداد غرامة التأخير مع مراعاة المادة 224 من القانون المدنى فى التخفيض عند المبالغة.',
     });
-    expect(r).toEqual({ ok: false, reason: 'article_number_in_clause_text' });
+    expect(r).toEqual({ ok: false, reason: 'article_number_in_clause_text:224' });
+  });
+
+  it('يُبقى إحالة داخلية موجودة أصلاً فى البند الأصلى، ويرفض الجديد منها', () => {
+    const original = 'يلتزم المستأجر بسداد غرامة التأخير وفقاً للمادة 5 من هذا العقد ولا يجوز تخفيضها بأى حال.';
+    const kept = validateRedraft({
+      ...base,
+      originalText: original,
+      proposedText: 'يلتزم المستأجر بسداد غرامة التأخير وفقاً للمادة 5 من هذا العقد ويجوز تخفيضها إن ثبتت المبالغة.',
+    });
+    expect(kept.ok).toBe(true);
+    const added = validateRedraft({
+      ...base,
+      originalText: original,
+      proposedText: 'يلتزم المستأجر بسداد غرامة التأخير وفقاً للمادة 5 من هذا العقد مع مراعاة المادة 224 عند المبالغة.',
+    });
+    expect(added).toEqual({ ok: false, reason: 'article_number_in_clause_text:224' });
   });
 
   it('يرفض النص المطابق للأصل', () => {

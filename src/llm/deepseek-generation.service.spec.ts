@@ -1,4 +1,4 @@
-import { DeepseekGenerationService } from './deepseek-generation.service';
+import { DeepseekGenerationService, parseRedraftJson, repairArabicCommaJson } from './deepseek-generation.service';
 
 /**
  * 2026-09-19: أول اختبار وحدة لـ assessCompliance فى DeepseekGenerationService
@@ -809,5 +809,22 @@ describe('DeepseekGenerationService — مركز العميل (استيضاح ق
     const system = msgs.find((m) => m.role === 'system')!.content;
     expect(system).toContain('صغ البند لحماية هذا المركز');
     expect(system).toContain('ودون المساس بالأرقام والمبالغ');
+  });
+});
+
+describe('repairArabicCommaJson: فاصلة عربية بين الحقول (سجلات الإنتاج 18/10/2026)', () => {
+  it('يصلح "،" البنيوية فقط ولا يمسّ "،" داخل النص', () => {
+    const raw =
+      '{"assessment": "سليم", "selected": [6], "reasoning": "اتفاق جائز، ولا يخالف قاعدة.", "confidence": 0.72، "violation_type": "none"،"mandatory_quote": ""}';
+    const fixed = repairArabicCommaJson(raw);
+    const parsed = JSON.parse(fixed) as { reasoning: string; confidence: number; violation_type: string };
+    expect(parsed.reasoning).toBe('اتفاق جائز، ولا يخالف قاعدة.');
+    expect(parsed.confidence).toBe(0.72);
+    expect(parsed.violation_type).toBe('none');
+  });
+
+  it('يصلح الفاصلة بعد نص مغلق قبل مفتاح تالٍ (الحالة الفعلية للبند 8)', () => {
+    const raw = '{"a": "نص."، "b": 1}';
+    expect(JSON.parse(repairArabicCommaJson(raw))).toEqual({ a: 'نص.', b: 1 });
   });
 });

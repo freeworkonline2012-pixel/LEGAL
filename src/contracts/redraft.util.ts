@@ -58,6 +58,15 @@ function numberWordsIn(text: string): string[] {
   return out;
 }
 
+function articleRefNumbers(text: string): number[] {
+  const out: number[] = [];
+  for (const m of toWesternDigits(text).matchAll(/(?:ال)?ماد[ةه]\s*(?:رقم\s*)?\(?\s*(\d+)/g)) out.push(Number(m[1]));
+  for (const m of toWesternDigits(text).matchAll(/(?:ال)?ماد[ةه]\s*(?:رقم\s*)?\d+(?:\s*(?:،|,|و)\s*(\d+))+/g)) {
+    for (const n of m[0].matchAll(/\d+/g)) out.push(Number(n[0]));
+  }
+  return out;
+}
+
 export function validateRedraft(input: {
   proposedText: string;
   changes: string[];
@@ -74,8 +83,12 @@ export function validateRedraft(input: {
     return { ok: false, reason: 'identical_to_original' };
   }
   if (/(?:ال)?مرشح/.test(text)) return { ok: false, reason: 'candidate_leak' };
-  if (/(?:ال)?ماد[ةه]\s*(?:رقم\s*)?\d+/.test(toWesternDigits(text)) || /\b[Aa]rt(?:icle)?\.?\s*\d+/.test(text)) {
-    return { ok: false, reason: 'article_number_in_clause_text' };
+  // إحالة داخلية موجودة أصلاً فى البند الأصلى (مثل "المادة 5 من هذا العقد") تُبقى كما هى؛ المرفوض هو
+  // رقم مادة لم يرد فى الأصل (سجلات الإنتاج: البند 6 رُفض ثلاث مرات لإبقائه إحالة من أصله).
+  const originalRefs = new Set(articleRefNumbers(input.originalText));
+  const newRef = articleRefNumbers(text).find((n) => !originalRefs.has(n));
+  if (newRef !== undefined || /\b[Aa]rt(?:icle)?\.?\s*\d+/.test(text)) {
+    return { ok: false, reason: `article_number_in_clause_text${newRef !== undefined ? ':' + newRef : ''}` };
   }
 
   const allowedSource = `${input.originalText}\n${input.articleTexts.join('\n')}`;
@@ -107,7 +120,7 @@ export function validateRedraft(input: {
 export function describeRedraftRejection(reason: string): string {
   if (reason.startsWith('invented_number_word')) return 'ذكرت عدداً أو مدة مكتوبة بالحروف لم ترد فى البند الأصلى أو فى نص المواد.';
   if (reason.startsWith('invented_number')) return 'ذكرت رقماً أو مبلغاً أو نسبة لم ترد فى البند الأصلى أو فى نص المواد.';
-  if (reason === 'article_number_in_clause_text') return 'ذكرت رقم مادة قانونية داخل نص البند نفسه.';
+  if (reason.startsWith('article_number_in_clause_text')) return 'ذكرت رقم مادة قانونية داخل نص البند نفسه.';
   if (reason === 'candidate_leak') return 'ذكرت ترقيماً داخلياً للمرشحين.';
   if (reason === 'identical_to_original') return 'أعدت البند الأصلى كما هو دون تغيير.';
   if (reason === 'too_long') return 'الصياغة أطول كثيراً من البند الأصلى.';
