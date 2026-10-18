@@ -8,6 +8,13 @@ import { Article } from '../database/entities/article.entity';
 import { ArticleVersion } from '../database/entities/article-version.entity';
 import { Law } from '../database/entities/law.entity';
 import { buildFtsQuery, confidenceFromRank } from '../questions/retrieval';
+import {
+  anchorArticleNumbers,
+  CIVIL_CODE,
+  classifyClauseCriteria,
+  scopedLawsForCriteria,
+  serializeCriteria,
+} from './criteria.util';
 import { Contract, ContractStatus } from '../database/entities/contract.entity';
 import { ContractClause, MatchedArticle } from '../database/entities/contract-clause.entity';
 import { ExtractionService } from './extraction.service';
@@ -32,7 +39,7 @@ interface ClauseCitation {
 interface ClauseCandidate {
   citation: ClauseCitation;
   confidence: number;
-  source: 'fts' | 'semantic';
+  source: 'fts' | 'semantic' | 'anchor';
 }
 
 /**
@@ -181,7 +188,14 @@ export class ContractsService {
       ]);
       const merged = this.mergeCandidates(ftsCandidates, semanticCandidates);
 
-      if (merged.length === 0) {
+      // تصنيف البند إلى معايير المراجعة العشرة (حتمى، بكلمات مفتاحية) + جلب المواد
+      // المرجعية للمعيار (مثل 224 للتعويض الاتفاقى و217 للإعفاء من المسؤولية) التى
+      // لا يلتقطها البحث العام لأن صياغة البند التعاقدى لا تشبه صياغة النص القانونى.
+      const criteria = classifyClauseCriteria(row.clauseTitle, row.clauseText);
+      row.clauseTypeGuess = serializeCriteria(criteria);
+      const anchors = await this.anchorCandidates(criteria, row.clauseText);
+
+      if (merged.length === 0 && anchors.length === 0) {
         row.assessmentStatus = 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';
         row.assessmentReasoning =
           'لا توجد مادة قانونية مصرية مفهرَسة ذات صلة مباشرة بموضوع هذا البند حتى الآن.';
@@ -191,10 +205,13 @@ export class ContractsService {
         return;
       }
 
-      const rerankResults = await this.embeddingsService.rerank(
-        row.clauseText,
-        merged.map((c) => c.citation.snippet),
-      );
+      const rerankResults =
+        merged.length > 0
+          ? await this.embeddingsService.rerank(
+              row.clauseText,
+              merged.map((c) => c.citation.snippet),
+            )
+          : null;
 
       const ordered: ClauseCandidate[] = rerankResults
         ? [...rerankResults]
@@ -203,7 +220,10 @@ export class ContractsService {
             .map((r) => merged[r.index])
         : merged;
 
-      const topCandidates = ordered.slice(0, 3);
+      const topGeneral = ordered.slice(0, 3);
+      const seen = new Set(topGeneral.map((c) => this.candidateKey(c)));
+      // المواد المرجعية تُضاف بعد أفضل 3 نتائج عامة (لا تحلّ محلها)، بلا تكرار
+      const topCandidates = [...topGeneral, ...anchors.filter((a) => !seen.has(this.candidateKey(a)))];
 
       const assessment = await this.generationService.assessClause({
         clauseText: row.clauseText,
@@ -280,6 +300,8 @@ export class ContractsService {
       await this.audit(context, 'contracts.clause_assessed', row.contractId, {
         clauseIndex: row.clauseIndex,
         candidateCount: topCandidates.length,
+        anchorCount: topCandidates.length - topGeneral.length,
+        criteria: row.clauseTypeGuess,
         status: row.assessmentStatus,
         confidence: row.assessmentConfidence,
       });
@@ -346,7 +368,11 @@ export class ContractsService {
 
   // ===== استرجاع بلا فلتر نطاق (بخلاف GovernanceService) — راجع تعليق الوحدة أعلاه =====
 
-  private async ftsCandidates(clauseText: string, limit: number): Promise<ClauseCandidate[]> {
+  private async ftsCandidates(
+    clauseText: string,
+    limit: number,
+    lawFilter?: { lawNo: number; lawYear: number },
+  ): Promise<ClauseCandidate[]> {
     const query = buildFtsQuery(clauseText);
     if (!query) {
       return [];
@@ -366,6 +392,13 @@ export class ContractsService {
       )
       .orderBy('rank', 'DESC')
       .take(limit);
+
+    if (lawFilter) {
+      qb.andWhere('law.law_no = :scopeLawNo AND law.law_year = :scopeLawYear', {
+        scopeLawNo: lawFilter.lawNo,
+        scopeLawYear: lawFilter.lawYear,
+      });
+    }
 
     const { entities, raw } = await qb.getRawAndEntities();
 
@@ -424,6 +457,64 @@ export class ContractsService {
       confidence: Math.min(1, Math.max(0, Number(row.similarity))),
       source: 'semantic' as const,
     }));
+  }
+
+  private candidateKey(c: ClauseCandidate): string {
+    return `${c.citation.lawNo}-${c.citation.lawYear}-${c.citation.articleNo}`;
+  }
+
+  /**
+   * مرشحو "المواد المرجعية" لمعايير البند: مواد القانون المدنى المحددة سلفاً + أفضل
+   * نتيجتين من القانون المقيَّد (مثل 151/2020 لحماية البيانات). كلها من النص المفهرَس
+   * فعلياً (النسخة السارية)، وأى مادة غير موجودة تُتخطّى بلا اختلاق.
+   */
+  private async anchorCandidates(
+    criteria: ReturnType<typeof classifyClauseCriteria>,
+    clauseText: string,
+  ): Promise<ClauseCandidate[]> {
+    const out: ClauseCandidate[] = [];
+    const articleNos = anchorArticleNumbers(criteria, 4);
+    if (articleNos.length > 0) {
+      const rows: Array<{
+        article_no: number;
+        short_title: string | null;
+        title: string;
+        law_no: number;
+        law_year: number;
+        body: string;
+        official_url: string | null;
+      }> = await this.dataSource.query(
+        `SELECT a.article_no, l.short_title, l.title, l.law_no, l.law_year, l.official_url, av.body
+         FROM articles a
+         JOIN laws l ON l.id = a.law_id
+         JOIN article_versions av ON av.article_id = a.id AND av.effective_to IS NULL
+         WHERE l.law_no = $1 AND l.law_year = $2 AND a.article_suffix_order = 0
+           AND a.article_no = ANY($3::int[])`,
+        [CIVIL_CODE.lawNo, CIVIL_CODE.lawYear, articleNos],
+      );
+      const order = new Map(articleNos.map((n, i) => [n, i]));
+      rows
+        .sort((x, y) => (order.get(x.article_no) ?? 99) - (order.get(y.article_no) ?? 99))
+        .forEach((row) =>
+          out.push({
+            citation: {
+              law: row.short_title ?? row.title,
+              lawNo: row.law_no,
+              lawYear: row.law_year,
+              articleNo: row.article_no,
+              snippet: row.body,
+              officialUrl: row.official_url,
+            },
+            confidence: 0.5,
+            source: 'anchor',
+          }),
+        );
+    }
+    for (const scope of scopedLawsForCriteria(criteria)) {
+      const scoped = await this.ftsCandidates(clauseText, 2, scope);
+      out.push(...scoped.map((c) => ({ ...c, source: 'anchor' as const })));
+    }
+    return out;
   }
 
   private mergeCandidates(
