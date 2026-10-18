@@ -42,6 +42,14 @@ export class Contract {
   @Column({ name: 'clause_count', type: 'int', nullable: true })
   clauseCount: number | null;
 
+  /** نوع العقد كما أجاب المستخدم فى الاستيضاح قبل الرفع (migrations/233)؛ null = لم يُحدَّد */
+  @Column({ name: 'contract_type', type: 'text', nullable: true })
+  contractType: string | null;
+
+  /** مركز العميل فى العقد (مؤجر/مستأجر/بائع...)؛ null = تدقيق محايد */
+  @Column({ name: 'client_role', type: 'text', nullable: true })
+  clientRole: string | null;
+
   /** اعتماد المراجعة البشرية لتقرير العقد (migrations/203) — شرط تصدير التقرير للعميل. */
   @Column({ name: 'report_approved_by', type: 'uuid', nullable: true })
   reportApprovedBy: string | null;

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -20,6 +21,7 @@ import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
 import { ContractResponseDto } from './dto/contract-response.dto';
 import { ContractsService } from './contracts.service';
 import { normalizeUploadedFilename } from './filename.util';
+import { sanitizeClientPosition } from './position.util';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB — عقود نصّية عادةً بضع مئات KB، هامش واسع كافٍ بلا فتح الباب لملفات ضخمة غير منطقية
 const ALLOWED_MIME_TYPES = new Set([
@@ -52,6 +54,7 @@ export class ContractsController {
   async upload(
     @UploadedFile() file: Express.Multer.File | undefined,
     @Req() request: RequestWithUser,
+    @Body() body?: Record<string, unknown>,
   ): Promise<ContractResponseDto> {
     if (!file) {
       throw new BadRequestException('لم يُرفَع أى ملف (الحقل المتوقَّع: file)');
@@ -72,6 +75,8 @@ export class ContractsController {
         ipAddress: request.ip ?? null,
         userAgent: request.headers['user-agent'] ?? null,
       },
+      // مركز العميل من الاستيضاح قبل الرفع (اختيارى): حقلا multipart نصيان يُنقّيان فى الخادم
+      sanitizeClientPosition(body),
     );
   }
 

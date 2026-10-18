@@ -33,6 +33,7 @@ import {
   stripInternalCandidateRefs,
   tidyNoTextReasoning,
 } from './reasoning.util';
+import { ClientPosition, describePosition } from './position.util';
 import { REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
@@ -94,15 +95,21 @@ export class ContractsService {
   async upload(
     file: { buffer: Buffer; mimetype: string; originalname: string },
     context: { userId: string; ipAddress: string | null; userAgent: string | null },
+    position: ClientPosition = { contractType: null, clientRole: null },
   ): Promise<ContractResponseDto> {
     let contract = this.contractRepository.create({
       uploadedBy: context.userId,
       originalFilename: file.originalname,
       status: 'uploaded' as ContractStatus,
+      contractType: position.contractType,
+      clientRole: position.clientRole,
     });
     contract = await this.contractRepository.save(contract);
 
-    await this.audit(context, 'contracts.upload', contract.id, { filename: file.originalname });
+    await this.audit(context, 'contracts.upload', contract.id, {
+      filename: file.originalname,
+      hasClientPosition: Boolean(position.clientRole),
+    });
 
     const extraction = await this.extractionService.extract(file.buffer, file.mimetype, file.originalname);
 
@@ -133,7 +140,7 @@ export class ContractsService {
     // سيخاطر بإطلاقها من أول استخدام حقيقى لخدمة جديدة، مقابل فارق زمن استجابة
     // مقبول لمستخدم يرفع عقداً (عملية غير تفاعلية آنية أصلاً).
     for (const row of clauseRows) {
-      await this.assessAndPersistClause(row, context);
+      await this.assessAndPersistClause(row, context, position);
     }
 
     clauseRows = await this.clauseRepository.find({
@@ -204,6 +211,7 @@ export class ContractsService {
     if (!clause.suggestedWording) {
       const outcome = await this.generationService.proposeClauseRedraft({
         clauseText: clause.clauseText,
+        clientPosition: describePosition({ contractType: contract.contractType, clientRole: contract.clientRole }),
         reviewNote: clause.assessmentReasoning ?? '',
         articles: matched.map((m) => ({
           lawTitle: m.law,
@@ -323,6 +331,7 @@ export class ContractsService {
   private async assessAndPersistClause(
     row: ContractClause,
     context: { userId: string; ipAddress: string | null; userAgent: string | null },
+    position: ClientPosition,
   ): Promise<void> {
     try {
       const [ftsCandidates, semanticCandidates] = await Promise.all([
@@ -370,6 +379,7 @@ export class ContractsService {
 
       const assessment = await this.generationService.assessClause({
         clauseText: row.clauseText,
+        clientPosition: describePosition(position),
         candidates: topCandidates.map((c) => ({
           lawTitle: c.citation.law,
           lawNo: c.citation.lawNo,
@@ -493,6 +503,8 @@ export class ContractsService {
       status: contract.status,
       extraction_error: contract.extractionError,
       clause_count: contract.clauseCount,
+      contract_type: contract.contractType,
+      client_role: contract.clientRole,
       warnings,
       clauses: clauses.map((c) => this.toClauseDto(c)),
       created_at: contract.createdAt,

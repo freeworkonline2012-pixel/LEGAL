@@ -8,6 +8,8 @@ export class ContractResponseDto {
   @ApiProperty() status: ContractStatus;
   @ApiPropertyOptional({ nullable: true }) extraction_error: string | null;
   @ApiPropertyOptional({ nullable: true }) clause_count: number | null;
+  @ApiPropertyOptional({ nullable: true }) contract_type: string | null;
+  @ApiPropertyOptional({ nullable: true }) client_role: string | null;
   @ApiPropertyOptional({ type: [String] })
   warnings?: string[];
   @ApiPropertyOptional({ type: [ContractClauseResponseDto] })

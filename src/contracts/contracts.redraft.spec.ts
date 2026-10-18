@@ -15,7 +15,7 @@ const MATCHED = [
 ];
 
 function build(clauseOverrides: Record<string, unknown> = {}, outcome?: unknown) {
-  const contract = { id: 'c1', uploadedBy: 'u1' };
+  const contract = { id: 'c1', uploadedBy: 'u1', contractType: 'عقد إيجار', clientRole: 'المستأجر' };
   const clause: Record<string, unknown> = {
     id: 'cl1',
     contractId: 'c1',
@@ -58,6 +58,17 @@ describe('ContractsService.proposeRedraft', () => {
     const { service } = build();
     await expect(service.proposeRedraft('c1', 'cl1', { ...ctx, userId: 'other' })).rejects.toBeInstanceOf(
       ForbiddenException,
+    );
+  });
+
+  it('يمرّر مركز العميل المخزَّن مع العقد إلى النموذج', async () => {
+    const { service, generation } = build(
+      {},
+      { status: 'ok', canResolve: true, needsChange: false, noChangeReason: 'جائز', proposedText: '', changes: [] },
+    );
+    await service.proposeRedraft('c1', 'cl1', ctx);
+    expect(generation.proposeClauseRedraft).toHaveBeenCalledWith(
+      expect.objectContaining({ clientPosition: 'المستأجر (فى عقد إيجار)' }),
     );
   });
 

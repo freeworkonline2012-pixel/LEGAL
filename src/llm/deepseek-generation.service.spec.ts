@@ -726,3 +726,60 @@ describe('DeepseekGenerationService.assessClause — حقول الادعاء ا�
     expect(b.status === 'ok' && b.mandatoryQuote).toBe('');
   });
 });
+
+describe('DeepseekGenerationService — مركز العميل (استيضاح قبل الرفع)', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  function bodyOf(fetchMock: jest.Mock) {
+    return JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+  }
+
+  const OK_ASSESS = '{"assessment":"سليم","selected":[1],"reasoning":"ج","confidence":0.6}';
+  const OK_REDRAFT = '{"needs_change":false,"no_change_reason":"ج","proposed_text":"","changes":[]}';
+
+  it('assessClause: يضع مركز العميل فى رسالة المستخدم (بيانات) ويحمل النظام قاعدة المركز', async () => {
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, chatCompletion(OK_ASSESS, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await service.assessClause({ clauseText: 'بند', clientPosition: 'المستأجر (فى عقد إيجار)', candidates: [CANDIDATE] });
+    const msgs = bodyOf(fetchMock).messages;
+    expect(msgs.find((m) => m.role === 'user')!.content).toContain('مركز العميل: """المستأجر (فى عقد إيجار)"""');
+    expect(msgs.find((m) => m.role === 'system')!.content).toContain('مخالفة نص آمر تبقى مخالفة أياً كان الطرف');
+  });
+
+  it('assessClause: بلا مركز لا يظهر سطر مركز العميل فى رسالة المستخدم', async () => {
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, chatCompletion(OK_ASSESS, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await service.assessClause({ clauseText: 'بند', candidates: [CANDIDATE] });
+    expect(bodyOf(fetchMock).messages.find((m) => m.role === 'user')!.content).not.toContain('مركز العميل:');
+  });
+
+  it('proposeClauseRedraft: يمرّر المركز ويحمل النظام قاعدة صياغة لمصلحته بلا مساس بالأرقام', async () => {
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, chatCompletion(OK_REDRAFT, 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await service.proposeClauseRedraft({
+      clauseText: 'بند',
+      clientPosition: 'المؤجر (فى عقد إيجار)',
+      reviewNote: 'ملاحظة',
+      articles: [{ lawTitle: 'قانون', lawNo: 131, lawYear: 1948, articleNo: 224, articleText: 'نص' }],
+    });
+    const msgs = bodyOf(fetchMock).messages;
+    expect(msgs.find((m) => m.role === 'user')!.content).toContain('مركز العميل: """المؤجر (فى عقد إيجار)"""');
+    const system = msgs.find((m) => m.role === 'system')!.content;
+    expect(system).toContain('صغ البند لحماية هذا المركز');
+    expect(system).toContain('ودون المساس بالأرقام والمبالغ');
+  });
+});
