@@ -3143,8 +3143,11 @@ export class DeepseekGenerationService {
       'من عقد، وعدة مواد قانونية مصرية مرشَّحة من قوانين مختلفة (لا نطاق مقيَّد). ' +
       'ترتيب عرض المرشحين لا يعكس دقتها إطلاقاً.\n\n' +
       'خطوات إلزامية قبل أى حكم:\n' +
-      '(1) نوع العلاقة: هل نص المرشح يحكم فعلاً نفس نوع العلاقة التعاقدية التى ' +
-      'يتناولها هذا البند تحديداً (لا مجرد تشابه لفظى)؟ إن لم يكن كذلك استبعده كلياً.\n' +
+      '(1) نوع العلاقة وجوهر الحكم: هل نص المرشح يحكم فعلاً نفس نوع العلاقة التعاقدية ' +
+      'التى يتناولها هذا البند تحديداً (لا مجرد تشابه لفظى)؟ وهل يفعل البند فعلاً ما ' +
+      'تقيّده المادة، لا مجرد تقارب الموضوع؟ (مثال: المادة التى تمنع إعفاء المدين من ' +
+      'مسئوليته لا تنطبق على بند يقرر قبول المستأجر مسئوليته؛ والمادة التى تنظم فوائد ' +
+      'التأخير لا تنطبق على مبلغ تأمين يُرد.) إن لم يكن كذلك استبعده كلياً.\n' +
       '(2) نطاق السريان: هل يسرى القانون أو المادة على هذا العقد تحديداً؟ بعض ' +
       'القوانين تخص فئات محددة (مثل عقود الإيجار الخاضعة لنظام الإيجار القديم، أو ' +
       'أنشطة مالية مرخَّصة) ولا تسرى على عقد حر جديد بين طرفين. إن لم يظهر من نص ' +
@@ -3163,14 +3166,19 @@ export class DeepseekGenerationService {
       'لا يوجد بين المرشحين. يجوز أن تُنبّه بالمعنى فقط إلى مسألة تستحق نظر ' +
       'محامٍ دون ذكر رقم مادة.\n\n' +
       'أصدر حكماً واحداً من ثلاثة بالضبط: "سليم" (لا مخالفة ظاهرة لأى مرشح ' +
-      'مُعتمَد، وهو ليس اعتماداً نهائياً للبند)، "يحتاج مراجعة" (مخالفة قاعدة ' +
-      'آمرة، أو اختلاف عن قاعدة مكملة يستحق نظر محامٍ، أو صياغة فضفاضة/مجحفة)، ' +
+      'مُعتمَد، وهو ليس اعتماداً نهائياً للبند)، "يحتاج مراجعة" (مخالفة قاعدة آمرة ' +
+      'أو ناهية ثابتة بعبارة حرفية من النص المعروض، أو بند يُسقط أو يُنقص حقاً أو ' +
+      'ضماناً قررته مادة معروضة بخطر قانونى محدد تستطيع بيانه، أو صياغة غامضة أو ' +
+      'مجحفة بيّنة). أما مجرد اتفاق الطرفين على خلاف قاعدة مكملة، أو إضافة التزام ' +
+      'تعاقدى مشروع، فليس سبباً وحده لـ"يحتاج مراجعة": اختر "سليم" واذكر أن الاتفاق ' +
+      'جائز، ' +
       'أو "لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة" (لا مرشح واحد يحكم فعلاً ' +
       'هذا النوع من البنود أو يسرى على هذا العقد — هذا خيار آمن صحيح ولا يُعَد ' +
       'فشلاً، ويجب اختياره كلما كان هناك شك حقيقى بدل التخمين).\n\n' +
       'قواعد الشرح (reasoning): جملة أو جملتان بالعربية موجَّهتان للمستخدم النهائى. ' +
       'أشر للمواد برقم المادة واسم القانون فقط، ولا تذكر أبداً أرقام المرشحين ' +
-      '(مثل "المرشح 1") ولا تتحدث عن مرشحين استبعدتهم. فى حالة "لا يوجد نص ' +
+      '(مثل "المرشح 1") ولا تتحدث عن مرشحين استبعدتهم، ولا تذكر رقم أى مادة لم ' +
+      'تضعها فى selected. فى حالة "لا يوجد نص ' +
       'قانونى مصرى مفهرَس ذو صلة مباشرة" اكتب جملة واحدة تصف موضوع البند فقط.\n\n' +
       'أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى، بالضبط بهذا الشكل: ' +
       '{"assessment": "سليم أو يحتاج مراجعة أو لا يوجد نص قانونى مصرى مفهرَس ' +
@@ -3270,7 +3278,14 @@ export class DeepseekGenerationService {
   }): Promise<
     | { status: 'not_configured' }
     | { status: 'error'; detail: string }
-    | { status: 'ok'; proposedText: string; changes: string[]; canResolve: boolean }
+    | {
+        status: 'ok';
+        proposedText: string;
+        changes: string[];
+        canResolve: boolean;
+        needsChange: boolean;
+        noChangeReason: string;
+      }
   > {
     if (!this.isConfigured) {
       return { status: 'not_configured' };
@@ -3293,11 +3308,17 @@ export class DeepseekGenerationService {
       'البند؛ وأبقِ ما لا خطر فيه كما هو حرفياً.\n' +
       '(5) إن كان إزالة الخطر تتطلب وقائع أو قراراً تجارياً لا تعرفهما (مثل اختيار ' +
       'مدة أو مبلغ)، فاترك فراغاً [____] وقل ذلك فى التغييرات. وإن تعذّر الحل كلياً ' +
-      'دون هذه المعلومات فاجعل can_resolve=false.\n\n' +
+      'دون هذه المعلومات فاجعل can_resolve=false.\n' +
+      '(6) الحياد: لا تُضعف حقاً أو التزاماً قرره البند لأحد الطرفين، ولا تحذف ' +
+      'التزاماً تعاقدياً مشروعاً، ولا تنقل عبئاً من طرف إلى الآخر، إلا بالقدر الذى ' +
+      'يوجبه نص آمر أو ناهٍ ثابت بعبارة حرفية فى المواد المعروضة (مثل: "يقع باطلاً ' +
+      'كل اتفاق يخالف"). فإن لم يوجد ذلك فالبند جائز كما هو: اجعل needs_change=false ' +
+      'واشرح فى no_change_reason بجملة أو جملتين سبب جوازه، ولا تُعِد كتابة البند.\n\n' +
       'أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى، بالضبط بهذا الشكل: ' +
-      '{"proposed_text": "نص البند البديل كاملاً", "changes": ["جملة قصيرة لكل ' +
-      'تعديل تشرح ما غُيّر ولماذا (مع رقم المادة المعتمَدة إن لزم)"], ' +
-      '"can_resolve": true أو false}';
+      '{"needs_change": true أو false, "no_change_reason": "سبب عدم الحاجة للتعديل ' +
+      'إن كان needs_change=false وإلا نص فارغ", "proposed_text": "نص البند البديل ' +
+      'كاملاً (فارغ إن لم يلزم تعديل)", "changes": ["جملة قصيرة لكل تعديل تشرح ما ' +
+      'غُيّر ولماذا (مع رقم المادة المعتمَدة إن لزم)"], "can_resolve": true أو false}';
 
     const articlesText = input.articles
       .map((a) => `المادة ${a.articleNo} من ${a.lawTitle} (رقم ${a.lawNo} لسنة ${a.lawYear}):\n"""${a.articleText}"""`)
@@ -3694,9 +3715,13 @@ function parseSelectionJson(
 
 
 /** تحليل دفاعي لرد proposeClauseRedraft. */
-export function parseRedraftJson(
-  text: string,
-): { proposedText: string; changes: string[]; canResolve: boolean } | null {
+export function parseRedraftJson(text: string): {
+  proposedText: string;
+  changes: string[];
+  canResolve: boolean;
+  needsChange: boolean;
+  noChangeReason: string;
+} | null {
   const attempts = [text];
   const match = text.match(/\{[\s\S]*\}/);
   if (match) {
@@ -3704,14 +3729,23 @@ export function parseRedraftJson(
   }
   for (const attempt of attempts) {
     try {
-      const parsed = JSON.parse(attempt) as { proposed_text?: unknown; changes?: unknown; can_resolve?: unknown };
-      if (typeof parsed.proposed_text === 'string') {
+      const parsed = JSON.parse(attempt) as {
+        proposed_text?: unknown;
+        changes?: unknown;
+        can_resolve?: unknown;
+        needs_change?: unknown;
+        no_change_reason?: unknown;
+      };
+      const needsChange = parsed.needs_change !== false;
+      if (typeof parsed.proposed_text === 'string' || !needsChange) {
         return {
-          proposedText: parsed.proposed_text,
+          proposedText: typeof parsed.proposed_text === 'string' ? parsed.proposed_text : '',
           changes: Array.isArray(parsed.changes)
             ? parsed.changes.filter((c): c is string => typeof c === 'string')
             : [],
           canResolve: parsed.can_resolve !== false,
+          needsChange,
+          noChangeReason: typeof parsed.no_change_reason === 'string' ? parsed.no_change_reason : '',
         };
       }
     } catch {

@@ -19,6 +19,7 @@ import {
   anchorArticleNumbers,
   CIVIL_CODE,
   classifyClauseCriteria,
+  leaseAnchorArticleNumbers,
   scopedLawsForCriteria,
   serializeCriteria,
 } from './criteria.util';
@@ -26,6 +27,7 @@ import { Contract, ContractStatus } from '../database/entities/contract.entity';
 import { ContractClause, MatchedArticle } from '../database/entities/contract-clause.entity';
 import { ExtractionService } from './extraction.service';
 import {
+  dropUnapprovedArticleSentences,
   guardMandatoryClaims,
   softenSupplementaryWording,
   stripInternalCandidateRefs,
@@ -222,6 +224,17 @@ export class ContractsService {
           'لا يمكن اقتراح صياغة آمنة لهذا البند دون معلومات تجارية إضافية؛ يلزم نظر محامٍ مختص.',
         );
       }
+      if (outcome.needsChange === false) {
+        const note = dropUnapprovedArticleSentences(
+          outcome.noChangeReason.replace(/(?:ال)?مرشح\S*/g, ''),
+          matched.map((m) => m.article_no),
+          'لا يتطلب البند تعديلاً لإزالة خطر قانونى محدد؛ ويُترك تقدير الملاءمة التجارية لصاحب العقد أو محاميه.',
+        ).trim();
+        clause.suggestedWording = JSON.stringify({ text: '', changes: [], noChange: true, note });
+        await this.clauseRepository.save(clause);
+        await this.audit(context, 'contracts.redraft_no_change', contractId, { clauseIndex: clause.clauseIndex });
+        return this.toClauseDto(clause);
+      }
       const verdict = validateRedraft({
         proposedText: outcome.proposedText,
         changes: outcome.changes,
@@ -247,15 +260,28 @@ export class ContractsService {
     return this.toClauseDto(clause);
   }
 
-  private parseRedraft(raw: string | null): { text: string; changes: string[]; disclaimer: string } | null {
+  private parseRedraft(
+    raw: string | null,
+  ): { text: string; changes: string[]; disclaimer: string; no_change: boolean; note: string | null } | null {
     if (!raw) return null;
     try {
-      const p = JSON.parse(raw) as Partial<RedraftProposal>;
+      const p = JSON.parse(raw) as Partial<RedraftProposal> & { noChange?: boolean; note?: string };
+      if (p.noChange === true) {
+        return {
+          text: '',
+          changes: [],
+          disclaimer: REDRAFT_DISCLAIMER,
+          no_change: true,
+          note: typeof p.note === 'string' && p.note ? p.note : null,
+        };
+      }
       if (typeof p.text !== 'string' || !p.text) return null;
       return {
         text: p.text,
         changes: Array.isArray(p.changes) ? p.changes.filter((c): c is string => typeof c === 'string') : [],
         disclaimer: REDRAFT_DISCLAIMER,
+        no_change: false,
+        note: null,
       };
     } catch {
       return null;
@@ -310,7 +336,7 @@ export class ContractsService {
       // لا يلتقطها البحث العام لأن صياغة البند التعاقدى لا تشبه صياغة النص القانونى.
       const criteria = classifyClauseCriteria(row.clauseTitle, row.clauseText);
       row.clauseTypeGuess = serializeCriteria(criteria);
-      const anchors = await this.anchorCandidates(criteria, row.clauseText);
+      const anchors = await this.anchorCandidates(criteria, row.clauseText, row.clauseTitle);
 
       if (merged.length === 0 && anchors.length === 0) {
         row.assessmentStatus = 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';
@@ -389,10 +415,11 @@ export class ContractsService {
           // بند بلا نص مفهرَس: وصف موضوع البند فقط، بلا تعليل عن نصوص استُبعدت
           row.assessmentReasoning = downgradedForNoCitation
             ? 'لا يوجد نص قانونى مصرى مفهرَس يحكم هذا البند مباشرة.'
-            : tidyNoTextReasoning(assessment.reasoning);
+            : tidyNoTextReasoning(dropUnapprovedArticleSentences(assessment.reasoning, [], ''));
         } else {
-          const cleaned = stripInternalCandidateRefs(
-            assessment.reasoning,
+          const cleaned = dropUnapprovedArticleSentences(
+            stripInternalCandidateRefs(assessment.reasoning, 'يلزم نظر محامٍ مختص فى هذا البند.'),
+            matched.map((m) => m.article_no),
             'يلزم نظر محامٍ مختص فى هذا البند.',
           );
           // الحاجز البنيوى: لا ادعاء "آمرة/مخالفة صريحة" بلا عبارة حرفية موثَّقة من نص المادة
@@ -406,7 +433,7 @@ export class ContractsService {
               text: topCandidates[i].citation.snippet,
             })),
           });
-          row.assessmentReasoning = softenSupplementaryWording(guarded.reasoning);
+          row.assessmentReasoning = softenSupplementaryWording(guarded.reasoning, guarded.mandatoryVerified);
         }
         row.matchedArticles = matched;
         row.assessmentConfidence = assessment.confidence;
@@ -577,9 +604,12 @@ export class ContractsService {
   private async anchorCandidates(
     criteria: ReturnType<typeof classifyClauseCriteria>,
     clauseText: string,
+    clauseTitle: string | null,
   ): Promise<ClauseCandidate[]> {
     const out: ClauseCandidate[] = [];
-    const articleNos = anchorArticleNumbers(criteria, 4);
+    const articleNos = Array.from(
+      new Set([...anchorArticleNumbers(criteria, 3), ...leaseAnchorArticleNumbers(clauseTitle, clauseText, 3)]),
+    );
     if (articleNos.length > 0) {
       const rows: Array<{
         article_no: number;

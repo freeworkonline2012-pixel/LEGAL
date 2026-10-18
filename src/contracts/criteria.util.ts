@@ -138,7 +138,7 @@ export function classifyClauseCriteria(title: string | null | undefined, text: s
 }
 
 /** مواد القانون المدنى المرجعية للمعايير المكتشفة، بلا تكرار وبحد أقصى `max` */
-export function anchorArticleNumbers(criteria: ContractCriterion[], max = 4): number[] {
+export function anchorArticleNumbers(criteria: ContractCriterion[], max = 3): number[] {
   const out: number[] = [];
   // جولة واحدة لكل معيار بالتناوب كى لا يستحوذ المعيار الأول على كل الحصة
   const lists = criteria.map((k) => [...(BY_KEY[k]?.civilCodeAnchors ?? [])]);
@@ -164,4 +164,45 @@ export function scopedLawsForCriteria(criteria: ContractCriterion[]): Array<{ la
 /** يحوّل قائمة المفاتيح إلى النص المخزَّن فى clause_type_guess (مفاتيح مفصولة بفاصلة) */
 export function serializeCriteria(criteria: ContractCriterion[]): string | null {
   return criteria.length > 0 ? criteria.join(',') : null;
+}
+
+/**
+ * بنود عقود الإيجار: مواد فصل الإيجار من القانون المدنى (558-609) بحسب موضوع البند. نصها
+ * الحرفى متحقَّق منه من migrations/074 (576-578 ضمان العيوب وبطلان الإعفاء عند تعمد
+ * الإخفاء، 579-583 التزامات المستأجر، 586 وفاء الأجرة، 590-591 رد العين، 593-595
+ * التنازل والإيجار من الباطن، 598-599 انتهاء المدة والتجديد، 604 نقل الملكية،
+ * 607-608 الإنهاء المبكر). تُفعَّل فقط حين يظهر من البند نفسه أنه بند إيجار.
+ */
+const LEASE_CONTEXT = /مؤجر|مستاجر|ايجار|الاجره|العين المؤجره/;
+
+const LEASE_TOPICS: ReadonlyArray<{ pattern: RegExp; articles: number[] }> = [
+  { pattern: /عاين|معاينه|الجهاله|عيوب|عيب/, articles: [576, 578, 577] },
+  { pattern: /ديكور|تغيير|هدم|بناء|تعديلات/, articles: [580, 581] },
+  { pattern: /من الباطن|التنازل عن/, articles: [593, 594, 595] },
+  { pattern: /تسليم العين|رد العين|اخلاء|انتهاء العقد|انتهاء مده/, articles: [590, 591, 598] },
+  { pattern: /الاجره|القيمه الايجاريه|سداد|يسدد|يدفع/, articles: [586] },
+  { pattern: /انهاء|فسخ|اخطار/, articles: [608, 607] },
+  { pattern: /مده|سنه|سنوات|تجديد|يجدد/, articles: [598, 599] },
+  { pattern: /استخدام|استعمال|مقر|نشاط/, articles: [579, 583] },
+  { pattern: /صيانه|ترميم|اصلاح/, articles: [582, 567] },
+  { pattern: /نقل الملكيه|يحل محل|خلف/, articles: [604] },
+];
+
+export function leaseAnchorArticleNumbers(title: string | null | undefined, text: string, max = 3): number[] {
+  const haystack = normalizeArabicForMatch(`${title ?? ''} ${text ?? ''}`);
+  if (!LEASE_CONTEXT.test(haystack)) return [];
+  const out: number[] = [];
+  const lists = LEASE_TOPICS.filter((t) => t.pattern.test(haystack)).map((t) => [...t.articles]);
+  let progressed = true;
+  while (out.length < max && progressed) {
+    progressed = false;
+    for (const list of lists) {
+      const next = list.shift();
+      if (next !== undefined) {
+        progressed = true;
+        if (!out.includes(next) && out.length < max) out.push(next);
+      }
+    }
+  }
+  return out;
 }

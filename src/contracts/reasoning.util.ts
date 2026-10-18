@@ -117,11 +117,51 @@ export function tidyNoTextReasoning(reasoning: string): string {
 
 /**
  * اختلاف البند عن قاعدة مكملة ليس "مخالفة" (الطرفان حران فى الاتفاق على خلافها): نصحّح
- * الصياغة الجارية "يخالف القاعدة المكملة" إلى "يختلف عن القاعدة المكملة". جولة اختبار حى 3.
+ * الصياغة الجارية "يخالف القاعدة المكملة" إلى "يختلف عن القاعدة المكملة". وحين لا تثبت
+ * مخالفة آمرة بعبارة حرفية (verified=false) تُخفَّف أيضاً "يخالف مقتضى/حكم/نص المادة"
+ * إلى "يختلف عن"، لأن لفظ المخالفة ادعاء قاطع بلا سند حرفى. جولتا اختبار حى 3 و4.
  */
-export function softenSupplementaryWording(reasoning: string): string {
-  return (reasoning ?? '').replace(
+export function softenSupplementaryWording(reasoning: string, verifiedMandatory = false): string {
+  let out = (reasoning ?? '').replace(
     /(?:يخالف|تخالف)\s+(?=(?:ال)?قواعد?\s+(?:ال)?مكملة|(?:ال)?قاعدة\s+(?:ال)?مكملة)/g,
     'يختلف عن ',
   );
+  if (!verifiedMandatory) {
+    out = out.replace(/(?:يخالف|تخالف)\s+(?=(?:مقتضى|حكم|نص|ما\s+تقضى|ما\s+تقضي|الماد[ةه]))/g, 'يختلف عن ');
+  }
+  return out;
+}
+
+const ARTICLE_REF = /(?:ال)?(?:ماد(?:ة|ه|تين|تان|تي)|مواد)\s*(?:رقم\s*)?((?:\d+(?:\/\d+)?(?:\s*(?:،|,|و|أو|او|إلى|الى)\s*)?)+)/g;
+
+function articleNumbersIn(sentence: string): number[] {
+  const nums: number[] = [];
+  for (const m of sentence.matchAll(ARTICLE_REF)) {
+    for (const n of m[1].matchAll(/(\d+)(?:\/\d+)?/g)) {
+      nums.push(Number(n[1]));
+    }
+  }
+  return nums;
+}
+
+/**
+ * جمل الشرح التى تذكر رقم مادة ليس بين المواد المعتمَدة فعلاً (غالباً مادة استبعدها
+ * النموذج: "المادة 18 من نموذج عقد التأمين لا تحكم هذا البند") تُحذف: هى تفصيل داخلى
+ * مربك، وأى ادعاء عن مادة غير معتمَدة بلا سند. إن لم يبقَ شىء يُستخدم الاحتياطى.
+ */
+export function dropUnapprovedArticleSentences(
+  reasoning: string,
+  approvedArticleNos: number[],
+  fallback: string,
+): string {
+  const approved = new Set(approvedArticleNos);
+  const sentences = (reasoning ?? '')
+    .split(/(?<=[.؟!])\s+/)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const kept = sentences.filter((sentence) => articleNumbersIn(sentence).every((n) => approved.has(n)));
+  if (kept.length === 0) {
+    return fallback;
+  }
+  return kept.join(' ');
 }

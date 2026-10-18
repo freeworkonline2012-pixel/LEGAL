@@ -1,4 +1,10 @@
-import { anchorArticleNumbers, classifyClauseCriteria, scopedLawsForCriteria, serializeCriteria } from './criteria.util';
+import {
+  anchorArticleNumbers,
+  classifyClauseCriteria,
+  leaseAnchorArticleNumbers,
+  scopedLawsForCriteria,
+  serializeCriteria,
+} from './criteria.util';
 
 describe('classifyClauseCriteria', () => {
   it('يصنّف شرطاً جزائياً كتعويض', () => {
@@ -57,5 +63,25 @@ describe('scopedLawsForCriteria / serializeCriteria', () => {
   it('تسلسل المفاتيح', () => {
     expect(serializeCriteria(['exit', 'payment'])).toBe('exit,payment');
     expect(serializeCriteria([])).toBeNull();
+  });
+});
+
+describe('leaseAnchorArticleNumbers', () => {
+  it('بند معاينة فى عقد إيجار يجلب مواد ضمان العيوب', () => {
+    const r = leaseAnchorArticleNumbers(null, 'يقر المستأجر بأنه عاين العين المؤجرة المعاينة التامة النافية للجهالة.');
+    expect(r).toContain(576);
+    expect(r).toContain(578);
+  });
+  it('بند رد العين وانتهاء المدة', () => {
+    const r = leaseAnchorArticleNumbers('الانتهاء', 'عند انتهاء العقد يلتزم المستأجر بتسليم العين المؤجرة خالية.');
+    expect(r).toContain(590);
+  });
+  it('لا مواد إيجار لبند ليس فى سياق إيجار', () => {
+    expect(leaseAnchorArticleNumbers(null, 'يحل البائع محل الشركة فى التزامات التوريد وتسليم البضاعة.')).toEqual([]);
+  });
+  it('يحترم الحد الأقصى', () => {
+    expect(
+      leaseAnchorArticleNumbers(null, 'المستأجر يسدد الأجرة ويعاين العين وينهى العقد ويغير الديكور ويجدد المدة.', 3).length,
+    ).toBeLessThanOrEqual(3);
   });
 });

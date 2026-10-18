@@ -622,6 +622,67 @@ describe('DeepseekGenerationService.assessClause — حواجز تعليمات �
     expect(system).toContain('يخالف صراحة');
     expect(system).toContain('ولا تذكر أبداً أرقام المرشحين');
   });
+
+  it('تتضمن التعليمات فحص جوهر الحكم وتضييق "يحتاج مراجعة" ومنع ذكر مواد غير معتمدة (جولة 4)', async () => {
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse(
+        200,
+        chatCompletion('{"assessment":"سليم","selected":[1],"reasoning":"جائز","confidence":0.6}', 'stop'),
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await service.assessClause({ clauseText: 'بند تجريبى', candidates: [CANDIDATE] });
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const system = body.messages.find((m) => m.role === 'system')!.content;
+    expect(system).toContain('جوهر الحكم');
+    expect(system).toContain('لا تنطبق على بند يقرر قبول المستأجر مسئوليته');
+    expect(system).toContain('فليس سبباً وحده');
+    expect(system).toContain('ولا تذكر رقم أى مادة لم تضعها فى selected');
+  });
+});
+
+describe('DeepseekGenerationService.proposeClauseRedraft — تعليمات الصياغة', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it('تتضمن قواعد عدم اختراع الأرقام والحياد وحقل needs_change، وتعيد النتيجة', async () => {
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse(
+        200,
+        chatCompletion(
+          '{"needs_change":false,"no_change_reason":"جائز","proposed_text":"","changes":[],"can_resolve":true}',
+          'stop',
+        ),
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const r = await service.proposeClauseRedraft({
+      clauseText: 'بند',
+      reviewNote: 'ملاحظة',
+      articles: [{ lawTitle: 'قانون', lawNo: 131, lawYear: 1948, articleNo: 224, articleText: 'نص' }],
+    });
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const system = body.messages.find((m) => m.role === 'system')!.content;
+    expect(system).toContain('[____]');
+    expect(system).toContain('الحياد');
+    expect(system).toContain('needs_change');
+    expect(r.status === 'ok' && r.needsChange).toBe(false);
+  });
 });
 
 describe('DeepseekGenerationService.assessClause — حقول الادعاء القاطع (2026-10-18)', () => {

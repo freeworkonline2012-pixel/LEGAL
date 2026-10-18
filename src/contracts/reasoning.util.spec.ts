@@ -120,6 +120,43 @@ describe('softenSupplementaryWording', () => {
     );
   });
   it('لا يمسّ "يخالف" فى سياق آخر', () => {
-    expect(softenSupplementaryWording('يخالف نص المادة 5.')).toBe('يخالف نص المادة 5.');
+    expect(softenSupplementaryWording('يخالف الطرف الأول التزامه التعاقدى.')).toBe('يخالف الطرف الأول التزامه التعاقدى.');
+  });
+});
+
+import { dropUnapprovedArticleSentences } from './reasoning.util';
+
+describe('dropUnapprovedArticleSentences (جولة 4)', () => {
+  it('يحذف الجملة التى تذكر مادة غير معتمدة ويُبقى الباقى', () => {
+    const input =
+      'البند إقرار بالمعاينة ويتقاطع مع المادتين 576 و577 من القانون المدنى. المادة 18 من نموذج عقد التأمين الجماعى لا تحكم هذا النوع من العلاقة.';
+    expect(dropUnapprovedArticleSentences(input, [576, 577], 'احتياطى')).toBe(
+      'البند إقرار بالمعاينة ويتقاطع مع المادتين 576 و577 من القانون المدنى.',
+    );
+  });
+  it('يحذف جملة "المادة 988 تخص المنتفع فاستُبعدت"', () => {
+    const input = 'البند يضيف التزاماً تعاقدياً. المادة 988 تخص المنتفع لا المستأجر فاستُبعدت.';
+    expect(dropUnapprovedArticleSentences(input, [580], 'احتياطى')).toBe('البند يضيف التزاماً تعاقدياً.');
+  });
+  it('يُبقى الإحالة بصيغة 217/2 إن كانت 217 معتمدة', () => {
+    const input = 'قد يتعارض مع حدود المادة 217/2 من القانون المدنى.';
+    expect(dropUnapprovedArticleSentences(input, [217], 'احتياطى')).toBe(input);
+  });
+  it('يعيد الاحتياطى إن حُذفت كل الجمل', () => {
+    expect(dropUnapprovedArticleSentences('المادة 5 تخص شيئاً آخر.', [], 'احتياطى')).toBe('احتياطى');
+  });
+  it('لا يحذف جملة بلا أرقام مواد', () => {
+    expect(dropUnapprovedArticleSentences('يلزم نظر محامٍ.', [], 'احتياطى')).toBe('يلزم نظر محامٍ.');
+  });
+});
+
+describe('softenSupplementaryWording — مخالفة غير موثقة', () => {
+  it('يخفف "يخالف مقتضى المادة 158" ما لم تثبت مخالفة آمرة', () => {
+    expect(softenSupplementaryWording('منح حق الإنهاء فوراً يخالف مقتضى المادة 158.')).toBe(
+      'منح حق الإنهاء فوراً يختلف عن مقتضى المادة 158.',
+    );
+  });
+  it('يترك لفظ المخالفة إن ثبتت مخالفة آمرة بعبارة حرفية', () => {
+    expect(softenSupplementaryWording('الشرط يخالف نص المادة 224.', true)).toBe('الشرط يخالف نص المادة 224.');
   });
 });

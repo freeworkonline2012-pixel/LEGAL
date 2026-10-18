@@ -14,6 +14,8 @@ export class SuggestedRedraftDto {
   @ApiProperty() text: string;
   @ApiProperty({ type: [String] }) changes: string[];
   @ApiProperty() disclaimer: string;
+  @ApiProperty() no_change: boolean;
+  @ApiPropertyOptional({ nullable: true }) note: string | null;
 }
 
 export class ContractClauseResponseDto {

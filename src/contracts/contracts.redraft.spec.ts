@@ -79,6 +79,7 @@ describe('ContractsService.proposeRedraft', () => {
       {
         status: 'ok',
         canResolve: true,
+        needsChange: true,
         proposedText: 'يلتزم المستأجر بسداد غرامة تأخير قدرها 5% عن كل يوم تأخير، مع بقاء حق القاضى فى تخفيضها إذا كان التقدير مبالغاً فيه.',
         changes: ['إزالة منع التخفيض بسبب المادة 224'],
       },
@@ -95,6 +96,7 @@ describe('ContractsService.proposeRedraft', () => {
       {
         status: 'ok',
         canResolve: true,
+        needsChange: true,
         proposedText: 'يلتزم المستأجر بسداد غرامة تأخير قدرها 2% عن كل يوم تأخير مع جواز تخفيضها قضاءً عند المبالغة.',
         changes: [],
       },
@@ -106,6 +108,25 @@ describe('ContractsService.proposeRedraft', () => {
   it('يرفض عند can_resolve=false', async () => {
     const { service } = build({}, { status: 'ok', canResolve: false, proposedText: '', changes: [] });
     await expect(service.proposeRedraft('c1', 'cl1', ctx)).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it('يخزّن ويعيد "لا يتطلب تعديلاً" مع السبب ويحذف المواد غير المعتمدة منه', async () => {
+    const { service, clauseRepo } = build(
+      {},
+      {
+        status: 'ok',
+        canResolve: true,
+        needsChange: false,
+        noChangeReason: 'الاتفاق على خلاف قاعدة مكملة جائز. المادة 999 لا تتصل بالبند.',
+        proposedText: '',
+        changes: [],
+      },
+    );
+    const dto = await service.proposeRedraft('c1', 'cl1', ctx);
+    expect(dto.suggested_redraft?.no_change).toBe(true);
+    expect(dto.suggested_redraft?.note).toBe('الاتفاق على خلاف قاعدة مكملة جائز.');
+    expect(dto.suggested_redraft?.text).toBe('');
+    expect(clauseRepo.save).toHaveBeenCalled();
   });
 
   it('يعيد المخزَّن دون استدعاء النموذج مرة ثانية', async () => {
@@ -123,10 +144,17 @@ describe('parseRedraftJson', () => {
       proposedText: 'نص',
       changes: ['أ'],
       canResolve: true,
+      needsChange: true,
+      noChangeReason: '',
     });
   });
   it('يستخرج JSON من نص محيط', () => {
     expect(parseRedraftJson('هذا: {"proposed_text":"نص","can_resolve":false} انتهى')?.canResolve).toBe(false);
+  });
+  it('يقرأ needs_change=false مع السبب', () => {
+    expect(
+      parseRedraftJson('{"needs_change": false, "no_change_reason": "جائز", "proposed_text": "", "changes": []}'),
+    ).toEqual({ proposedText: '', changes: [], canResolve: true, needsChange: false, noChangeReason: 'جائز' });
   });
   it('يعيد null لغير الصالح', () => {
     expect(parseRedraftJson('لا json')).toBeNull();
