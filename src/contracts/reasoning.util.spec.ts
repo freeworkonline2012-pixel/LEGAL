@@ -24,11 +24,18 @@ describe('stripInternalCandidateRefs', () => {
   });
 });
 
-import { guardMandatoryClaims, isQuoteInArticles, normalizeArabicForMatch, tidyNoTextReasoning } from './reasoning.util';
+import {
+  guardMandatoryClaims,
+  isQuoteInArticles,
+  normalizeArabicForMatch,
+  tidyNoTextReasoning,
+} from './reasoning.util';
 
 describe('guardMandatoryClaims', () => {
   const ART_608 = 'إذا طرأت ظروف خطيرة غير متوقعة من شأنها أن تجعل تنفيذ الالتزام مرهقاً للمستأجر جاز له أن يطلب إنهاء العقد';
   const matched = [{ law: 'القانون المدنى 131/1948', articleNo: 608, text: ART_608 }];
+  const ART_224 = 'ويقع باطلا كل اتفاق يخالف أحكام الفقرتين السابقتين.';
+  const matched224 = [{ law: 'القانون المدنى 131/1948', articleNo: 224, text: ART_224 }];
 
   it('يخفّض ادعاء "قاعدة آمرة" بلا عبارة حرفية مُثبتة ويستبدل الشرح بجملة آمنة', () => {
     const out = guardMandatoryClaims({
@@ -57,8 +64,8 @@ describe('guardMandatoryClaims', () => {
     const out = guardMandatoryClaims({
       reasoning: 'يخالف نصاً ناهياً صراحة.',
       violationType: 'mandatory_violation',
-      mandatoryQuote: 'ظروف خطيرة غير متوقعة من شأنها',
-      matched,
+      mandatoryQuote: 'ويقع باطلا كل اتفاق يخالف أحكام الفقرتين',
+      matched: matched224,
     });
     expect(out.mandatoryVerified).toBe(true);
     expect(out.violationType).toBe('mandatory_violation');
@@ -175,5 +182,55 @@ describe('guardMandatoryClaims: المادة المحورية فى الجملة 
     expect(out.mandatoryVerified).toBe(false);
     expect(out.reasoning).toContain('المادة 224');
     expect(out.reasoning).not.toContain('598');
+  });
+});
+
+describe('guardMandatoryClaims: عبارة بلا أثر ملزم لا تُثبت الصفة الآمرة (اختبار حى 5)', () => {
+  const ART_608 = 'إذا طرأت ظروف خطيرة غير متوقعة من شأنها أن تجعل تنفيذ الالتزام مرهقاً للمستأجر جاز له أن يطلب إنهاء العقد';
+  const matched = [{ law: 'القانون المدنى 131/1948', articleNo: 608, text: ART_608 }];
+
+  it('عبارة موجودة حرفياً لكن بلا صيغة منع أو بطلان ليست إثباتاً', () => {
+    const out = guardMandatoryClaims({
+      reasoning: 'البند يخالف قاعدة المادة 608.',
+      violationType: 'mandatory_violation',
+      mandatoryQuote: 'ظروف خطيرة غير متوقعة من شأنها',
+      matched,
+    });
+    expect(out.mandatoryVerified).toBe(false);
+    expect(out.violationType).toBe('supplementary_difference');
+  });
+
+  it('بند "سليم": لا تُستبدل شروحه بجملة اختلاف؛ تُحذف الجملة القاطعة فقط', () => {
+    const out = guardMandatoryClaims({
+      reasoning: 'البند يتفق مع المادة 583 فى التزام المستأجر بالمحافظة على العين. ولا يوجد ما يخالف قاعدة آمرة أو يقع باطلا.',
+      violationType: 'none',
+      mandatoryQuote: '',
+      assessmentStatus: 'سليم',
+      matched: [{ law: 'القانون المدنى 131/1948', articleNo: 583, text: 'نص' }],
+    });
+    expect(out.reasoning).toBe('البند يتفق مع المادة 583 فى التزام المستأجر بالمحافظة على العين.');
+    expect(out.reasoning).not.toContain('يختلف');
+  });
+
+  it('بند "سليم" كل جمله قاطعة: جملة محايدة بدل اختلاف مناقض للحالة', () => {
+    const out = guardMandatoryClaims({
+      reasoning: 'لا يجوز الاتفاق على خلافه.',
+      violationType: 'none',
+      mandatoryQuote: '',
+      assessmentStatus: 'سليم',
+      matched: [],
+    });
+    expect(out.reasoning).toBe('لا مخالفة ظاهرة لنص آمر فى النصوص المعروضة.');
+  });
+});
+
+describe('softenSupplementaryWording: يخالف قاعدة / يتعارض مع', () => {
+  it('يخفّف "يخالف قاعدة المادة" و"يتعارض مع المادة" عند عدم ثبوت مخالفة آمرة', () => {
+    const out = softenSupplementaryWording('هذا يخالف قاعدة المادة 608، كما يتعارض مع المادة 598.', false);
+    expect(out).toBe('هذا يختلف عن قاعدة المادة 608، كما يختلف عن المادة 598.');
+  });
+  it('لا يمسّها عند ثبوت المخالفة', () => {
+    const t = 'هذا يخالف قاعدة المادة 224.';
+    expect(softenSupplementaryWording(t, true)).toBe(t);
   });
 });

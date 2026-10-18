@@ -455,6 +455,7 @@ export class ContractsService {
             reasoning: cleaned,
             violationType: assessment.violationType,
             mandatoryQuote: assessment.mandatoryQuote,
+            assessmentStatus: row.assessmentStatus,
             matched: validIndices.map((i) => ({
               law: topCandidates[i].citation.law,
               articleNo: topCandidates[i].citation.articleNo,

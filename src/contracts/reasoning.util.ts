@@ -42,6 +42,17 @@ export function normalizeArabicForMatch(text: string): string {
 const MIN_QUOTE_LENGTH = 10;
 
 /** هل العبارة المستشهَد بها موجودة حرفياً (بعد التوحيد) فى أحد نصوص المواد المعتمَدة؟ */
+/**
+ * العبارة التى تُثبت الصفة الآمرة/الناهية يجب أن تحمل أثراً ملزماً صريحاً. وجود أى عبارة
+ * فى نص المادة لا يكفى: المادة 608 مثلاً حُكم عليها "آمرة" بعبارة عادية من نصها (اختبار حى 5).
+ */
+const MANDATORY_MARKER =
+  /باطل|بطلان|لا يجوز|لا تجوز|يحظر|يحرم|ممنوع|لا يكون\s+نافذ|لا ينفذ|لا يسري|لا تسري|لا يعتد|لا يصح|يقع\s+باطل|كل اتفاق\s+يخالف|على خلاف ذلك/;
+
+export function hasMandatoryMarker(quote: string): boolean {
+  return MANDATORY_MARKER.test(normalizeArabicForMatch(quote));
+}
+
 export function isQuoteInArticles(quote: string, articleTexts: string[]): boolean {
   const q = normalizeArabicForMatch(quote);
   if (q.length < MIN_QUOTE_LENGTH) {
@@ -59,6 +70,8 @@ export interface GuardInput {
   mandatoryQuote: string;
   /** نصوص المواد المعتمَدة فعلاً كأساس (matched) مع ترويسة كل منها لبناء الجملة الآمنة */
   matched: Array<{ law: string; articleNo: number; text: string }>;
+  /** حالة التقييم النهائية؛ "سليم" لا تُستبدل شروحه بجملة اختلاف بل تُحذف منه جمل الادعاء القاطع فقط */
+  assessmentStatus?: string;
 }
 
 export interface GuardResult {
@@ -73,8 +86,23 @@ export interface GuardResult {
  * آمنة تذكر المادة فقط. لا نترك ادعاءً قانونياً قاطعاً بلا سند حرفى.
  */
 export function guardMandatoryClaims(input: GuardInput): GuardResult {
+  if (input.assessmentStatus === 'سليم') {
+    // بند سليم لا يحمل ادعاء مخالفة: الجملة البديلة "يختلف عن القاعدة" تناقض حالته (اختبار حى 5،
+    // البند 11). نُسقط فقط الجمل ذات اللغة القاطعة ونُبقى بقية الشرح.
+    const sentences = (input.reasoning ?? '')
+      .split(/(?<=[.؟!])\s+/)
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .filter((x) => !MANDATORY_LANGUAGE.test(x));
+    return {
+      reasoning: sentences.length > 0 ? sentences.join(' ') : 'لا مخالفة ظاهرة لنص آمر فى النصوص المعروضة.',
+      violationType: 'none',
+      mandatoryVerified: false,
+    };
+  }
   const verified =
     input.violationType === 'mandatory_violation' &&
+    hasMandatoryMarker(input.mandatoryQuote) &&
     isQuoteInArticles(
       input.mandatoryQuote,
       input.matched.map((m) => m.text),
@@ -130,7 +158,15 @@ export function softenSupplementaryWording(reasoning: string, verifiedMandatory 
     'يختلف عن ',
   );
   if (!verifiedMandatory) {
-    out = out.replace(/(?:يخالف|تخالف)\s+(?=(?:مقتضى|حكم|نص|ما\s+تقضى|ما\s+تقضي|الماد[ةه]))/g, 'يختلف عن ');
+    out = out.replace(
+      /(?:يخالف|تخالف)\s+(?=(?:مقتضى|حكم|نص|ما\s+تقضى|ما\s+تقضي|الماد[ةه]|(?:ال)?قاعد[ةه]))/g,
+      'يختلف عن ',
+    );
+    // "يتعارض مع" ادعاء قاطع كذلك (البند 6: "يتعارض مع المادة 598" وهى لا تمنع الإنهاء بإخطار)
+    out = out.replace(
+      /(?:يتعارض|تتعارض)\s+مع\s+(?=(?:مقتضى|حكم|نص|ما\s+تقضى|ما\s+تقضي|الماد[ةه]|(?:ال)?قاعد[ةه]))/g,
+      'يختلف عن ',
+    );
   }
   return out;
 }
