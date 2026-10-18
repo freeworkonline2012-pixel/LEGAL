@@ -578,3 +578,48 @@ describe('DeepseekGenerationService.selectIndefiniteTerminationBundleArticles', 
     expect(result).toEqual({ status: 'ok', selectedIndices: [], reason: 'لا مرشحين' });
   });
 });
+
+describe('DeepseekGenerationService.assessClause — حواجز تعليمات المدقق (2026-10-18)', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it('تتضمن التعليمات فحص نطاق السريان والتمييز بين القاعدة الآمرة والمكملة ومنع ذكر ترقيم المرشحين', async () => {
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse(
+        200,
+        chatCompletion(
+          '{"assessment":"يحتاج مراجعة","selected":[1],"reasoning":"تفسير","confidence":0.6}',
+          'stop',
+        ),
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const result = await service.assessClause({
+      clauseText: 'بند تجريبى',
+      candidates: [CANDIDATE],
+    });
+
+    expect(result.status).toBe('ok');
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const system = body.messages.find((m) => m.role === 'system')!.content;
+    expect(system).toContain('نطاق السريان');
+    expect(system).toContain('قاعدة آمرة');
+    expect(system).toContain('قاعدة مكملة');
+    expect(system).toContain('يخالف صراحة');
+    expect(system).toContain('ولا تذكر أبداً أرقام المرشحين');
+  });
+});

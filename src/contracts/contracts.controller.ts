@@ -18,6 +18,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import type { RequestWithUser } from '../common/interfaces/request-with-user.interface';
 import { ContractResponseDto } from './dto/contract-response.dto';
 import { ContractsService } from './contracts.service';
+import { normalizeUploadedFilename } from './filename.util';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB — عقود نصّية عادةً بضع مئات KB، هامش واسع كافٍ بلا فتح الباب لملفات ضخمة غير منطقية
 const ALLOWED_MIME_TYPES = new Set([
@@ -60,7 +61,11 @@ export class ContractsController {
     // request.user مضمون الوجود هنا (JwtAuthGuard إلزامى على كل مسارات هذا الـcontroller)
     const userId = request.user!.userId;
     return this.contractsService.upload(
-      { buffer: file.buffer, mimetype: file.mimetype, originalname: file.originalname },
+      {
+        buffer: file.buffer,
+        mimetype: file.mimetype,
+        originalname: normalizeUploadedFilename(file.originalname),
+      },
       {
         userId,
         ipAddress: request.ip ?? null,

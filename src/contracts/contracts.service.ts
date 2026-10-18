@@ -11,6 +11,7 @@ import { buildFtsQuery, confidenceFromRank } from '../questions/retrieval';
 import { Contract, ContractStatus } from '../database/entities/contract.entity';
 import { ContractClause, MatchedArticle } from '../database/entities/contract-clause.entity';
 import { ExtractionService } from './extraction.service';
+import { stripInternalCandidateRefs } from './reasoning.util';
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractResponseDto } from './dto/contract-response.dto';
 
@@ -237,11 +238,19 @@ export class ContractsService {
         // نفس القيد الدفاعى المطبَّق فى GovernanceService: حكم "سليم"/"يحتاج
         // مراجعة" بلا أى استشهاد مُعتمَد فعلياً غير منطقى بنيوياً — يُخفَّض
         // قسراً بدل الثقة بحكم بلا أساس مستشهَد به.
-        row.assessmentStatus =
-          assessment.assessment !== 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة' && matched.length === 0
-            ? 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة'
-            : assessment.assessment;
-        row.assessmentReasoning = assessment.reasoning;
+        const NO_TEXT_STATUS = 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';
+        const downgradedForNoCitation = assessment.assessment !== NO_TEXT_STATUS && matched.length === 0;
+        row.assessmentStatus = downgradedForNoCitation ? NO_TEXT_STATUS : assessment.assessment;
+        // حكم بلا استشهاد معتمَد لا يُعرَض شرحه (قد يصف مخالفة بلا أساس مستشهَد به):
+        // نستبدله بجملة صريحة بدل تناقض بين الحالة والشرح.
+        row.assessmentReasoning = downgradedForNoCitation
+          ? 'لا يوجد نص قانونى مصرى مفهرَس يحكم هذا البند مباشرة.'
+          : stripInternalCandidateRefs(
+              assessment.reasoning,
+              row.assessmentStatus === NO_TEXT_STATUS
+                ? 'لا يوجد نص قانونى مصرى مفهرَس يحكم هذا البند مباشرة.'
+                : 'يلزم نظر محامٍ مختص فى هذا البند.',
+            );
         row.matchedArticles = matched;
         row.assessmentConfidence = assessment.confidence;
       }
