@@ -11,7 +11,7 @@ import { buildFtsQuery, confidenceFromRank } from '../questions/retrieval';
 import { Contract, ContractStatus } from '../database/entities/contract.entity';
 import { ContractClause, MatchedArticle } from '../database/entities/contract-clause.entity';
 import { ExtractionService } from './extraction.service';
-import { stripInternalCandidateRefs } from './reasoning.util';
+import { guardMandatoryClaims, stripInternalCandidateRefs, tidyNoTextReasoning } from './reasoning.util';
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractResponseDto } from './dto/contract-response.dto';
 
@@ -243,14 +243,29 @@ export class ContractsService {
         row.assessmentStatus = downgradedForNoCitation ? NO_TEXT_STATUS : assessment.assessment;
         // حكم بلا استشهاد معتمَد لا يُعرَض شرحه (قد يصف مخالفة بلا أساس مستشهَد به):
         // نستبدله بجملة صريحة بدل تناقض بين الحالة والشرح.
-        row.assessmentReasoning = downgradedForNoCitation
-          ? 'لا يوجد نص قانونى مصرى مفهرَس يحكم هذا البند مباشرة.'
-          : stripInternalCandidateRefs(
-              assessment.reasoning,
-              row.assessmentStatus === NO_TEXT_STATUS
-                ? 'لا يوجد نص قانونى مصرى مفهرَس يحكم هذا البند مباشرة.'
-                : 'يلزم نظر محامٍ مختص فى هذا البند.',
-            );
+        if (downgradedForNoCitation || row.assessmentStatus === NO_TEXT_STATUS) {
+          // بند بلا نص مفهرَس: وصف موضوع البند فقط، بلا تعليل عن نصوص استُبعدت
+          row.assessmentReasoning = downgradedForNoCitation
+            ? 'لا يوجد نص قانونى مصرى مفهرَس يحكم هذا البند مباشرة.'
+            : tidyNoTextReasoning(assessment.reasoning);
+        } else {
+          const cleaned = stripInternalCandidateRefs(
+            assessment.reasoning,
+            'يلزم نظر محامٍ مختص فى هذا البند.',
+          );
+          // الحاجز البنيوى: لا ادعاء "آمرة/مخالفة صريحة" بلا عبارة حرفية موثَّقة من نص المادة
+          const guarded = guardMandatoryClaims({
+            reasoning: cleaned,
+            violationType: assessment.violationType,
+            mandatoryQuote: assessment.mandatoryQuote,
+            matched: validIndices.map((i) => ({
+              law: topCandidates[i].citation.law,
+              articleNo: topCandidates[i].citation.articleNo,
+              text: topCandidates[i].citation.snippet,
+            })),
+          });
+          row.assessmentReasoning = guarded.reasoning;
+        }
         row.matchedArticles = matched;
         row.assessmentConfidence = assessment.confidence;
       }

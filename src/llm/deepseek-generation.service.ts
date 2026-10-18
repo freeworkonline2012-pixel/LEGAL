@@ -3119,6 +3119,8 @@ export class DeepseekGenerationService {
         selectedIndices: number[];
         reasoning: string;
         confidence: number;
+        violationType: 'none' | 'supplementary_difference' | 'mandatory_violation';
+        mandatoryQuote: string;
       }
   > {
     if (!this.isConfigured) {
@@ -3131,6 +3133,8 @@ export class DeepseekGenerationService {
         selectedIndices: [],
         reasoning: 'لا توجد مادة قانونية مصرية مفهرَسة ذات صلة مباشرة بموضوع هذا البند حتى الآن.',
         confidence: 0,
+        violationType: 'none',
+        mandatoryQuote: '',
       };
     }
 
@@ -3151,7 +3155,10 @@ export class DeepseekGenerationService {
       'عند عدم اتفاق الطرفين، وللطرفين الاتفاق على خلافها). اتفاق الطرفين على ' +
       'خلاف قاعدة مكملة ليس مخالفة. لا تستخدم عبارة "يخالف صراحة" إلا إذا كان ' +
       'نص المرشح نفسه آمراً أو ناهياً بوضوح؛ وإلا فقل إن البند يختلف عن القاعدة ' +
-      'العامة المكملة، وبيّن بإيجاز ما يستحق نظر المحامى.\n' +
+      'العامة المكملة، وبيّن بإيجاز ما يستحق نظر المحامى. ولا تدّعِ أن المادة آمرة أو ' +
+      'ناهية إلا بعبارة حرفية منقولة كما هى من نص المرشح تُثبت ذلك (تضعها فى ' +
+      'mandatory_quote)؛ فإن لم تجد هذه العبارة فى النص المعروض فاعتبر القاعدة ' +
+      'مكملة. لا تعتمد على معرفتك العامة بأن مادة ما آمرة.\n' +
       '(4) لا تنسب لنص قانونى حكماً لم يرد فى النص المعروض لك، ولا تعتمد رقم مادة ' +
       'لا يوجد بين المرشحين. يجوز أن تُنبّه بالمعنى فقط إلى مسألة تستحق نظر ' +
       'محامٍ دون ذكر رقم مادة.\n\n' +
@@ -3169,7 +3176,9 @@ export class DeepseekGenerationService {
       '{"assessment": "سليم أو يحتاج مراجعة أو لا يوجد نص قانونى مصرى مفهرَس ' +
       'ذو صلة مباشرة", "selected": [أرقام المرشحين المعتمَدين فعلاً كأساس، من 1 ' +
       'إلى عدد المرشحين، مصفوفة فارغة [] إن لم يوجد مرشح ذو صلة], "reasoning": ' +
-      '"جملة أو جملتان بالعربية تشرح الحكم", "confidence": رقم عشرى بين 0 و1}';
+      '"جملة أو جملتان بالعربية تشرح الحكم", "confidence": رقم عشرى بين 0 و1, ' +
+      '"violation_type": "none أو supplementary_difference أو mandatory_violation", ' +
+      '"mandatory_quote": "عبارة حرفية من نص المرشح تُثبت أنه آمر أو ناهٍ، وإلا نص فارغ"}';
 
     const candidatesText = input.candidates
       .map(
@@ -3240,6 +3249,8 @@ export class DeepseekGenerationService {
         selectedIndices: parsed.selected.map((n) => n - 1),
         reasoning: parsed.reasoning,
         confidence: parsed.confidence,
+        violationType: parsed.violationType,
+        mandatoryQuote: parsed.mandatoryQuote,
       };
     } catch (err) {
       this.logger.warn(`DeepSeek assessClause call failed: ${(err as Error).message}`);
@@ -3265,7 +3276,14 @@ const CLAUSE_ASSESSMENT_STATUSES: readonly ClauseAssessmentStatus[] = [
 function parseClauseJson(
   text: string,
   maxIndex: number,
-): { assessment: ClauseAssessmentStatus; selected: number[]; reasoning: string; confidence: number } | null {
+): {
+  assessment: ClauseAssessmentStatus;
+  selected: number[];
+  reasoning: string;
+  confidence: number;
+  violationType: 'none' | 'supplementary_difference' | 'mandatory_violation';
+  mandatoryQuote: string;
+} | null {
   const attempts = [text];
   const match = text.match(/\{[\s\S]*\}/);
   if (match) {
@@ -3286,6 +3304,8 @@ function parseClauseJson(
         selected?: unknown;
         reasoning?: unknown;
         confidence?: unknown;
+        violation_type?: unknown;
+        mandatory_quote?: unknown;
       };
       if (isValidAssessment(parsed.assessment) && isValidSelected(parsed.selected)) {
         const confidenceRaw = typeof parsed.confidence === 'number' ? parsed.confidence : 0.5;
@@ -3294,6 +3314,12 @@ function parseClauseJson(
           selected: Array.from(new Set(parsed.selected)),
           reasoning: typeof parsed.reasoning === 'string' ? parsed.reasoning : '',
           confidence: Math.min(1, Math.max(0, confidenceRaw)),
+          // قيم غير معروفة/غائبة تُعامل كأضعف ادعاء (none) — الحاجز البنيوى لا يثق بادعاء غير موثَّق
+          violationType:
+            parsed.violation_type === 'mandatory_violation' || parsed.violation_type === 'supplementary_difference'
+              ? parsed.violation_type
+              : 'none',
+          mandatoryQuote: typeof parsed.mandatory_quote === 'string' ? parsed.mandatory_quote : '',
         };
       }
     } catch {

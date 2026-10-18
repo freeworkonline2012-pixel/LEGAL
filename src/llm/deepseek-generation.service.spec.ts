@@ -623,3 +623,45 @@ describe('DeepseekGenerationService.assessClause — حواجز تعليمات �
     expect(system).toContain('ولا تذكر أبداً أرقام المرشحين');
   });
 });
+
+describe('DeepseekGenerationService.assessClause — حقول الادعاء القاطع (2026-10-18)', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+
+  it('يمرّر violation_type وmandatory_quote، ويعامل الغائب كـ none', async () => {
+    const service = new DeepseekGenerationService();
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(
+          200,
+          chatCompletion(
+            '{"assessment":"يحتاج مراجعة","selected":[1],"reasoning":"س","confidence":0.7,"violation_type":"mandatory_violation","mandatory_quote":"عبارة حرفية"}',
+            'stop',
+          ),
+        ),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(
+          200,
+          chatCompletion('{"assessment":"يحتاج مراجعة","selected":[1],"reasoning":"س","confidence":0.7}', 'stop'),
+        ),
+      ) as unknown as typeof fetch;
+
+    const a = await service.assessClause({ clauseText: 'بند', candidates: [CANDIDATE] });
+    const b = await service.assessClause({ clauseText: 'بند', candidates: [CANDIDATE] });
+    expect(a.status === 'ok' && a.violationType).toBe('mandatory_violation');
+    expect(a.status === 'ok' && a.mandatoryQuote).toBe('عبارة حرفية');
+    expect(b.status === 'ok' && b.violationType).toBe('none');
+    expect(b.status === 'ok' && b.mandatoryQuote).toBe('');
+  });
+});
