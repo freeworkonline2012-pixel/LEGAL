@@ -160,3 +160,20 @@ describe('softenSupplementaryWording — مخالفة غير موثقة', () => 
     expect(softenSupplementaryWording('الشرط يخالف نص المادة 224.', true)).toBe('الشرط يخالف نص المادة 224.');
   });
 });
+
+describe('guardMandatoryClaims: المادة المحورية فى الجملة الآمنة', () => {
+  it('يسمّى المادة التى ذكرها شرح النموذج لا أول مرشح بالضرورة', () => {
+    const out = guardMandatoryClaims({
+      reasoning: 'البند يقرر تعويضاً ثابتاً دون إمكان تخفيضه وهو باطل بمقتضى المادة 224.',
+      violationType: 'mandatory_violation',
+      mandatoryQuote: 'عبارة غير موجودة فى النص إطلاقاً',
+      matched: [
+        { law: 'القانون المدنى', articleNo: 598, text: 'ينتهى الايجار بانتهاء المدة المحددة فى العقد' },
+        { law: 'القانون المدنى', articleNo: 224, text: 'ويقع باطلا كل اتفاق يخالف احكام الفقرتين السابقتين' },
+      ],
+    });
+    expect(out.mandatoryVerified).toBe(false);
+    expect(out.reasoning).toContain('المادة 224');
+    expect(out.reasoning).not.toContain('598');
+  });
+});

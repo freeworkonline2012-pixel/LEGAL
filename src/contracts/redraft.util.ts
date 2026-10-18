@@ -102,3 +102,14 @@ export function validateRedraft(input: {
 
   return { ok: true, proposal: { text, changes } };
 }
+
+/** صياغة عربية ثابتة لسبب رفض الفحص الآلى، تُبلَّغ للنموذج فى المحاولة الثانية */
+export function describeRedraftRejection(reason: string): string {
+  if (reason.startsWith('invented_number_word')) return 'ذكرت عدداً أو مدة مكتوبة بالحروف لم ترد فى البند الأصلى أو فى نص المواد.';
+  if (reason.startsWith('invented_number')) return 'ذكرت رقماً أو مبلغاً أو نسبة لم ترد فى البند الأصلى أو فى نص المواد.';
+  if (reason === 'article_number_in_clause_text') return 'ذكرت رقم مادة قانونية داخل نص البند نفسه.';
+  if (reason === 'candidate_leak') return 'ذكرت ترقيماً داخلياً للمرشحين.';
+  if (reason === 'identical_to_original') return 'أعدت البند الأصلى كما هو دون تغيير.';
+  if (reason === 'too_long') return 'الصياغة أطول كثيراً من البند الأصلى.';
+  return 'الصياغة لم تجتز فحوص الأمان.';
+}

@@ -3284,6 +3284,8 @@ export class DeepseekGenerationService {
     /** مركز العميل (مثل "المؤجر (فى عقد إيجار)")؛ null/غائب = صياغة محايدة */
     clientPosition?: string | null;
     reviewNote: string;
+    /** سبب رفض محاولة سابقة بفحوص الأمان (نص عربى ثابت من الخدمة، لا من المستخدم) */
+    retryFeedback?: string | null;
     articles: Array<{ lawTitle: string; lawNo: number; lawYear: number; articleNo: number; articleText: string }>;
   }): Promise<
     | { status: 'not_configured' }
@@ -3329,7 +3331,12 @@ export class DeepseekGenerationService {
       'الطرفين، ولا تحذف التزاماً تعاقدياً مشروعاً، ولا تنقل عبئاً من طرف إلى الآخر، إلا ' +
       'بالقدر الذى يوجبه نص آمر أو ناهٍ ثابت بعبارة حرفية فى المواد المعروضة (مثل: "يقع ' +
       'باطلاً كل اتفاق يخالف"). فإن لم يوجد ذلك فالبند جائز كما هو: اجعل needs_change=false ' +
-      'واشرح فى no_change_reason بجملة أو جملتين سبب جوازه، ولا تُعِد كتابة البند.\n\n' +
+      'واشرح فى no_change_reason بجملة أو جملتين سبب جوازه، ولا تُعِد كتابة البند.\n' +
+      '(8) لا تُضعف حقاً أو ضماناً يمنحه البند الأصلى للعميل لمجرد مطابقة نص قانونى يقيّد ' +
+      'أثره (مثل إضافة شرط نفاذ يقيّد حماية العميل)، ولا تضف نصاً يمنح الطرف الآخر أو ' +
+      'الغير حقاً جديداً. الأصل أن تُبقى الحق كما هو وتُلزم الطرف الآخر بما يحقق شرط ' +
+      'النفاذ (كتوثيق التاريخ أو إثباته) دون أرقام جديدة، أو تجعل needs_change=false ' +
+      'وتشرح فى no_change_reason أن الخطر لا يُعالَج بالصياغة.\n\n' +
       'أجب حصراً بصيغة JSON صارمة بلا أى نص إضافى، بالضبط بهذا الشكل: ' +
       '{"needs_change": true أو false, "no_change_reason": "سبب عدم الحاجة للتعديل ' +
       'إن كان needs_change=false وإلا نص فارغ", "proposed_text": "نص البند البديل ' +
@@ -3344,6 +3351,9 @@ export class DeepseekGenerationService {
       `البند الأصلى: """${input.clauseText}"""\n\n` +
       (input.clientPosition ? `مركز العميل: """${input.clientPosition}"""\n\n` : '') +
       `ملاحظة المراجعة (الخطر المطلوب إزالته): """${input.reviewNote}"""\n\n` +
+      (input.retryFeedback
+        ? `تنبيه: رُفضت محاولتك السابقة آلياً لأن ${input.retryFeedback} أعد الكتابة دون هذا العيب، واستعمل [____] بدل أى رقم أو مدة أو مبلغ لم يرد فى البند الأصلى أو فى نص المواد.\n\n`
+        : '') +
       `المواد المعتمَدة:\n${articlesText}\n\nاكتب الصياغة البديلة. رد بـJSON فقط كما هو محدد.`;
 
     try {

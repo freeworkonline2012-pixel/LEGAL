@@ -683,6 +683,34 @@ describe('DeepseekGenerationService.proposeClauseRedraft — تعليمات ال
     expect(system).toContain('needs_change');
     expect(r.status === 'ok' && r.needsChange).toBe(false);
   });
+
+  it('تتضمن قاعدة عدم إضعاف حق العميل، وتُدرج سبب الرفض السابق فى رسالة المحاولة الثانية', async () => {
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonResponse(
+        200,
+        chatCompletion(
+          '{"needs_change":false,"no_change_reason":"جائز","proposed_text":"","changes":[],"can_resolve":true}',
+          'stop',
+        ),
+      ),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await service.proposeClauseRedraft({
+      clauseText: 'بند',
+      reviewNote: 'ملاحظة',
+      retryFeedback: 'ذكرت رقماً أو مبلغاً أو نسبة لم ترد فى البند الأصلى أو فى نص المواد.',
+      articles: [{ lawTitle: 'قانون', lawNo: 131, lawYear: 1948, articleNo: 224, articleText: 'نص' }],
+    });
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    const system = body.messages.find((m) => m.role === 'system')!.content;
+    const user = body.messages.find((m) => m.role === 'user')!.content;
+    expect(system).toContain('لا تُضعف حقاً أو ضماناً يمنحه البند الأصلى للعميل');
+    expect(user).toContain('رُفضت محاولتك السابقة آلياً');
+    expect(user).toContain('ذكرت رقماً');
+  });
 });
 
 describe('DeepseekGenerationService.assessClause — حقول الادعاء القاطع (2026-10-18)', () => {

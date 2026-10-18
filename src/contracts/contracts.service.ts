@@ -34,7 +34,7 @@ import {
   tidyNoTextReasoning,
 } from './reasoning.util';
 import { ClientPosition, describePosition } from './position.util';
-import { REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
+import { describeRedraftRejection, REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
 import { ContractResponseDto } from './dto/contract-response.dto';
@@ -209,7 +209,7 @@ export class ContractsService {
     }
 
     if (!clause.suggestedWording) {
-      const outcome = await this.generationService.proposeClauseRedraft({
+      const request = {
         clauseText: clause.clauseText,
         clientPosition: describePosition({ contractType: contract.contractType, clientRole: contract.clientRole }),
         reviewNote: clause.assessmentReasoning ?? '',
@@ -220,7 +220,37 @@ export class ContractsService {
           articleNo: m.article_no,
           articleText: m.snippet,
         })),
-      });
+      };
+      const gate = (o: { proposedText: string; changes: string[] }) =>
+        validateRedraft({
+          proposedText: o.proposedText,
+          changes: o.changes,
+          originalText: clause.clauseText,
+          articleTexts: matched.map((m) => m.snippet),
+          approvedArticleNos: matched.map((m) => m.article_no),
+        });
+
+      let outcome = await this.generationService.proposeClauseRedraft(request);
+      let verdict: ReturnType<typeof validateRedraft> | null = null;
+      // محاولة ثانية واحدة فقط عند رفض فحوص الأمان، بإبلاغ النموذج بسبب الرفض؛ والناتج الجديد
+      // يمر بالفحوص نفسها بلا تخفيف.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (outcome.status !== 'ok' || !outcome.canResolve || outcome.needsChange === false) break;
+        verdict = gate(outcome);
+        if (verdict.ok) break;
+        this.logger.warn(`redraft rejected clauseId=${clauseId} attempt=${attempt + 1} reason=${verdict.reason}`);
+        await this.audit(context, 'contracts.redraft_rejected', contractId, {
+          clauseIndex: clause.clauseIndex,
+          reason: verdict.reason,
+          attempt: attempt + 1,
+        });
+        if (attempt === 1) break;
+        const next = await this.generationService.proposeClauseRedraft({
+          ...request,
+          retryFeedback: describeRedraftRejection(verdict.reason),
+        });
+        outcome = next;
+      }
       if (outcome.status === 'not_configured') {
         throw new UnprocessableEntityException('خدمة الصياغة الآلية غير مُفعَّلة على هذه البيئة.');
       }
@@ -243,19 +273,7 @@ export class ContractsService {
         await this.audit(context, 'contracts.redraft_no_change', contractId, { clauseIndex: clause.clauseIndex });
         return this.toClauseDto(clause);
       }
-      const verdict = validateRedraft({
-        proposedText: outcome.proposedText,
-        changes: outcome.changes,
-        originalText: clause.clauseText,
-        articleTexts: matched.map((m) => m.snippet),
-        approvedArticleNos: matched.map((m) => m.article_no),
-      });
-      if (!verdict.ok) {
-        this.logger.warn(`redraft rejected clauseId=${clauseId} reason=${verdict.reason}`);
-        await this.audit(context, 'contracts.redraft_rejected', contractId, {
-          clauseIndex: clause.clauseIndex,
-          reason: verdict.reason,
-        });
+      if (!verdict || !verdict.ok) {
         throw new UnprocessableEntityException(
           'لم تجتز الصياغة المقترحة فحوص الأمان الآلية (أرقام أو إحالات غير موثَّقة)، فلم تُعرَض؛ يلزم نظر محامٍ مختص.',
         );

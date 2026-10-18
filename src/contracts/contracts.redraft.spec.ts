@@ -170,4 +170,35 @@ describe('parseRedraftJson', () => {
   it('يعيد null لغير الصالح', () => {
     expect(parseRedraftJson('لا json')).toBeNull();
   });
+
+  it('عند رفض الفحص الآلى يعيد المحاولة مرة واحدة بسبب الرفض، ويقبل الناتج الثانى إن اجتاز الفحص', async () => {
+    const bad = {
+      status: 'ok', canResolve: true, needsChange: true, noChangeReason: '', changes: ['خُفضت الغرامة.'],
+      proposedText: 'يلتزم المستأجر بسداد غرامة تأخير قدرها 9% عن كل يوم تأخير، ولا يجوز تخفيضها بأى حال.',
+    };
+    const good = {
+      status: 'ok', canResolve: true, needsChange: true, noChangeReason: '',
+      changes: ['أُجيز للقاضى تخفيض التعويض المبالغ فيه وفق المادة 224.'],
+      proposedText: 'يلتزم المستأجر بسداد غرامة تأخير قدرها 5% عن كل يوم تأخير، ويجوز للقاضى تخفيضها إن ثبت أن التقدير مبالغ فيه.',
+    };
+    const { service, generation, clause } = build({}, bad);
+    generation.proposeClauseRedraft.mockResolvedValueOnce(bad).mockResolvedValueOnce(good);
+    const dto = await service.proposeRedraft('c1', 'cl1', ctx);
+    expect(generation.proposeClauseRedraft).toHaveBeenCalledTimes(2);
+    expect(generation.proposeClauseRedraft.mock.calls[0][0].retryFeedback).toBeUndefined();
+    expect(generation.proposeClauseRedraft.mock.calls[1][0].retryFeedback).toContain('رقماً');
+    expect(dto.suggested_redraft).toBeTruthy();
+    expect(String(clause.suggestedWording)).toContain('يجوز للقاضى');
+  });
+
+  it('إن رُفضت المحاولتان لا تُعرض صياغة ولا تتجاوز المحاولات اثنتين', async () => {
+    const bad = {
+      status: 'ok', canResolve: true, needsChange: true, noChangeReason: '', changes: ['x'],
+      proposedText: 'يلتزم المستأجر بسداد غرامة تأخير قدرها 9% عن كل يوم تأخير، ولا يجوز تخفيضها بأى حال.',
+    };
+    const { service, generation, clause } = build({}, bad);
+    await expect(service.proposeRedraft('c1', 'cl1', ctx)).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(generation.proposeClauseRedraft).toHaveBeenCalledTimes(2);
+    expect(clause.suggestedWording).toBeNull();
+  });
 });

@@ -90,7 +90,10 @@ export function guardMandatoryClaims(input: GuardInput): GuardResult {
     return { reasoning: input.reasoning, violationType: input.violationType, mandatoryVerified: false };
   }
 
-  const first = input.matched[0];
+  // المادة المحورية هى أول مادة معتمَدة يذكرها شرح النموذج نفسه (لا أول مرشح بالضرورة):
+  // اختبار حى 5: كان الشرح عن المادة 224 فحلّت محله جملة عن المادة 598 غير ذات صلة.
+  const mentioned = articleNumbersIn(input.reasoning ?? '');
+  const first = input.matched.find((m) => mentioned.includes(m.articleNo)) ?? input.matched[0];
   const safe = first
     ? `البند يختلف عن القاعدة العامة الواردة فى المادة ${first.articleNo} من ${first.law}، ويستحق نظر محامٍ مختص لتقدير أثر هذا الاختلاف.`
     : 'يلزم نظر محامٍ مختص فى هذا البند.';
