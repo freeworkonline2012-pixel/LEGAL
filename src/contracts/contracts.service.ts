@@ -38,6 +38,7 @@ import {
   tidyNoTextReasoning,
 } from './reasoning.util';
 import { ClientPosition, describePosition } from './position.util';
+import { riskLevelFor } from './risk-level.util';
 import { describeRedraftRejection, describeWeakeningFeedback, REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
@@ -498,6 +499,7 @@ export class ContractsService {
             : 'تعذَّر إجراء التقييم الآلى تقنياً — يلزم مراجعة قانونية بشرية.';
         row.matchedArticles = [];
         row.assessmentConfidence = 0;
+        row.riskLevel = null;
       } else {
         const validIndices = assessment.selectedIndices.filter((i) => topCandidates[i] !== undefined);
         const matched: MatchedArticle[] = validIndices.map((i) => {
@@ -516,6 +518,7 @@ export class ContractsService {
         // قسراً بدل الثقة بحكم بلا أساس مستشهَد به.
         const NO_TEXT_STATUS = 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';
         const downgradedForNoCitation = assessment.assessment !== NO_TEXT_STATUS && matched.length === 0;
+        let mandatoryVerified = false;
         row.assessmentStatus = downgradedForNoCitation ? NO_TEXT_STATUS : assessment.assessment;
         // حكم بلا استشهاد معتمَد لا يُعرَض شرحه (قد يصف مخالفة بلا أساس مستشهَد به):
         // نستبدله بجملة صريحة بدل تناقض بين الحالة والشرح.
@@ -550,10 +553,12 @@ export class ContractsService {
                 `inArticles=${isQuoteInArticles(q, topCandidates.map((c) => c.citation.snippet))}`,
             );
           }
+          mandatoryVerified = guarded.mandatoryVerified;
           row.assessmentReasoning = softenSupplementaryWording(guarded.reasoning, guarded.mandatoryVerified);
         }
         row.matchedArticles = matched;
         row.assessmentConfidence = assessment.confidence;
+        row.riskLevel = riskLevelFor(row.assessmentStatus, assessment.violationType, mandatoryVerified);
       }
 
       await this.clauseRepository.save(row);
@@ -574,6 +579,7 @@ export class ContractsService {
       row.assessmentReasoning = 'تعذَّر إجراء التقييم الآلى تقنياً لهذا البند — يلزم مراجعة قانونية بشرية.';
       row.matchedArticles = [];
       row.assessmentConfidence = 0;
+      row.riskLevel = null;
       await this.clauseRepository.save(row);
     }
   }

@@ -15,6 +15,7 @@ import {
   WidthType,
   type ParagraphChild,
 } from 'docx';
+import { auditDocxParts } from '../audit-report/docx';
 import { type Block, type LegalDocument, formatCairoDateTime } from '../document-model';
 
 const FONT = 'Arial';
@@ -155,6 +156,23 @@ function blockToNodes(b: Block): Array<Paragraph | Table> {
 
 /** مُخرِج Word: كل الفقرات bidi وخط Arial (متوفر فى Word على كل الأنظمة) لضمان عرض عربى سليم. */
 export async function renderDocx(doc: LegalDocument): Promise<Buffer> {
+  if (doc.audit) {
+    const parts = auditDocxParts(doc.audit);
+    const file = new Document({
+      creator: `منصة ${doc.brand}`,
+      title: `${doc.title} — ${doc.reference}`,
+      styles: { default: { document: { run: { font: { ascii: FONT, hAnsi: FONT, cs: FONT }, size: 22, rightToLeft: true } } } },
+      sections: [
+        {
+          properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1300, bottom: 1100, left: 1200, right: 1200, header: 600, footer: 500 } } },
+          headers: { default: parts.header },
+          footers: { default: parts.footer },
+          children: parts.children,
+        },
+      ],
+    });
+    return Packer.toBuffer(file);
+  }
   const children: Array<Paragraph | Table> = [
     para([run(`منصة ${doc.brand}`, { bold: true, size: 22, color: '14365D' })], { spacing: { after: 0 } }),
     para([run(doc.title, { bold: true, size: 40, color: '14365D' })], {

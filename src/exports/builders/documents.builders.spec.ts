@@ -123,10 +123,10 @@ describe('buildGovernanceDocument', () => {
 
 describe('buildContractDocument', () => {
   const clauses = [
-    { clauseIndex: 2, clauseLabel: 'ب2', clauseTitle: null, clauseText: 'نص', assessmentStatus: 'سليم', assessmentReasoning: null, matchedArticles: null, lawyerVerdict: null, lawyerNotes: null },
-    { clauseIndex: 1, clauseLabel: 'ب1', clauseTitle: 'عنوان', clauseText: 'س'.repeat(5000), assessmentStatus: 'يحتاج مراجعة', assessmentReasoning: 'سبب', matchedArticles: null, lawyerVerdict: null, lawyerNotes: null },
+    { clauseIndex: 2, clauseLabel: 'ب2', clauseTitle: null, clauseText: 'نص', assessmentStatus: 'سليم', assessmentReasoning: null, matchedArticles: null, riskLevel: null, suggestedWording: null, lawyerVerdict: null, lawyerNotes: null },
+    { clauseIndex: 1, clauseLabel: 'ب1', clauseTitle: 'عنوان', clauseText: 'س'.repeat(5000), assessmentStatus: 'يحتاج مراجعة', assessmentReasoning: 'سبب.', matchedArticles: null, riskLevel: 'عالٍ', suggestedWording: null, lawyerVerdict: null, lawyerNotes: null },
   ];
-  const input = { contractId: '11111111-2222-3333-4444-555555555555', originalFilename: 'عقد.docx', uploadedAt: NOW, generatedAt: NOW, clauses, approvalNote: null };
+  const input = { contractId: '11111111-2222-3333-4444-555555555555', originalFilename: 'عقد.docx', uploadedAt: NOW, generatedAt: NOW, contractType: null, clientRole: null, clauses, approvalNote: null };
 
   it('قبل الاعتماد: علامة مائية ومسودة، وبعده لا', () => {
     const draft = buildContractDocument({ ...input, approvedAt: null });
@@ -137,14 +137,10 @@ describe('buildContractDocument', () => {
     expect(approved.filenameBase.endsWith('-draft')).toBe(false);
   });
 
-  it('يرتب البنود ويقتطع النص الطويل ويلخّص الحالات', () => {
+  it('يحمل تقرير التدقيق بتصميمه الخاص (الغلاف والأقسام) لا الكتل العامة', () => {
     const doc = buildContractDocument({ ...input, approvedAt: null });
-    const heads = ofType(doc.blocks, 'heading').filter((h) => h.level === 3).map((h) => h.text);
-    expect(heads).toEqual(['ب1 — عنوان', 'ب2']);
-    const quote = ofType(doc.blocks, 'quote')[0];
-    expect(quote.text.length).toBeLessThan(3100);
-    expect(quote.text).toContain('اقتُطع');
-    const summary = ofType(doc.blocks, 'table')[0];
-    expect(summary.rows).toEqual([['يحتاج مراجعة', '1'], ['سليم', '1'], ['الإجمالى', '2']]);
+    expect(doc.kind).toBe('contract_report');
+    expect(doc.blocks).toEqual([]);
+    expect(doc.audit?.cover.title).toBe('تقرير مراجعة وتدقيق مخاطر العقد');
   });
 });

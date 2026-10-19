@@ -7,6 +7,8 @@
  * كل النصوص هنا خام (غير مُهرَّبة): الهروب مسؤولية المُخرِج حصراً.
  */
 
+import type { AuditReport } from './audit-report/model';
+
 export type DocumentKind = 'answer' | 'governance' | 'contract_report' | 'memo' | 'legal_report';
 
 export type CalloutTone = 'warning' | 'info' | 'note';
@@ -59,6 +61,8 @@ export interface LegalDocument {
   disclaimer: string;
   /** اسم الملف بلا امتداد (ASCII فقط) */
   filenameBase: string;
+  /** تقرير تدقيق العقود له تصميم خاص كامل (غلاف/ترويسة/جداول): إن وُجد يرسمه المُخرِجان بدل blocks العامة. */
+  audit?: AuditReport;
 }
 
 export const DEFAULT_BRAND = 'شيلد';

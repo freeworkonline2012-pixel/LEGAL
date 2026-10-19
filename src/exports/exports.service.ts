@@ -191,6 +191,8 @@ export class ExportsService {
         contractId: contract.id,
         originalFilename: contract.originalFilename,
         uploadedAt: contract.createdAt,
+        contractType: contract.contractType,
+        clientRole: contract.clientRole,
         clauses: clauses.map((c) => ({
           clauseIndex: c.clauseIndex,
           clauseLabel: c.clauseLabel,
@@ -199,6 +201,8 @@ export class ExportsService {
           assessmentStatus: c.assessmentStatus,
           assessmentReasoning: c.assessmentReasoning,
           matchedArticles: c.matchedArticles,
+          riskLevel: c.riskLevel,
+          suggestedWording: c.suggestedWording,
           lawyerVerdict: c.lawyerVerdict,
           lawyerNotes: c.lawyerNotes,
         })),

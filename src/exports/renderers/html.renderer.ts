@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
+import { renderAuditHtml } from '../audit-report/html';
 import { type Block, type LegalDocument, formatCairoDateTime } from '../document-model';
 
 /** هروب HTML كامل — كل نص يدخل القالب يمر من هنا بلا استثناء. */
@@ -142,6 +143,7 @@ function renderBlock(b: Block): string {
  * طلب شبكة حتى لو تسرّب نص غير مُهرَّب مستقبلاً — طبقة دفاع ثانية فوق الهروب الشامل.
  */
 export function renderHtml(doc: LegalDocument): string {
+  if (doc.audit) return renderAuditHtml(doc.audit, `${doc.title} — ${doc.reference}`);
   const metaRows = doc.meta
     .map((m) => `<tr><td class="k">${text(m.label)}</td><td>${text(m.value)}</td></tr>`)
     .join('');
