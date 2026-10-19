@@ -1,4 +1,4 @@
-import { normalizeArabicForMatch } from './reasoning.util';
+import { hasMandatoryMarker, normalizeArabicForMatch } from './reasoning.util';
 
 /**
  * حواجز الصياغة البديلة المقترحة لبند عقد. النموذج اللغوى لا يُوثَق به لضمان الأمانة،
@@ -58,6 +58,9 @@ function numberWordsIn(text: string): string[] {
   return out;
 }
 
+const BINDING_CLAIM =
+  /لا\s+تجيز(?:\s+\S+){0,3}\s+(?:الاتفاق|مخالفت)|لا\s+يجوز\s+الاتفاق|(?:ال)?آمر[ةه]|ناهي[ةه]|لا\s+يجوز\s+مخالفت/;
+
 function articleRefNumbers(text: string): number[] {
   const out: number[] = [];
   for (const m of toWesternDigits(text).matchAll(/(?:ال)?ماد[ةه]\s*(?:رقم\s*)?\(?\s*(\d+)/g)) out.push(Number(m[1]));
@@ -103,6 +106,9 @@ export function validateRedraft(input: {
   }
 
   const approved = new Set(input.approvedArticleNos);
+  const hasPlaceholder = text.includes('[____]');
+  const textOfArticle = new Map<number, string>();
+  input.approvedArticleNos.forEach((n, i) => textOfArticle.set(n, input.articleTexts[i] ?? ''));
   const changes = (input.changes ?? [])
     .map((c) => (typeof c === 'string' ? c.trim() : ''))
     .filter((c) => c.length > 0)
@@ -111,6 +117,15 @@ export function validateRedraft(input: {
       const refs = [...toWesternDigits(c).matchAll(/(?:ال)?ماد[ةه]\s*(?:رقم\s*)?(\d+)/g)].map((m) => Number(m[1]));
       return refs.every((n) => approved.has(n));
     })
+    // ملاحظة تذكر فراغاً [____] والنص المقترح بلا فراغ: وصف غير صحيح لما حدث (اختبار حى 7)
+    .filter((c) => hasPlaceholder || !/\[____\]|فراغ/.test(c))
+    // ملاحظة تصف مادة بأنها "آمرة/لا تجيز الاتفاق على مخالفتها" ولا يحمل نص المادة المعروض صيغة
+    // ملزمة صريحة: ادعاء بلا سند حرفى (المادة 608 فى اختبار حى 7)؛ تُحذف الملاحظة لا النص.
+    .filter((c) => {
+      if (!BINDING_CLAIM.test(c)) return true;
+      const refs = [...toWesternDigits(c).matchAll(/(?:ال)?ماد[ةه]\s*(?:رقم\s*)?(\d+)/g)].map((m) => Number(m[1]));
+      return refs.length > 0 && refs.some((n) => hasMandatoryMarker(textOfArticle.get(n) ?? ''));
+    })
     .slice(0, 6);
 
   return { ok: true, proposal: { text, changes } };
@@ -118,11 +133,18 @@ export function validateRedraft(input: {
 
 /** صياغة عربية ثابتة لسبب رفض الفحص الآلى، تُبلَّغ للنموذج فى المحاولة الثانية */
 export function describeRedraftRejection(reason: string): string {
-  if (reason.startsWith('invented_number_word')) return 'ذكرت عدداً أو مدة مكتوبة بالحروف لم ترد فى البند الأصلى أو فى نص المواد.';
-  if (reason.startsWith('invented_number')) return 'ذكرت رقماً أو مبلغاً أو نسبة لم ترد فى البند الأصلى أو فى نص المواد.';
+  const PLACEHOLDER_ADVICE = ' استعمل [____] بدل أى رقم أو مدة أو مبلغ لم يرد فى البند الأصلى أو فى نص المواد.';
+  if (reason.startsWith('invented_number_word')) return `ذكرت عدداً أو مدة مكتوبة بالحروف لم ترد فى البند الأصلى أو فى نص المواد.${PLACEHOLDER_ADVICE}`;
+  if (reason.startsWith('invented_number')) return `ذكرت رقماً أو مبلغاً أو نسبة لم ترد فى البند الأصلى أو فى نص المواد.${PLACEHOLDER_ADVICE}`;
   if (reason.startsWith('article_number_in_clause_text')) return 'ذكرت رقم مادة قانونية داخل نص البند نفسه.';
   if (reason === 'candidate_leak') return 'ذكرت ترقيماً داخلياً للمرشحين.';
   if (reason === 'identical_to_original') return 'أعدت البند الأصلى كما هو دون تغيير.';
   if (reason === 'too_long') return 'الصياغة أطول كثيراً من البند الأصلى.';
   return 'الصياغة لم تجتز فحوص الأمان.';
+}
+
+/** سبب رفض فحص حماية مركز العميل (الناتج من المدقق المستقل) يُبلَّغ للنموذج فى المحاولة الثانية */
+export function describeWeakeningFeedback(reason: string): string {
+  const r = (reason ?? '').replace(/\s+/g, ' ').trim().slice(0, 240);
+  return `أضعفت مركز العميل أو منحت الطرف الآخر أو الغير حقاً جديداً${r ? ` (${r})` : ''}. أبقِ حقوق العميل كما هى كما وردت فى البند الأصلى، وعالج الخطر المبيَّن بإلزام الطرف الآخر بما يحقق شرط النفاذ أو الحماية، أو اجعل needs_change=false مع شرح السبب.`;
 }

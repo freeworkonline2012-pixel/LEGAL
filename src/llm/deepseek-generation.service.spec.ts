@@ -828,3 +828,46 @@ describe('repairArabicCommaJson: فاصلة عربية بين الحقول (سج
     expect(JSON.parse(repairArabicCommaJson(raw))).toEqual({ a: 'نص.', b: 1 });
   });
 });
+
+describe('DeepseekGenerationService.verifyRedraftProtectsClient', () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DEEPSEEK_API_KEY;
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+    process.env.DEEPSEEK_API_KEY = originalKey;
+    jest.restoreAllMocks();
+  });
+  const input = {
+    clauseText: 'بند أصلى',
+    proposedText: 'بند مقترح',
+    clientPosition: 'المستأجر (فى عقد إيجار)',
+    reviewNote: 'ملاحظة',
+  };
+
+  it('يعيد الحكم والسبب ويدرج مركز العميل فى الرسالة', async () => {
+    const service = new DeepseekGenerationService();
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue(jsonResponse(200, chatCompletion('{"weakens": true, "reason": "أضافت شرطاً يقيّد حقاً"}', 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const r = await service.verifyRedraftProtectsClient(input);
+    expect(r).toEqual({ status: 'ok', weakens: true, reason: 'أضافت شرطاً يقيّد حقاً' });
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as {
+      messages: Array<{ role: string; content: string }>;
+    };
+    expect(body.messages.find((m) => m.role === 'user')!.content).toContain('المستأجر (فى عقد إيجار)');
+  });
+
+  it('يقرأ رداً بفاصلة عربية ويعيد error لرد غير مقروء', async () => {
+    const service = new DeepseekGenerationService();
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, chatCompletion('{"weakens": false، "reason": ""}', 'stop'))) as unknown as typeof fetch;
+    expect(await service.verifyRedraftProtectsClient(input)).toEqual({ status: 'ok', weakens: false, reason: '' });
+    global.fetch = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion('لا أدرى', 'stop'))) as unknown as typeof fetch;
+    expect((await service.verifyRedraftProtectsClient(input)).status).toBe('error');
+  });
+});

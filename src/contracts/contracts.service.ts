@@ -36,7 +36,7 @@ import {
   tidyNoTextReasoning,
 } from './reasoning.util';
 import { ClientPosition, describePosition } from './position.util';
-import { describeRedraftRejection, REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
+import { describeRedraftRejection, describeWeakeningFeedback, REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
 import { ContractResponseDto } from './dto/contract-response.dto';
@@ -234,24 +234,44 @@ export class ContractsService {
 
       let outcome = await this.generationService.proposeClauseRedraft(request);
       let verdict: ReturnType<typeof validateRedraft> | null = null;
-      // محاولة ثانية واحدة فقط عند رفض فحوص الأمان، بإبلاغ النموذج بسبب الرفض؛ والناتج الجديد
-      // يمر بالفحوص نفسها بلا تخفيف.
+      let weakensClient = false;
+      // محاولة ثانية واحدة فقط عند رفض فحوص الأمان أو فحص حماية مركز العميل، بإبلاغ النموذج بالسبب؛
+      // والناتج الجديد يمر بالفحوص نفسها بلا تخفيف.
       for (let attempt = 0; attempt < 2; attempt++) {
         if (outcome.status !== 'ok' || !outcome.canResolve || outcome.needsChange === false) break;
         verdict = gate(outcome);
-        if (verdict.ok) break;
-        this.logger.warn(`redraft rejected clauseId=${clauseId} attempt=${attempt + 1} reason=${verdict.reason}`);
-        await this.audit(context, 'contracts.redraft_rejected', contractId, {
-          clauseIndex: clause.clauseIndex,
-          reason: verdict.reason,
-          attempt: attempt + 1,
-        });
-        if (attempt === 1) break;
-        const next = await this.generationService.proposeClauseRedraft({
-          ...request,
-          retryFeedback: describeRedraftRejection(verdict.reason),
-        });
-        outcome = next;
+        weakensClient = false;
+        let feedback: string | null = null;
+        if (!verdict.ok) {
+          this.logger.warn(`redraft rejected clauseId=${clauseId} attempt=${attempt + 1} reason=${verdict.reason}`);
+          await this.audit(context, 'contracts.redraft_rejected', contractId, {
+            clauseIndex: clause.clauseIndex,
+            reason: verdict.reason,
+            attempt: attempt + 1,
+          });
+          feedback = describeRedraftRejection(verdict.reason);
+        } else if (request.clientPosition) {
+          const check = await this.generationService.verifyRedraftProtectsClient({
+            clauseText: clause.clauseText,
+            proposedText: verdict.proposal.text,
+            clientPosition: request.clientPosition,
+            reviewNote: request.reviewNote,
+          });
+          if (check.status === 'ok' && check.weakens) {
+            weakensClient = true;
+            this.logger.warn(`redraft weakens client clauseId=${clauseId} attempt=${attempt + 1}`);
+            await this.audit(context, 'contracts.redraft_weakens_client', contractId, {
+              clauseIndex: clause.clauseIndex,
+              attempt: attempt + 1,
+            });
+            feedback = describeWeakeningFeedback(check.reason);
+          } else if (check.status === 'error') {
+            // المدقق استشارى: فشله لا يمنع صياغة اجتازت فحوص الأمان الحتمية، لكنه يُسجَّل
+            this.logger.warn(`redraft client check unavailable clauseId=${clauseId} detail=${check.detail}`);
+          }
+        }
+        if (feedback === null || attempt === 1) break;
+        outcome = await this.generationService.proposeClauseRedraft({ ...request, retryFeedback: feedback });
       }
       if (outcome.status === 'not_configured') {
         throw new UnprocessableEntityException('خدمة الصياغة الآلية غير مُفعَّلة على هذه البيئة.');
@@ -274,6 +294,11 @@ export class ContractsService {
         await this.clauseRepository.save(clause);
         await this.audit(context, 'contracts.redraft_no_change', contractId, { clauseIndex: clause.clauseIndex });
         return this.toClauseDto(clause);
+      }
+      if (weakensClient) {
+        throw new UnprocessableEntityException(
+          'لم تجتز الصياغة المقترحة فحص حماية مركزك فى العقد (تُضعف حقاً لك أو تمنح الطرف الآخر حقاً جديداً)، فلم تُعرَض؛ يلزم نظر محامٍ مختص.',
+        );
       }
       if (!verdict || !verdict.ok) {
         throw new UnprocessableEntityException(

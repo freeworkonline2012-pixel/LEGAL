@@ -15,7 +15,12 @@ const MATCHED = [
 ];
 
 function build(clauseOverrides: Record<string, unknown> = {}, outcome?: unknown) {
-  const contract = { id: 'c1', uploadedBy: 'u1', contractType: 'عقد إيجار', clientRole: 'المستأجر' };
+  const contract: { id: string; uploadedBy: string; contractType: string | null; clientRole: string | null } = {
+    id: 'c1',
+    uploadedBy: 'u1',
+    contractType: 'عقد إيجار',
+    clientRole: 'المستأجر',
+  };
   const clause: Record<string, unknown> = {
     id: 'cl1',
     contractId: 'c1',
@@ -38,7 +43,10 @@ function build(clauseOverrides: Record<string, unknown> = {}, outcome?: unknown)
       e.name === 'Contract' ? contractRepo : e.name === 'ContractClause' ? clauseRepo : {},
     ),
   };
-  const generation = { proposeClauseRedraft: jest.fn().mockResolvedValue(outcome) };
+  const generation = {
+    proposeClauseRedraft: jest.fn().mockResolvedValue(outcome),
+    verifyRedraftProtectsClient: jest.fn().mockResolvedValue({ status: 'ok', weakens: false, reason: '' }),
+  };
   const audit = { record: jest.fn().mockResolvedValue(undefined) };
   const service = new ContractsService(
     dataSource as never,
@@ -48,7 +56,7 @@ function build(clauseOverrides: Record<string, unknown> = {}, outcome?: unknown)
     generation as never,
     {} as never,
   );
-  return { service, generation, clauseRepo, clause };
+  return { service, generation, clauseRepo, clause, contract };
 }
 
 const ctx = { userId: 'u1', role: 'user', ipAddress: null, userAgent: null };
@@ -200,5 +208,47 @@ describe('parseRedraftJson', () => {
     await expect(service.proposeRedraft('c1', 'cl1', ctx)).rejects.toBeInstanceOf(UnprocessableEntityException);
     expect(generation.proposeClauseRedraft).toHaveBeenCalledTimes(2);
     expect(clause.suggestedWording).toBeNull();
+  });
+
+  const GOOD = {
+    status: 'ok', canResolve: true, needsChange: true, noChangeReason: '',
+    changes: ['أُجيز للقاضى تخفيض التعويض المبالغ فيه وفق المادة 224.'],
+    proposedText: 'يلتزم المستأجر بسداد غرامة تأخير قدرها 5% عن كل يوم تأخير، ويجوز للقاضى تخفيضها إن ثبت أن التقدير مبالغ فيه.',
+  };
+
+  it('مدقق حماية العميل: صياغة تُضعف مركزه تُعاد مرة بسبب الرفض ثم تُقبل إن زال العيب', async () => {
+    const { service, generation } = build({}, GOOD);
+    generation.verifyRedraftProtectsClient
+      .mockResolvedValueOnce({ status: 'ok', weakens: true, reason: 'أضافت شرطاً يقيّد حق المستأجر' })
+      .mockResolvedValueOnce({ status: 'ok', weakens: false, reason: '' });
+    const dto = await service.proposeRedraft('c1', 'cl1', ctx);
+    expect(generation.proposeClauseRedraft).toHaveBeenCalledTimes(2);
+    expect(generation.proposeClauseRedraft.mock.calls[1][0].retryFeedback).toContain('أضعفت مركز العميل');
+    expect(generation.proposeClauseRedraft.mock.calls[1][0].retryFeedback).toContain('أضافت شرطاً يقيّد حق المستأجر');
+    expect(dto.suggested_redraft).toBeTruthy();
+  });
+
+  it('إن ظلّت الصياغة تُضعف مركز العميل بعد المحاولة الثانية لا تُعرض ولا تُخزَّن', async () => {
+    const { service, generation, clause } = build({}, GOOD);
+    generation.verifyRedraftProtectsClient.mockResolvedValue({ status: 'ok', weakens: true, reason: 'تقيّد حقاً' });
+    await expect(service.proposeRedraft('c1', 'cl1', ctx)).rejects.toThrow(/حماية مركزك/);
+    expect(generation.proposeClauseRedraft).toHaveBeenCalledTimes(2);
+    expect(clause.suggestedWording).toBeNull();
+  });
+
+  it('فشل المدقق الاستشارى لا يمنع صياغة اجتازت الفحوص الحتمية', async () => {
+    const { service, generation } = build({}, GOOD);
+    generation.verifyRedraftProtectsClient.mockResolvedValue({ status: 'error', detail: 'http_500' });
+    const dto = await service.proposeRedraft('c1', 'cl1', ctx);
+    expect(dto.suggested_redraft).toBeTruthy();
+    expect(generation.proposeClauseRedraft).toHaveBeenCalledTimes(1);
+  });
+
+  it('بلا مركز عميل لا يُستدعى المدقق (الصياغة محايدة)', async () => {
+    const { service, generation, contract } = build({}, GOOD);
+    contract.contractType = null;
+    contract.clientRole = null;
+    await service.proposeRedraft('c1', 'cl1', ctx);
+    expect(generation.verifyRedraftProtectsClient).not.toHaveBeenCalled();
   });
 });
