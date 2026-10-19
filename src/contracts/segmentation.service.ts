@@ -46,7 +46,7 @@ type Ordinal = readonly [number, readonly string[]];
 
 const ORDINALS: readonly Ordinal[] = [
   [1, ['الأول', 'الاول']],
-  [2, ['الثاني', 'الثانى']],
+  [2, ['الثاني', 'الثانى', 'الثان']], // "الثان" تهجئة ناقصة شائعة فى القراءة الآلية (OCR) لنهاية الياء
   [3, ['الثالث']],
   [4, ['الرابع']],
   [5, ['الخامس']],
@@ -77,42 +77,104 @@ const ORDINALS: readonly Ordinal[] = [
   [30, ['الثلاثون']],
 ];
 
+// فاصل الكلمات داخل الترتيبى: مسافة/سطر جديد، أو شرطة سفلية/تطويل تُنتجها القراءة الآلية ("الحادى_عشر").
+const SEP = '[\\s_\\u0640]';
+
 // الأطول أولاً (حروفاً بعد استبدال المسافات بـ\s+) — يمنع التقاط "العاشر"
 // كتطابق جزئى خاطئ داخل "الحادى عشر" لو رُتبت الأقصر أولاً.
 const ALTERNATIVES = ORDINALS.flatMap(([num, spellings]) => spellings.map((s) => ({ num, s })))
   .sort((a, b) => b.s.length - a.s.length)
-  .map((x) => x.s.replace(/ /g, '\\s+'));
+  .map((x) => x.s.replace(/ /g, SEP + '+'));
 
-const CLAUSE_RE = new RegExp(`^[ \\t]*البند\\s+(${ALTERNATIVES.join('|')})\\s*[:.]?`, 'gmu');
+// (?![ء-ي]) يمنع التقاط تهجئة ناقصة كجزء من كلمة أطول. (?<pre>…) حرف شاذ واحد قبل "البند" (ختم/شخبطة
+// تقرؤها القراءة الآلية مثل "ش البند الثان,")؛ لا يُقبل إلا إن كان باقى السطر قصيراً (عنوان لا جملة إحالة).
+const CLAUSE_RE = new RegExp(
+  `^[ \\t]*(?<pre>[^\\s\\d:.،,\\-][ \\t]+)?البند${SEP}+(?<ord>${ALTERNATIVES.join('|')})(?![\\u0621-\\u064A])\\s*[:.]?`,
+  'gmu',
+);
+const MAX_REST_AFTER_NOISE_PREFIX = 30;
+// علامات الاتجاه غير المرئية التى تضيفها القراءة الآلية وبعض برامج الاستخراج فى أول السطر/آخره.
+const INVISIBLE_MARKS_RE = /[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g;
 
 function ordinalToNumber(spelling: string): number | null {
-  const normalized = spelling.replace(/\s+/g, ' ').trim();
+  const normalized = spelling.replace(/[\s_\u0640]+/g, ' ').trim();
   const found = ORDINALS.find(([, spellings]) =>
     spellings.some((s) => s.replace(/\s+/g, ' ') === normalized),
   );
   return found ? found[0] : null;
 }
 
+interface Head {
+  lineStart: number;
+  markerStart: number;
+  marker: string;
+  /** طول نص العلامة كما ورد فى العقد فعلاً (قد يختلف عن marker المُركَّب لعنوان بلا كلمة "البند") */
+  rawLength: number;
+  declaredNumber: number | null;
+}
+
+// سطر لا يحوى إلا الترتيبى ("الثانى"): القراءة الآلية تُسقط أحياناً كلمة "البند" من العنوان. لا يُقبل إلا
+// إن كان رقمه هو التالى مباشرة للبند السابق (تسلسل حتمى) وبلا عنوان كامل تالٍ بنفس الرقم.
+const BARE_RE = new RegExp(`^[ \\t]*(?<ord>${ALTERNATIVES.join('|')})(?![\\u0621-\\u064A])[ \\t]*$`, 'gmu');
+
 @Injectable()
 export class SegmentationService {
+  private findHeads(text: string): Head[] {
+    const full: Head[] = [...text.matchAll(CLAUSE_RE)]
+      .filter((m) => {
+        if (!m.groups?.pre) return true;
+        const lineEnd = text.indexOf('\n', (m.index ?? 0) + m[0].length);
+        const rest = text.slice((m.index ?? 0) + m[0].length, lineEnd === -1 ? text.length : lineEnd);
+        return rest.trim().length <= MAX_REST_AFTER_NOISE_PREFIX;
+      })
+      .map((m) => {
+        const off = m[0].indexOf('البند');
+        return {
+          lineStart: m.index ?? 0,
+          markerStart: (m.index ?? 0) + off,
+          marker: m[0].slice(off).trim().replace(/[_\u0640]+/g, ' ').replace(/ {2,}/g, ' '),
+          rawLength: m[0].slice(off).trim().length,
+          declaredNumber: ordinalToNumber(m.groups?.ord ?? ''),
+        };
+      });
+    const bare = [...text.matchAll(BARE_RE)].map((m) => ({
+      lineStart: m.index ?? 0,
+      markerStart: m.index ?? 0,
+      marker: `البند ${(m.groups?.ord ?? '').replace(/[\s_\u0640]+/g, ' ')}`,
+      rawLength: (m.groups?.ord ?? '').length,
+      declaredNumber: ordinalToNumber(m.groups?.ord ?? ''),
+    }));
+    const merged = [...full];
+    for (const b of bare) {
+      if (b.declaredNumber === null) continue;
+      const prev = [...merged].filter((h) => h.lineStart < b.lineStart).pop();
+      const nextFull = full.find((h) => h.lineStart > b.lineStart);
+      if (!prev || prev.declaredNumber === null || b.declaredNumber !== prev.declaredNumber + 1) continue;
+      if (nextFull && nextFull.declaredNumber === b.declaredNumber) continue;
+      merged.push(b);
+      merged.sort((x, y) => x.lineStart - y.lineStart);
+    }
+    return merged;
+  }
+
   segment(rawText: string): SegmentationResult {
-    const text = rawText.replace(/\r\n/g, '\n');
-    const matches = [...text.matchAll(CLAUSE_RE)];
+    const text = rawText.replace(INVISIBLE_MARKS_RE, '').replace(/\r\n/g, '\n');
+    const heads = this.findHeads(text);
     const warnings: string[] = [];
 
-    if (matches.length === 0) {
+    if (heads.length === 0) {
       warnings.push(
         'لم يُعثَر على أى بند بنمط "البند + ترتيبى" — قد يستخدم العقد نمط ترقيم مختلف (مثال: "المادة رقم")، أو تقسيماً بلا ترقيم صريح إطلاقاً. يلزم مراجعة بشرية كاملة قبل أى استخدام آلى.',
       );
     }
 
-    const clauses: SegmentedClause[] = matches.map((m, i) => {
-      const next = matches[i + 1];
-      const start = m.index ?? 0;
-      const end = next ? (next.index ?? text.length) : text.length;
+    const clauses: SegmentedClause[] = heads.map((h, i) => {
+      const next = heads[i + 1];
+      const start = h.markerStart;
+      const end = next ? next.lineStart : text.length;
       const fullSlice = text.slice(start, end).trim();
-      const marker = m[0].trim();
-      const afterMarker = fullSlice.slice(marker.length).trim();
+      const marker = h.marker;
+      const afterMarker = fullSlice.slice(h.rawLength).trim();
 
       // العنوان الصريح (إن وُجد): موجود داخل نفس السطر الأول فقط، بعد ":" —
       // مثال حقيقى: "البند الثاني: نطاق العمل والخدمات". لو لم يوجد ":" فى
@@ -140,7 +202,7 @@ export class SegmentationService {
 
       return {
         index: i + 1,
-        declaredNumber: ordinalToNumber(m[1]),
+        declaredNumber: h.declaredNumber,
         label: marker.replace(/[:.]$/, ''),
         title,
         text: body || afterMarker,

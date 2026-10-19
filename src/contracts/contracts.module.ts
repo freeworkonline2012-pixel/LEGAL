@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from '../audit/audit.module';
+import { DocumentsModule } from '../documents/documents.module';
 import { LlmModule } from '../llm/llm.module';
 import { Contract } from '../database/entities/contract.entity';
 import { ContractClause } from '../database/entities/contract-clause.entity';
@@ -32,7 +33,7 @@ import { SegmentationService } from './segmentation.service';
  * فقط يضمن تسجيل الكيانين فى TypeORM.
  */
 @Module({
-  imports: [AuditModule, LlmModule, TypeOrmModule.forFeature([Contract, ContractClause])],
+  imports: [AuditModule, LlmModule, DocumentsModule, TypeOrmModule.forFeature([Contract, ContractClause])],
   controllers: [ContractsController],
   providers: [ContractsService, ExtractionService, SegmentationService],
   exports: [ContractsService],

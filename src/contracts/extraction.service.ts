@@ -28,6 +28,15 @@ const COMMON_CONTRACT_WORDS = [
   'على',
 ];
 
+/**
+ * pdf-parse يضيف فاصلاً "-- N of M --" بين الصفحات حتى لو كانت كلها صوراً بلا نص. تركُها يجعل PDF ممسوحاً
+ * (6 صفحات = 96 حرفاً من الفواصل وحدها) يتجاوز فحص "لا نص كافٍ" فيصل إلى التقسيم بنص بلا بنود ("0 بند")
+ * بدل أن يُعامَل كممسوح ضوئياً. وهو يلوّث أيضاً متن البنود فى الملفات النصية.
+ */
+export function stripPdfPageMarkers(text: string): string {
+  return text.replace(/^[ \t]*--[ \t]*\d+[ \t]+of[ \t]+\d+[ \t]*--[ \t]*$/gim, '').replace(/\n{3,}/g, '\n\n');
+}
+
 function isLikelyCorrupted(text: string): boolean {
   const trimmed = text.trim();
   if (trimmed.length < 200) {
@@ -103,7 +112,7 @@ export class ExtractionService {
     const parser = new PDFParse({ data: buffer });
     try {
       const result = await parser.getText();
-      return result.text;
+      return stripPdfPageMarkers(result.text);
     } finally {
       await parser.destroy();
     }

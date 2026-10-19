@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -25,6 +26,7 @@ import {
 } from './criteria.util';
 import { Contract, ContractStatus } from '../database/entities/contract.entity';
 import { ContractClause, MatchedArticle } from '../database/entities/contract-clause.entity';
+import { DocumentReaderService, looksLikeVisualOrderArabic } from '../documents/document-reader.service';
 import { ExtractionService } from './extraction.service';
 import {
   dropUnapprovedArticleSentences,
@@ -88,6 +90,7 @@ export class ContractsService {
     private readonly segmentationService: SegmentationService,
     private readonly generationService: DeepseekGenerationService,
     private readonly embeddingsService: VoyageEmbeddingsService,
+    private readonly documentReader: DocumentReaderService,
   ) {
     this.contractRepository = this.dataSource.getRepository(Contract);
     this.clauseRepository = this.dataSource.getRepository(ContractClause);
@@ -113,7 +116,44 @@ export class ContractsService {
       hasClientPosition: Boolean(position.clientRole),
     });
 
-    const extraction = await this.extractionService.extract(file.buffer, file.mimetype, file.originalname);
+    let extraction = await this.extractionService.extract(file.buffer, file.mimetype, file.originalname);
+    const uploadWarnings: string[] = [];
+
+    // PDF ممسوح ضوئياً (صور بلا نص) أو بترميز تالف/معكوس: القراءة الآلية (OCR) لصور الصفحات هى الحل الجذرى
+    // بدل رفض العقد. النص المقروء آلياً قد يخطئ فى الأرقام والمبالغ والتواريخ والأسماء والخط اليدوى، فيُنبَّه
+    // المستخدم صراحةً بذلك، وتُرفَض العقود الممسوحة الأطول من حد صفحات القراءة بدل تقييم جزء منها بصمت.
+    const isPdf = file.mimetype === 'application/pdf' || file.originalname.toLowerCase().endsWith('.pdf');
+    const needsOcr =
+      isPdf &&
+      (extraction.status === 'empty' ||
+        extraction.status === 'corrupted_encoding' ||
+        (extraction.status === 'ok' && looksLikeVisualOrderArabic(extraction.text)));
+    if (needsOcr) {
+      try {
+        const read = await this.documentReader.read(file.buffer, {
+          messages: {
+            unsupportedType: 'نوع الملف غير مدعوم — المدعوم: PDF أو DOCX.',
+            ocrUnavailable:
+              'الملف صور ممسوحة ضوئياً ولا نص رقمى فيه، والقراءة الآلية للصور غير متاحة حالياً على الخادم — ارفع نسخة Word أو PDF نصى من العقد.',
+            ocrFailed:
+              'تعذّرت القراءة الآلية للصور الممسوحة — جرّب نسخة أوضح أو ارفع نسخة Word أو PDF نصى من العقد.',
+            unreadable: 'تعذّرت قراءة الملف — ارفع نسخة Word أو PDF نصى من العقد.',
+            tooLittleText:
+              'لم نتمكن من قراءة نص كافٍ من هذا الملف الممسوح — تأكد من وضوح الصور أو ارفع نسخة Word أو PDF نصى من العقد.',
+          },
+          failOnOcrTruncation: true,
+          minChars: 200,
+        });
+        extraction = { status: 'ok', text: read.text };
+        uploadWarnings.push(
+          'قُرئ هذا العقد آلياً من صور ممسوحة ضوئياً (OCR). قد تحتوى القراءة أخطاء، خصوصاً فى الأرقام والمبالغ والتواريخ والأسماء والخط اليدوى والأختام، وقد يفوت التقسيم بعض البنود. قارن كل بند بالأصل قبل أى اعتماد، ويُفضَّل رفع نسخة Word أو PDF نصى إن وُجدت.',
+        );
+        await this.audit(context, 'contracts.ocr_used', contract.id, { usedOcr: true });
+      } catch (err) {
+        const detail = err instanceof HttpException ? this.httpExceptionMessage(err) : 'تعذّرت القراءة الآلية للملف.';
+        extraction = { status: 'error', detail };
+      }
+    }
 
     if (extraction.status !== 'ok') {
       contract.status = 'extraction_failed';
@@ -155,10 +195,17 @@ export class ContractsService {
 
     await this.audit(context, 'contracts.processed', contract.id, {
       clauseCount: clauseRows.length,
-      warnings: segmentation.warnings,
+      warnings: [...uploadWarnings, ...segmentation.warnings],
     });
 
-    return this.toResponseDto(contract, clauseRows, segmentation.warnings);
+    return this.toResponseDto(contract, clauseRows, [...uploadWarnings, ...segmentation.warnings]);
+  }
+
+  private httpExceptionMessage(err: HttpException): string {
+    const res = err.getResponse();
+    if (typeof res === 'string') return res;
+    const msg = (res as { message?: string | string[] }).message;
+    return Array.isArray(msg) ? msg.join(' ') : (msg ?? err.message);
   }
 
   async findById(

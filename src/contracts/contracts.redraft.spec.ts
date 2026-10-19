@@ -55,6 +55,7 @@ function build(clauseOverrides: Record<string, unknown> = {}, outcome?: unknown)
     {} as never,
     generation as never,
     {} as never,
+    {} as never,
   );
   return { service, generation, clauseRepo, clause, contract };
 }

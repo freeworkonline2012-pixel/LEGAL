@@ -1,4 +1,4 @@
-import { ExtractionService } from './extraction.service';
+import { ExtractionService, stripPdfPageMarkers } from './extraction.service';
 
 /**
  * اختبارات وحدة لـExtractionService — تُغطى هنا فقط المسارات القابلة للاختبار
@@ -36,5 +36,17 @@ describe('ExtractionService', () => {
     // بسبب المحتوى المزيَّف، لا unsupported_type بسبب سوء تصنيف النوع نفسه).
     const result = await service.extract(Buffer.from('not a real docx'), '', 'عقد.docx');
     expect(result.status).not.toBe('unsupported_type');
+  });
+
+  it('يحذف فواصل صفحات pdf-parse حتى لا يُعدّ PDF ممسوح (6 صفحات صور) نصاً كافياً', () => {
+    const scanned = ['', '-- 1 of 6 --', '', '-- 2 of 6 --', '', '-- 6 of 6 --', ''].join('\n');
+    expect(stripPdfPageMarkers(scanned).trim()).toBe('');
+  });
+
+  it('يُبقى النص الحقيقى ويحذف الفواصل بينه', () => {
+    const t = stripPdfPageMarkers('البند الأول\nنص\n\n-- 1 of 2 --\n\nتكملة\n-- 2 of 2 --');
+    expect(t).toContain('البند الأول');
+    expect(t).toContain('تكملة');
+    expect(t).not.toMatch(/of 2/);
   });
 });

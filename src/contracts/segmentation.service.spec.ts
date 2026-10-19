@@ -108,4 +108,63 @@ describe('SegmentationService', () => {
     expect(service.segment(textAlefMaksura).clauses[1].declaredNumber).toBe(2);
     expect(service.segment(textYaa).clauses[1].declaredNumber).toBe(2);
   });
+
+  describe('نص مقروء آلياً (OCR)', () => {
+    it('يتجاوز علامات الاتجاه غير المرئية فى أول السطر وآخره', () => {
+      const text = '\u200fالتمهيد\u200e\n\u200fالبند الأول\u200e\nنص أول.\n\u200fالبند الثانى\u200e\nنص ثان.';
+      const r = service.segment(text);
+      expect(r.clauses.map((c) => c.declaredNumber)).toEqual([1, 2]);
+    });
+
+    it('يقبل حرفاً شاذاً واحداً قبل عنوان البند وتهجئة "الثان," الناقصة', () => {
+      const text = ['البند الأول', 'نص أول.', 'ش البند الثان, ظ', 'نص ثان.', 'البند الثالث ْ ْ', 'نص ثالث.'].join('\n');
+      const r = service.segment(text);
+      expect(r.clauses.map((c) => c.declaredNumber)).toEqual([1, 2, 3]);
+      expect(r.clauses[1].text).toContain('نص ثان');
+      expect(r.clauses[0].text).not.toContain('ش');
+    });
+
+    it('لا يعتبر سطراً يبدأ بحرف شاذ ثم جملة إحالة طويلة عنوان بند', () => {
+      const text = [
+        'البند الأول',
+        'يلتزم الطرف الثانى بالسداد.',
+        'و البند الثانى من هذا العقد يحكم مدة السداد وطريقة الدفع بين الطرفين.',
+        'البند الثانى',
+        'مدة العقد سنة.',
+      ].join('\n');
+      const r = service.segment(text);
+      expect(r.clauses.map((c) => c.declaredNumber)).toEqual([1, 2]);
+    });
+
+    it('يقبل ترتيبياً بشرطة سفلية أو مسافة بعدها ("الحادى_عشر"، "الثالث_ عشر")', () => {
+      const lines: string[] = [];
+      for (const w of ['الأول', 'الثانى', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن', 'التاسع', 'العاشر']) {
+        lines.push(`البند ${w}`, 'نص.');
+      }
+      lines.push('البند الحادى_عشر', 'نص.', 'البند الثانى عشر', 'نص.', 'البند الثالث_ عشر', 'نص.');
+      const r = service.segment(lines.join('\n'));
+      expect(r.clauses.map((c) => c.declaredNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]);
+      expect(r.clauses[10].label).toBe('البند الحادى عشر');
+      expect(r.warnings).toEqual([]);
+    });
+
+    it('يستعيد عنواناً سقطت منه كلمة "البند" فقط إن كان رقمه التالى مباشرة للبند السابق', () => {
+      const text = ['البند الأول', 'نص أول.', 'الثانى', 'نص ثان.', 'البند الثالث', 'نص ثالث.'].join('\n');
+      const r = service.segment(text);
+      expect(r.clauses.map((c) => c.declaredNumber)).toEqual([1, 2, 3]);
+      expect(r.clauses[1].label).toBe('البند الثانى');
+      expect(r.warnings).toEqual([]);
+    });
+
+    it('لا يعتبر سطراً مفرداً بترتيبى لا يتبع التسلسل عنوان بند', () => {
+      const text = ['البند الأول', 'نص أول.', 'الخامس', 'نص.', 'البند الثانى', 'نص ثان.'].join('\n');
+      const r = service.segment(text);
+      expect(r.clauses.map((c) => c.declaredNumber)).toEqual([1, 2]);
+    });
+
+    it('لا يلتقط تهجئة ناقصة كجزء من كلمة أطول', () => {
+      const r = service.segment('البند الثانية\nنص.');
+      expect(r.clauses).toHaveLength(0);
+    });
+  });
 });
