@@ -199,8 +199,8 @@ export class AuthService {
       role: user.role,
     };
 
-    // الزائر: توكن وصول أطول (افتراضى 12 ساعة) لأن الواجهة لا تجدّد التوكن آلياً،
-    // وتوكن تحديث ليوم واحد فقط. المستخدم العادى: بلا أى تغيير.
+    // الزائر: توكن وصول طويل (افتراضى 30 يوماً، راجع guest.constants) لأن الواجهة لا تجدّد التوكن
+    // آلياً، وتوكن تحديث بالمدة نفسها. المستخدم العادى: بلا أى تغيير.
     const guest = isGuestEmail(user.email);
     const accessTtl = guest
       ? (this.configService.get<string>('GUEST_JWT_EXPIRES_IN') ?? GUEST_DEFAULT_ACCESS_TOKEN_TTL)

@@ -135,7 +135,7 @@ export class EnvironmentVariables {
   @IsString()
   GUEST_ACCESS_ENABLED?: string;
 
-  /** مدة توكن وصول الزائر (مثال 12h). الافتراضى 12h */
+  /** مدة توكن وصول الزائر (مثال 12h). الافتراضى 30d (راجع guest.constants) */
   @IsOptional()
   @IsString()
   GUEST_JWT_EXPIRES_IN?: string;

@@ -86,7 +86,16 @@ describe('AuthService — وضع الزائر', () => {
 
     const payload = jwt.verify<{ exp: number; iat: number; role: string }>(res.access_token);
     expect(payload.role).toBe('user');
-    expect(payload.exp - payload.iat).toBe(12 * 3600);
+    expect(payload.exp - payload.iat).toBe(30 * 24 * 3600);
+  });
+
+  it('توكن تحديث الزائر يبقى 30 يوماً (لا ينتهى بين يوم وآخر)', async () => {
+    const { service, refreshRepo } = makeService({ GUEST_ACCESS_ENABLED: 'true' });
+    await service.createGuest();
+    const arg = (refreshRepo.insert.mock.calls[0] as unknown as [{ expiresAt: Date }])[0];
+    const days = (arg.expiresAt.getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(29.9);
+    expect(days).toBeLessThan(30.1);
   });
 
   it('GUEST_JWT_EXPIRES_IN يضبط مدة التوكن', async () => {

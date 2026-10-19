@@ -19,8 +19,15 @@ export const GUEST_EMAIL_DOMAIN = 'guest.invalid';
 /** قيمة ليست تجزئة bcrypt صالحة — bcrypt.compare تُرجع false دائماً، فلا دخول بكلمة مرور لحساب زائر */
 export const GUEST_UNUSABLE_PASSWORD_HASH = '!guest-no-password!';
 
-export const GUEST_DEFAULT_ACCESS_TOKEN_TTL = '12h';
-export const GUEST_REFRESH_TOKEN_DAYS = 1;
+/**
+ * مدة جلسة الزائر. كانت 12 ساعة ويوماً واحداً فانتهت جلسة المختبر بين يوم وآخر وظهرت له رسالة
+ * "سجّل الدخول" (اختبار 19/10/2026) بينما قرار المالك أن يبقى وضع الزائر مفتوحاً حتى يطلب هو
+ * إعادة التسجيل. الواجهة لا تجدّد التوكن، فالتوكن نفسه طويل. الأمان لم يتغير: الحساب مؤقت بلا
+ * صلاحيات admin، ومفتاح الإيقاف GUEST_ACCESS_ENABLED يقطع كل الجلسات فوراً، والمدة قابلة للضبط
+ * بـGUEST_JWT_EXPIRES_IN.
+ */
+export const GUEST_DEFAULT_ACCESS_TOKEN_TTL = '30d';
+export const GUEST_REFRESH_TOKEN_DAYS = 30;
 
 export function isGuestEmail(email: string | null | undefined): boolean {
   return typeof email === 'string' && email.trim().toLowerCase().endsWith(`@${GUEST_EMAIL_DOMAIN}`);
