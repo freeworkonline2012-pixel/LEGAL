@@ -59,6 +59,27 @@ const of = <T extends RBlock['t']>(blocks: RBlock[], t: T) => blocks.filter((b) 
 describe('buildContractAuditReport', () => {
   const { report, reference } = buildContractAuditReport(INPUT);
 
+  it('تحذيرات الاستخراج المحفوظة تظهر فى الغلاف ثم فى أول الملخص، وغيابها لا يضيف شيئاً', () => {
+    const none = buildContractAuditReport(INPUT).report;
+    expect(none.cover.rows.some((r) => r.label === 'تنبيه الاستخراج')).toBe(false);
+    expect(of(none.blocks, 'note').some((n) => n.label === 'تنبيه الاستخراج:')).toBe(false);
+
+    const w = 'قُرئ هذا العقد آلياً من صور ممسوحة ضوئياً (OCR).';
+    const { report: r } = buildContractAuditReport({ ...INPUT, extractionWarnings: [w, '  '] });
+    expect(r.cover.rows.some((x) => x.label === 'تنبيه الاستخراج')).toBe(true);
+    const notes = of(r.blocks, 'note').filter((n) => n.label === 'تنبيه الاستخراج:');
+    expect(notes.map((n) => n.text)).toEqual([w]);
+    const bannerIdx = r.blocks.findIndex((b) => b.t === 'banner');
+    expect(r.blocks[bannerIdx + 1]).toEqual({ t: 'note', label: 'تنبيه الاستخراج:', text: w });
+  });
+
+  it('عدد البنود فى الغلاف لا يحسب النص غير المُقسَّم بنداً', () => {
+    const unseg = clause({ clauseIndex: 1, clauseLabel: 'نص سابق لـالبند الرابع (غير مُقسَّم)', assessmentStatus: null });
+    const { report: r } = buildContractAuditReport({ ...INPUT, clauses: [unseg, ...INPUT.clauses.map((c) => ({ ...c, clauseIndex: c.clauseIndex + 1 }))] });
+    const row = r.cover.rows.find((x) => x.label === 'عدد البنود')!;
+    expect(row.value).toBe(`${INPUT.clauses.length} + نص سابق غير مُقسَّم`);
+  });
+
   it('الأقسام بترتيب التقرير المعتمد وبأرقام متسلسلة', () => {
     const banners = of(report.blocks, 'banner').map((b) => b.text);
     expect(banners).toEqual([

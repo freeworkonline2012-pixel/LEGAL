@@ -34,11 +34,15 @@ export interface AuditReportInput {
   clauses: AuditClause[];
   approvedAt: Date | null;
   approvalNote: string | null;
+  /** تحذيرات الاستخراج المحفوظة وقت الرفع (OCR، ترقيم، نص غير مُقسَّم)؛ تُعرض فى الغلاف والملخص. */
+  extractionWarnings?: string[] | null;
   generatedAt: Date;
   brand?: string;
 }
 
 const NEEDS_REVIEW = 'يحتاج مراجعة';
+/** بادئة تسمية البند الذى يُدرجه المقسِّم لنص سابق لأول عنوان مُتعرَّف (راجع SegmentationService). */
+const UNSEGMENTED_PREFIX = 'نص سابق لـ';
 const NO_TEXT = 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';
 const SEVERITY_ORDER: Severity[] = ['حرج', 'عالٍ', 'متوسط', 'غير مصنَّف'];
 const SEVERITY_TONE: Record<Severity, Tone> = { حرج: 'critical', عالٍ: 'high', متوسط: 'medium', 'غير مصنَّف': 'grey' };
@@ -223,7 +227,16 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
             .join('، ')}${lawList.length > 3 ? ' وغيرها' : ''}`
         : 'القانون المصرى',
   });
-  coverRows.push({ label: 'عدد البنود', value: String(clauses.length) });
+  const unsegmented = clauses.filter((c) => c.clauseLabel.startsWith(UNSEGMENTED_PREFIX));
+  const realCount = clauses.length - unsegmented.length;
+  coverRows.push({
+    label: 'عدد البنود',
+    value: unsegmented.length > 0 ? `${realCount} + نص سابق غير مُقسَّم` : String(clauses.length),
+  });
+  const warnings = (input.extractionWarnings ?? []).filter((w) => w.trim().length > 0);
+  if (warnings.length > 0) {
+    coverRows.push({ label: 'تنبيه الاستخراج', value: 'يحتوى تحذيرات قراءة/تقسيم — راجع القسم 1', tone: 'medium' });
+  }
   coverRows.push({ label: 'تاريخ التقرير', value: dateText });
   coverRows.push({
     label: 'حالة التقرير',
@@ -241,6 +254,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   // ---------- 1. الملخص التنفيذى ----------
   blocks.push({ t: 'pagebreak' });
   banner('الملخص التنفيذى');
+  for (const w of warnings) {
+    blocks.push({ t: 'note', label: 'تنبيه الاستخراج:', text: w });
+  }
   const position =
     input.clientRole && input.contractType
       ? ` وقيس كل بند منظوراً إليه من جهة «${input.clientRole}» فى ${input.contractType}.`

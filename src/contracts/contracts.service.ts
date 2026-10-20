@@ -171,6 +171,8 @@ export class ContractsService {
 
     contract.status = 'processing';
     contract.clauseCount = segmentation.clauses.length;
+    const allWarnings = [...uploadWarnings, ...segmentation.warnings];
+    contract.extractionWarnings = allWarnings.length > 0 ? allWarnings : null;
     contract = await this.contractRepository.save(contract);
 
     let clauseRows: ContractClause[] = await Promise.all(

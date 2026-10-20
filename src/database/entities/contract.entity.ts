@@ -60,6 +60,10 @@ export class Contract {
   @Column({ name: 'report_approval_note', type: 'text', nullable: true })
   reportApprovalNote: string | null;
 
+  /** تحذيرات الاستخراج لحظة الرفع (OCR، ترقيم غير متسلسل...)؛ يعرضها التقرير. NULL = لا تحذيرات مسجَّلة. */
+  @Column({ name: 'extraction_warnings', type: 'jsonb', nullable: true })
+  extractionWarnings: string[] | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

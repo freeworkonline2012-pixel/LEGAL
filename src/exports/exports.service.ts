@@ -208,6 +208,9 @@ export class ExportsService {
         })),
         approvedAt: contract.reportApprovedAt,
         approvalNote: contract.reportApprovalNote,
+        extractionWarnings: Array.isArray(contract.extractionWarnings)
+          ? contract.extractionWarnings.filter((w): w is string => typeof w === 'string')
+          : null,
         generatedAt: new Date(),
         brand: this.brand,
       }),
