@@ -167,4 +167,22 @@ describe('SegmentationService', () => {
       expect(r.clauses).toHaveLength(0);
     });
   });
+  describe('بنود سابقة لأول عنوان مُتعرَّف عليه', () => {
+    it('لا يُسقط النص الذى يسبق "البند الرابع" بصمت: يُدرجه بنداً واحداً غير مُقسَّم مع تنبيه', () => {
+      const pre = 'تحرر هذا العقد بين شركتين وأتفق الطرفان على إنشاء برامج بسعر مليون جنيه وسداد الدفعات على ثلاث مراحل.';
+      const r = service.segment([pre, 'البند الرابع', 'مدة العقد سنة.', 'البند الخامس', 'نص خامس.'].join('\n'));
+      expect(r.clauses).toHaveLength(3);
+      expect(r.clauses[0].declaredNumber).toBeNull();
+      expect(r.clauses[0].text).toContain('بسعر مليون جنيه');
+      expect(r.clauses.map((c) => c.index)).toEqual([1, 2, 3]);
+      expect(r.warnings.some((w) => w.includes('غير مُقسَّم'))).toBe(true);
+    });
+
+    it('عقد سليم يبدأ بـ"البند الأول" لا يُضاف له بند سابق حتى مع وجود ديباجة', () => {
+      const pre = 'تحرر هذا العقد بين شركتين وأتفق الطرفان على ما يلى بعد أن أقرا بأهليتهما القانونية للتعاقد.';
+      const r = service.segment([pre, 'البند الأول', 'نص أول.', 'البند الثانى', 'نص ثان.'].join('\n'));
+      expect(r.clauses.map((c) => c.declaredNumber)).toEqual([1, 2]);
+      expect(r.warnings).toEqual([]);
+    });
+  });
 });

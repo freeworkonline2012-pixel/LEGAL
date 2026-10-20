@@ -209,6 +209,26 @@ export class SegmentationService {
       };
     });
 
+    // أول بند مُتعرَّف عليه ليس "الأول": نص ما قبله قد يحوى بنوداً لم تُقرأ عناوينها (قراءة آلية رديئة).
+    // لا نُسقطه بصمت — يُدرَج كبند واحد غير مُقسَّم ليخضع للتقييم والمراجعة، مع تنبيه صريح.
+    const first = heads[0];
+    if (first && first.declaredNumber !== null && first.declaredNumber > 1) {
+      const leading = text.slice(0, first.lineStart).trim();
+      if (leading.length >= 40) {
+        clauses.unshift({
+          index: 0,
+          declaredNumber: null,
+          label: `نص سابق لـ${first.marker.replace(/[:.]$/, '')} (غير مُقسَّم)`,
+          title: null,
+          text: leading,
+        });
+        clauses.forEach((c, i) => { c.index = i + 1; });
+        warnings.push(
+          `لم تُقرأ عناوين البنود السابقة لـ"${first.marker.replace(/[:.]$/, '')}"؛ أُدرج النص الذى يسبقه كبند واحد غير مُقسَّم (قد يضم الديباجة وعدة بنود) — يلزم تقسيمه ومراجعته يدوياً.`,
+        );
+      }
+    }
+
     // فحص تسلسل الترقيم المُصرَّح به داخل العقد نفسه (لا الترتيب الفعلى للظهور
     // فقط) — بند مفقود أو مكرر مؤشر خطأ تقسيم أو خطأ فى العقد الأصلى نفسه،
     // وفى الحالتين يستحق تنبيهاً صريحاً بدل تمريره بصمت.
