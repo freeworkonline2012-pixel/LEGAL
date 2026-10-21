@@ -12,18 +12,18 @@ describe('ContractsController.upload — مركز العميل', () => {
   it('يمرّر مركز العميل المنقّى من حقلى النموذج', async () => {
     const { service, controller, request, file } = setup();
     await controller.upload(file, request, { contract_type: 'عقد إيجار', client_role: 'المستأجر' });
-    expect(service.upload.mock.calls[0][2]).toEqual({ contractType: 'عقد إيجار', clientRole: 'المستأجر' });
+    expect(service.upload.mock.calls[0][2]).toEqual({ contractType: 'عقد إيجار', clientRole: 'المستأجر', clientParty: null });
   });
 
   it('بلا حقول = مركز فارغ (تدقيق محايد)', async () => {
     const { service, controller, request, file } = setup();
     await controller.upload(file, request, undefined);
-    expect(service.upload.mock.calls[0][2]).toEqual({ contractType: null, clientRole: null });
+    expect(service.upload.mock.calls[0][2]).toEqual({ contractType: null, clientRole: null, clientParty: null });
   });
 
   it('ينقّى المدخل الضار ولا يمرّر رقماً طويلاً', async () => {
     const { service, controller, request, file } = setup();
     await controller.upload(file, request, { contract_type: 'عقد', client_role: 'المستأجر 29801011234567' });
-    expect(service.upload.mock.calls[0][2]).toEqual({ contractType: 'عقد', clientRole: null });
+    expect(service.upload.mock.calls[0][2]).toEqual({ contractType: 'عقد', clientRole: null, clientParty: null });
   });
 });

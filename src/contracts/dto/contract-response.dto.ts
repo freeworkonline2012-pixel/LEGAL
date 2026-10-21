@@ -10,6 +10,7 @@ export class ContractResponseDto {
   @ApiPropertyOptional({ nullable: true }) clause_count: number | null;
   @ApiPropertyOptional({ nullable: true }) contract_type: string | null;
   @ApiPropertyOptional({ nullable: true }) client_role: string | null;
+  @ApiPropertyOptional({ nullable: true, enum: ['first', 'second'] }) client_party?: 'first' | 'second' | null;
   @ApiPropertyOptional({ type: [String] })
   warnings?: string[];
   @ApiPropertyOptional({ type: [ContractClauseResponseDto] })

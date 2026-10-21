@@ -50,6 +50,10 @@ export class Contract {
   @Column({ name: 'client_role', type: 'text', nullable: true })
   clientRole: string | null;
 
+  /** أى الطرفين فى نص العقد هو العميل ('first' | 'second')؛ NULL = لم يُحدَّد. */
+  @Column({ name: 'client_party', type: 'text', nullable: true })
+  clientParty: 'first' | 'second' | null;
+
   /** اعتماد المراجعة البشرية لتقرير العقد (migrations/203) — شرط تصدير التقرير للعميل. */
   @Column({ name: 'report_approved_by', type: 'uuid', nullable: true })
   reportApprovedBy: string | null;

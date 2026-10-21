@@ -5,14 +5,21 @@ describe('sanitizeClientPosition', () => {
     expect(sanitizeClientPosition({ contract_type: 'عقد إيجار', client_role: 'المستأجر' })).toEqual({
       contractType: 'عقد إيجار',
       clientRole: 'المستأجر',
+      clientParty: null,
     });
+  });
+  it('الطرف: first/second فقط ولا يُقبل بلا صفة', () => {
+    expect(sanitizeClientPosition({ client_role: 'المستأجر', client_party: 'second' }).clientParty).toBe('second');
+    expect(sanitizeClientPosition({ client_role: 'المستأجر', client_party: 'third' }).clientParty).toBeNull();
+    expect(sanitizeClientPosition({ client_party: 'first' }).clientParty).toBeNull();
   });
   it('يعيد null للغائب والقصير وغير النصى', () => {
     expect(sanitizeClientPosition({ contract_type: 'ع', client_role: 5 })).toEqual({
       contractType: null,
       clientRole: null,
+      clientParty: null,
     });
-    expect(sanitizeClientPosition(undefined)).toEqual({ contractType: null, clientRole: null });
+    expect(sanitizeClientPosition(undefined)).toEqual({ contractType: null, clientRole: null, clientParty: null });
   });
   it('ينقّى أحرف التحكم والأقواس ورموز الحقن ويحدّ الطول', () => {
     const r = sanitizeClientPosition({
@@ -30,6 +37,11 @@ describe('sanitizeClientPosition', () => {
 describe('describePosition', () => {
   it('يصف المركز مع النوع', () => {
     expect(describePosition({ contractType: 'عقد إيجار', clientRole: 'المستأجر' })).toBe('المستأجر (فى عقد إيجار)');
+  });
+  it('مع تحديد الطرف يُلزم النموذج بأن ما ورد لطرف العميل فهو للعميل', () => {
+    const d = describePosition({ contractType: 'عقد خدمات', clientRole: 'طالب الخدمة', clientParty: 'second' })!;
+    expect(d).toContain('وهو «الطرف الثانى» فى نص العقد');
+    expect(d).toContain('والطرف الآخر هو «الطرف الأول»');
   });
   it('بلا صفة = null', () => {
     expect(describePosition({ contractType: 'عقد إيجار', clientRole: null })).toBeNull();

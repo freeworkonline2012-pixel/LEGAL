@@ -193,6 +193,7 @@ export class ExportsService {
         uploadedAt: contract.createdAt,
         contractType: contract.contractType,
         clientRole: contract.clientRole,
+        clientParty: contract.clientParty ?? null,
         clauses: clauses.map((c) => ({
           clauseIndex: c.clauseIndex,
           clauseLabel: c.clauseLabel,

@@ -32,6 +32,8 @@ export interface AuditReportInput {
   uploadedAt: Date;
   contractType: string | null;
   clientRole: string | null;
+  /** أى الطرفين فى نص العقد هو العميل (إن حُدِّد). */
+  clientParty?: 'first' | 'second' | null;
   clauses: AuditClause[];
   approvedAt: Date | null;
   approvalNote: string | null;
@@ -187,9 +189,12 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     risky.push({ ...x, n: i + 1, redraft: parseRedraft(x.c.suggestedWording) });
   });
   const totalRisky = risky.length;
-  const noTextClauses = clauses.filter((c) => c.assessmentStatus === NO_TEXT);
-  const soundClauses = clauses.filter((c) => c.assessmentStatus === 'سليم');
-  const unassessed = clauses.filter((c) => c.assessmentStatus === null);
+  // النص السابق لأول بند مُتعرَّف عليه (يُدرجه المقسِّم) ليس بنداً: يُذكر على حدة ولا يدخل فى أعداد البنود
+  const unsegmentedBlocks = clauses.filter((c) => c.clauseLabel.startsWith(UNSEGMENTED_PREFIX));
+  const baseClauses = clauses.filter((c) => !c.clauseLabel.startsWith(UNSEGMENTED_PREFIX));
+  const noTextClauses = baseClauses.filter((c) => c.assessmentStatus === NO_TEXT);
+  const soundClauses = baseClauses.filter((c) => c.assessmentStatus === 'سليم');
+  const unassessed = baseClauses.filter((c) => c.assessmentStatus === null);
 
   // القوانين المستشهد بها (بترتيب أول ظهور) والمواد لكل قانون
   type LawEntry = {
@@ -217,7 +222,10 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   const coverRows: AuditReport['cover']['rows'] = [];
   if (input.contractType) coverRows.push({ label: 'موضوع العقد', value: input.contractType });
   coverRows.push({ label: 'ملف العقد', value: input.originalFilename });
-  if (input.clientRole) coverRows.push({ label: 'منظور التدقيق (العميل)', value: input.clientRole });
+  if (input.clientRole) {
+    const party = input.clientParty === 'first' ? 'الطرف الأول' : input.clientParty === 'second' ? 'الطرف الثانى' : null;
+    coverRows.push({ label: 'منظور التدقيق (العميل)', value: party ? `${input.clientRole} — ${party} فى نص العقد` : input.clientRole });
+  }
   coverRows.push({
     label: 'القانون الحاكم',
     value:
@@ -228,15 +236,14 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
             .join('، ')}${lawList.length > 3 ? ' وغيرها' : ''}`
         : 'القانون المصرى',
   });
-  const unsegmented = clauses.filter((c) => c.clauseLabel.startsWith(UNSEGMENTED_PREFIX));
-  const realCount = clauses.length - unsegmented.length;
+  const realCount = baseClauses.length;
   coverRows.push({
     label: 'عدد البنود',
-    value: unsegmented.length > 0 ? `${realCount} + نص سابق غير مُقسَّم` : String(clauses.length),
+    value: unsegmentedBlocks.length > 0 ? `${realCount} + نص سابق غير مُقسَّم` : String(clauses.length),
   });
   const warnings = (input.extractionWarnings ?? []).filter((w) => w.trim().length > 0);
   const ocrRead = warnings.some((w) => w.includes('OCR'));
-  const realClauses = clauses.filter((c) => !c.clauseLabel.startsWith(UNSEGMENTED_PREFIX));
+  const realClauses = baseClauses;
   const assessedCount = realClauses.filter((c) => c.assessmentStatus === 'سليم' || c.assessmentStatus === NEEDS_REVIEW).length;
   const notAssessedCount = realClauses.length - assessedCount;
   coverRows.push({
@@ -276,11 +283,13 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   for (const w of warnings) {
     blocks.push({ t: 'note', label: 'تنبيه الاستخراج:', text: w });
   }
+  const partyPhrase =
+    input.clientParty === 'first' ? ' (الطرف الأول فى نص العقد)' : input.clientParty === 'second' ? ' (الطرف الثانى فى نص العقد)' : '';
   const position =
     input.clientRole && input.contractType
-      ? ` وقيس كل بند منظوراً إليه من جهة «${input.clientRole}» فى ${input.contractType}.`
+      ? ` وقيس كل بند منظوراً إليه من جهة «${input.clientRole}» فى ${input.contractType}${partyPhrase}.`
       : input.clientRole
-        ? ` وقيس كل بند منظوراً إليه من جهة «${input.clientRole}».`
+        ? ` وقيس كل بند منظوراً إليه من جهة «${input.clientRole}»${partyPhrase}.`
         : '';
   const lawsPhrase = lawList.length > 0 ? ` ومنها: ${lawList.map((l) => l.name).join('، ')}` : '';
   if (totalRisky > 0) {
@@ -292,14 +301,15 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     blocks.push({
       t: 'p',
       text:
-        `رُصد فى هذا العقد ${bands(totalRisky)} تحتاج مراجعة من أصل ${bands(clauses.length)}، وهى بحسب الخطورة: ${dist.join('، ')}. ` +
+        `رُصد فى هذا العقد ${bands(totalRisky)} ${totalRisky === 1 ? 'يحتاج' : totalRisky === 2 ? 'يحتاجان' : 'تحتاج'} مراجعة من أصل ${bands(baseClauses.length)}، ` +
+        `${totalRisky === 1 ? 'وهو' : totalRisky === 2 ? 'وهما' : 'وهى'} بحسب الخطورة: ${dist.join('، ')}. ` +
         `ويرتكز هذا التحليل على النصوص القانونية المصرية المفهرسة لدى المنصة${lawsPhrase}.${position}`,
     });
   } else {
     blocks.push({
       t: 'p',
       text:
-        `لم تُرصد فى هذا العقد بنود تحتاج مراجعة وفق النصوص القانونية المصرية المفهرسة لدى المنصة، من أصل ${bands(clauses.length)}.${position}`,
+        `لم تُرصد فى هذا العقد بنود تحتاج مراجعة وفق النصوص القانونية المصرية المفهرسة لدى المنصة، من أصل ${bands(baseClauses.length)}.${position}`,
     });
   }
   blocks.push({
@@ -316,7 +326,8 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     text:
       `من بقية البنود: ${bands(soundClauses.length)} لم يظهر فيها اختلاف عن النصوص المفهرسة، و${bands(noTextClauses.length)} لا يوجد نص قانونى مصرى مفهرس يحكمها مباشرة` +
       ` (وهذا لا يعنى صحتها، بل أن المنصة لا تملك نصاً تقيس عليه).` +
-      (unassessed.length > 0 ? ` و${bands(unassessed.length)} لم تُقيَّم.` : ''),
+      (unassessed.length > 0 ? ` و${bands(unassessed.length)} لم تُقيَّم.` : '') +
+      (unsegmentedBlocks.length > 0 ? ' ويضاف إليها نص سابق لأول بند مُتعرَّف عليه لم يُقسَّم إلى بنود، فلم يُقيَّم كبنود مستقلة.' : ''),
   });
   const hasRedrafts = risky.some((r) => r.redraft && !r.redraft.noChange);
   blocks.push({

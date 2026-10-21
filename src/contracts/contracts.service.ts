@@ -102,7 +102,7 @@ export class ContractsService {
   async upload(
     file: { buffer: Buffer; mimetype: string; originalname: string },
     context: { userId: string; ipAddress: string | null; userAgent: string | null },
-    position: ClientPosition = { contractType: null, clientRole: null },
+    position: ClientPosition = { contractType: null, clientRole: null, clientParty: null },
   ): Promise<ContractResponseDto> {
     let contract = this.contractRepository.create({
       uploadedBy: context.userId,
@@ -110,12 +110,14 @@ export class ContractsService {
       status: 'uploaded' as ContractStatus,
       contractType: position.contractType,
       clientRole: position.clientRole,
+      clientParty: position.clientParty ?? null,
     });
     contract = await this.contractRepository.save(contract);
 
     await this.audit(context, 'contracts.upload', contract.id, {
       filename: file.originalname,
       hasClientPosition: Boolean(position.clientRole),
+      hasClientParty: Boolean(position.clientParty),
     });
 
     let extraction = await this.extractionService.extract(file.buffer, file.mimetype, file.originalname);
@@ -262,9 +264,19 @@ export class ContractsService {
     }
 
     if (!clause.suggestedWording) {
+      // صفة بلا تحديد الطرف: النموذج يخمّن أى الطرفين هو العميل فيحمى الطرف الخطأ (وقع فعلاً فى عقد برمجيات) — fail-closed.
+      if (contract.clientRole && !contract.clientParty) {
+        throw new BadRequestException(
+          'لم يُحدَّد هل أنت «الطرف الأول» أم «الطرف الثانى» فى نص العقد، ولا يمكن اقتراح صياغة تحمى مركزك بلا ذلك؛ أعد رفع العقد وحدّد طرفك.',
+        );
+      }
       const request = {
         clauseText: clause.clauseText,
-        clientPosition: describePosition({ contractType: contract.contractType, clientRole: contract.clientRole }),
+        clientPosition: describePosition({
+          contractType: contract.contractType,
+          clientRole: contract.clientRole,
+          clientParty: contract.clientParty,
+        }),
         reviewNote: clause.assessmentReasoning ?? '',
         articles: matched.map((m) => ({
           lawTitle: m.law,
@@ -635,6 +647,7 @@ export class ContractsService {
       clause_count: contract.clauseCount,
       contract_type: contract.contractType,
       client_role: contract.clientRole,
+      client_party: contract.clientParty ?? null,
       warnings,
       clauses: clauses.map((c) => this.toClauseDto(c)),
       created_at: contract.createdAt,

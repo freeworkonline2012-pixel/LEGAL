@@ -15,11 +15,18 @@ const MATCHED = [
 ];
 
 function build(clauseOverrides: Record<string, unknown> = {}, outcome?: unknown) {
-  const contract: { id: string; uploadedBy: string; contractType: string | null; clientRole: string | null } = {
+  const contract: {
+    id: string;
+    uploadedBy: string;
+    contractType: string | null;
+    clientRole: string | null;
+    clientParty: 'first' | 'second' | null;
+  } = {
     id: 'c1',
     uploadedBy: 'u1',
     contractType: 'عقد إيجار',
     clientRole: 'المستأجر',
+    clientParty: 'second',
   };
   const clause: Record<string, unknown> = {
     id: 'cl1',
@@ -77,8 +84,17 @@ describe('ContractsService.proposeRedraft', () => {
     );
     await service.proposeRedraft('c1', 'cl1', ctx);
     expect(generation.proposeClauseRedraft).toHaveBeenCalledWith(
-      expect.objectContaining({ clientPosition: 'المستأجر (فى عقد إيجار)' }),
+      expect.objectContaining({
+        clientPosition: expect.stringContaining('المستأجر (فى عقد إيجار) — وهو «الطرف الثانى» فى نص العقد'),
+      }),
     );
+  });
+
+  it('صفة بلا تحديد الطرف: يُرفض توليد الصياغة ولا يُستدعى النموذج (لا تخمين لمن يُحمى)', async () => {
+    const { service, generation, contract } = build({});
+    contract.clientParty = null;
+    await expect(service.proposeRedraft('c1', 'cl1', ctx)).rejects.toBeInstanceOf(BadRequestException);
+    expect(generation.proposeClauseRedraft).not.toHaveBeenCalled();
   });
 
   it('يرفض بنداً ليس "يحتاج مراجعة"', async () => {
@@ -249,6 +265,7 @@ describe('parseRedraftJson', () => {
     const { service, generation, contract } = build({}, GOOD);
     contract.contractType = null;
     contract.clientRole = null;
+    contract.clientParty = null;
     await service.proposeRedraft('c1', 'cl1', ctx);
     expect(generation.verifyRedraftProtectsClient).not.toHaveBeenCalled();
   });

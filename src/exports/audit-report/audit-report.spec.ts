@@ -92,6 +92,24 @@ describe('buildContractAuditReport', () => {
     expect(JSON.stringify(plain.blocks)).not.toContain('«WL»');
   });
 
+  it('الطرف الذى هو العميل يظهر فى الغلاف والملخص إن حُدِّد، وبدونه تبقى الصفة وحدها', () => {
+    const base = { ...INPUT, clientRole: 'طالب الخدمة (صاحب العمل / العميل)' };
+    const withParty = buildContractAuditReport({ ...base, clientParty: 'second' }).report;
+    expect(withParty.cover.rows.find((r) => r.label === 'منظور التدقيق (العميل)')?.value).toBe('طالب الخدمة (صاحب العمل / العميل) — الطرف الثانى فى نص العقد');
+    expect(JSON.stringify(withParty.blocks)).toContain('الطرف الثانى فى نص العقد');
+    const without = buildContractAuditReport(base).report;
+    expect(without.cover.rows.find((r) => r.label === 'منظور التدقيق (العميل)')?.value).toBe('طالب الخدمة (صاحب العمل / العميل)');
+  });
+
+  it('الملخص يستعمل عدد البنود الحقيقى (بلا النص غير المُقسَّم) ويذكره على حدة، ونحو سليم للمفرد', () => {
+    const unseg = clause({ clauseIndex: 1, clauseLabel: 'نص سابق لـالبند الرابع (غير مُقسَّم)', assessmentStatus: 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة' });
+    const one = [unseg, clause({ clauseIndex: 2, assessmentStatus: 'يحتاج مراجعة', riskLevel: 'متوسط', assessmentReasoning: 'يلزم نظر.', matchedArticles: [art(148, 'حسن النية.')] }), clause({ clauseIndex: 3 })];
+    const { report: r } = buildContractAuditReport({ ...INPUT, clauses: one });
+    const text = JSON.stringify(r.blocks);
+    expect(text).toContain('بند واحد يحتاج مراجعة من أصل بندان');
+    expect(text).toContain('نص سابق لأول بند مُتعرَّف عليه لم يُقسَّم');
+  });
+
   it('عدد البنود فى الغلاف لا يحسب النص غير المُقسَّم بنداً', () => {
     const unseg = clause({ clauseIndex: 1, clauseLabel: 'نص سابق لـالبند الرابع (غير مُقسَّم)', assessmentStatus: null });
     const { report: r } = buildContractAuditReport({ ...INPUT, clauses: [unseg, ...INPUT.clauses.map((c) => ({ ...c, clauseIndex: c.clauseIndex + 1 }))] });
