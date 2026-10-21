@@ -39,6 +39,7 @@ import {
 } from './reasoning.util';
 import { ClientPosition, describePosition } from './position.util';
 import { riskLevelFor } from './risk-level.util';
+import { neutralizeOcrNoise } from './ocr-noise.util';
 import { describeRedraftRejection, describeWeakeningFeedback, REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
@@ -355,7 +356,21 @@ export class ContractsService {
           'لم تجتز الصياغة المقترحة فحوص الأمان الآلية (أرقام أو إحالات غير موثَّقة)، فلم تُعرَض؛ يلزم نظر محامٍ مختص.',
         );
       }
-      clause.suggestedWording = JSON.stringify(verdict.proposal);
+      // عقد مقروء آلياً: رموز القراءة المشوَّهة (ختم/شخبطة) لا تنتقل إلى صياغة مقترحة؛ تُستبدل بفراغ ظاهر وتُذكر فى التعليق.
+      let proposal = verdict.proposal;
+      if ((contract.extractionWarnings ?? []).some((w) => typeof w === 'string' && w.includes('OCR'))) {
+        const cleaned = neutralizeOcrNoise(proposal.text, clause.clauseText);
+        if (cleaned.replaced.length > 0) {
+          proposal = {
+            text: cleaned.text,
+            changes: [
+              ...proposal.changes,
+              `استُبدل رمز مشوَّه ناتج عن القراءة الآلية (${cleaned.replaced.map((t) => `«${t}»`).join('، ')}) بفراغ؛ تحقق من النسخة الموقَّعة.`,
+            ],
+          };
+        }
+      }
+      clause.suggestedWording = JSON.stringify(proposal);
       await this.clauseRepository.save(clause);
       await this.audit(context, 'contracts.redraft_generated', contractId, { clauseIndex: clause.clauseIndex });
     }

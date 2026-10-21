@@ -7,8 +7,8 @@ describe('riskLevelFor', () => {
   it('ادّعاء مخالفة آمرة لم تثبت يُخفَّض إلى عالٍ لا حرج', () => {
     expect(riskLevelFor('يحتاج مراجعة', 'mandatory_violation', false)).toBe('عالٍ');
   });
-  it('اختلاف عن قاعدة مكملة عالٍ، وبلا اختلاف محدد متوسط', () => {
-    expect(riskLevelFor('يحتاج مراجعة', 'supplementary_difference', false)).toBe('عالٍ');
+  it('اختلاف عن قاعدة مكمِّلة (الاتفاق على خلافها جائز) متوسط لا عالٍ، وكذلك بلا اختلاف محدد', () => {
+    expect(riskLevelFor('يحتاج مراجعة', 'supplementary_difference', false)).toBe('متوسط');
     expect(riskLevelFor('يحتاج مراجعة', 'none', false)).toBe('متوسط');
   });
   it('لا درجة لبند سليم أو بلا نص مفهرس مهما قال النموذج', () => {

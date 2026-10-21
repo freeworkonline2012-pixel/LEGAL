@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortReference } from '../document-model';
+import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
 import { type AuditReport, type Cell, type RBlock, type Tone } from './model';
 
 export type Severity = 'حرج' | 'عالٍ' | 'متوسط' | 'غير مصنَّف';
@@ -234,6 +235,15 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     value: unsegmented.length > 0 ? `${realCount} + نص سابق غير مُقسَّم` : String(clauses.length),
   });
   const warnings = (input.extractionWarnings ?? []).filter((w) => w.trim().length > 0);
+  const ocrRead = warnings.some((w) => w.includes('OCR'));
+  const realClauses = clauses.filter((c) => !c.clauseLabel.startsWith(UNSEGMENTED_PREFIX));
+  const assessedCount = realClauses.filter((c) => c.assessmentStatus === 'سليم' || c.assessmentStatus === NEEDS_REVIEW).length;
+  const notAssessedCount = realClauses.length - assessedCount;
+  coverRows.push({
+    label: 'نطاق التغطية',
+    value: `${assessedCount} من ${realClauses.length} بنداً قُيِّمت مقابل نصوص قانونية مفهرسة`,
+    ...(notAssessedCount > 0 ? { tone: 'high' as Tone } : {}),
+  });
   if (warnings.length > 0) {
     coverRows.push({ label: 'تنبيه الاستخراج', value: 'يحتوى تحذيرات قراءة/تقسيم — راجع القسم 1', tone: 'medium' });
   }
@@ -254,6 +264,15 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   // ---------- 1. الملخص التنفيذى ----------
   blocks.push({ t: 'pagebreak' });
   banner('الملخص التنفيذى');
+  if (notAssessedCount > 0) {
+    blocks.push({
+      t: 'note',
+      label: 'نطاق التغطية:',
+      text:
+        `قُيِّم ${bands(assessedCount)} فقط من أصل ${bands(realClauses.length)} مقابل نصوص قانونية مفهرسة. أما ${bands(notAssessedCount)} الأخرى فلم يوجد نص مفهرس يحكمها مباشرة، ` +
+        'فلم تُقيَّم قانونياً؛ وهذا لا يعنى سلامتها، بل يلزم أن يراجعها محامٍ مختص قبل التوقيع (توازنها التجارى ووضوحها وقابليتها للتنفيذ خارج نطاق هذا التقرير الآلى).',
+    });
+  }
   for (const w of warnings) {
     blocks.push({ t: 'note', label: 'تنبيه الاستخراج:', text: w });
   }
@@ -315,8 +334,8 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     const rows: Cell[][] = risky.map((r) => {
       const verdict = r.c.lawyerVerdict ? ` — رأى المراجع: ${r.c.lawyerVerdict}` : '';
       let status: Cell;
-      if (r.redraft && !r.redraft.noChange) status = { text: `تمت المراجعة — صياغة مقترحة${verdict}`, tone: 'medium', bold: false };
-      else if (r.redraft?.noChange) status = { text: `تمت المراجعة — لا يلزم تعديل${verdict}`, tone: 'medium', bold: false };
+      if (r.redraft && !r.redraft.noChange) status = { text: `صياغة مقترحة — بانتظار مراجعة محامٍ${verdict}`, tone: 'medium', bold: false };
+      else if (r.redraft?.noChange) status = { text: `لا يلزم تعديل بحسب الفحص الآلى — بانتظار مراجعة محامٍ${verdict}`, tone: 'medium', bold: false };
       else status = { text: `بانتظار الصياغة المقترحة${verdict}`, tone: 'high', bold: false };
       return [
         { text: String(r.n), center: true },
@@ -344,7 +363,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
       for (const r of group) {
         blocks.push({ t: 'h3', text: `${r.n}. ${clauseHeading(r.c)}` });
         const basis = (r.c.matchedArticles ?? []).map(
-          (m) => `المادة ${m.article_no} من ${lawName(m)}: «${clip(m.snippet, 260)}»`,
+          (m) => `المادة ${m.article_no} من ${lawName(m)}: «${clip(m.snippet, 900)}»`,
         );
         blocks.push({
           t: 'kv',
@@ -352,6 +371,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
             { label: 'المشكلة', tone: 'critical', value: r.c.assessmentReasoning?.trim() || '—' },
             { label: 'الأساس القانونى', tone: 'info', value: basis.length > 0 ? basis.join('\n') : 'لا مادة معتمدة مرتبطة بهذا البند.' },
             { label: 'الخطر القانونى', tone: 'high', value: RISK_TEXT[r.sev] },
+            ...(ocrRead && findOcrNoiseTokens(r.c.clauseText).length > 0
+              ? [{ label: 'تنبيه قراءة آلية', tone: 'medium' as Tone, value: OCR_NOISE_NOTE(findOcrNoiseTokens(r.c.clauseText)) }]
+              : []),
             ...(r.c.lawyerVerdict || r.c.lawyerNotes
               ? [{ label: 'رأى المراجع', tone: 'info' as Tone, value: [r.c.lawyerVerdict, r.c.lawyerNotes].filter(Boolean).join(' — ') }]
               : []),
@@ -384,6 +406,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
           modified: r.redraft.text,
           original: clip(r.c.clauseText, 3000),
         });
+        if (ocrRead && findOcrNoiseTokens(r.c.clauseText).length > 0) {
+          blocks.push({ t: 'note', label: 'تنبيه قراءة آلية:', text: OCR_NOISE_NOTE(findOcrNoiseTokens(r.c.clauseText)) });
+        }
         if (r.redraft.changes.length > 0) {
           blocks.push({ t: 'commentary', text: `⚖ التعليق القانونى: ${r.redraft.changes.join(' ')}` });
         }
@@ -480,7 +505,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         .sort((a, b) => a[0] - b[0])
         .map(([no, a]) => [
           { text: hostOf(a.url), link: a.url },
-          { text: clip(a.snippet, 150) },
+          { text: clip(a.snippet, 1500) },
           { text: `م. ${no}`, tone: 'info' as Tone, center: true },
         ]),
     });

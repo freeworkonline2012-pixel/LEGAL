@@ -70,7 +70,26 @@ describe('buildContractAuditReport', () => {
     const notes = of(r.blocks, 'note').filter((n) => n.label === 'تنبيه الاستخراج:');
     expect(notes.map((n) => n.text)).toEqual([w]);
     const bannerIdx = r.blocks.findIndex((b) => b.t === 'banner');
-    expect(r.blocks[bannerIdx + 1]).toEqual({ t: 'note', label: 'تنبيه الاستخراج:', text: w });
+    // أول الملخص: نطاق التغطية ثم تنبيه الاستخراج
+    expect(r.blocks[bannerIdx + 1]).toMatchObject({ t: 'note', label: 'نطاق التغطية:' });
+    expect(r.blocks[bannerIdx + 2]).toEqual({ t: 'note', label: 'تنبيه الاستخراج:', text: w });
+  });
+
+  it('نطاق التغطية: يذكر عدد البنود المقيَّمة مقابل نص مفهرس ويحذّر من أن غير المقيَّمة لم تُراجَع', () => {
+    const { report: r } = buildContractAuditReport(INPUT);
+    const assessed = INPUT.clauses.filter((c) => c.assessmentStatus === 'سليم' || c.assessmentStatus === 'يحتاج مراجعة').length;
+    const row = r.cover.rows.find((x) => x.label === 'نطاق التغطية')!;
+    expect(row.value).toBe(`${assessed} من ${INPUT.clauses.length} بنداً قُيِّمت مقابل نصوص قانونية مفهرسة`);
+    const note = of(r.blocks, 'note').find((n) => n.label === 'نطاق التغطية:');
+    expect(note?.text).toContain('لا يعنى سلامتها');
+  });
+
+  it('عقد مقروء آلياً: رموز مشوَّهة فى بند تُنبَّه فى التفصيل وفى الصياغة، وبدونه لا تنبيه', () => {
+    const noisy = INPUT.clauses.map((c) => (c.clauseIndex === 2 ? { ...c, clauseText: 'إخلال الطرف الأول WL من إلتزاماته' } : c));
+    const ocr = buildContractAuditReport({ ...INPUT, clauses: noisy, extractionWarnings: ['قُرئ هذا العقد آلياً (OCR).'] }).report;
+    expect(JSON.stringify(ocr.blocks)).toContain('«WL»');
+    const plain = buildContractAuditReport({ ...INPUT, clauses: noisy }).report;
+    expect(JSON.stringify(plain.blocks)).not.toContain('«WL»');
   });
 
   it('عدد البنود فى الغلاف لا يحسب النص غير المُقسَّم بنداً', () => {
@@ -98,7 +117,7 @@ describe('buildContractAuditReport', () => {
   it('الغلاف: عنوان وأسطر المعلومات ومستوى المخاطرة العام بحسب أعلى درجة', () => {
     expect(report.cover.subtitle).toBe('تحليل قانونى احترافى متكامل — إطار القانون المصرى');
     const labels = report.cover.rows.map((r) => r.label);
-    expect(labels).toEqual(['موضوع العقد', 'ملف العقد', 'منظور التدقيق (العميل)', 'القانون الحاكم', 'عدد البنود', 'تاريخ التقرير', 'حالة التقرير', 'مستوى المخاطرة العام']);
+    expect(labels).toEqual(['موضوع العقد', 'ملف العقد', 'منظور التدقيق (العميل)', 'القانون الحاكم', 'عدد البنود', 'نطاق التغطية', 'تاريخ التقرير', 'حالة التقرير', 'مستوى المخاطرة العام']);
     const overall = report.cover.rows.at(-1)!;
     expect(overall.tone).toBe('critical');
     expect(overall.value).toContain('يستوجب التفاوض الفوري');
