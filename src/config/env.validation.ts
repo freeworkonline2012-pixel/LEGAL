@@ -128,6 +128,15 @@ export class EnvironmentVariables {
   @Min(1)
   DATA_RETENTION_IP_DAYS?: number;
 
+  /**
+   * وضع المستخدم الواحد: بريد (أو أكثر، مفصولة بفاصلة) هو الوحيد المسموح له بالتسجيل والدخول
+   * واستخدام الواجهة. عند تعيينه يُعطَّل الزائر وكل مسار مجهول. غير معيَّن = لا تغيير.
+   * راجع src/auth/allowed-users.util.ts.
+   */
+  @IsOptional()
+  @IsString()
+  ALLOWED_USER_EMAILS?: string;
+
   // ===== وضع الزائر للاختبار قبل الإطلاق التجريبى (2026-10-17) =====
   // راجع src/auth/guest.constants.ts. نص حرفى (لا Boolean): enableImplicitConversion
   // كان سيحوّل 'false' إلى true. التفعيل فقط بالقيمة الحرفية true. الافتراضى معطَّل.

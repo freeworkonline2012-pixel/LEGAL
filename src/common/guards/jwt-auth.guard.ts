@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { isEmailAllowed } from '../../auth/allowed-users.util';
 import { isGuestAccessEnabled, isGuestEmail } from '../../auth/guest.constants';
 import type { UserRole } from '../../database/entities/user.entity';
 import type { AuthenticatedUser } from '../interfaces/authenticated-user.interface';
@@ -40,6 +41,10 @@ export class JwtAuthGuard implements CanActivate {
       if (isGuestEmail(payload.email) && !this.guestEnabled()) {
         throw new UnauthorizedException('guest access disabled');
       }
+      // وضع المستخدم الواحد: أى توكن لبريد خارج ALLOWED_USER_EMAILS يُرفض فوراً
+      if (!isEmailAllowed(this.allowedEmailsRaw(), payload.email)) {
+        throw new UnauthorizedException('access closed');
+      }
       const user: AuthenticatedUser = {
         userId: payload.sub,
         email: payload.email,
@@ -50,6 +55,10 @@ export class JwtAuthGuard implements CanActivate {
     } catch {
       throw new UnauthorizedException('invalid or expired token');
     }
+  }
+
+  private allowedEmailsRaw(): string | undefined {
+    return this.configService?.get<string>('ALLOWED_USER_EMAILS') ?? process.env.ALLOWED_USER_EMAILS;
   }
 
   private guestEnabled(): boolean {

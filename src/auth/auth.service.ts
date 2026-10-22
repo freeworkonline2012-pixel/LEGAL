@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -14,6 +15,7 @@ import { Repository } from 'typeorm';
 import { PRIVACY_POLICY_VERSION } from '../common/constants/privacy-policy';
 import { RefreshToken } from '../database/entities/refresh-token.entity';
 import { User } from '../database/entities/user.entity';
+import { isClosedAccessMode, isEmailAllowed } from './allowed-users.util';
 import { AuthResponseDto, UserResponseDto } from './dto/auth-response.dto';
 import { GuestConfigResponseDto } from './dto/guest.dto';
 import {
@@ -46,6 +48,11 @@ export class AuthService {
     fullName?: string,
   ): Promise<UserResponseDto> {
     const normalizedEmail = email.trim().toLowerCase();
+
+    // وضع المستخدم الواحد: لا تسجيل إلا للبريد المسموح (ALLOWED_USER_EMAILS)
+    if (!isEmailAllowed(this.allowedEmailsRaw(), normalizedEmail)) {
+      throw new ForbiddenException('التسجيل مغلق: المنصة مخصصة لمستخدم واحد.');
+    }
 
     // النطاق guest.invalid محجوز لحسابات الزوار المؤقتة فقط
     if (isGuestEmail(normalizedEmail)) {
@@ -88,6 +95,10 @@ export class AuthService {
     if (isGuestEmail(normalizedEmail)) {
       throw new UnauthorizedException('invalid credentials');
     }
+    // وضع المستخدم الواحد: نفس رسالة بيانات الاعتماد الخاطئة كى لا يُكشف أى بريد مسموح
+    if (!isEmailAllowed(this.allowedEmailsRaw(), normalizedEmail)) {
+      throw new UnauthorizedException('invalid credentials');
+    }
 
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail },
@@ -128,6 +139,9 @@ export class AuthService {
     if (isGuestEmail(stored.user.email) && !this.isGuestEnabled()) {
       throw new UnauthorizedException('guest access disabled');
     }
+    if (!isEmailAllowed(this.allowedEmailsRaw(), stored.user.email)) {
+      throw new UnauthorizedException('access closed');
+    }
 
     // تدوير التوكن: إبطال القديم وإصدار جديد
     stored.revokedAt = new Date();
@@ -151,7 +165,13 @@ export class AuthService {
 
   /** هل وضع الزائر مفعّل؟ (GUEST_ACCESS_ENABLED=true حرفياً) */
   isGuestEnabled(): boolean {
+    // الوضع المغلق (مستخدم واحد) يُعطِّل الزائر مهما كان GUEST_ACCESS_ENABLED
+    if (isClosedAccessMode(this.allowedEmailsRaw())) return false;
     return isGuestAccessEnabled(this.configService.get<string>('GUEST_ACCESS_ENABLED'));
+  }
+
+  private allowedEmailsRaw(): string | undefined {
+    return this.configService.get<string>('ALLOWED_USER_EMAILS');
   }
 
   getGuestConfig(): GuestConfigResponseDto {
