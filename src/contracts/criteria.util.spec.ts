@@ -85,3 +85,10 @@ describe('leaseAnchorArticleNumbers', () => {
     ).toBeLessThanOrEqual(3);
   });
 });
+
+describe('القوة القاهرة بصيغ العقود المصرية', () => {
+  it('«الأسباب القهرية» و«خارجة عن إرادة» تُصنَّف قوة قاهرة', () => {
+    const r = classifyClauseCriteria(null, 'التأخير يرجع لأحد الأسباب القهرية التى نص عليها القانون، أو لأسباب أخرى خارجه عن إرادة أى منهما.');
+    expect(r).toContain('force_majeure');
+  });
+});

@@ -44,7 +44,7 @@ import { describeRedraftRejection, describeWeakeningFeedback, REDRAFT_DISCLAIMER
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
 import { ContractResponseDto } from './dto/contract-response.dto';
-import { countHeadingLines } from './clause-headings';
+import { countHeadingLines, headingLineNumber, missingHeadingNumbers } from './clause-headings';
 import { numericWarnings } from './numeric-checks.util';
 
 interface ClauseCitation {
@@ -149,6 +149,7 @@ export class ContractsService {
           },
           failOnOcrTruncation: true,
           ocrPageScore: countHeadingLines,
+          ocrRecoverMissing: { missingNumbers: missingHeadingNumbers, headingNumber: headingLineNumber },
           minChars: 200,
         });
         extraction = { status: 'ok', text: read.text };

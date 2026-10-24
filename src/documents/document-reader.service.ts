@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { ExtractionService } from '../contracts/extraction.service';
 import { imageDimensions, MAX_IMAGE_PIXELS, sniffFileType, type SniffedType } from './file-sniff';
-import { OcrService, OCR_MAX_PAGES } from './ocr.service';
+import { OcrRecognizeOptions, OcrService, OCR_MAX_PAGES } from './ocr.service';
 
 /**
  * PDF عربى بترتيب بصرى معكوس وبأشكال العرض (U+FE70–FEFF/FB50–FDFF): أشهر عيوب الاستخراج من PDF، والنص
@@ -32,6 +32,8 @@ export interface ReadDocumentOptions {
   failOnOcrTruncation?: boolean;
   /** مقياس جودة صفحة للقراءة الآلية المزدوجة (يُفعَّل للعقود فقط: عدد عناوين البنود). بدونه تبقى قراءة واحدة كما كانت. */
   ocrPageScore?: (pageText: string) => number;
+  /** استرجاع العناوين الناقصة (للعقود): يُمرَّر إلى OcrService كما هو. */
+  ocrRecoverMissing?: OcrRecognizeOptions['recoverMissing'];
   /** حد أدنى لعدد الأحرف غير البيضاء المقبولة (افتراضى 20) */
   minChars?: number;
 }
@@ -105,7 +107,9 @@ export class DocumentReaderService {
     warnings: string[],
     options: ReadDocumentOptions,
   ): Promise<string> {
-    const r = await (options.ocrPageScore ? this.ocr.recognize(buffer, kind, { pageScore: options.ocrPageScore }) : this.ocr.recognize(buffer, kind));
+    const r = await (options.ocrPageScore || options.ocrRecoverMissing
+        ? this.ocr.recognize(buffer, kind, { pageScore: options.ocrPageScore, recoverMissing: options.ocrRecoverMissing })
+        : this.ocr.recognize(buffer, kind));
     if (r.status === 'unavailable') throw new UnprocessableEntityException(options.messages.ocrUnavailable);
     if (r.status === 'error') throw new UnprocessableEntityException(options.messages.ocrFailed);
     if (r.truncatedPages) {

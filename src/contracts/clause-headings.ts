@@ -74,20 +74,45 @@ export function ordinalToNumber(spelling: string): number | null {
   return found ? found[0] : null;
 }
 
-/**
- * عدد عناوين البنود (الكاملة "البند الثانى" أو الترتيبى وحده فى سطر) فى نص مقروء. تُستعمل لمقارنة نتيجتى قراءة آلية
- * لنفس الصفحة بدقتين مختلفتين واختيار الأوفى عناوين: عناوين البنود المسطَّرة تسقط عشوائياً من القراءة الآلية.
- */
-export function countHeadingLines(text: string): number {
-  const clean = (text ?? '').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '');
+const INVISIBLE = /[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g;
+
+/** أرقام عناوين البنود المتميزة فى نص مقروء (عنوان كامل "البند الثانى" أو الترتيبى وحده فى سطر). */
+export function headingNumbers(text: string): number[] {
+  const clean = (text ?? '').replace(INVISIBLE, '');
   const nums = new Set<number>();
+  for (const re of [CLAUSE_RE, BARE_RE]) {
+    for (const m of clean.matchAll(re)) {
+      const n = ordinalToNumber(m.groups?.ord ?? '');
+      if (n !== null) nums.add(n);
+    }
+  }
+  return [...nums].sort((a, b) => a - b);
+}
+
+/** عدد عناوين البنود المتميزة؛ يُستعمل لاختيار الأوفى من قراءتين لنفس الصفحة (العناوين المسطَّرة تسقط عشوائياً). */
+export function countHeadingLines(text: string): number {
+  return headingNumbers(text).length;
+}
+
+/** أرقام البنود الناقصة بين 1 وأعلى رقم مقروء (فجوة فى التسلسل = عنوان أسقطته القراءة الآلية)؛ فارغة إن لم يُقرأ أى عنوان. */
+export function missingHeadingNumbers(text: string): number[] {
+  const nums = headingNumbers(text);
+  if (nums.length === 0) return [];
+  const have = new Set(nums);
+  const out: number[] = [];
+  for (let n = 1; n <= nums[nums.length - 1]; n++) if (!have.has(n)) out.push(n);
+  return out;
+}
+
+/** إن كان السطر عنوان بند قصيراً ("البند الثالث" وحده تقريباً) يُرجع رقمه، وإلا null. لا يلتقط جملة إحالة داخل متن. */
+export function headingLineNumber(line: string): number | null {
+  const clean = (line ?? '').replace(INVISIBLE, '').trim();
+  if (clean.length === 0 || clean.length > 40) return null;
   for (const m of clean.matchAll(CLAUSE_RE)) {
-    const n = ordinalToNumber(m.groups?.ord ?? '');
-    if (n !== null) nums.add(n);
+    if (clean.slice((m.index ?? 0) + m[0].length).trim().length <= MAX_REST_AFTER_NOISE_PREFIX) {
+      return ordinalToNumber(m.groups?.ord ?? '');
+    }
   }
-  for (const m of clean.matchAll(BARE_RE)) {
-    const n = ordinalToNumber(m.groups?.ord ?? '');
-    if (n !== null) nums.add(n);
-  }
-  return nums.size;
+  for (const m of clean.matchAll(BARE_RE)) return ordinalToNumber(m.groups?.ord ?? '');
+  return null;
 }

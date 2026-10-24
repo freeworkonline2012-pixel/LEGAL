@@ -58,3 +58,20 @@ describe('golden set — عقد توريد برمجيات مُصطنَع', () =>
     expect(countHeadingLines(text.replace('البند الرابع\n', ''))).toBe(14);
   });
 });
+
+import { headingLineNumber, headingNumbers, missingHeadingNumbers } from './clause-headings';
+
+describe('أدوات عناوين البنود', () => {
+  it('missingHeadingNumbers يكشف الفجوة', () => {
+    expect(missingHeadingNumbers('البند الأول\nنص\nالبند الثانى\nنص\nالبند الرابع\nنص')).toEqual([3]);
+    expect(missingHeadingNumbers('بلا عناوين')).toEqual([]);
+    expect(headingNumbers(text)).toHaveLength(15);
+    expect(missingHeadingNumbers(text)).toEqual([]);
+  });
+  it('headingLineNumber يقبل العنوان القصير ويرفض جملة الإحالة', () => {
+    expect(headingLineNumber('البند الثالث')).toBe(3);
+    expect(headingLineNumber('‏الثالث‏')).toBe(3);
+    expect(headingLineNumber('وفقاً للبند الثالث من هذا العقد وملحقاته الأخرى كلها')).toBeNull();
+    expect(headingLineNumber('نص عادى')).toBeNull();
+  });
+});
