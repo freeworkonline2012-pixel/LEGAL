@@ -68,6 +68,10 @@ export class Contract {
   @Column({ name: 'extraction_warnings', type: 'jsonb', nullable: true })
   extractionWarnings: string[] | null;
 
+  /** نتيجة تحليل العقد ككل (migrations/237): {version, findings[], model, generatedAt}. NULL = لم يُجرَ. */
+  @Column({ name: 'contract_findings', type: 'jsonb', nullable: true })
+  contractFindings: Record<string, unknown> | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

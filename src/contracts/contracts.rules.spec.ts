@@ -29,6 +29,7 @@ function build(factsOutcome: unknown, civilRows: unknown[] = [{ article_no: 158,
     {} as never,
     {} as never,
     facts as never,
+    { isConfigured: false, analyze: jest.fn() } as never,
   );
   const row = { id: 'r1', contractId: 'c1', clauseIndex: 13, clauseLabel: 'البند الثالث عشر', clauseTitle: 'الفسخ', clauseText: CLAUSE } as never;
   return { service, generation, facts, clauseRepo, row, dataSource };

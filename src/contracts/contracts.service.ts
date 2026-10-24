@@ -49,6 +49,16 @@ import { numericWarnings } from './numeric-checks.util';
 import { ClauseFactsService } from './clause-facts.service';
 import { hasAnyFact } from './clause-facts';
 import { evaluateRules, summarizeFindings } from './clause-rules';
+import { ContractConsistencyService } from './contract-consistency.service';
+import {
+  type ContractFinding,
+  type ContractLevelResult,
+  type LevelClause,
+  FINDING_KIND_LABEL,
+  deterministicFindings,
+  mergeFindings,
+  sortFindings,
+} from './contract-level';
 
 // معايير الموضوعات التى لها قواعد حتمية (clause-rules.ts)
 const RULE_TOPIC_CRITERIA: readonly string[] = ['exit', 'liability', 'force_majeure', 'compensation'];
@@ -102,6 +112,7 @@ export class ContractsService {
     private readonly embeddingsService: VoyageEmbeddingsService,
     private readonly documentReader: DocumentReaderService,
     private readonly factsService: ClauseFactsService,
+    private readonly consistencyService: ContractConsistencyService,
   ) {
     this.contractRepository = this.dataSource.getRepository(Contract);
     this.clauseRepository = this.dataSource.getRepository(ContractClause);
@@ -212,15 +223,60 @@ export class ContractsService {
       order: { clauseIndex: 'ASC' },
     });
 
+    // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
+    contract.contractFindings = (await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings)) as unknown as Record<
+      string,
+      unknown
+    >;
+
     contract.status = 'processed';
     contract = await this.contractRepository.save(contract);
 
     await this.audit(context, 'contracts.processed', contract.id, {
       clauseCount: clauseRows.length,
       warnings: contractWarnings,
+      contractFindings: (contract.contractFindings as unknown as ContractLevelResult | null)?.findings?.length ?? 0,
     });
 
     return this.toResponseDto(contract, clauseRows, contractWarnings);
+  }
+
+  /**
+   * الجولة 3: فحوص حتمية (بنود غير مرصودة بحسب نوع العقد، إحالات غير معرَّفة، شروط مفتوحة) ثم تمرير نموذج واحد للعقد كاملاً بحثاً عن
+   * التعارض وعدم الاتساق، لا يُقبل منه إلا ما أُسند باقتباسات حرفية موجودة فى البنود المذكورة. لا يرمى استثناء.
+   */
+  async analyzeContractLevel(
+    clauseRows: ContractClause[],
+    contractType: string | null,
+    extractionWarnings: string[],
+  ): Promise<ContractLevelResult> {
+    const clauses: LevelClause[] = clauseRows.map((c) => ({
+      clauseIndex: c.clauseIndex,
+      clauseLabel: c.clauseLabel,
+      clauseTitle: c.clauseTitle,
+      clauseText: c.clauseText,
+    }));
+    const textMayBeIncomplete = extractionWarnings.some((w) => /OCR|ترقيم|بند/.test(w));
+    let rules: ContractFinding[] = [];
+    try {
+      rules = deterministicFindings(clauses, { contractType, textMayBeIncomplete });
+    } catch (err) {
+      this.logger.warn(`contract-level rules failed (non-fatal): ${(err as Error).message}`);
+    }
+    let model: ContractLevelResult['model'] = 'error';
+    let modelFindings: ContractFinding[] = [];
+    try {
+      const outcome = await this.consistencyService.analyze(clauses);
+      if (outcome.status === 'ok') {
+        model = 'ok';
+        modelFindings = outcome.findings;
+      } else {
+        model = outcome.status;
+      }
+    } catch (err) {
+      this.logger.warn(`contract consistency failed (non-fatal): ${(err as Error).message}`);
+    }
+    return { version: 1, findings: mergeFindings(rules, modelFindings), model, generatedAt: new Date().toISOString() };
   }
 
   private httpExceptionMessage(err: HttpException): string {
@@ -716,8 +772,28 @@ export class ContractsService {
       client_role: contract.clientRole,
       client_party: contract.clientParty ?? null,
       warnings,
+      ...this.toFindingsDto(contract.contractFindings),
       clauses: clauses.map((c) => this.toClauseDto(c)),
       created_at: contract.createdAt,
+    };
+  }
+
+  private toFindingsDto(stored: Record<string, unknown> | null | undefined): Pick<ContractResponseDto, 'contract_findings' | 'contract_findings_model'> {
+    const doc = stored as Partial<ContractLevelResult> | null | undefined;
+    if (!doc || !Array.isArray(doc.findings)) return { contract_findings: [], contract_findings_model: null };
+    return {
+      contract_findings: sortFindings(doc.findings).map((f) => ({
+        id: f.id,
+        kind: f.kind,
+        kind_label: FINDING_KIND_LABEL[f.kind] ?? f.kind,
+        severity: f.severity,
+        title: f.title,
+        explanation: f.explanation,
+        suggestion: f.suggestion ?? null,
+        evidence: (f.evidence ?? []).map((e) => ({ clause_index: e.clauseIndex, clause_label: e.clauseLabel, quote: e.quote })),
+        source: f.source,
+      })),
+      contract_findings_model: doc.model ?? null,
     };
   }
 

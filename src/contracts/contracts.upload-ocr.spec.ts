@@ -26,6 +26,7 @@ function build(extract: unknown, readImpl?: jest.Mock) {
     {} as never,
     reader as never,
     { isConfigured: false } as never,
+    { isConfigured: false, analyze: jest.fn().mockResolvedValue({ status: 'not_configured' }) } as never,
   );
   jest.spyOn(service as never, 'assessAndPersistClause' as never).mockResolvedValue(undefined as never);
   jest.spyOn(service as never, 'persistInitialClause' as never).mockImplementation((async (_id: string, c: { label: string }) => ({ ...c, id: c.label })) as never);
@@ -76,5 +77,36 @@ describe('ContractsService.upload — PDF ممسوح ضوئياً', () => {
     );
     expect(read).not.toHaveBeenCalled();
     expect(res.status).toBe('extraction_failed');
+  });
+});
+
+describe('ContractsService.analyzeContractLevel', () => {
+  const rows = [
+    { clauseIndex: 1, clauseLabel: 'البند الأول', clauseTitle: null, clauseText: 'ترخيص استخدام النظام لمدة هذا العقد وفق الجدول المرفق.' },
+    { clauseIndex: 2, clauseLabel: 'البند الثانى', clauseTitle: null, clauseText: 'تحدد رسوم الاستضافة بعد انتهاء التنفيذ وفق ما يتفق عليه الطرفان.' },
+  ];
+  const mk = (analyze: jest.Mock) => {
+    const { service } = build({ status: 'ok', text: 'x' } as never);
+    (service as unknown as { consistencyService: unknown }).consistencyService = { analyze };
+    return service;
+  };
+
+  it('عطل تمرير النموذج لا يُسقط الفحوص الحتمية ويُسجَّل model=error', async () => {
+    const s = mk(jest.fn().mockRejectedValue(new Error('x')));
+    const r = await s.analyzeContractLevel(rows as never, 'عقد خدمات أو مقاولة أو توريد', []);
+    expect(r.model).toBe('error');
+    expect(r.findings.some((f) => f.id === 'undefined:duration')).toBe(true);
+    expect(r.findings.some((f) => f.kind === 'open_term')).toBe(true);
+  });
+
+  it('نتائج النموذج تُدمج مع الحتمية وحالته تُسجَّل', async () => {
+    const model = {
+      id: 'model:conflict:1', kind: 'conflict', severity: 'عالٍ', title: 't', explanation: 'e', suggestion: null, source: 'model',
+      evidence: [{ clauseIndex: 1, clauseLabel: 'a', quote: 'q1' }, { clauseIndex: 2, clauseLabel: 'b', quote: 'q2' }],
+    };
+    const s = mk(jest.fn().mockResolvedValue({ status: 'ok', findings: [model] }));
+    const r = await s.analyzeContractLevel(rows as never, null, []);
+    expect(r.model).toBe('ok');
+    expect(r.findings.some((f) => f.id === 'model:conflict:1')).toBe(true);
   });
 });

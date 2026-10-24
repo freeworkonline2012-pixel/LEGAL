@@ -64,6 +64,7 @@ function build(clauseOverrides: Record<string, unknown> = {}, outcome?: unknown)
     {} as never,
     {} as never,
     { isConfigured: false } as never,
+    { isConfigured: false, analyze: jest.fn().mockResolvedValue({ status: 'not_configured' }) } as never,
   );
   return { service, generation, clauseRepo, clause, contract };
 }

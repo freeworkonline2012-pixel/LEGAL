@@ -9,7 +9,7 @@ import { GovernanceAssessment } from '../database/entities/governance-assessment
 import { LegalMemo } from '../database/entities/legal-memo.entity';
 import { Question } from '../database/entities/question.entity';
 import { buildAnswerDocument, NotExportableError } from './builders/answer-document.builder';
-import { buildContractDocument } from './builders/contract-document.builder';
+import { buildContractDocument, type ContractExportInput } from './builders/contract-document.builder';
 import { buildGovernanceDocument } from './builders/governance-document.builder';
 import { buildMemoDocument } from './builders/memo-document.builder';
 import { DEFAULT_BRAND, type LegalDocument } from './document-model';
@@ -212,11 +212,46 @@ export class ExportsService {
         extractionWarnings: Array.isArray(contract.extractionWarnings)
           ? contract.extractionWarnings.filter((w): w is string => typeof w === 'string')
           : null,
+        ...this.reportFindings(contract.contractFindings),
         generatedAt: new Date(),
         brand: this.brand,
       }),
     );
     return this.deliver(doc, format, actor, 'contract', contract.id, { approved });
+  }
+
+  /** ملاحظات العقد ككل المخزَّنة (migrations/237) بصيغة التقرير؛ لا شىء للعقود التى لم تُحلَّل. */
+  private reportFindings(stored: Record<string, unknown> | null | undefined): Pick<ContractExportInput, 'contractFindings' | 'contractFindingsModel'> {
+    const doc = stored as { findings?: unknown; model?: unknown } | null | undefined;
+    if (!doc || !Array.isArray(doc.findings)) return {};
+    const labels: Record<string, string> = {
+      missing_clause: 'بند غير مرصود',
+      undefined_term: 'مصطلح أو إحالة غير معرَّفة',
+      open_term: 'شرط مفتوح',
+      conflict: 'تعارض محتمل بين بندين',
+      scope_mismatch: 'عدم اتساق فى النطاق',
+    };
+    const str = (v: unknown) => (typeof v === 'string' ? v : '');
+    const rank: Record<string, number> = { حرج: 0, عالٍ: 1, متوسط: 2, منخفض: 3 };
+    const list = (doc.findings as Array<Record<string, unknown>>)
+      .filter((f) => f && typeof f === 'object' && str(f.title) && str(f.explanation))
+      .map((f) => ({
+        kind: str(f.kind),
+        kindLabel: labels[str(f.kind)] ?? str(f.kind),
+        severity: str(f.severity) || 'متوسط',
+        title: str(f.title),
+        explanation: str(f.explanation),
+        suggestion: str(f.suggestion) || null,
+        evidence: (Array.isArray(f.evidence) ? (f.evidence as Array<Record<string, unknown>>) : [])
+          .filter((e) => e && str(e.quote))
+          .map((e) => ({ clauseLabel: str(e.clauseLabel), quote: str(e.quote) })),
+      }))
+      .sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9));
+    const m = str(doc.model);
+    return {
+      contractFindings: list,
+      contractFindingsModel: m === 'ok' || m === 'not_configured' || m === 'skipped' || m === 'error' ? m : null,
+    };
   }
 
   /** اعتماد المراجعة البشرية لتقرير عقد (admin فقط — يُفرَض فى المتحكم). idempotent. */

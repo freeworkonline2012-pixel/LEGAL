@@ -39,8 +39,22 @@ export interface AuditReportInput {
   approvalNote: string | null;
   /** تحذيرات الاستخراج المحفوظة وقت الرفع (OCR، ترقيم، نص غير مُقسَّم)؛ تُعرض فى الغلاف والملخص. */
   extractionWarnings?: string[] | null;
+  /** ملاحظات العقد ككل (الجولة 3)؛ undefined/null = لم يُجرَ التحليل (عقد قديم) فلا يظهر القسم. */
+  contractFindings?: AuditContractFinding[] | null;
+  /** حالة تمرير النموذج على العقد كاملاً؛ تظهر ملاحظة إن لم يكتمل. */
+  contractFindingsModel?: 'ok' | 'not_configured' | 'skipped' | 'error' | null;
   generatedAt: Date;
   brand?: string;
+}
+
+export interface AuditContractFinding {
+  kind: string;
+  kindLabel: string;
+  severity: string;
+  title: string;
+  explanation: string;
+  suggestion: string | null;
+  evidence: Array<{ clauseLabel: string; quote: string }>;
 }
 
 const NEEDS_REVIEW = 'يحتاج مراجعة';
@@ -391,6 +405,57 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
           ],
         });
       }
+    }
+  }
+
+  // ---------- ملاحظات العقد ككل (الجولة 3) ----------
+  if (input.contractFindings) {
+    const findings = input.contractFindings;
+    banner('ملاحظات على العقد ككل');
+    blocks.push({
+      t: 'p',
+      text:
+        'تُفحص هنا العلاقات بين البنود لا كل بند وحده: البنود التى لم يُرصد لها نص بحسب نوع العقد، والإحالات والمصطلحات غير المعرَّفة، والشروط المفتوحة، والتعارض المحتمل بين بندين. ' +
+        'صيغة «لم يُرصد» أو «محتمل» مقصودة: فقد يكون الحكم فى مرفق لم يُرفع أو فى نص لم تقرأه القراءة الآلية، والتقدير النهائى لمحامٍ مختص.',
+    });
+    if (input.contractFindingsModel === 'error' || input.contractFindingsModel === 'skipped') {
+      blocks.push({
+        t: 'note',
+        label: 'نطاق الفحص:',
+        text:
+          input.contractFindingsModel === 'skipped'
+            ? 'العقد أطول من الحد المعتمد لفحص التعارض بين البنود آلياً، فلم يُجرَ هذا الفحص؛ وما يلى نتائج الفحوص الحتمية فقط.'
+            : 'تعذّر إتمام فحص التعارض بين البنود آلياً وقت المعالجة؛ وما يلى نتائج الفحوص الحتمية فقط.',
+      });
+    }
+    if (findings.length === 0) {
+      blocks.push({ t: 'p', text: 'لم تُرصد ملاحظات على مستوى العقد ككل بالفحوص المطبَّقة.' });
+    } else {
+      const toneOf = (sev: string): Tone => (sev === 'حرج' ? 'critical' : sev === 'عالٍ' ? 'high' : sev === 'متوسط' ? 'medium' : 'grey');
+      blocks.push({
+        t: 'grid',
+        columns: ['#', 'النوع', 'الملاحظة', 'الدرجة'],
+        rows: findings.map((f, i) => [
+          { text: String(i + 1), center: true },
+          { text: f.kindLabel },
+          { text: clip(f.title, 140) },
+          { text: f.severity, tone: toneOf(f.severity), center: true },
+        ]),
+        widths: [6, 24, 52, 18],
+      });
+      findings.forEach((f, i) => {
+        blocks.push({ t: 'h3', text: `${i + 1}. ${f.title}` });
+        blocks.push({
+          t: 'kv',
+          rows: [
+            { label: 'التفصيل', tone: 'high', value: f.explanation },
+            ...(f.evidence.length > 0
+              ? [{ label: 'من نص العقد', tone: 'info' as Tone, value: f.evidence.map((e) => `${e.clauseLabel}: «${clip(e.quote, 400)}»`).join('\n') }]
+              : []),
+            ...(f.suggestion ? [{ label: 'المعالجة المقترحة', tone: 'medium' as Tone, value: f.suggestion }] : []),
+          ],
+        });
+      });
     }
   }
 

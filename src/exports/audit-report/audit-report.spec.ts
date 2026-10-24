@@ -75,6 +75,27 @@ describe('buildContractAuditReport', () => {
     expect(r.blocks[bannerIdx + 2]).toEqual({ t: 'note', label: 'تنبيه الاستخراج:', text: w });
   });
 
+  it('ملاحظات العقد ككل: لا قسم بدونها، ومع وجودها قسم مرقَّم بجدول وتفصيل واقتباسات، وملاحظة نطاق إن تعذّر فحص التعارض', () => {
+    expect(JSON.stringify(buildContractAuditReport(INPUT).report.blocks)).not.toContain('ملاحظات على العقد ككل');
+    const finding = {
+      kind: 'open_term',
+      kindLabel: 'شرط مفتوح',
+      severity: 'عالٍ',
+      title: 'مقابل مالى يُترك تحديده إلى وقت لاحق',
+      explanation: 'يُحدَّد المبلغ لاحقاً دون آلية.',
+      suggestion: 'تحديد السقف.',
+      evidence: [{ clauseLabel: 'البند السادس', quote: 'تحدد رسوم الاستضافة بعد انتهاء التنفيذ' }],
+    };
+    const { report: r } = buildContractAuditReport({ ...INPUT, contractFindings: [finding], contractFindingsModel: 'error' });
+    const banners = of(r.blocks, 'banner').map((b) => b.text);
+    expect(banners.some((t) => /^\d+\. ملاحظات على العقد ككل$/.test(t))).toBe(true);
+    const json = JSON.stringify(r.blocks);
+    expect(json).toContain('تحدد رسوم الاستضافة بعد انتهاء التنفيذ');
+    expect(json).toContain('تعذّر إتمام فحص التعارض');
+    const empty = buildContractAuditReport({ ...INPUT, contractFindings: [], contractFindingsModel: 'ok' }).report;
+    expect(JSON.stringify(empty.blocks)).toContain('لم تُرصد ملاحظات على مستوى العقد ككل');
+  });
+
   it('نطاق التغطية: يذكر عدد البنود المقيَّمة مقابل نص مفهرس ويحذّر من أن غير المقيَّمة لم تُراجَع', () => {
     const { report: r } = buildContractAuditReport(INPUT);
     const assessed = INPUT.clauses.filter((c) => c.assessmentStatus === 'سليم' || c.assessmentStatus === 'يحتاج مراجعة').length;
