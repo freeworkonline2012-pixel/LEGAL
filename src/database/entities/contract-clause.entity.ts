@@ -71,6 +71,14 @@ export class ContractClause {
   @Column({ name: 'risk_level', type: 'text', nullable: true })
   riskLevel: string | null;
 
+  /** وقائع البند الموثَّقة بالاقتباس (clause-facts.ts) */
+  @Column({ name: 'facts', type: 'jsonb', nullable: true })
+  facts: Record<string, unknown> | null;
+
+  /** نتائج قواعد المراجعة الحتمية المطبَّقة على الوقائع (clause-rules.ts) */
+  @Column({ name: 'rule_findings', type: 'jsonb', nullable: true })
+  ruleFindings: Array<Record<string, unknown>> | null;
+
   @Column({ name: 'suggested_wording', type: 'text', nullable: true })
   suggestedWording: string | null;
 

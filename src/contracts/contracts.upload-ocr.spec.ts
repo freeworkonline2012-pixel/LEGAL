@@ -25,6 +25,7 @@ function build(extract: unknown, readImpl?: jest.Mock) {
     {} as never,
     {} as never,
     reader as never,
+    { isConfigured: false } as never,
   );
   jest.spyOn(service as never, 'assessAndPersistClause' as never).mockResolvedValue(undefined as never);
   jest.spyOn(service as never, 'persistInitialClause' as never).mockImplementation((async (_id: string, c: { label: string }) => ({ ...c, id: c.label })) as never);

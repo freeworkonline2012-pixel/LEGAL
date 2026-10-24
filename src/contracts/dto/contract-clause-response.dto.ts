@@ -18,6 +18,16 @@ export class SuggestedRedraftDto {
   @ApiPropertyOptional({ nullable: true }) note: string | null;
 }
 
+export class RuleFindingDto {
+  @ApiProperty() rule_id: string;
+  @ApiProperty() topic: string;
+  @ApiProperty({ enum: ['compliant', 'review'] }) status: 'compliant' | 'review';
+  @ApiPropertyOptional({ nullable: true }) severity: string | null;
+  @ApiProperty({ type: [Number] }) articles: number[];
+  @ApiProperty({ type: [String] }) quotes: string[];
+  @ApiProperty() explanation: string;
+}
+
 export class ContractClauseResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() clause_index: number;
@@ -29,5 +39,6 @@ export class ContractClauseResponseDto {
   @ApiPropertyOptional({ nullable: true }) assessment_reasoning: string | null;
   @ApiPropertyOptional({ type: [MatchedArticleDto] }) matched_articles: MatchedArticle[] | null;
   @ApiPropertyOptional({ nullable: true }) assessment_confidence: number | null;
+  @ApiPropertyOptional({ type: [RuleFindingDto], nullable: true }) rule_findings: RuleFindingDto[] | null;
   @ApiPropertyOptional({ type: SuggestedRedraftDto, nullable: true }) suggested_redraft: SuggestedRedraftDto | null;
 }

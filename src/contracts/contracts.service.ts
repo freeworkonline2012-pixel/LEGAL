@@ -46,6 +46,12 @@ import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
 import { ContractResponseDto } from './dto/contract-response.dto';
 import { canonicalHeading, countHeadingLines, looseHeadingLineNumber, missingHeadingNumbers, ordinalWords } from './clause-headings';
 import { numericWarnings } from './numeric-checks.util';
+import { ClauseFactsService } from './clause-facts.service';
+import { hasAnyFact } from './clause-facts';
+import { evaluateRules, summarizeFindings } from './clause-rules';
+
+// معايير الموضوعات التى لها قواعد حتمية (clause-rules.ts)
+const RULE_TOPIC_CRITERIA: readonly string[] = ['exit', 'liability', 'force_majeure', 'compensation'];
 
 interface ClauseCitation {
   law: string;
@@ -95,6 +101,7 @@ export class ContractsService {
     private readonly generationService: DeepseekGenerationService,
     private readonly embeddingsService: VoyageEmbeddingsService,
     private readonly documentReader: DocumentReaderService,
+    private readonly factsService: ClauseFactsService,
   ) {
     this.contractRepository = this.dataSource.getRepository(Contract);
     this.clauseRepository = this.dataSource.getRepository(ContractClause);
@@ -439,6 +446,7 @@ export class ContractsService {
       assessment_reasoning: c.assessmentReasoning,
       matched_articles: c.matchedArticles,
       assessment_confidence: c.assessmentConfidence,
+      rule_findings: (c.ruleFindings as unknown as ContractClauseResponseDto['rule_findings']) ?? null,
       suggested_redraft: this.parseRedraft(c.suggestedWording),
     };
   }
@@ -459,23 +467,73 @@ export class ContractsService {
     return this.clauseRepository.save(row);
   }
 
+  /**
+   * مسار القواعد: وقائع البند بالاقتباس ثم قواعد حتمية. يُرجع true إن حسمت القواعد البند (تُحفظ نتيجته ولا يُنادى نموذج التقييم)،
+   * وfalse لتكملة المسار العادى (لا وقائع موثَّقة، أو لا قاعدة تنطبق، أو تعذّر جلب المواد المرجعية). لا يُسقط البند أبداً: أى عطل ⇒ false.
+   */
+  private async tryRuleAssessment(
+    row: ContractClause,
+    criteria: ReturnType<typeof classifyClauseCriteria>,
+    position: ClientPosition,
+    context: { userId: string; ipAddress: string | null; userAgent: string | null },
+  ): Promise<boolean> {
+    if (!this.factsService?.isConfigured) return false;
+    if (!criteria.some((c) => RULE_TOPIC_CRITERIA.includes(c))) return false;
+    let out = await this.factsService.extract({ clauseText: row.clauseText });
+    if (out.status === 'error') out = await this.factsService.extract({ clauseText: row.clauseText });
+    if (out.status !== 'ok' || !hasAnyFact(out.facts)) return false;
+    row.facts = out.facts as unknown as Record<string, unknown>;
+    const findings = evaluateRules(out.facts, { clientParty: position.clientParty ?? null });
+    row.ruleFindings = findings as unknown as Array<Record<string, unknown>>;
+    if (findings.length === 0) return false;
+    const summary = summarizeFindings(findings);
+    const candidates = await this.civilCodeCandidates(summary.articles);
+    if (candidates.length === 0) return false; // لا حكم بلا سند مفهرَس
+    row.assessmentStatus = summary.status;
+    row.assessmentReasoning = summary.reasoning;
+    row.matchedArticles = candidates.map((c) => ({
+      law: c.citation.law,
+      law_no: c.citation.lawNo,
+      law_year: c.citation.lawYear,
+      article_no: c.citation.articleNo,
+      snippet: c.citation.snippet,
+      official_url: c.citation.officialUrl,
+    }));
+    row.assessmentConfidence = 0.8;
+    row.riskLevel = summary.risk;
+    await this.clauseRepository.save(row);
+    await this.audit(context, 'contracts.clause_assessed', row.contractId, {
+      clauseIndex: row.clauseIndex,
+      criteria: row.clauseTypeGuess,
+      status: row.assessmentStatus,
+      viaRules: findings.map((f) => f.ruleId),
+    });
+    return true;
+  }
+
   private async assessAndPersistClause(
     row: ContractClause,
     context: { userId: string; ipAddress: string | null; userAgent: string | null },
     position: ClientPosition,
   ): Promise<void> {
     try {
+      // تصنيف البند إلى معايير المراجعة العشرة (حتمى، بكلمات مفتاحية) + جلب المواد
+      // المرجعية للمعيار (مثل 224 للتعويض الاتفاقى و217 للإعفاء من المسؤولية) التى
+      // لا يلتقطها البحث العام لأن صياغة البند التعاقدى لا تشبه صياغة النص القانونى.
+      const criteria = classifyClauseCriteria(row.clauseTitle, row.clauseText);
+      row.clauseTypeGuess = serializeCriteria(criteria);
+      try {
+        if (await this.tryRuleAssessment(row, criteria, position, context)) return;
+      } catch (err) {
+        // أى عطل فى مسار القواعد لا يُسقط البند: يُكمل بالتقييم الآلى العادى
+        this.logger.warn(`rule assessment skipped clauseIndex=${row.clauseIndex}: ${(err as Error).message}`);
+      }
       const [ftsCandidates, semanticCandidates] = await Promise.all([
         this.ftsCandidates(row.clauseText, 8),
         this.semanticCandidates(row.clauseText, 8),
       ]);
       const merged = this.mergeCandidates(ftsCandidates, semanticCandidates);
 
-      // تصنيف البند إلى معايير المراجعة العشرة (حتمى، بكلمات مفتاحية) + جلب المواد
-      // المرجعية للمعيار (مثل 224 للتعويض الاتفاقى و217 للإعفاء من المسؤولية) التى
-      // لا يلتقطها البحث العام لأن صياغة البند التعاقدى لا تشبه صياغة النص القانونى.
-      const criteria = classifyClauseCriteria(row.clauseTitle, row.clauseText);
-      row.clauseTypeGuess = serializeCriteria(criteria);
       const anchors = await this.anchorCandidates(criteria, row.clauseText, row.clauseTitle);
 
       if (merged.length === 0 && anchors.length === 0) {
@@ -765,6 +823,47 @@ export class ContractsService {
    * نتيجتين من القانون المقيَّد (مثل 151/2020 لحماية البيانات). كلها من النص المفهرَس
    * فعلياً (النسخة السارية)، وأى مادة غير موجودة تُتخطّى بلا اختلاق.
    */
+  /** مواد القانون المدنى 131/1948 المفهرَسة بأرقامها (النسخة السارية)، بترتيب الأرقام المطلوبة. */
+  private async civilCodeCandidates(articleNos: number[]): Promise<ClauseCandidate[]> {
+    const out: ClauseCandidate[] = [];
+    if (articleNos.length === 0) return out;
+    const rows: Array<{
+      article_no: number;
+      short_title: string | null;
+      title: string;
+      law_no: number;
+      law_year: number;
+      body: string;
+      official_url: string | null;
+    }> = await this.dataSource.query(
+      `SELECT a.article_no, l.short_title, l.title, l.law_no, l.law_year, l.official_url, av.body
+       FROM articles a
+       JOIN laws l ON l.id = a.law_id
+       JOIN article_versions av ON av.article_id = a.id AND av.effective_to IS NULL
+       WHERE l.law_no = $1 AND l.law_year = $2 AND a.article_suffix_order = 0
+         AND a.article_no = ANY($3::int[])`,
+      [CIVIL_CODE.lawNo, CIVIL_CODE.lawYear, articleNos],
+    );
+    const order = new Map(articleNos.map((n, i) => [n, i]));
+    rows
+      .sort((x, y) => (order.get(x.article_no) ?? 99) - (order.get(y.article_no) ?? 99))
+      .forEach((row) =>
+        out.push({
+          citation: {
+            law: row.short_title ?? row.title,
+            lawNo: row.law_no,
+            lawYear: row.law_year,
+            articleNo: row.article_no,
+            snippet: row.body,
+            officialUrl: row.official_url,
+          },
+          confidence: 0.5,
+          source: 'anchor',
+        }),
+      );
+    return out;
+  }
+
   private async anchorCandidates(
     criteria: ReturnType<typeof classifyClauseCriteria>,
     clauseText: string,
@@ -774,42 +873,7 @@ export class ContractsService {
     const articleNos = Array.from(
       new Set([...anchorArticleNumbers(criteria, 3), ...leaseAnchorArticleNumbers(clauseTitle, clauseText, 3)]),
     );
-    if (articleNos.length > 0) {
-      const rows: Array<{
-        article_no: number;
-        short_title: string | null;
-        title: string;
-        law_no: number;
-        law_year: number;
-        body: string;
-        official_url: string | null;
-      }> = await this.dataSource.query(
-        `SELECT a.article_no, l.short_title, l.title, l.law_no, l.law_year, l.official_url, av.body
-         FROM articles a
-         JOIN laws l ON l.id = a.law_id
-         JOIN article_versions av ON av.article_id = a.id AND av.effective_to IS NULL
-         WHERE l.law_no = $1 AND l.law_year = $2 AND a.article_suffix_order = 0
-           AND a.article_no = ANY($3::int[])`,
-        [CIVIL_CODE.lawNo, CIVIL_CODE.lawYear, articleNos],
-      );
-      const order = new Map(articleNos.map((n, i) => [n, i]));
-      rows
-        .sort((x, y) => (order.get(x.article_no) ?? 99) - (order.get(y.article_no) ?? 99))
-        .forEach((row) =>
-          out.push({
-            citation: {
-              law: row.short_title ?? row.title,
-              lawNo: row.law_no,
-              lawYear: row.law_year,
-              articleNo: row.article_no,
-              snippet: row.body,
-              officialUrl: row.official_url,
-            },
-            confidence: 0.5,
-            source: 'anchor',
-          }),
-        );
-    }
+    out.push(...(await this.civilCodeCandidates(articleNos)));
     for (const scope of scopedLawsForCriteria(criteria)) {
       const scoped = await this.ftsCandidates(clauseText, 2, scope);
       out.push(...scoped.map((c) => ({ ...c, source: 'anchor' as const })));

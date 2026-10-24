@@ -63,6 +63,7 @@ function build(clauseOverrides: Record<string, unknown> = {}, outcome?: unknown)
     generation as never,
     {} as never,
     {} as never,
+    { isConfigured: false } as never,
   );
   return { service, generation, clauseRepo, clause, contract };
 }
