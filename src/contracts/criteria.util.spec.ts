@@ -51,8 +51,8 @@ describe('anchorArticleNumbers', () => {
   it('يعيد قائمة فارغة لمعيار بلا مواد مرجعية', () => {
     expect(anchorArticleNumbers(['duration', 'legal_compliance'])).toEqual([]);
   });
-  it('القوة القاهرة تضم 165 و159 و147', () => {
-    expect(anchorArticleNumbers(['force_majeure'], 5)).toEqual([165, 159, 147]);
+  it('القوة القاهرة تضم 373 و165 و159 و147', () => {
+    expect(anchorArticleNumbers(['force_majeure'], 5)).toEqual([373, 165, 159, 147]);
   });
 });
 

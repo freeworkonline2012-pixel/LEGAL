@@ -30,6 +30,8 @@ export interface ReadDocumentOptions {
   };
   /** الترجمة لا تقبل نصاً مبتوراً صامتاً: إن تجاوز المستند الممسوح حد صفحات القراءة الآلية يُرفض بدل ترجمة جزء منه. */
   failOnOcrTruncation?: boolean;
+  /** مقياس جودة صفحة للقراءة الآلية المزدوجة (يُفعَّل للعقود فقط: عدد عناوين البنود). بدونه تبقى قراءة واحدة كما كانت. */
+  ocrPageScore?: (pageText: string) => number;
   /** حد أدنى لعدد الأحرف غير البيضاء المقبولة (افتراضى 20) */
   minChars?: number;
 }
@@ -103,7 +105,7 @@ export class DocumentReaderService {
     warnings: string[],
     options: ReadDocumentOptions,
   ): Promise<string> {
-    const r = await this.ocr.recognize(buffer, kind);
+    const r = await (options.ocrPageScore ? this.ocr.recognize(buffer, kind, { pageScore: options.ocrPageScore }) : this.ocr.recognize(buffer, kind));
     if (r.status === 'unavailable') throw new UnprocessableEntityException(options.messages.ocrUnavailable);
     if (r.status === 'error') throw new UnprocessableEntityException(options.messages.ocrFailed);
     if (r.truncatedPages) {

@@ -13,6 +13,12 @@ const PAGE_TIMEOUT_MS = 60_000;
 const RASTER_TIMEOUT_MS = 60_000;
 const MAX_CONCURRENT = 2;
 
+/** خيارات اختيارية: قراءة ثانية بدقة أعلى تُختار منها كل صفحة بالأفضل حسب مقياس تمرّره الخدمة المستدعية. */
+export interface OcrRecognizeOptions {
+  /** يُرجع «جودة» نص الصفحة (مثلاً عدد عناوين البنود المقروءة)؛ الأعلى يُختار، وعند التعادل تبقى القراءة الأولى. */
+  pageScore?: (pageText: string) => number;
+}
+
 export type OcrOutcome =
   | { status: 'ok'; text: string; pages: number; truncatedPages: boolean }
   | { status: 'unavailable' }
@@ -72,7 +78,39 @@ export class OcrService {
     return stdout;
   }
 
-  async recognize(buffer: Buffer, kind: 'pdf' | 'png' | 'jpeg'): Promise<OcrOutcome> {
+  /**
+   * القراءة الآلية تُسقط أحياناً عناوين البنود المسطّرة، وتختلف الصفحات الضائعة باختلاف الدقة (تحقق حى على عقد ممسوح).
+   * فنقرأ الصفحات مرة ثانية بدقة 300 ونختار لكل صفحة القراءة ذات المقياس الأعلى. أى فشل فى القراءة الثانية يُهمَل
+   * ويبقى نص القراءة الأولى كما هو (لا يضر ولا يُسقط العقد).
+   */
+  private async rereadWithHigherDpi(
+    pdfPath: string,
+    dir: string,
+    pageCount: number,
+    first: string[],
+    score: (t: string) => number,
+  ): Promise<string[]> {
+    const out = [...first];
+    try {
+      await execFileAsync(this.pdftoppm, ['-r', '300', '-png', '-l', String(pageCount), pdfPath, join(dir, 'h')], {
+        timeout: RASTER_TIMEOUT_MS,
+      });
+      const hi = (await readdir(dir)).filter((f) => /^h-\d+\.png$/.test(f)).sort();
+      for (let i = 0; i < Math.min(hi.length, pageCount); i++) {
+        try {
+          const alt = await this.recognizeFile(join(dir, hi[i]));
+          if (score(alt) > score(out[i])) out[i] = alt;
+        } catch {
+          // نُبقى القراءة الأولى لهذه الصفحة
+        }
+      }
+    } catch (err) {
+      this.logger.warn(`OCR second pass skipped: ${(err as Error).message.slice(0, 120)}`);
+    }
+    return out;
+  }
+
+  async recognize(buffer: Buffer, kind: 'pdf' | 'png' | 'jpeg', options: OcrRecognizeOptions = {}): Promise<OcrOutcome> {
     if (!(await this.isAvailable())) return { status: 'unavailable' };
     await this.acquire();
     let dir: string | null = null;
@@ -91,6 +129,10 @@ export class OcrService {
         const used = pages.slice(0, OCR_MAX_PAGES);
         const texts: string[] = [];
         for (const f of used) texts.push(await this.recognizeFile(join(dir, f)));
+        if (options.pageScore) {
+          const better = await this.rereadWithHigherDpi(pdfPath, dir, used.length, texts, options.pageScore);
+          for (let i = 0; i < better.length; i++) texts[i] = better[i];
+        }
         return {
           status: 'ok',
           text: texts.join('\n\n'),

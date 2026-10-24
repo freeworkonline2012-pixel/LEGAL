@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { BARE_RE, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
 
 export interface SegmentedClause {
   index: number;
@@ -42,67 +43,9 @@ export interface SegmentationResult {
  * اعتماد نهائى على هذا الموديول وحده.
  */
 
-type Ordinal = readonly [number, readonly string[]];
-
-const ORDINALS: readonly Ordinal[] = [
-  [1, ['الأول', 'الاول']],
-  [2, ['الثاني', 'الثانى', 'الثان']], // "الثان" تهجئة ناقصة شائعة فى القراءة الآلية (OCR) لنهاية الياء
-  [3, ['الثالث']],
-  [4, ['الرابع']],
-  [5, ['الخامس']],
-  [6, ['السادس']],
-  [7, ['السابع']],
-  [8, ['الثامن']],
-  [9, ['التاسع']],
-  [10, ['العاشر']],
-  [11, ['الحادي عشر', 'الحادى عشر']],
-  [12, ['الثاني عشر', 'الثانى عشر']],
-  [13, ['الثالث عشر']],
-  [14, ['الرابع عشر']],
-  [15, ['الخامس عشر']],
-  [16, ['السادس عشر']],
-  [17, ['السابع عشر']],
-  [18, ['الثامن عشر']],
-  [19, ['التاسع عشر']],
-  [20, ['العشرون']],
-  [21, ['الحادي والعشرون', 'الحادى والعشرون']],
-  [22, ['الثاني والعشرون', 'الثانى والعشرون']],
-  [23, ['الثالث والعشرون']],
-  [24, ['الرابع والعشرون']],
-  [25, ['الخامس والعشرون']],
-  [26, ['السادس والعشرون']],
-  [27, ['السابع والعشرون']],
-  [28, ['الثامن والعشرون']],
-  [29, ['التاسع والعشرون']],
-  [30, ['الثلاثون']],
-];
-
-// فاصل الكلمات داخل الترتيبى: مسافة/سطر جديد، أو شرطة سفلية/تطويل تُنتجها القراءة الآلية ("الحادى_عشر").
-const SEP = '[\\s_\\u0640]';
-
-// الأطول أولاً (حروفاً بعد استبدال المسافات بـ\s+) — يمنع التقاط "العاشر"
-// كتطابق جزئى خاطئ داخل "الحادى عشر" لو رُتبت الأقصر أولاً.
-const ALTERNATIVES = ORDINALS.flatMap(([num, spellings]) => spellings.map((s) => ({ num, s })))
-  .sort((a, b) => b.s.length - a.s.length)
-  .map((x) => x.s.replace(/ /g, SEP + '+'));
-
-// (?![ء-ي]) يمنع التقاط تهجئة ناقصة كجزء من كلمة أطول. (?<pre>…) حرف شاذ واحد قبل "البند" (ختم/شخبطة
-// تقرؤها القراءة الآلية مثل "ش البند الثان,")؛ لا يُقبل إلا إن كان باقى السطر قصيراً (عنوان لا جملة إحالة).
-const CLAUSE_RE = new RegExp(
-  `^[ \\t]*(?<pre>[^\\s\\d:.،,\\-][ \\t]+)?البند${SEP}+(?<ord>${ALTERNATIVES.join('|')})(?![\\u0621-\\u064A])\\s*[:.]?`,
-  'gmu',
-);
-const MAX_REST_AFTER_NOISE_PREFIX = 30;
 // علامات الاتجاه غير المرئية التى تضيفها القراءة الآلية وبعض برامج الاستخراج فى أول السطر/آخره.
 const INVISIBLE_MARKS_RE = /[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g;
 
-function ordinalToNumber(spelling: string): number | null {
-  const normalized = spelling.replace(/[\s_\u0640]+/g, ' ').trim();
-  const found = ORDINALS.find(([, spellings]) =>
-    spellings.some((s) => s.replace(/\s+/g, ' ') === normalized),
-  );
-  return found ? found[0] : null;
-}
 
 interface Head {
   lineStart: number;
@@ -113,9 +56,8 @@ interface Head {
   declaredNumber: number | null;
 }
 
-// سطر لا يحوى إلا الترتيبى ("الثانى"): القراءة الآلية تُسقط أحياناً كلمة "البند" من العنوان. لا يُقبل إلا
-// إن كان رقمه هو التالى مباشرة للبند السابق (تسلسل حتمى) وبلا عنوان كامل تالٍ بنفس الرقم.
-const BARE_RE = new RegExp(`^[ \\t]*(?<ord>${ALTERNATIVES.join('|')})(?![\\u0621-\\u064A])[ \\t]*$`, 'gmu');
+// ما يلى رقم البند فى إحالة خارجية: "من العقد الأصلي/السابق"، "من القانون"، "من اللائحة"... ("من هذا العقد" إحالة داخلية)
+const EXTERNAL_REFERENCE_RE = /^[\s_\u0640]*من[\s_\u0640]+(?:ال)?(?:عقد|قانون|لائحة|لائحه|ملحق|اتفاق|اتفاقية|اتفاقيه|نظام|اللائحة)/u;
 
 @Injectable()
 export class SegmentationService {
@@ -149,7 +91,11 @@ export class SegmentationService {
       if (b.declaredNumber === null) continue;
       const prev = [...merged].filter((h) => h.lineStart < b.lineStart).pop();
       const nextFull = full.find((h) => h.lineStart > b.lineStart);
-      if (!prev || prev.declaredNumber === null || b.declaredNumber !== prev.declaredNumber + 1) continue;
+      // التسلسل المتوقع: التالى مباشرة للسابق؛ وقبل أول عنوان مقبول يبدأ من "الأول" (استرجاع عناوين البنود الأولى التى
+      // أسقطتها القراءة الآلية) ولا يُقبل إلا إن تلاه عنوان كامل برقم أعلى (دليل أن ما قبله بنود فعلاً لا قائمة عابرة).
+      const expected = prev ? (prev.declaredNumber === null ? null : prev.declaredNumber + 1) : 1;
+      if (expected === null || b.declaredNumber !== expected) continue;
+      if (!prev && !(nextFull && nextFull.declaredNumber !== null && nextFull.declaredNumber > b.declaredNumber)) continue;
       if (nextFull && nextFull.declaredNumber === b.declaredNumber) continue;
       merged.push(b);
       merged.sort((x, y) => x.lineStart - y.lineStart);
@@ -240,6 +186,24 @@ export class SegmentationService {
         );
         break;
       }
+    }
+
+    // إحالة نصية إلى بند أعلى من آخر بند مُقسَّم ("وفقاً للبند السادس عشر") مؤشر قوى على عنوان بند أسقطته القراءة
+    // الآلية فالتصق نص بند كامل بسابقه: تنبيه صريح بدل عدد بنود يبدو سليماً وهو ناقص.
+    const maxDeclared = declared.length > 0 ? Math.max(...declared) : 0;
+    let maxReferenced = 0;
+    for (const m of text.matchAll(REFERENCE_RE)) {
+      const n = ordinalToNumber(m.groups?.ord ?? '');
+      if (n === null || n <= maxReferenced) continue;
+      // إحالة إلى بند فى عقد/قانون/لائحة آخر ("البند السابع عشر من العقد الأصلي") ليست بنداً مفقوداً من هذا العقد
+      const after = text.slice((m.index ?? 0) + m[0].length, (m.index ?? 0) + m[0].length + 40);
+      if (EXTERNAL_REFERENCE_RE.test(after)) continue;
+      maxReferenced = n;
+    }
+    if (maxDeclared > 0 && maxReferenced > maxDeclared) {
+      warnings.push(
+        `نص العقد يُحيل إلى "البند رقم ${maxReferenced}" بينما قُسِّم إلى ${maxDeclared} بنداً فقط — قد يكون عنوان بند أو أكثر قد سقط من القراءة فالتصق نصه بالبند السابق؛ راجع نهاية العقد يدوياً.`,
+      );
     }
 
     const emptyClauses = clauses.filter((c) => c.text.trim().length < 3);

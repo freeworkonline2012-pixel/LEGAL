@@ -44,6 +44,8 @@ import { describeRedraftRejection, describeWeakeningFeedback, REDRAFT_DISCLAIMER
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
 import { ContractResponseDto } from './dto/contract-response.dto';
+import { countHeadingLines } from './clause-headings';
+import { numericWarnings } from './numeric-checks.util';
 
 interface ClauseCitation {
   law: string;
@@ -146,6 +148,7 @@ export class ContractsService {
               'لم نتمكن من قراءة نص كافٍ من هذا الملف الممسوح — تأكد من وضوح الصور أو ارفع نسخة Word أو PDF نصى من العقد.',
           },
           failOnOcrTruncation: true,
+          ocrPageScore: countHeadingLines,
           minChars: 200,
         });
         extraction = { status: 'ok', text: read.text };
@@ -174,8 +177,8 @@ export class ContractsService {
 
     contract.status = 'processing';
     contract.clauseCount = segmentation.clauses.length;
-    const allWarnings = [...uploadWarnings, ...segmentation.warnings];
-    contract.extractionWarnings = allWarnings.length > 0 ? allWarnings : null;
+    const contractWarnings = [...uploadWarnings, ...segmentation.warnings, ...numericWarnings(extraction.text)];
+    contract.extractionWarnings = contractWarnings.length > 0 ? contractWarnings : null;
     contract = await this.contractRepository.save(contract);
 
     let clauseRows: ContractClause[] = await Promise.all(
@@ -201,10 +204,10 @@ export class ContractsService {
 
     await this.audit(context, 'contracts.processed', contract.id, {
       clauseCount: clauseRows.length,
-      warnings: [...uploadWarnings, ...segmentation.warnings],
+      warnings: contractWarnings,
     });
 
-    return this.toResponseDto(contract, clauseRows, [...uploadWarnings, ...segmentation.warnings]);
+    return this.toResponseDto(contract, clauseRows, contractWarnings);
   }
 
   private httpExceptionMessage(err: HttpException): string {

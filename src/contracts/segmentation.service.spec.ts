@@ -185,4 +185,29 @@ describe('SegmentationService', () => {
       expect(r.warnings).toEqual([]);
     });
   });
+  describe('استرجاع عناوين أسقطتها القراءة الآلية وتنبيه الإحالات', () => {
+    it('يسترجع «الأول» المجرد حين يتبعه «البند الثانى» (عنوان مسطّر أسقطت القراءة كلمة «البند» منه)', () => {
+      const text = ['ديباجة العقد بين الطرفين.', 'الأول', 'مدة العقد سنة.', 'البند الثانى', 'السداد شهرياً.'].join('\n');
+      const r = service.segment(text);
+      expect(r.clauses.map((c) => c.declaredNumber)).toEqual([1, 2]);
+    });
+
+    it('لا يعتبر «الأول» المجرد بنداً إن لم يتبعه عنوان كامل برقم أعلى', () => {
+      const text = ['ديباجة.', 'الأول', 'نص عابر.', 'البند الأول', 'نص البند.'].join('\n');
+      const r = service.segment(text);
+      expect(r.clauses.map((c) => c.declaredNumber)).toEqual([1]);
+    });
+
+    it('ينبّه حين يحيل النص إلى بند أعلى من آخر بند مقسَّم (علامة عنوان ساقط)', () => {
+      const text = ['البند الأول', 'نص.', 'البند الثانى', 'تُسدد الغرامة وفقاً للبند الخامس من هذا العقد.'].join('\n');
+      const r = service.segment(text);
+      expect(r.warnings.some((w) => w.includes('البند رقم 5'))).toBe(true);
+    });
+
+    it('لا ينبّه لإحالة إلى بند فى عقد آخر («من العقد الأصلي»)', () => {
+      const text = ['البند الأول', 'نص.', 'البند الثانى', 'تنفذ أحكام البند السابع عشر من العقد الأصلي.'].join('\n');
+      const r = service.segment(text);
+      expect(r.warnings).toEqual([]);
+    });
+  });
 });
