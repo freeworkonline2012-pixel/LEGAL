@@ -50,6 +50,11 @@ import { ClauseFactsService } from './clause-facts.service';
 import { hasAnyFact } from './clause-facts';
 import { evaluateRules, summarizeFindings } from './clause-rules';
 import { ContractConsistencyService } from './contract-consistency.service';
+import { ClauseVerifierService } from './clause-verifier.service';
+import { type Verification, needsVerification, pickForVerification } from './verification';
+import { compareFactsForClient, describeWeakenings } from './redraft-guard';
+import type { ClauseFacts } from './clause-facts';
+import type { Weakening } from './redraft-guard';
 import {
   type ContractFinding,
   type ContractLevelResult,
@@ -113,6 +118,7 @@ export class ContractsService {
     private readonly documentReader: DocumentReaderService,
     private readonly factsService: ClauseFactsService,
     private readonly consistencyService: ContractConsistencyService,
+    private readonly verifierService: ClauseVerifierService,
   ) {
     this.contractRepository = this.dataSource.getRepository(Contract);
     this.clauseRepository = this.dataSource.getRepository(ContractClause);
@@ -223,11 +229,16 @@ export class ContractsService {
       order: { clauseIndex: 'ASC' },
     });
 
+    // الطبقة 4: تحقق مستقل بتعليمات معاكسة من ملاحظات البنود التى قيّمها النموذج (لا يُسقط المعالجة أبداً)
+    await this.verifyClauseFlags(clauseRows, position);
+
     // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
     contract.contractFindings = (await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings)) as unknown as Record<
       string,
       unknown
     >;
+
+    await this.verifyContractFindings(contract.contractFindings as unknown as ContractLevelResult | null, clauseRows);
 
     contract.status = 'processed';
     contract = await this.contractRepository.save(contract);
@@ -277,6 +288,74 @@ export class ContractsService {
       this.logger.warn(`contract consistency failed (non-fatal): ${(err as Error).message}`);
     }
     return { version: 1, findings: mergeFindings(rules, modelFindings), model, generatedAt: new Date().toISOString() };
+  }
+
+  /**
+   * الطبقة 4 على البنود: لكل بند قيّمه النموذج «يحتاج مراجعة» بمخاطرة حرجة/عالية/متوسطة (حتى 12 بنداً، الأخطر أولاً) يعيد مدقق مستقل
+   * بتعليمات معاكسة فحص الملاحظة. لا تُغيَّر حالة البند أبداً: النتيجة وسم «مؤكدة/غير مؤكدة» مع سبب واقتباس موثَّق.
+   * أى عطل فى بند ⇒ يُترك بلا وسم (null) ويستمر ما بعده.
+   */
+  private async verifyClauseFlags(rows: ContractClause[], position: ClientPosition): Promise<void> {
+    if (!this.verifierService?.isConfigured) return;
+    const picks = pickForVerification(rows.filter((r) => needsVerification(r)));
+    const clientPosition = describePosition(position);
+    for (const row of picks) {
+      try {
+        const out = await this.verifierService.verifyAssessment({
+          clauseText: row.clauseText,
+          claim: row.assessmentReasoning ?? '',
+          clientPosition,
+          articles: (row.matchedArticles ?? []).map((m) => ({ lawTitle: m.law, articleNo: m.article_no, articleText: m.snippet })),
+        });
+        if (out.status !== 'ok') continue;
+        row.verification = out.verification as unknown as Record<string, unknown>;
+        await this.clauseRepository.save(row);
+      } catch (err) {
+        this.logger.warn(`clause verification failed clauseIndex=${row.clauseIndex} (non-fatal): ${(err as Error).message}`);
+      }
+    }
+  }
+
+  /** الطبقة 4 على ملاحظات العقد ككل التى اقترحها النموذج (التعارض وعدم الاتساق...)؛ الحتمية منها لا تحتاج. تعدّل الوثيقة فى مكانها. */
+  private async verifyContractFindings(level: ContractLevelResult | null, rows: ContractClause[]): Promise<void> {
+    if (!level || !this.verifierService?.isConfigured) return;
+    const byIndex = new Map(rows.map((r) => [r.clauseIndex, r]));
+    for (const f of level.findings.filter((x) => x.source === 'model').slice(0, 8)) {
+      try {
+        const out = await this.verifierService.verifyFinding({
+          kindLabel: FINDING_KIND_LABEL[f.kind] ?? f.kind,
+          title: f.title,
+          explanation: f.explanation,
+          evidence: f.evidence.map((e) => ({ clauseLabel: e.clauseLabel, quote: e.quote })),
+          clauseTexts: f.evidence.map((e) => byIndex.get(e.clauseIndex)?.clauseText ?? ''),
+        });
+        if (out.status === 'ok') f.verification = out.verification;
+      } catch (err) {
+        this.logger.warn(`finding verification failed id=${f.id} (non-fatal): ${(err as Error).message}`);
+      }
+    }
+  }
+
+  /**
+   * حارس حتمى لحماية مركز العميل فى الصياغة: يستخرج وقائع الصياغة المقترحة بالطريقة نفسها ويقارنها بوقائع البند الأصلى (راجع redraft-guard.ts).
+   * يُرجع [] عند أى عجز (غير مفعَّل، تعذّر الاستخراج) فيبقى المدقق اللغوى الموازى هو خط الدفاع.
+   */
+  private async guardRedraftFacts(clause: ContractClause, proposedText: string, party: 'first' | 'second'): Promise<Weakening[]> {
+    if (!this.factsService?.isConfigured) return [];
+    try {
+      let original = clause.facts as unknown as ClauseFacts | null;
+      if (!original || !hasAnyFact(original)) {
+        const o = await this.factsService.extract({ clauseText: clause.clauseText });
+        if (o.status !== 'ok') return [];
+        original = o.facts;
+      }
+      const p = await this.factsService.extract({ clauseText: proposedText });
+      if (p.status !== 'ok') return [];
+      return compareFactsForClient(original, p.facts, party);
+    } catch (err) {
+      this.logger.warn(`redraft facts guard failed (non-fatal): ${(err as Error).message}`);
+      return [];
+    }
   }
 
   private httpExceptionMessage(err: HttpException): string {
@@ -386,12 +465,16 @@ export class ContractsService {
           });
           feedback = describeRedraftRejection(verdict.reason);
         } else if (request.clientPosition) {
-          const check = await this.generationService.verifyRedraftProtectsClient({
-            clauseText: clause.clauseText,
-            proposedText: verdict.proposal.text,
-            clientPosition: request.clientPosition,
-            reviewNote: request.reviewNote,
-          });
+          const guard = contract.clientParty ? await this.guardRedraftFacts(clause, verdict.proposal.text, contract.clientParty) : [];
+          const check: Awaited<ReturnType<DeepseekGenerationService['verifyRedraftProtectsClient']>> =
+            guard.length > 0
+              ? { status: 'ok', weakens: true, reason: describeWeakenings(guard) }
+              : await this.generationService.verifyRedraftProtectsClient({
+                  clauseText: clause.clauseText,
+                  proposedText: verdict.proposal.text,
+                  clientPosition: request.clientPosition,
+                  reviewNote: request.reviewNote,
+                });
           if (check.status === 'ok' && check.weakens) {
             weakensClient = true;
             this.logger.warn(`redraft weakens client clauseId=${clauseId} attempt=${attempt + 1}`);
@@ -503,8 +586,15 @@ export class ContractsService {
       matched_articles: c.matchedArticles,
       assessment_confidence: c.assessmentConfidence,
       rule_findings: (c.ruleFindings as unknown as ContractClauseResponseDto['rule_findings']) ?? null,
+      verification: this.toVerificationDto(c.verification),
       suggested_redraft: this.parseRedraft(c.suggestedWording),
     };
+  }
+
+  private toVerificationDto(v: Record<string, unknown> | null | undefined): ContractClauseResponseDto['verification'] {
+    const x = v as Partial<Verification> | null | undefined;
+    if (!x || (x.status !== 'confirmed' && x.status !== 'unconfirmed') || typeof x.reason !== 'string') return null;
+    return { status: x.status, basis: x.basis ?? (x.status === 'confirmed' ? 'confirmed' : 'uncertain'), reason: x.reason, quote: x.quote ?? null };
   }
 
   private async persistInitialClause(contractId: string, clause: SegmentedClause): Promise<ContractClause> {
@@ -792,6 +882,7 @@ export class ContractsService {
         suggestion: f.suggestion ?? null,
         evidence: (f.evidence ?? []).map((e) => ({ clause_index: e.clauseIndex, clause_label: e.clauseLabel, quote: e.quote })),
         source: f.source,
+        verification: this.toVerificationDto(f.verification as unknown as Record<string, unknown> | null | undefined),
       })),
       contract_findings_model: doc.model ?? null,
     };

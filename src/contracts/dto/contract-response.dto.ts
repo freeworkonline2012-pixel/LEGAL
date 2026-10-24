@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import type { ContractStatus } from '../../database/entities/contract.entity';
-import { ContractClauseResponseDto } from './contract-clause-response.dto';
+import { ContractClauseResponseDto, VerificationDto } from './contract-clause-response.dto';
 
 export class FindingEvidenceDto {
   @ApiProperty() clause_index: number;
@@ -18,6 +18,7 @@ export class ContractFindingDto {
   @ApiPropertyOptional({ nullable: true }) suggestion: string | null;
   @ApiProperty({ type: [FindingEvidenceDto] }) evidence: FindingEvidenceDto[];
   @ApiProperty({ enum: ['rule', 'model'] }) source: string;
+  @ApiPropertyOptional({ type: VerificationDto, nullable: true }) verification: VerificationDto | null;
 }
 
 export class ContractResponseDto {

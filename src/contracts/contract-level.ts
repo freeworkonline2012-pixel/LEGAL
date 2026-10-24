@@ -1,4 +1,5 @@
 import { quoteInText } from './clause-facts';
+import type { Verification } from './verification';
 import { normalizeArabicForMatch } from './reasoning.util';
 
 /**
@@ -36,6 +37,8 @@ export interface ContractFinding {
   suggestion: string | null;
   evidence: FindingEvidence[];
   source: 'rule' | 'model';
+  /** نتيجة المدقق المستقل (لنتائج النموذج فقط)؛ غائبة = لم يُجرَ التحقق */
+  verification?: Verification | null;
 }
 
 export interface LevelClause {

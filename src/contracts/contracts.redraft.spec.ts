@@ -65,6 +65,7 @@ function build(clauseOverrides: Record<string, unknown> = {}, outcome?: unknown)
     {} as never,
     { isConfigured: false } as never,
     { isConfigured: false, analyze: jest.fn().mockResolvedValue({ status: 'not_configured' }) } as never,
+    { isConfigured: false } as never,
   );
   return { service, generation, clauseRepo, clause, contract };
 }
@@ -270,5 +271,29 @@ describe('parseRedraftJson', () => {
     contract.clientParty = null;
     await service.proposeRedraft('c1', 'cl1', ctx);
     expect(generation.verifyRedraftProtectsClient).not.toHaveBeenCalled();
+  });
+
+  it('الحارس الحتمى: صياغة تُسقط سقفاً يحمى العميل تُرفض دون استدعاء المدقق اللغوى، وتُعاد مرة بالسبب ثم تُحجب', async () => {
+    const { service, generation, clause } = build({}, GOOD);
+    const C = (hasCap: boolean) => ({ method: 'fixed_amount', waivesProofOfDamage: false, hasCap, payer: 'second', quote: 'يلتزم المستأجر بسداد غرامة تأخير' });
+    const extract = jest.fn().mockImplementation(async (i: { clauseText: string }) => ({
+      status: 'ok',
+      facts: { compensation: C(i.clauseText === ORIGINAL) },
+    }));
+    Object.assign(service as unknown as Record<string, unknown>, { factsService: { isConfigured: true, extract } });
+    await expect(service.proposeRedraft('c1', 'cl1', ctx)).rejects.toThrow(/حماية مركزك/);
+    expect(generation.verifyRedraftProtectsClient).not.toHaveBeenCalled();
+    expect(generation.proposeClauseRedraft).toHaveBeenCalledTimes(2);
+    expect(generation.proposeClauseRedraft.mock.calls[1][0].retryFeedback).toContain('الحد الأقصى للتعويض');
+    expect(clause.suggestedWording).toBeNull();
+  });
+
+  it('الحارس الحتمى لا يعترض حين تتطابق الوقائع، فيمر إلى المدقق اللغوى', async () => {
+    const { service, generation } = build({}, GOOD);
+    const extract = jest.fn().mockResolvedValue({ status: 'ok', facts: { compensation: { method: 'fixed_amount', waivesProofOfDamage: false, hasCap: true, payer: 'second', quote: 'يلتزم المستأجر بسداد غرامة تأخير' } } });
+    Object.assign(service as unknown as Record<string, unknown>, { factsService: { isConfigured: true, extract } });
+    const dto = await service.proposeRedraft('c1', 'cl1', ctx);
+    expect(dto.suggested_redraft).toBeTruthy();
+    expect(generation.verifyRedraftProtectsClient).toHaveBeenCalledTimes(1);
   });
 });

@@ -24,6 +24,21 @@ export interface AuditClause {
   suggestedWording: string | null;
   lawyerVerdict: string | null;
   lawyerNotes: string | null;
+  /** نتيجة المدقق المستقل؛ null/غائبة = لم يُجرَ التحقق */
+  verification?: AuditVerification | null;
+}
+
+export interface AuditVerification {
+  status: 'confirmed' | 'unconfirmed';
+  reason: string;
+  quote?: string | null;
+}
+
+/** صياغة التحقق المستقل فى التقرير: «مؤكدة» أو «غير مؤكدة — تحتاج مراجعة بشرية» مع السبب والاقتباس الموثَّق. */
+function verificationText(v: AuditVerification): string {
+  const head = v.status === 'confirmed' ? 'اجتازت التحقق المستقل (مدقق ثانٍ بتعليمات معاكسة)' : 'غير مؤكدة — تحتاج مراجعة بشرية: اعترض المدقق المستقل المعاكس أو لم يستطع الجزم';
+  const quote = v.quote ? ` الاقتباس: «${oneLine(v.quote)}».` : '';
+  return `${head}. ${oneLine(v.reason)}${quote}`;
 }
 
 export interface AuditReportInput {
@@ -55,6 +70,7 @@ export interface AuditContractFinding {
   explanation: string;
   suggestion: string | null;
   evidence: Array<{ clauseLabel: string; quote: string }>;
+  verification?: AuditVerification | null;
 }
 
 const NEEDS_REVIEW = 'يحتاج مراجعة';
@@ -359,7 +375,8 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     const rows: Cell[][] = risky.map((r) => {
       const verdict = r.c.lawyerVerdict ? ` — رأى المراجع: ${r.c.lawyerVerdict}` : '';
       let status: Cell;
-      if (r.redraft && !r.redraft.noChange) status = { text: `صياغة مقترحة — بانتظار مراجعة محامٍ${verdict}`, tone: 'medium', bold: false };
+      const unconfirmed = r.c.verification?.status === 'unconfirmed' ? ' — غير مؤكدة' : '';
+      if (r.redraft && !r.redraft.noChange) status = { text: `صياغة مقترحة — بانتظار مراجعة محامٍ${unconfirmed}${verdict}`, tone: 'medium', bold: false };
       else if (r.redraft?.noChange) status = { text: `لا يلزم تعديل بحسب الفحص الآلى — بانتظار مراجعة محامٍ${verdict}`, tone: 'medium', bold: false };
       else status = { text: `بانتظار الصياغة المقترحة${verdict}`, tone: 'high', bold: false };
       return [
@@ -396,6 +413,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
             { label: 'المشكلة', tone: 'critical', value: r.c.assessmentReasoning?.trim() || '—' },
             { label: 'الأساس القانونى', tone: 'info', value: basis.length > 0 ? basis.join('\n') : 'لا مادة معتمدة مرتبطة بهذا البند.' },
             { label: 'الخطر القانونى', tone: 'high', value: RISK_TEXT[r.sev] },
+            ...(r.c.verification
+              ? [{ label: 'التحقق المستقل', tone: (r.c.verification.status === 'confirmed' ? 'info' : 'high') as Tone, value: verificationText(r.c.verification) }]
+              : []),
             ...(ocrRead && findOcrNoiseTokens(r.c.clauseText).length > 0
               ? [{ label: 'تنبيه قراءة آلية', tone: 'medium' as Tone, value: OCR_NOISE_NOTE(findOcrNoiseTokens(r.c.clauseText)) }]
               : []),
@@ -438,7 +458,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         rows: findings.map((f, i) => [
           { text: String(i + 1), center: true },
           { text: f.kindLabel },
-          { text: clip(f.title, 140) },
+          { text: clip(f.title, 140) + (f.verification?.status === 'unconfirmed' ? ' (غير مؤكدة)' : '') },
           { text: f.severity, tone: toneOf(f.severity), center: true },
         ]),
         widths: [6, 24, 52, 18],
@@ -451,6 +471,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
             { label: 'التفصيل', tone: 'high', value: f.explanation },
             ...(f.evidence.length > 0
               ? [{ label: 'من نص العقد', tone: 'info' as Tone, value: f.evidence.map((e) => `${e.clauseLabel}: «${clip(e.quote, 400)}»`).join('\n') }]
+              : []),
+            ...(f.verification
+              ? [{ label: 'التحقق المستقل', tone: (f.verification.status === 'confirmed' ? 'info' : 'high') as Tone, value: verificationText(f.verification) }]
               : []),
             ...(f.suggestion ? [{ label: 'المعالجة المقترحة', tone: 'medium' as Tone, value: f.suggestion }] : []),
           ],

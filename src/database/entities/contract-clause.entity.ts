@@ -79,6 +79,10 @@ export class ContractClause {
   @Column({ name: 'rule_findings', type: 'jsonb', nullable: true })
   ruleFindings: Array<Record<string, unknown>> | null;
 
+  /** نتيجة المدقق المستقل (verification.ts)؛ NULL = لم يُجرَ التحقق */
+  @Column({ name: 'verification', type: 'jsonb', nullable: true })
+  verification: Record<string, unknown> | null;
+
   @Column({ name: 'suggested_wording', type: 'text', nullable: true })
   suggestedWording: string | null;
 

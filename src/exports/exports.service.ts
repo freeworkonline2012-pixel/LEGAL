@@ -206,6 +206,7 @@ export class ExportsService {
           suggestedWording: c.suggestedWording,
           lawyerVerdict: c.lawyerVerdict,
           lawyerNotes: c.lawyerNotes,
+          verification: this.reportVerification(c.verification),
         })),
         approvedAt: contract.reportApprovedAt,
         approvalNote: contract.reportApprovalNote,
@@ -218,6 +219,11 @@ export class ExportsService {
       }),
     );
     return this.deliver(doc, format, actor, 'contract', contract.id, { approved });
+  }
+
+  private reportVerification(v: Record<string, unknown> | null | undefined): { status: 'confirmed' | 'unconfirmed'; reason: string; quote: string | null } | null {
+    if (!v || (v.status !== 'confirmed' && v.status !== 'unconfirmed') || typeof v.reason !== 'string' || !v.reason) return null;
+    return { status: v.status, reason: v.reason, quote: typeof v.quote === 'string' && v.quote ? v.quote : null };
   }
 
   /** ملاحظات العقد ككل المخزَّنة (migrations/237) بصيغة التقرير؛ لا شىء للعقود التى لم تُحلَّل. */
@@ -242,6 +248,7 @@ export class ExportsService {
         title: str(f.title),
         explanation: str(f.explanation),
         suggestion: str(f.suggestion) || null,
+        verification: this.reportVerification(f.verification as Record<string, unknown> | null | undefined),
         evidence: (Array.isArray(f.evidence) ? (f.evidence as Array<Record<string, unknown>>) : [])
           .filter((e) => e && str(e.quote))
           .map((e) => ({ clauseLabel: str(e.clauseLabel), quote: str(e.quote) })),

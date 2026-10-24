@@ -8,6 +8,7 @@ import { ContractClause } from '../database/entities/contract-clause.entity';
 import { ContractsController } from './contracts.controller';
 import { ContractsService } from './contracts.service';
 import { ClauseFactsService } from './clause-facts.service';
+import { ClauseVerifierService } from './clause-verifier.service';
 import { ContractConsistencyService } from './contract-consistency.service';
 import { ExtractionService } from './extraction.service';
 import { SegmentationService } from './segmentation.service';
@@ -37,7 +38,7 @@ import { SegmentationService } from './segmentation.service';
 @Module({
   imports: [AuditModule, LlmModule, DocumentsModule, TypeOrmModule.forFeature([Contract, ContractClause])],
   controllers: [ContractsController],
-  providers: [ContractsService, ExtractionService, SegmentationService, ClauseFactsService, ContractConsistencyService],
+  providers: [ContractsService, ExtractionService, SegmentationService, ClauseFactsService, ContractConsistencyService, ClauseVerifierService],
   exports: [ContractsService],
 })
 export class ContractsModule {}

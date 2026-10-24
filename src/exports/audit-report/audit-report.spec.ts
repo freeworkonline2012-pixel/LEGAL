@@ -96,6 +96,22 @@ describe('buildContractAuditReport', () => {
     expect(JSON.stringify(empty.blocks)).toContain('لم تُرصد ملاحظات على مستوى العقد ككل');
   });
 
+  it('التحقق المستقل: غير المؤكدة تُوسَم فى المصفوفة والتفصيل ومعها السبب والاقتباس، والمؤكدة تُذكر باجتيازها', () => {
+    const withV = INPUT.clauses.map((c) =>
+      c.clauseIndex === 5
+        ? { ...c, verification: { status: 'unconfirmed' as const, reason: 'البند يعفى صراحة من الإنذار.', quote: 'دون حاجة إلى إنذار' } }
+        : c.clauseIndex === 2
+          ? { ...c, verification: { status: 'confirmed' as const, reason: 'لم أجد ما ينقض الملاحظة.', quote: null } }
+          : c,
+    );
+    const json = JSON.stringify(buildContractAuditReport({ ...INPUT, clauses: withV }).report.blocks);
+    expect(json).toContain('غير مؤكدة');
+    expect(json).toContain('تحتاج مراجعة بشرية');
+    expect(json).toContain('دون حاجة إلى إنذار');
+    expect(json).toContain('اجتازت التحقق المستقل');
+    expect(JSON.stringify(buildContractAuditReport(INPUT).report.blocks)).not.toContain('التحقق المستقل');
+  });
+
   it('نطاق التغطية: يذكر عدد البنود المقيَّمة مقابل نص مفهرس ويحذّر من أن غير المقيَّمة لم تُراجَع', () => {
     const { report: r } = buildContractAuditReport(INPUT);
     const assessed = INPUT.clauses.filter((c) => c.assessmentStatus === 'سليم' || c.assessmentStatus === 'يحتاج مراجعة').length;

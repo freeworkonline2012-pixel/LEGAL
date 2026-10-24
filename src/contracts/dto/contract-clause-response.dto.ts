@@ -28,6 +28,13 @@ export class RuleFindingDto {
   @ApiProperty() explanation: string;
 }
 
+export class VerificationDto {
+  @ApiProperty({ enum: ['confirmed', 'unconfirmed'] }) status: 'confirmed' | 'unconfirmed';
+  @ApiProperty({ enum: ['confirmed', 'refuted', 'uncertain'] }) basis: 'confirmed' | 'refuted' | 'uncertain';
+  @ApiProperty() reason: string;
+  @ApiPropertyOptional({ nullable: true }) quote: string | null;
+}
+
 export class ContractClauseResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() clause_index: number;
@@ -40,5 +47,6 @@ export class ContractClauseResponseDto {
   @ApiPropertyOptional({ type: [MatchedArticleDto] }) matched_articles: MatchedArticle[] | null;
   @ApiPropertyOptional({ nullable: true }) assessment_confidence: number | null;
   @ApiPropertyOptional({ type: [RuleFindingDto], nullable: true }) rule_findings: RuleFindingDto[] | null;
+  @ApiPropertyOptional({ type: VerificationDto, nullable: true, description: 'نتيجة المدقق المستقل؛ null = لم يُجرَ التحقق' }) verification: VerificationDto | null;
   @ApiPropertyOptional({ type: SuggestedRedraftDto, nullable: true }) suggested_redraft: SuggestedRedraftDto | null;
 }
