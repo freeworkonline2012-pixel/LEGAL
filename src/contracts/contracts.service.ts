@@ -21,7 +21,7 @@ import {
   CIVIL_CODE,
   classifyClauseCriteria,
   leaseAnchorArticleNumbers,
-  scopedLawsForCriteria,
+  scopedLawsForClause,
   serializeCriteria,
 } from './criteria.util';
 import { Contract, ContractStatus } from '../database/entities/contract.entity';
@@ -1041,8 +1041,8 @@ export class ContractsService {
       new Set([...anchorArticleNumbers(criteria, 3), ...leaseAnchorArticleNumbers(clauseTitle, clauseText, 3)]),
     );
     out.push(...(await this.civilCodeCandidates(articleNos)));
-    for (const scope of scopedLawsForCriteria(criteria)) {
-      const scoped = await this.ftsCandidates(clauseText, 2, scope);
+    for (const scope of scopedLawsForClause(criteria, clauseTitle, clauseText)) {
+      const scoped = await this.ftsCandidates(`${scope.seed ?? ''} ${clauseText}`.trim(), 2, scope);
       out.push(...scoped.map((c) => ({ ...c, source: 'anchor' as const })));
     }
     return out;

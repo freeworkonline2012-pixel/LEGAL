@@ -31,10 +31,46 @@ export interface CriterionDef {
   /** مواد القانون المدنى المرجعية، بترتيب الأهمية */
   civilCodeAnchors: number[];
   /** بحث مقيَّد بقانون بعينه (حين لا تكفى مادة مرجعية واحدة) */
-  lawScope?: { lawNo: number; lawYear: number };
+  lawScope?: LawScope;
+}
+
+/** قانون مقيَّد للبحث فيه؛ seed كلمات موضوعية تُسبق نص البند فى استعلام البحث (الاستعلام يقتصر على أول 8 كلمات) */
+export interface LawScope {
+  lawNo: number;
+  lawYear: number;
+  seed?: string;
 }
 
 export const CIVIL_CODE = { lawNo: 131, lawYear: 1948 } as const;
+
+/**
+ * صيغ البيانات الشخصية وحمايتها (بعد التوحيد). توسَّع فى الجولة 5 لتشمل بيانات العملاء والمرضى والمستهلكين والمشتركين،
+ * والخرق والتسريب والاختراق والأمن السيبرانى والتسويق الإلكترونى وملفات الارتباط، كى تُربط هذه البنود بقانون 151/2020.
+ */
+const DATA_PROTECTION_TRIGGER =
+  /بيانات (?:ال)?(?:شخصيه|حساسه|عملاء|مستخدمين|موظفين|المتعاقدين|مرضي|مستهلكين|زبائن|مشتركين|عميل|مستخدم)|معلومات (?:ال)?(?:شخصيه|عملاء)|حمايه (?:ال)?(?:بيانات|خصوصيه)|معالجه (?:ال)?بيانات|تخزين (?:ال)?بيانات|نقل (?:ال)?بيانات|تسريب (?:ال)?بيانات|خرق (?:ال)?بيانات|اختراق (?:ال)?(?:بيانات|انظمه|نظم)|الامن السيبراني|امن (?:ال)?معلومات|التسويق (?:ال)?الالكتروني|ملفات (?:ال)?(?:ارتباط|تعريف)|مسئول حمايه (?:ال)?بيانات|مسؤول حمايه (?:ال)?بيانات|متحكم (?:ال)?بيانات|معالج (?:ال)?بيانات/;
+
+/**
+ * مواضيع تُقيَّد البحث فيها بقانون بعينه بصرف النظر عن المعيار الموسوم (الجولة 5): التحكيم ⇒ قانون 27/1994،
+ * الملكية الفكرية وحقوق المؤلف والعلامات والبراءات وبرامج الحاسب ⇒ قانون 82/2002، البيانات الشخصية ⇒ قانون 151/2020.
+ * هذا ربط بمرشحين للتقييم فقط (مادتان كحد أقصى لكل قانون) وليس حكماً؛ غياب القانون من القاعدة يعنى غياب مرشحيه بلا اختلاق.
+ */
+const TOPIC_SCOPES: ReadonlyArray<{ pattern: RegExp; scope: LawScope }> = [
+  {
+    // «المحكمة» تحوى «محكم» لذا يُشترط حد الكلمة للمحكَّم؛ و«تحكيم» لا يرد داخل «المحكمة»
+    pattern: /تحكيم|(?<![ء-ي])(?:ال|لل|بال|وال|فال)?محكم(?:ا|ين|ون|ي)?(?![ء-ي])|غرفه التجاره الدوليه|اونسيترال|uncitral|crcica|\bicc\b/i,
+    scope: { lawNo: 27, lawYear: 1994, seed: 'التحكيم اتفاق المحكمين حكم' },
+  },
+  {
+    pattern:
+      /ملكيه فكريه|حقوق (?:ال)?(?:مؤلف|نشر|طبع)|حق (?:ال)?مؤلف|براءه اختراع|براءات|علامه تجاريه|علامات تجاريه|الاسم التجاري|نموذج صناعي|نماذج صناعيه|رسوم ونماذج|تصميم صناعي|برنامج (?:ال)?حاسب|برامج (?:ال)?حاسب|برمجيات|(?:شفر|كود)\S*\s+(?:ال)?مصدري|قاعده بيانات|قواعد بيانات|اسرار (?:ال)?(?:تجاريه|مهنه)|سر (?:ال)?تجاري|معلومات غير مفصح|رخصه استخدام|ترخيص (?:ال)?استخدام|حق (?:ال)?استغلال/,
+    scope: { lawNo: 82, lawYear: 2002, seed: 'الملكيه الفكريه حقوق المؤلف' },
+  },
+  {
+    pattern: DATA_PROTECTION_TRIGGER,
+    scope: { lawNo: 151, lawYear: 2020, seed: 'البيانات الشخصيه معالجه حمايه' },
+  },
+];
 
 export const CRITERIA: readonly CriterionDef[] = [
   {
@@ -77,9 +113,9 @@ export const CRITERIA: readonly CriterionDef[] = [
     key: 'data_protection',
     ar: 'حماية البيانات',
     en: 'Data Protection',
-    triggers: [/بيانات (?:ال)?شخصيه|حمايه (?:ال)?بيانات|بيانات (?:ال)?(?:عملاء|مستخدمين|موظفين|المتعاقدين)|معالجه (?:ال)?بيانات|تخزين (?:ال)?بيانات|نقل (?:ال)?بيانات|خصوصيه|سريه|معلومات سريه|اسرار|الافصاح|عدم افشاء/],
+    triggers: [DATA_PROTECTION_TRIGGER, /خصوصيه|سريه|معلومات سريه|اسرار|الافصاح|عدم افشاء/],
     civilCodeAnchors: [],
-    lawScope: { lawNo: 151, lawYear: 2020 },
+    lawScope: { lawNo: 151, lawYear: 2020, seed: 'البيانات الشخصيه معالجه حمايه' },
   },
   {
     key: 'exit',
@@ -158,8 +194,27 @@ export function anchorArticleNumbers(criteria: ContractCriterion[], max = 3): nu
 }
 
 /** القوانين المقيَّدة المطلوب البحث فيها لهذه المعايير (مثل حماية البيانات) */
-export function scopedLawsForCriteria(criteria: ContractCriterion[]): Array<{ lawNo: number; lawYear: number }> {
-  return criteria.map((k) => BY_KEY[k]?.lawScope).filter((s): s is { lawNo: number; lawYear: number } => !!s);
+export function scopedLawsForCriteria(criteria: ContractCriterion[]): LawScope[] {
+  return criteria.map((k) => BY_KEY[k]?.lawScope).filter((s): s is LawScope => !!s);
+}
+
+/**
+ * القوانين المقيَّدة لبند بعينه: ما تفرضه معاييره ثم ما يفرضه موضوعه (تحكيم، ملكية فكرية، بيانات شخصية)، بلا تكرار.
+ * هذا ما يضمن أن بنداً عن حقوق الملكية أو التحكيم أو البيانات الشخصية يحمل مرشحاً من القانون المخصص له ولو لم يوسَم بمعيار.
+ */
+export function scopedLawsForClause(
+  criteria: ContractCriterion[],
+  title: string | null | undefined,
+  text: string,
+): LawScope[] {
+  const haystack = normalizeArabicForMatch(`${title ?? ''} ${text ?? ''}`);
+  const out: LawScope[] = [];
+  const add = (s: LawScope) => {
+    if (!out.some((o) => o.lawNo === s.lawNo && o.lawYear === s.lawYear)) out.push(s);
+  };
+  scopedLawsForCriteria(criteria).forEach(add);
+  for (const t of TOPIC_SCOPES) if (t.pattern.test(haystack)) add(t.scope);
+  return out;
 }
 
 /** يحوّل قائمة المفاتيح إلى النص المخزَّن فى clause_type_guess (مفاتيح مفصولة بفاصلة) */

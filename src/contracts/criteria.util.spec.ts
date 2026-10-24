@@ -2,6 +2,7 @@ import {
   anchorArticleNumbers,
   classifyClauseCriteria,
   leaseAnchorArticleNumbers,
+  scopedLawsForClause,
   scopedLawsForCriteria,
   serializeCriteria,
 } from './criteria.util';
@@ -58,7 +59,7 @@ describe('anchorArticleNumbers', () => {
 
 describe('scopedLawsForCriteria / serializeCriteria', () => {
   it('حماية البيانات مقيَّدة بالقانون 151/2020', () => {
-    expect(scopedLawsForCriteria(['data_protection', 'exit'])).toEqual([{ lawNo: 151, lawYear: 2020 }]);
+    expect(scopedLawsForCriteria(['data_protection', 'exit'])).toMatchObject([{ lawNo: 151, lawYear: 2020 }]);
   });
   it('تسلسل المفاتيح', () => {
     expect(serializeCriteria(['exit', 'payment'])).toBe('exit,payment');
@@ -90,5 +91,42 @@ describe('القوة القاهرة بصيغ العقود المصرية', () =>
   it('«الأسباب القهرية» و«خارجة عن إرادة» تُصنَّف قوة قاهرة', () => {
     const r = classifyClauseCriteria(null, 'التأخير يرجع لأحد الأسباب القهرية التى نص عليها القانون، أو لأسباب أخرى خارجه عن إرادة أى منهما.');
     expect(r).toContain('force_majeure');
+  });
+});
+
+
+describe('scopedLawsForClause (الجولة 5: التحكيم والملكية الفكرية والبيانات)', () => {
+  const nums = (title: string | null, text: string) =>
+    scopedLawsForClause(classifyClauseCriteria(title, text), title, text).map((s) => `${s.lawNo}/${s.lawYear}`);
+
+  it('بند التحكيم يُربط بقانون 27/1994', () => {
+    expect(nums('التحكيم', 'تحال كل المنازعات إلى التحكيم وفق قواعد مركز القاهرة الإقليمى للتحكيم التجارى الدولى وتشكل هيئة التحكيم من ثلاثة محكمين.')).toContain('27/1994');
+  });
+  it('بند يذكر «المحكم» منفرداً يُربط بقانون التحكيم', () => {
+    expect(nums(null, 'يعين الطرفان محكماً واحداً يفصل فى النزاع.')).toContain('27/1994');
+  });
+  it('«المحكمة المختصة» أو «محاكم القاهرة» لا تُربط بقانون التحكيم', () => {
+    expect(nums('الاختصاص', 'تختص المحكمة المختصة بنظر النزاع وتختص محاكم القاهرة.')).not.toContain('27/1994');
+  });
+  it('بند ملكية الشفرة المصدرية وحقوق المؤلف يُربط بقانون 82/2002', () => {
+    expect(nums('الملكية', 'يظل النظام وشفرته المصدرية ملكاً للطرف الأول.')).toContain('82/2002');
+    expect(nums(null, 'تؤول حقوق المؤلف والعلامات التجارية وبراءات الاختراع للمورد.')).toContain('82/2002');
+    expect(nums('الترخيص', 'يمنح الطرف الأول ترخيص استخدام البرنامج.')).toContain('82/2002');
+  });
+  it('البيانات الشخصية للعملاء والمرضى والخرق تُربط بقانون 151/2020', () => {
+    expect(nums(null, 'يعالج المورد بيانات المرضى ويلتزم بالإخطار عند أى خرق للبيانات.')).toContain('151/2020');
+    expect(nums(null, 'يخضع التسويق الإلكترونى لموافقة صاحب بيانات العملاء.')).toContain('151/2020');
+  });
+  it('بند لا صلة له لا يحمل أى قانون مقيَّد', () => {
+    expect(nums('الأطراف', 'تم الاتفاق بين السيد أحمد والسيد محمد')).toEqual([]);
+    expect(nums('التسليم', 'يسلم الطرف الأول النظام خلال تسعين يوماً من تاريخ التعاقد.')).toEqual([]);
+  });
+  it('لا تكرار حين يتفق المعيار والموضوع على القانون نفسه', () => {
+    const r = nums('حماية البيانات', 'يلتزم الطرفان بحماية البيانات الشخصية ومعالجة بيانات العملاء.');
+    expect(r.filter((x) => x === '151/2020')).toHaveLength(1);
+  });
+  it('المرشَّح يحمل كلمات موضوعية للبحث', () => {
+    const r = scopedLawsForClause([], null, 'اتفق الطرفان على التحكيم');
+    expect(r[0].seed).toContain('التحكيم');
   });
 });

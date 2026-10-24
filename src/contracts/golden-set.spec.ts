@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { classifyClauseCriteria } from './criteria.util';
+import { classifyClauseCriteria, scopedLawsForClause } from './criteria.util';
 import { countHeadingLines } from './clause-headings';
 import { checkInstallments, numericWarnings } from './numeric-checks.util';
 import { SegmentationService } from './segmentation.service';
@@ -42,6 +42,17 @@ describe('golden set — عقد توريد برمجيات مُصطنَع', () =>
       const c = seg.clauses[Number(n) - 1];
       const got = classifyClauseCriteria(c.title, c.text);
       for (const k of keys) expect(got).toContain(k);
+    },
+  );
+
+  it.each(Object.entries(expected.deterministic.scopedLaws as Record<string, string[]>))(
+    'البند %s يُربط بالقوانين المقيَّدة المتوقعة (151/2020 وجولة 5: 82/2002 و27/1994) ولا شىء زائد',
+    (n, laws) => {
+      const c = seg.clauses[Number(n) - 1];
+      const got = scopedLawsForClause(classifyClauseCriteria(c.title, c.text), c.title, c.text).map(
+        (s) => `${s.lawNo}/${s.lawYear}`,
+      );
+      expect([...got].sort()).toEqual([...laws].sort());
     },
   );
 
