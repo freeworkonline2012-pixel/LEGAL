@@ -75,3 +75,22 @@ describe('أدوات عناوين البنود', () => {
     expect(headingLineNumber('نص عادى')).toBeNull();
   });
 });
+
+import { canonicalHeading, looseHeadingLineNumber, ordinalWords } from './clause-headings';
+
+describe('القراءة المتساهلة لعنوان منفرد', () => {
+  it('تقبل عنواناً شوّهت رموز مجاورة بدايته', () => {
+    expect(looseHeadingLineNumber('ص ٣ البند الثالث')).toBe(3);
+    expect(looseHeadingLineNumber('ابند الثالث')).toBe(3);
+    expect(looseHeadingLineNumber('البند الثالث')).toBe(3);
+  });
+  it('ترفض جملة إحالة ولو قصيرة أو سطراً طويلاً', () => {
+    expect(looseHeadingLineNumber('طبقاً للبند الثالث من العقد')).toBeNull();
+    expect(looseHeadingLineNumber('يسدد الطرف الثانى كما هو مبين بالبند الثالث وملحقاته الأخرى جميعها')).toBeNull();
+  });
+  it('العنوان القياسى والكلمات التشخيصية', () => {
+    expect(canonicalHeading(3)).toBe('البند الثالث');
+    expect(canonicalHeading(99)).toBeNull();
+    expect(ordinalWords([3])).toContain('الثالث');
+  });
+});

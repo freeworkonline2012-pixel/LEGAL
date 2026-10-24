@@ -116,3 +116,31 @@ export function headingLineNumber(line: string): number | null {
   for (const m of clean.matchAll(BARE_RE)) return ordinalToNumber(m.groups?.ord ?? '');
   return null;
 }
+
+const LOOSE_RE = new RegExp(`بند${SEP}+(?<ord>${ALTERNATIVES.join('|')})(?![\\u0621-\\u064A])`, 'u');
+
+/**
+ * قراءة متساهلة لسطر قصير منفرد من قراءة متناثرة: "البند الثالث" فى أى موضع من سطر لا يتجاوز 40 حرفاً (حتى لو سبقته رموز
+ * أختام/توقيعات أو شوّهت القراءة "ال" فى أوله). لا تُستعمل إلا على أسطر القراءة المتناثرة ولأرقام ناقصة فعلاً.
+ */
+export function looseHeadingLineNumber(line: string): number | null {
+  const clean = (line ?? '').replace(INVISIBLE, '').trim();
+  if (clean.length === 0 || clean.length > 40) return null;
+  const strict = headingLineNumber(clean);
+  if (strict !== null) return strict;
+  const m = clean.match(LOOSE_RE);
+  // الجزء المطابق يجب أن يكون معظم السطر (عنوان منفرد لا جملة إحالة قصيرة مثل «طبقاً للبند الثالث من العقد»)
+  if (!m || m[0].length + 2 < clean.length * 0.6) return null;
+  return ordinalToNumber(m.groups?.ord ?? '');
+}
+
+/** عنوان قياسى لرقم بند ("البند الثالث") يُدرج بدل السطر المشوَّه ليُقسَّم سليماً. */
+export function canonicalHeading(n: number): string | null {
+  const spelling = ORDINALS.find(([num]) => num === n)?.[1][0];
+  return spelling ? `البند ${spelling}` : null;
+}
+
+/** كلمات ترتيبية لأرقام ناقصة، لتشخيص ما قرأته الأداة حولها دون تسجيل أى نص آخر من العقد. */
+export function ordinalWords(numbers: readonly number[]): string[] {
+  return numbers.flatMap((n) => ORDINALS.find(([num]) => num === n)?.[1] ?? []);
+}

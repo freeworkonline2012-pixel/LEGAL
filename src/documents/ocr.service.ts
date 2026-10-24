@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { execFile } from 'child_process';
 import { mkdtemp, readdir, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
+import * as path from 'path';
 import { join } from 'path';
 import { promisify } from 'util';
 import { insertLinesByPosition, linesToText, OcrLine, parseTsvLines } from './ocr-recovery.util';
@@ -26,6 +27,10 @@ export interface OcrRecognizeOptions {
     missingNumbers: (fullText: string) => number[];
     /** رقم العنوان إن كان السطر عنواناً مقبولاً، وإلا null */
     headingNumber: (line: string) => number | null;
+    /** نص قياسى يُدرج بدل السطر الملتقط (يُصلح عنواناً شوّهته رموز مجاورة) */
+    canonical?: (n: number) => string | null;
+    /** كلمات لتشخيص ما قرأته الأداة حول الأرقام الناقصة (تُسجَّل الأسطر القصيرة التى تحويها فقط) */
+    diagnosticWords?: (missing: number[]) => string[];
   };
 }
 
@@ -128,6 +133,13 @@ export class OcrService {
     return parseTsvLines(stdout);
   }
 
+  /** تسجيل أسطر قصيرة تحوى كلمة الترتيبى الناقص أو «بند» فقط (عناوين لا متن)، لمعرفة سبب تعذّر الاسترجاع على الخادم. */
+  private diagnose(cfg: NonNullable<OcrRecognizeOptions['recoverMissing']>, missing: number[], lines: OcrLine[], where: string): void {
+    const words = [...(cfg.diagnosticWords?.(missing) ?? []), 'بند'];
+    const hits = lines.filter((l) => l.text.length <= 40 && words.some((w) => l.text.includes(w))).slice(0, 6);
+    this.logger.log(`OCR sparse ${where} lines=${lines.length} headingLike=${JSON.stringify(hits.map((h) => h.text))}`);
+  }
+
   /**
    * يُكمل الأرقام الناقصة: لكل صفحة (بكل دقة متاحة) قراءة متناثرة تلتقط العناوين القصيرة المنفردة التى تُسقطها القراءة العادية،
    * فإن وُجد عنوان بأحد الأرقام الناقصة أُعيدت قراءة تلك الصورة بالتخطيط العادى مع مواضع الأسطر وأُدرج العنوان فى موضعه.
@@ -140,16 +152,18 @@ export class OcrService {
   ): Promise<void> {
     let missing = new Set(cfg.missingNumbers(texts.join('\n\n')));
     if (missing.size === 0) return;
+    this.logger.log(`OCR heading gap: missing=${[...missing].join(',')} pages=${texts.length}`);
     for (const images of imageSets) {
       for (let i = 0; i < texts.length && missing.size > 0; i++) {
         const image = images[i];
         if (!image) continue;
         try {
           const sparse = await this.tsvLines(image, 11);
-          const found = sparse.filter((l) => {
-            const n = cfg.headingNumber(l.text);
-            return n !== null && missing.has(n);
-          });
+          this.diagnose(cfg, [...missing], sparse, `page=${i + 1} image=${path.basename(image)}`);
+          const found = sparse
+            .map((l) => ({ l, n: cfg.headingNumber(l.text) }))
+            .filter((x): x is { l: OcrLine; n: number } => x.n !== null && missing.has(x.n))
+            .map(({ l, n }) => ({ ...l, text: cfg.canonical?.(n) ?? l.text }));
           if (found.length === 0) continue;
           const base = await this.tsvLines(image, 3);
           const present = new Set(base.map((l) => cfg.headingNumber(l.text)).filter((n): n is number => n !== null));
