@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortReference } from '../document-model';
 import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
+import { extractKeyTerms, KEY_TERM_KIND_LABEL } from '../../contracts/key-terms';
 import { type AuditReport, type Cell, type RBlock, type Tone } from './model';
 
 export type Severity = 'حرج' | 'عالٍ' | 'متوسط' | 'غير مصنَّف';
@@ -81,14 +82,14 @@ const SEVERITY_ORDER: Severity[] = ['حرج', 'عالٍ', 'متوسط', 'غير 
 const SEVERITY_TONE: Record<Severity, Tone> = { حرج: 'critical', عالٍ: 'high', متوسط: 'medium', 'غير مصنَّف': 'grey' };
 const LETTERS = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح', 'ط', 'ي'];
 
-interface Redraft {
+export interface Redraft {
   noChange: boolean;
   text: string;
   changes: string[];
   note: string | null;
 }
 
-function parseRedraft(raw: string | null): Redraft | null {
+export function parseRedraft(raw: string | null): Redraft | null {
   if (!raw) return null;
   try {
     const p = JSON.parse(raw) as { noChange?: boolean; note?: unknown; text?: unknown; changes?: unknown };
@@ -191,12 +192,15 @@ const PRIORITY_NOTE: Record<Severity, string> = {
   'غير مصنَّف': '—',
 };
 
-function overallRisk(counts: Record<Severity, number>): { text: string; tone: Tone } {
-  if (counts['حرج'] > 0) return { text: 'مخاطرة مرتفعة — يستوجب التفاوض الفوري', tone: 'critical' };
-  if (counts['عالٍ'] > 0) return { text: 'مخاطرة مرتفعة نسبياً — يستوجب المراجعة قبل التوقيع', tone: 'high' };
-  if (counts['متوسط'] + counts['غير مصنَّف'] > 0) return { text: 'مخاطرة متوسطة — يستحق المراجعة', tone: 'medium' };
+/** أثقل درجة بين بنود العقد وملاحظاته ككل (غير المؤكدة لا ترفع المستوى العام؛ تُعرض موسومة فقط). */
+function overallRisk(counts: Record<Severity, number>, findingCounts: { critical: number; high: number; medium: number }): { text: string; tone: Tone } {
+  if (counts['حرج'] > 0 || findingCounts.critical > 0) return { text: 'مخاطرة مرتفعة — يستوجب التفاوض الفوري', tone: 'critical' };
+  if (counts['عالٍ'] > 0 || findingCounts.high > 0) return { text: 'مخاطرة مرتفعة نسبياً — يستوجب المراجعة قبل التوقيع', tone: 'high' };
+  if (counts['متوسط'] + counts['غير مصنَّف'] > 0 || findingCounts.medium > 0) return { text: 'مخاطرة متوسطة — يستحق المراجعة', tone: 'medium' };
   return { text: 'لم تُرصد بنود تحتاج مراجعة وفق النصوص المفهرسة (لا يُغنى ذلك عن مراجعة محامٍ)', tone: 'info' };
 }
+
+const FINDING_TONE = (sev: string): Tone => (sev === 'حرج' ? 'critical' : sev === 'عالٍ' ? 'high' : sev === 'متوسط' ? 'medium' : 'grey');
 
 /**
  * يبنى تقرير «مراجعة وتدقيق مخاطر العقد» بالشكل المعتمد. كل ما فيه مشتق من بيانات محفوظة وموثَّقة (حالة البند، شرحه الذى
@@ -244,7 +248,14 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   }
   const lawList = [...laws.values()];
 
-  const overall = overallRisk(counts);
+  const findings = input.contractFindings ?? [];
+  const confirmedFindings = findings.filter((f) => f.verification?.status !== 'unconfirmed');
+  const findingCounts = {
+    critical: confirmedFindings.filter((f) => f.severity === 'حرج').length,
+    high: confirmedFindings.filter((f) => f.severity === 'عالٍ').length,
+    medium: confirmedFindings.filter((f) => f.severity === 'متوسط').length,
+  };
+  const overall = overallRisk(counts, findingCounts);
   const year = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Cairo', year: 'numeric' }).format(input.generatedAt);
   const dateText = formatCairoDate(input.generatedAt);
 
@@ -367,9 +378,91 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
       (hasRedrafts ? '، والتعديل التعاقدى المقترح، والتعليق القانونى.' : '.'),
   });
 
+  // أهم ما يستوجب الانتباه (بنود وملاحظات على العقد ككل) والتوصية الآلية
+  {
+    const rank = (sev: string): number => ['حرج', 'عالٍ', 'متوسط'].indexOf(sev) === -1 ? 3 : ['حرج', 'عالٍ', 'متوسط'].indexOf(sev);
+    type Top = { where: string; text: string; sev: string; tone: Tone; order: number };
+    const tops: Top[] = [
+      ...risky.map((r) => ({
+        where: r.c.clauseLabel,
+        text: clip(firstSentence(r.c.assessmentReasoning ?? ''), 150) || clauseHeading(r.c),
+        sev: r.sev as string,
+        tone: SEVERITY_TONE[r.sev],
+        order: 0,
+      })),
+      ...findings.map((f) => ({
+        where: f.evidence.length > 0 ? [...new Set(f.evidence.map((e) => e.clauseLabel))].join('، ') : 'العقد ككل',
+        text: clip(f.title, 150) + (f.verification?.status === 'unconfirmed' ? ' (غير مؤكدة)' : ''),
+        sev: f.severity,
+        tone: FINDING_TONE(f.severity),
+        order: 1,
+      })),
+    ]
+      .map((t, i) => ({ t, i }))
+      .sort((a, b) => rank(a.t.sev) - rank(b.t.sev) || a.t.order - b.t.order || a.i - b.i)
+      .map((x) => x.t);
+    const serious = tops.filter((t) => rank(t.sev) <= 1);
+    const shown = (serious.length > 0 ? serious : tops).slice(0, 5);
+    if (shown.length > 0) {
+      blocks.push({ t: 'h3', text: 'أهم ما يستوجب الانتباه', rule: true });
+      blocks.push({
+        t: 'grid',
+        columns: ['#', 'الموضع', 'الملاحظة', 'الدرجة'],
+        widths: [6, 22, 56, 16],
+        rows: shown.map((t, i) => [
+          { text: String(i + 1), center: true },
+          { text: t.where },
+          { text: t.text },
+          { text: t.sev, tone: t.tone, center: true },
+        ]),
+      });
+    }
+    const recommendation =
+      counts['حرج'] > 0 || findingCounts.critical > 0
+        ? 'التوصية الآلية: لا يُوصى بالتوقيع قبل معالجة الملاحظات الحرجة وعرضها على محامٍ مختص.'
+        : counts['عالٍ'] > 0 || findingCounts.high > 0
+          ? 'التوصية الآلية: يُوصى بمعالجة الملاحظات عالية الخطورة قبل التوقيع، وعرضها على محامٍ مختص.'
+          : totalRisky > 0 || findings.length > 0
+            ? 'التوصية الآلية: يُوصى بمراجعة بشرية للملاحظات المرصودة قبل التوقيع.'
+            : 'التوصية الآلية: لم تُرصد ملاحظات فى النطاق المقيَّس آلياً؛ وتبقى مراجعة المحامى شرطاً قبل التوقيع.';
+    const hasUnconfirmed = findings.some((f) => f.verification?.status === 'unconfirmed');
+    blocks.push({
+      t: 'note',
+      label: 'توصية:',
+      text: hasUnconfirmed ? `${recommendation} الملاحظات الموسومة «غير مؤكدة» لا ترفع مستوى المخاطرة العام ولا تُبنى عليها هذه التوصية.` : recommendation,
+    });
+  }
+
+  // ---------- الشروط الرئيسية ----------
+  {
+    const terms = extractKeyTerms(clauses);
+    banner('الشروط الرئيسية للعقد');
+    if (terms.length === 0) {
+      blocks.push({ t: 'p', text: 'لم تُستخرج مبالغ أو نسب أو مدد أو تواريخ من نص العقد بالقراءة الآلية.' });
+    } else {
+      blocks.push({
+        t: 'p',
+        text:
+          'مبالغ ونسب ومدد وتواريخ مستخرجة آلياً من نص البنود، وأمام كل شرط الجزء الحرفى من العقد الذى استُخرج منه. ' +
+          'ما كُتب بالحروف فقط يُعرض مقروءاً بالأرقام ويُوسَم «بالحروف». يلزم مطابقة الأرقام على أصل العقد قبل الاعتماد، وخاصة فى العقود الممسوحة ضوئياً.',
+      });
+      blocks.push({
+        t: 'grid',
+        columns: ['النوع', 'القيمة', 'البند', 'من نص العقد'],
+        widths: [10, 20, 16, 54],
+        rows: terms.map((t) => [
+          { text: KEY_TERM_KIND_LABEL[t.kind], tone: 'info' as Tone, center: true },
+          { text: t.fromWords ? `${t.value} (بالحروف)` : t.value, bold: true },
+          { text: t.clauseLabel, center: true },
+          { text: t.quote },
+        ]),
+      });
+    }
+  }
+
   // ---------- 2. مصفوفة تحليل المخاطر ----------
   banner('مصفوفة تحليل المخاطر');
-  if (totalRisky === 0) {
+  if (totalRisky === 0 && findings.length === 0) {
     blocks.push({ t: 'p', text: 'لا توجد بنود تحتاج مراجعة فى هذا العقد وفق النصوص المفهرسة.' });
   } else {
     const rows: Cell[][] = risky.map((r) => {
@@ -386,6 +479,17 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         { text: r.c.clauseLabel, center: true },
         status,
       ];
+    });
+    // ملاحظات العقد ككل (ع1، ع2…) فى السجل نفسه ليكتمل: بنود تحتاج مراجعة + علاقات بين البنود + بنود ناقصة
+    findings.forEach((f, i) => {
+      const where = f.evidence.length > 0 ? [...new Set(f.evidence.map((e) => e.clauseLabel))].join('، ') : 'العقد ككل';
+      rows.push([
+        { text: `ع${i + 1}`, center: true },
+        { text: `${f.kindLabel}: ${clip(f.title, 120)}${f.verification?.status === 'unconfirmed' ? ' (غير مؤكدة)' : ''}` },
+        { text: f.severity, tone: FINDING_TONE(f.severity), center: true },
+        { text: where, center: true },
+        { text: f.suggestion ? 'معالجة مقترحة — بانتظار مراجعة محامٍ' : 'بانتظار مراجعة محامٍ', tone: 'medium' as Tone, bold: false },
+      ]);
     });
     blocks.push({ t: 'grid', columns: ['#', 'وصف المخاطرة', 'الدرجة', 'البند', 'الحالة'], rows, widths: [6, 38, 12, 16, 28] });
   }
@@ -430,7 +534,6 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
 
   // ---------- ملاحظات العقد ككل (الجولة 3) ----------
   if (input.contractFindings) {
-    const findings = input.contractFindings;
     banner('ملاحظات على العقد ككل');
     blocks.push({
       t: 'p',
@@ -451,20 +554,19 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     if (findings.length === 0) {
       blocks.push({ t: 'p', text: 'لم تُرصد ملاحظات على مستوى العقد ككل بالفحوص المطبَّقة.' });
     } else {
-      const toneOf = (sev: string): Tone => (sev === 'حرج' ? 'critical' : sev === 'عالٍ' ? 'high' : sev === 'متوسط' ? 'medium' : 'grey');
       blocks.push({
         t: 'grid',
         columns: ['#', 'النوع', 'الملاحظة', 'الدرجة'],
         rows: findings.map((f, i) => [
-          { text: String(i + 1), center: true },
+          { text: `ع${i + 1}`, center: true },
           { text: f.kindLabel },
           { text: clip(f.title, 140) + (f.verification?.status === 'unconfirmed' ? ' (غير مؤكدة)' : '') },
-          { text: f.severity, tone: toneOf(f.severity), center: true },
+          { text: f.severity, tone: FINDING_TONE(f.severity), center: true },
         ]),
         widths: [6, 24, 52, 18],
       });
       findings.forEach((f, i) => {
-        blocks.push({ t: 'h3', text: `${i + 1}. ${f.title}` });
+        blocks.push({ t: 'h3', text: `ع${i + 1}. ${f.title}` });
         blocks.push({
           t: 'kv',
           rows: [

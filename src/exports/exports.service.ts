@@ -10,9 +10,10 @@ import { LegalMemo } from '../database/entities/legal-memo.entity';
 import { Question } from '../database/entities/question.entity';
 import { buildAnswerDocument, NotExportableError } from './builders/answer-document.builder';
 import { buildContractDocument, type ContractExportInput } from './builders/contract-document.builder';
+import { buildTrackedDocx } from './tracked-changes/tracked-document';
 import { buildGovernanceDocument } from './builders/governance-document.builder';
 import { buildMemoDocument } from './builders/memo-document.builder';
-import { DEFAULT_BRAND, type LegalDocument } from './document-model';
+import { DEFAULT_BRAND, type LegalDocument, compactCairoDate, shortReference } from './document-model';
 import { renderDocx } from './renderers/docx.renderer';
 import { PdfRenderer } from './renderers/pdf.renderer';
 
@@ -168,7 +169,8 @@ export class ExportsService {
     return this.deliver(doc, format, actor, 'legal_memo', memo.id, { memoType: memo.memoType });
   }
 
-  async exportContract(contractId: string, format: ExportFormat, actor: ExportActor): Promise<ExportedFile> {
+  /** تحميل العقد وبنوده لأى تصدير: الملكية، اكتمال المعالجة، وشرط الاعتماد البشرى (قبله لـadmin فقط). */
+  private async loadContractForExport(contractId: string, actor: ExportActor): Promise<{ contract: Contract; clauses: ContractClause[]; approved: boolean }> {
     const contract = await this.dataSource.getRepository(Contract).findOne({ where: { id: contractId } });
     if (!contract || !this.canAccess(contract.uploadedBy, actor)) {
       throw new NotFoundException('العقد غير موجود');
@@ -186,6 +188,11 @@ export class ExportsService {
       where: { contractId },
       order: { clauseIndex: 'ASC' },
     });
+    return { contract, clauses, approved };
+  }
+
+  async exportContract(contractId: string, format: ExportFormat, actor: ExportActor): Promise<ExportedFile> {
+    const { contract, clauses, approved } = await this.loadContractForExport(contractId, actor);
     const doc = this.guard(() =>
       buildContractDocument({
         contractId: contract.id,
@@ -219,6 +226,56 @@ export class ExportsService {
       }),
     );
     return this.deliver(doc, format, actor, 'contract', contract.id, { approved });
+  }
+
+  /**
+   * نسخة Word من العقد بتعديلات متتبَّعة وتعليقات (الجولة 6). نفس شروط تقرير العقد (الملكية + الاعتماد البشرى)، وتُسجَّل فى
+   * سجل التدقيق كتنزيل من نوع contract_tracked. الصياغات المقترحة وحدها هى مصدر التعديلات؛ لا نص من العميل.
+   */
+  async exportContractTracked(contractId: string, actor: ExportActor): Promise<ExportedFile> {
+    const { contract, clauses, approved } = await this.loadContractForExport(contractId, actor);
+    const reference = shortReference('CTR', contract.id);
+    const generatedAt = new Date();
+    const { buffer, stats } = await buildTrackedDocx({
+      originalFilename: contract.originalFilename,
+      contractType: contract.contractType,
+      reference,
+      generatedAt,
+      approvedAt: contract.reportApprovedAt,
+      brand: this.brand,
+      clauses: clauses.map((c) => ({
+        clauseIndex: c.clauseIndex,
+        clauseLabel: c.clauseLabel,
+        clauseTitle: c.clauseTitle,
+        clauseText: c.clauseText,
+        assessmentStatus: c.assessmentStatus,
+        assessmentReasoning: c.assessmentReasoning,
+        riskLevel: c.riskLevel,
+        matchedArticles: c.matchedArticles,
+        suggestedWording: c.suggestedWording,
+        verification: (() => {
+          const v = this.reportVerification(c.verification);
+          return v ? { status: v.status, reason: v.reason } : null;
+        })(),
+      })),
+    });
+    await this.auditService
+      .record({
+        actorId: actor.userId,
+        actorRole: actor.role,
+        action: 'export.downloaded',
+        resourceType: 'contract',
+        resourceId: contract.id,
+        ipAddress: actor.ipAddress,
+        userAgent: actor.userAgent,
+        metadata: { format: 'docx', kind: 'contract_tracked', bytes: buffer.length, reference, approved, ...stats },
+      })
+      .catch((err) => this.logger.warn(`export audit failed (non-fatal): ${(err as Error).message}`));
+    return {
+      buffer,
+      contentType: CONTENT_TYPES.docx,
+      filename: `contract-${reference.slice(4).toLowerCase()}-${compactCairoDate(generatedAt)}-tracked${approved ? '' : '-draft'}.docx`,
+    };
   }
 
   private reportVerification(v: Record<string, unknown> | null | undefined): { status: 'confirmed' | 'unconfirmed'; reason: string; quote: string | null } | null {

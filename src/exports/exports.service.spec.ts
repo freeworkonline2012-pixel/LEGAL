@@ -157,6 +157,50 @@ describe('ExportsService — تقرير العقد والاعتماد البشر
     const { service } = setup({ contract: contract(), clauses: [clause] });
     await expect(service.exportContract('c', 'docx', OWNER)).resolves.toBeDefined();
   });
+
+  describe('نسخة Word بتعديلات متتبَّعة (الجولة 6)', () => {
+    const redraftClause = {
+      ...clause,
+      clauseText: 'يجوز فسخ العقد دون إنذار.',
+      assessmentStatus: 'يحتاج مراجعة',
+      riskLevel: 'عالٍ',
+      assessmentReasoning: 'مشكلة.',
+      suggestedWording: JSON.stringify({ text: 'يجوز فسخ العقد دون إنذار أو حكم قضائى.', changes: ['أُضيف.'] }),
+      verification: null,
+    };
+
+    it('نفس شروط التقرير: قبل الاعتماد العميل 409 والمدير مسودة، وبعده العميل يحصل عليها', async () => {
+      const before = setup({ contract: contract(), clauses: [redraftClause] });
+      await expect(before.service.exportContractTracked('c', OWNER)).rejects.toBeInstanceOf(ConflictException);
+      const draft = await before.service.exportContractTracked('c', ADMIN);
+      expect(draft.filename).toMatch(/-tracked-draft\.docx$/);
+      const after = setup({ contract: contract({ reportApprovedAt: NOW }), clauses: [redraftClause] });
+      const file = await after.service.exportContractTracked('c', OWNER);
+      expect(file.filename).toMatch(/^contract-[0-9a-f]{8}-\d{8}-tracked\.docx$/);
+      expect(file.contentType).toContain('wordprocessingml');
+      expect(file.buffer.subarray(0, 2).toString()).toBe('PK');
+    });
+
+    it('غير المالك 404 ولا ملف ولا تدقيق، وعقد لم يكتمل 409', async () => {
+      const { service, audit } = setup({ contract: contract({ reportApprovedAt: NOW }), clauses: [redraftClause] });
+      await expect(service.exportContractTracked('c', OTHER)).rejects.toBeInstanceOf(NotFoundException);
+      expect(audit.record).not.toHaveBeenCalled();
+      const pending = setup({ contract: contract({ status: 'processing' }) });
+      await expect(pending.service.exportContractTracked('c', ADMIN)).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('التنزيل يُسجَّل بنوعه وبعدد التعديلات', async () => {
+      const { service, audit } = setup({ contract: contract({ reportApprovedAt: NOW }), clauses: [redraftClause] });
+      await service.exportContractTracked('c', OWNER);
+      expect(audit.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'export.downloaded',
+          resourceType: 'contract',
+          metadata: expect.objectContaining({ kind: 'contract_tracked', format: 'docx', trackedClauses: 1, approved: true }),
+        }),
+      );
+    });
+  });
 });
 
 const memoRow = (over: Record<string, unknown> = {}) => ({

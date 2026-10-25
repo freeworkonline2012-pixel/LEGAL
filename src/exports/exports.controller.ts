@@ -122,6 +122,16 @@ export class ExportsController {
     return send(res, await this.exportsService.exportContract(id, parseFormat(format), actorOf(request)));
   }
 
+  @Get('contracts/:id/tracked')
+  @ApiOkResponse({ description: 'نسخة Word من العقد بتعديلات متتبَّعة وتعليقات مراجعة (الصياغات المقترحة للاسترشاد)' })
+  async contractTracked(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    return send(res, await this.exportsService.exportContractTracked(id, actorOf(request)));
+  }
+
   @Post('contracts/:id/approve')
   @UseGuards(RolesGuard)
   @Roles('admin')

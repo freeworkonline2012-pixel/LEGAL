@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { classifyClauseCriteria, scopedLawsForClause } from './criteria.util';
 import { countHeadingLines } from './clause-headings';
+import { extractKeyTerms } from './key-terms';
 import { checkInstallments, numericWarnings } from './numeric-checks.util';
 import { SegmentationService } from './segmentation.service';
 
@@ -55,6 +56,15 @@ describe('golden set — عقد توريد برمجيات مُصطنَع', () =>
       expect([...got].sort()).toEqual([...laws].sort());
     },
   );
+
+  it('الشروط الرئيسية (الجولة 6): المبلغ والنسب والمدة بقراءة حتمية وبلا شروط زائدة', () => {
+    const terms = extractKeyTerms(
+      seg.clauses.map((c, i) => ({ clauseIndex: i + 1, clauseLabel: c.label, clauseTitle: c.title, clauseText: c.text })),
+    );
+    const byClause: Record<string, string[]> = {};
+    for (const t of terms) (byClause[String(t.clauseIndex)] ??= []).push(`${t.kind}:${t.value}`);
+    expect(byClause).toEqual(expected.deterministic.keyTerms);
+  });
 
   it('إسقاط عناوين مسطّرة (محاكاة OCR) يُنتج تنبيهاً أو يُسترجع، ولا يمر صامتاً بعدد بنود ناقص', () => {
     const dropped = text.replace('البند الثالث عشر\n', '');

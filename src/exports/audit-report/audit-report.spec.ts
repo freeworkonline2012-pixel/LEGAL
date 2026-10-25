@@ -158,14 +158,15 @@ describe('buildContractAuditReport', () => {
     const banners = of(report.blocks, 'banner').map((b) => b.text);
     expect(banners).toEqual([
       '1. الملخص التنفيذى',
-      '2. مصفوفة تحليل المخاطر',
-      '3. التقييم التفصيلى للمخاطر',
-      '4. النسخة الاحترافية المُعدَّلة للبنود',
-      '5. توصيات التنفيذ والجدول الزمنى للتفاوض',
-      '6. الإطار القانونى والتشريعى المرجعى',
-      '7. إخلاء المسؤولية',
-      '8. الذيول المرجعية للمواد القانونية',
-      '9. قسم التوقيعات واعتماد التقرير',
+      '2. الشروط الرئيسية للعقد',
+      '3. مصفوفة تحليل المخاطر',
+      '4. التقييم التفصيلى للمخاطر',
+      '5. النسخة الاحترافية المُعدَّلة للبنود',
+      '6. توصيات التنفيذ والجدول الزمنى للتفاوض',
+      '7. الإطار القانونى والتشريعى المرجعى',
+      '8. إخلاء المسؤولية',
+      '9. الذيول المرجعية للمواد القانونية',
+      '10. قسم التوقيعات واعتماد التقرير',
     ]);
   });
 
@@ -179,7 +180,7 @@ describe('buildContractAuditReport', () => {
   });
 
   it('المصفوفة مرتبة بالخطورة ثم رقم البند، والبند غير المصنَّف يظهر بدرجة محايدة', () => {
-    const grid = of(report.blocks, 'grid')[0];
+    const grid = of(report.blocks, 'grid').find((g) => g.columns[1] === 'وصف المخاطرة')!;
     expect(grid.columns).toEqual(['#', 'وصف المخاطرة', 'الدرجة', 'البند', 'الحالة']);
     expect(grid.rows.map((r) => [r[2].text, r[3].text])).toEqual([
       ['حرج', 'البند 4'],
@@ -211,7 +212,7 @@ describe('buildContractAuditReport', () => {
   });
 
   it('التوصيات: أولوية وجدول زمنى بحسب الدرجة، وملاحظة تفاوضية عند وجود حرج', () => {
-    const recs = of(report.blocks, 'grid')[1];
+    const recs = of(report.blocks, 'grid').find((g) => g.columns[1] === 'الإجراء المطلوب')!;
     expect(recs.rows[0].map((c) => c.text).slice(2, 5)).toEqual(['حرجة', 'فوري — قبل التوقيع', 'شرط مانع للتوقيع']);
     expect(of(report.blocks, 'p').some((p) => p.text.startsWith('ملاحظة تفاوضية') && p.text.includes('(1)'))).toBe(true);
   });
@@ -276,5 +277,89 @@ describe('مُخرِجا تقرير التدقيق', () => {
     expect(buf.subarray(0, 2).toString()).toBe('PK');
     const parts = auditDocxParts(doc.audit!);
     expect(parts.children.length).toBeGreaterThan(30);
+  });
+});
+
+describe('الجولة 6: الملخص التنفيذى وسجل المخاطر وجدول الشروط', () => {
+  const finding = (over: Record<string, unknown> = {}) => ({
+    kind: 'conflict',
+    kindLabel: 'تعارض محتمل',
+    severity: 'حرج',
+    title: 'بند يُبقى الملكية للمورد وآخر ينقلها للعميل',
+    explanation: 'تعارض بين البندين.',
+    suggestion: 'توحيد الحكم.',
+    evidence: [
+      { clauseLabel: 'البند 2', quote: 'تبقى الملكية للطرف الأول' },
+      { clauseLabel: 'البند 5', quote: 'تنتقل الملكية للطرف الثانى' },
+    ],
+    ...over,
+  });
+  const quiet = [clause({ clauseIndex: 1 }), clause({ clauseIndex: 2 })];
+  const base: AuditReportInput = { ...INPUT, clauses: quiet };
+  const gridBy = (r: { blocks: RBlock[] }, col: string) => of(r.blocks, 'grid').find((g) => g.columns.includes(col));
+
+  it('أهم ما يستوجب الانتباه: الأخطر أولاً من البنود والملاحظات معاً، بحد أقصى خمسة، والتوصية بحسب الأخطر', () => {
+    const { report: r } = buildContractAuditReport({ ...INPUT, contractFindings: [finding()], contractFindingsModel: 'ok' });
+    const top = gridBy(r, 'الملاحظة')!;
+    expect(top.rows.length).toBeLessThanOrEqual(5);
+    expect(top.rows.map((x) => x[3].text)).toEqual(['حرج', 'حرج', 'عالٍ']);
+    expect(top.rows[0][1].text).toBe('البند 4'); // البنود قبل ملاحظات العقد عند تساوى الدرجة
+    expect(top.rows[1][1].text).toBe('البند 2، البند 5');
+    const note = of(r.blocks, 'note').find((n) => n.label === 'توصية:')!;
+    expect(note.text).toContain('لا يُوصى بالتوقيع قبل معالجة الملاحظات الحرجة');
+  });
+
+  it('عقد بلا ملاحظات: لا جدول «أهم ما يستوجب الانتباه» والتوصية تُبقى مراجعة المحامى شرطاً', () => {
+    const { report: r } = buildContractAuditReport(base);
+    expect(gridBy(r, 'الملاحظة')).toBeUndefined();
+    expect(of(r.blocks, 'note').find((n) => n.label === 'توصية:')!.text).toContain('تبقى مراجعة المحامى شرطاً قبل التوقيع');
+  });
+
+  it('ملاحظة عقد حرجة مؤكَّدة ترفع المستوى العام، وغير المؤكدة لا ترفعه ولا تبنى عليها التوصية', () => {
+    const confirmed = buildContractAuditReport({ ...base, contractFindings: [finding({ verification: { status: 'confirmed', reason: 'ثابتة' } })] }).report;
+    expect(confirmed.cover.rows.at(-1)!.tone).toBe('critical');
+    const unconfirmed = buildContractAuditReport({ ...base, contractFindings: [finding({ verification: { status: 'unconfirmed', reason: 'محتملة' } })] }).report;
+    expect(unconfirmed.cover.rows.at(-1)!.tone).toBe('info');
+    const note = of(unconfirmed.blocks, 'note').find((n) => n.label === 'توصية:')!;
+    expect(note.text).not.toContain('لا يُوصى بالتوقيع');
+    expect(note.text).toContain('غير مؤكدة');
+    expect(JSON.stringify(unconfirmed.blocks)).toContain('(غير مؤكدة)');
+  });
+
+  it('سجل المخاطر يضم ملاحظات العقد ككل بمعرّفات ع1، ع2 وبالموضع، ويتّسق ترقيمها فى قسمها', () => {
+    const { report: r } = buildContractAuditReport({
+      ...INPUT,
+      contractFindings: [finding(), finding({ severity: 'متوسط', title: 'مدة غير محددة', evidence: [] })],
+      contractFindingsModel: 'ok',
+    });
+    const matrix = gridBy(r, 'وصف المخاطرة')!;
+    const tail = matrix.rows.slice(-2).map((x) => [x[0].text, x[2].text, x[3].text]);
+    expect(tail).toEqual([['ع1', 'حرج', 'البند 2، البند 5'], ['ع2', 'متوسط', 'العقد ككل']]);
+    const json = JSON.stringify(r.blocks);
+    expect(json).toContain('ع1. بند يُبقى الملكية للمورد');
+  });
+
+  it('عقد بلا بنود مراجعة لكن بملاحظة عقد: السجل يظهر ولا يقول إنه لا توجد مخاطر', () => {
+    const { report: r } = buildContractAuditReport({ ...base, contractFindings: [finding({ severity: 'عالٍ' })] });
+    expect(gridBy(r, 'وصف المخاطرة')!.rows).toHaveLength(1);
+    expect(JSON.stringify(r.blocks)).not.toContain('لا توجد بنود تحتاج مراجعة فى هذا العقد وفق النصوص المفهرسة.');
+  });
+
+  it('الشروط الرئيسية: جدول بالنوع والقيمة والبند والاقتباس الحرفى، وأرقام الحروف موسومة', () => {
+    const text = 'إجمالى الثمن 600000 ( ستمائة ألف جنيه مصرى فقط ) يسدده الطرف الثانى. التسليم خلال تسعين يوماً من التعاقد.';
+    const { report: r } = buildContractAuditReport({ ...base, clauses: [clause({ clauseIndex: 1, clauseTitle: 'الثمن', clauseText: text })] });
+    expect(of(r.blocks, 'banner').map((b) => b.text)).toContain('2. الشروط الرئيسية للعقد');
+    const g = gridBy(r, 'من نص العقد')!;
+    expect(g.rows.map((x) => [x[0].text, x[1].text, x[2].text])).toEqual([
+      ['مبلغ', '600,000 جنيه', 'البند 1'],
+      ['مدة', '90 يوماً (بالحروف)', 'البند 1'],
+    ]);
+    for (const row of g.rows) expect(text.replace(/\s+/g, ' ')).toContain(row[3].text);
+  });
+
+  it('بلا أرقام فى العقد: القسم يقول ذلك دون جدول فارغ', () => {
+    const { report: r } = buildContractAuditReport(base);
+    expect(gridBy(r, 'من نص العقد')).toBeUndefined();
+    expect(of(r.blocks, 'p').some((p) => p.text.includes('لم تُستخرج مبالغ أو نسب أو مدد أو تواريخ'))).toBe(true);
   });
 });
