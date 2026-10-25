@@ -2,6 +2,8 @@ import { createHash } from 'crypto';
 import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortReference } from '../document-model';
 import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
 import { extractKeyTerms, KEY_TERM_KIND_LABEL } from '../../contracts/key-terms';
+import { buildPlaybook } from '../../contracts/playbook';
+import { playbookBlocks } from './playbook-section';
 import { type AuditReport, type Cell, type RBlock, type Tone } from './model';
 
 export type Severity = 'حرج' | 'عالٍ' | 'متوسط' | 'غير مصنَّف';
@@ -581,6 +583,15 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
           ],
         });
       });
+    }
+  }
+
+  // ---------- الدليل التفاوضى (الجولة 7) ----------
+  {
+    const playbook = buildPlaybook({ contractType: input.contractType, clientRole: input.clientRole, clauses: baseClauses });
+    if (playbook) {
+      banner(`الدليل التفاوضى — ${playbook.familyLabel}${playbook.sideLabel ? ` من منظور ${playbook.sideLabel}` : ''}`);
+      blocks.push(...playbookBlocks(playbook));
     }
   }
 
