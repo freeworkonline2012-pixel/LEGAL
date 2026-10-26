@@ -1,5 +1,5 @@
 import { quoteInText } from './clause-facts';
-import { contractFamily, sentencesOf, type LevelClause } from './contract-level';
+import { contractFamily, sentencesOf, stripDefiniteArticle, type LevelClause } from './contract-level';
 import {
   LAW_NAME,
   PLAYBOOK_TOPICS,
@@ -120,6 +120,11 @@ function evidenceOf(c: LevelClause, sentence: string): PlaybookEvidence | null {
   return { clauseLabel: c.clauseLabel, quote: probe };
 }
 
+/** النمط على النص كما هو وعلى النص بلا «ال» التعريف (انظر stripDefiniteArticle): «الشرط الجزائى» و«الملكية الفكرية» تُرصد كما تُرصد نكرتاهما. */
+function reHit(re: RegExp, text: string): boolean {
+  return re.test(text) || re.test(stripDefiniteArticle(text));
+}
+
 interface PreparedClause {
   c: LevelClause;
   clauseNorm: string;
@@ -152,7 +157,7 @@ function firstEvidence(
       if (!hit(s, p)) continue;
       const ev = evidenceOf(p.c, s.raw);
       if (!ev) continue;
-      if (!preferTitle || preferTitle.test(`${p.titleNorm} ${p.headNorm}`)) return ev;
+      if (!preferTitle || reHit(preferTitle, `${p.titleNorm} ${p.headNorm}`)) return ev;
       fallback ??= ev;
     }
   }
@@ -161,7 +166,7 @@ function firstEvidence(
 
 function flagHit(prepared: PreparedClause[], flag: PlaybookFlag): PlaybookEvidence | null {
   return firstEvidence(prepared, (s, p) => {
-    if (flag.pattern && !flag.pattern.test(s.norm)) return false;
+    if (flag.pattern && !reHit(flag.pattern, s.norm)) return false;
     if (flag.test && !flag.test(s.norm, s.raw, p.clauseNorm)) return false;
     if (!flag.pattern && !flag.test) return false;
     if (flag.unless && flag.unless.test(p.clauseNorm)) return false;
@@ -174,7 +179,7 @@ function sideName(family: PlaybookFamily, against: PlaybookSide | 'both'): strin
 }
 
 function buildRow(topic: PlaybookTopic, family: PlaybookFamily, side: PlaybookSide | null, prepared: PreparedClause[], fullNorm: string): PlaybookRow {
-  const evidence = firstEvidence(prepared, (s) => topic.detect.test(s.norm), topic.detect);
+  const evidence = firstEvidence(prepared, (s) => reHit(topic.detect, s.norm), topic.detect);
   const concerns: PlaybookConcern[] = [];
   for (const f of topic.flags) {
     if (side && f.against !== 'both' && f.against !== side) continue;
@@ -194,7 +199,7 @@ function buildRow(topic: PlaybookTopic, family: PlaybookFamily, side: PlaybookSi
       : (['a', 'b'] as const).map((k) => ({ sideLabel: SIDE_LABEL[family][k], stance: topic.stance[k] })),
     ifMissing: topic.ifMissing,
     basis: topic.basis
-      .filter((b) => !b.when || b.when.test(fullNorm))
+      .filter((b) => !b.when || reHit(b.when, fullNorm))
       .map((b) => ({ lawName: LAW_NAME[b.law], article: b.article ?? null, note: b.note })),
   };
 }

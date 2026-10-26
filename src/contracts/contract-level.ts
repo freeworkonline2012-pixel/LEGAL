@@ -159,7 +159,7 @@ const CHECKS: MissingCheck[] = [
     id: 'termination',
     label: 'الفسخ أو الإنهاء وشروطه',
     families: null,
-    patterns: [/فسخ|انهاء العقد|إنهاء العقد|ينتهي العقد|انهاء الاتفاق|الغاء العقد|يجوز لاي من الطرفين انهاء/],
+    patterns: [/فسخ|انهاء.{0,20}(?:ال)?(?:عقد|اتفاق)|ينتهي (?:هذا )?(?:ال)?عقد|الغاء.{0,15}(?:ال)?عقد|يجوز لاي من الطرفين انهاء/],
     severity: 'عالٍ',
     why: 'غياب نص الفسخ يُحيل الأمر إلى القواعد العامة (التقاضى غالباً)، فيطول الخروج من العقد ويتعذر تقدير كلفته.',
     suggestion: 'نص يبين حالات الفسخ والإخطار المطلوب وآثاره (رد ما نُفذ والتعويض).',
@@ -168,7 +168,7 @@ const CHECKS: MissingCheck[] = [
     id: 'governing_law',
     label: 'القانون الواجب التطبيق والاختصاص القضائى أو التحكيمى',
     families: null,
-    patterns: [/القانون المصري|القانون واجب التطبيق|القانون الحاكم|يخضع.{0,40}لقانون|تختص محاكم|محكمه.{0,20}المختصه|الاختصاص القضائي|الاختصاص المحلي|التحكيم|هيئه تحكيم|ينعقد الاختصاص/],
+    patterns: [/قانون مصري|قانون واجب تطبيق|قانون حاكم|القانون المصري|القانون واجب التطبيق|القانون الحاكم|يخضع.{0,40}لقانون|تختص محاكم|محكمه.{0,20}المختصه|الاختصاص القضائي|الاختصاص المحلي|التحكيم|هيئه تحكيم|ينعقد الاختصاص/],
     severity: 'متوسط',
     why: 'بلا نص يحدد القانون والجهة المختصة يتحدد الاختصاص بالقواعد العامة وقد يطول النزاع على المحكمة نفسها قبل موضوعه.',
     suggestion: 'نص يحدد القانون الحاكم والمحكمة أو مركز التحكيم المختص ومقره.',
@@ -204,7 +204,7 @@ const CHECKS: MissingCheck[] = [
     id: 'force_majeure',
     label: 'القوة القاهرة',
     families: ['services', 'sale', 'licence', 'agency', 'partnership', 'lease'],
-    patterns: [/قوه قاهره|ظروف قاهره|ظروف طارئه|حادث مفاجئ|اسباب قهريه|ظروف قهريه|السبب الاجنبي/],
+    patterns: [/قوه قاهره|قوه قهريه|ظروف قاهره|ظروف طارئه|حادث مفاجئ|اسباب قهريه|ظروف قهريه|سبب اجنبي|السبب الاجنبي/],
     severity: 'متوسط',
     why: 'بلا تنظيم للقوة القاهرة تتحدد آثارها بالقواعد العامة، ولا يُعرف سلفاً من يتحمل التأخر وكيف تُخطر الظروف وتُثبت.',
     suggestion: 'نص يحدد الحالات ومتطلبات الإخطار والإثبات وأثرها على المواعيد وحق الإنهاء إن طالت.',
@@ -222,7 +222,7 @@ const CHECKS: MissingCheck[] = [
     id: 'delay_penalty',
     label: 'جزاء التأخير أو التعويض الاتفاقى',
     families: ['services', 'sale'],
-    patterns: [/غرامه تاخير|غرامات التاخير|شرط جزائي|التعويض الاتفاقي|تعويض.{0,20}التاخير|جزاء.{0,20}التاخير|غرامه عن كل/],
+    patterns: [/غرام(?:ه|ات) (?:عن )?(?:ال)?تاخير|شرط جزائي|تعويض اتفاقي|التعويض الاتفاقي|تعويض.{0,20}(?:ال)?تاخير|جزاء.{0,20}(?:ال)?تاخير|غرامه عن كل/],
     severity: 'متوسط',
     why: 'بلا جزاء مقدّر للتأخير يلزم إثبات الضرر وتقديره قضاءً، وهو بطىء وغير مؤكد.',
     suggestion: 'نص يحدد جزاء التأخير ونسبته وسقفه وشرط استحقاقه.',
@@ -441,9 +441,19 @@ function textDefinesDuration(clauses: LevelClause[]): boolean {
   return clauses.some((c) => sentencesOf(c.clauseText).some((s) => definesDuration(norm(s))));
 }
 
+/**
+ * نص بلا «ال» التعريف وحروف الجر الملتصقة بها (و/ف/ب/ك/ل + ال) فى أول كل كلمة، لتُطابق الأنماط الصياغات المعرَّفة:
+ * «القوة القاهرة» و«الشرط الجزائى» و«الملكية الفكرية» و«تختص المحاكم». (اختبار حى: بند القوة القاهرة نفسه كان يُعلَن «غير مرصود»
+ * لأن النمط «قوه قاهره» لا يطابق «القوه القاهره».) تُجرَّب الأنماط على النص كما هو وعلى هذا النص معاً.
+ */
+export function stripDefiniteArticle(normalized: string): string {
+  return normalized.replace(/(^| )(?:[وفبكل])?ال(?=[ء-ي]{2})/g, '$1');
+}
+
 function checkMatches(check: MissingCheck, fullNorm: string, clauses: LevelClause[]): boolean {
   if (check.id === 'duration') return textDefinesDuration(clauses);
-  return check.patterns.some((p) => p.test(fullNorm));
+  const loose = stripDefiniteArticle(fullNorm);
+  return check.patterns.some((p) => p.test(fullNorm) || p.test(loose));
 }
 
 export interface MissingOptions {
@@ -459,7 +469,7 @@ export function checkMissingClauses(clauses: LevelClause[], opts: MissingOptions
   const out: ContractFinding[] = [];
   for (const check of CHECKS) {
     if (check.families && !check.families.includes(family)) continue;
-    if (check.when && !check.when.test(fullNorm)) continue;
+    if (check.when && !check.when.test(fullNorm) && !check.when.test(stripDefiniteArticle(fullNorm))) continue;
     if (checkMatches(check, fullNorm, clauses)) continue;
     const caveat = opts.textMayBeIncomplete
       ? ' تنبيه: توجد تحذيرات قراءة أو ترقيم لهذا الملف، فقد يكون هذا البند ضمن نص لم يُقرأ؛ قارن بالأصل قبل الاعتماد.'
