@@ -210,4 +210,12 @@ describe('SegmentationService', () => {
       expect(r.warnings).toEqual([]);
     });
   });
+
+  it('يُرجع ديباجة العقد (النص قبل أول بند) لاستخراج اسمى الطرفين', () => {
+    const text = 'بين شركة ألفا للتجارة (الطرف الأول) وشركة بيتا للخدمات (الطرف الثانى).\n\nالبند الأول: الموضوع\nيلتزم الطرف الأول بالتوريد.\n\nالبند الثانى: الثمن\nيسدد الطرف الثانى الثمن.';
+    const r = service.segment(text);
+    expect(r.preamble).toContain('شركة ألفا للتجارة');
+    expect(r.preamble).not.toContain('البند الأول');
+    expect(service.segment('لا بنود هنا إطلاقاً').preamble).toBe('');
+  });
 });

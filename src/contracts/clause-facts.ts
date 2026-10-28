@@ -6,7 +6,8 @@ import { normalizeArabicForMatch } from './reasoning.util';
  * إلى التقييم الآلى العادى. النموذج هنا يقرأ ويستخرج فقط؛ الحكم القانونى فى clause-rules.ts بقواعد حتمية.
  */
 
-export type PartyRef = 'first' | 'second' | 'both' | 'none';
+/** unknown: البند يسمّى الطرف باسم أو وصف لا يمكن ربطه بالطرف الأول/الثانى بيقين؛ لا تُبنى عليه درجة خطورة. */
+export type PartyRef = 'first' | 'second' | 'both' | 'none' | 'unknown';
 
 export interface TerminationFact {
   mechanism: 'automatic_without_court' | 'unilateral_right' | 'court_required';
@@ -47,7 +48,7 @@ export interface ClauseFacts {
   compensation?: CompensationFact;
 }
 
-const PARTIES: readonly PartyRef[] = ['first', 'second', 'both', 'none'];
+const PARTIES: readonly PartyRef[] = ['first', 'second', 'both', 'none', 'unknown'];
 const MIN_QUOTE = 6;
 const MAX_QUOTE = 400;
 
@@ -148,4 +149,18 @@ export function validateClauseFacts(raw: unknown, clauseText: string): ClauseFac
 
 export function hasAnyFact(f: ClauseFacts): boolean {
   return Boolean(f.termination || f.notice || f.liability || f.forceMajeure || f.compensation);
+}
+
+/**
+ * بند لا يمكن ربط اتجاهه بطرف (يسمّى الطرف باسم لم تُعرف نسبته إلى الأول/الثانى): كل قيمة «first/second» فى حقول الاتجاه تصير unknown
+ * فلا تُبنى عليها درجة خطورة ولا نص يتهم طرفاً بعينه. فشل مغلق: خطأ اتجاه أخطر على المحامى من فقدان درجة.
+ */
+export function neutralizeDirections(facts: ClauseFacts): ClauseFacts {
+  const flip = (p: PartyRef): PartyRef => (p === 'first' || p === 'second' ? 'unknown' : p);
+  const out: ClauseFacts = { ...facts };
+  if (facts.termination) out.termination = { ...facts.termination, holder: flip(facts.termination.holder) };
+  if (facts.liability) out.liability = { ...facts.liability, beneficiary: flip(facts.liability.beneficiary) };
+  if (facts.forceMajeure) out.forceMajeure = { ...facts.forceMajeure, beneficiary: flip(facts.forceMajeure.beneficiary) };
+  if (facts.compensation) out.compensation = { ...facts.compensation, payer: flip(facts.compensation.payer) };
+  return out;
 }

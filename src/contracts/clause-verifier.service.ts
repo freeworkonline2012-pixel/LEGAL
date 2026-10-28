@@ -22,8 +22,12 @@ const SYSTEM_ASSESSMENT =
 
 const SYSTEM_FINDING =
   'أنت محامٍ مصرى مدقق مستقل يراجع ملاحظة على عقد كامل (تعارض بين بندين أو عدم اتساق أو شرط مفتوح). أمامك الملاحظة والمقتطفات التى استندت إليها. ' +
+  'قد تقوم الملاحظة على بند آخر لم يُنقل مقتطفه (مثل تعارض مع بند يمنع الرسوم الإضافية)؛ فإن عُرض عليك نص العقد كاملاً فابحث فيه عن البند الآخر ولا تعدّ غياب مقتطفه دليلاً على انتفاء الملاحظة، ولا تصدر uncertain لمجرد أن المقتطف المنقول وحده لا يُظهرها. ' +
   'تحقق: هل يمكن التوفيق بين المقتطفين (كل منهما يحكم حالة أو مرحلة مختلفة، أو أحدهما يقيّد الآخر صراحة)؟ فإن أمكن فالملاحظة مبالغ فيها وتكون refuted مع اقتباس العبارة الموفِّقة من المقتطفات. ' +
   SHARED;
+
+/** سقف نص العقد المعروض على المدقق (حروف) حفاظاً على التكلفة والدقة؛ ما زاد يُقتطع من آخر العقد ولا يُنقص من البنود المستشهد بها. */
+const MAX_WHOLE_CONTRACT_CHARS = 14000;
 
 function parse(text: string): unknown {
   for (const t of [text, text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, ''), text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)]) {
@@ -72,10 +76,24 @@ export class ClauseVerifierService {
     explanation: string;
     evidence: Array<{ clauseLabel: string; quote: string }>;
     clauseTexts: string[];
+    /** نص كل بنود العقد (للتحقق من بند آخر تقوم عليه الملاحظة ولم يُنقل مقتطفه) */
+    contractClauses?: Array<{ clauseLabel: string; text: string }>;
   }): Promise<VerifierOutcome> {
     const ev = input.evidence.map((e, i) => `${i + 1}) ${e.clauseLabel}: """${e.quote}"""`).join('\n');
-    const user = `نوع الملاحظة: ${input.kindLabel}\nالعنوان: ${input.title}\nالشرح: ${input.explanation}\n\nالمقتطفات المستند إليها:\n${ev}\n\nأعد JSON فقط.`;
-    return this.run(SYSTEM_FINDING, user, input.clauseTexts.join('\n'), []);
+    let whole = '';
+    if (input.contractClauses && input.contractClauses.length > 0) {
+      let used = 0;
+      const parts: string[] = [];
+      for (const c of input.contractClauses) {
+        const t = c.text.replace(/\s+/g, ' ').trim();
+        if (used + t.length > MAX_WHOLE_CONTRACT_CHARS) break;
+        used += t.length;
+        parts.push(`${c.clauseLabel}: """${t}"""`);
+      }
+      whole = `\n\nنص العقد كاملاً (للقراءة فقط):\n${parts.join('\n')}`;
+    }
+    const user = `نوع الملاحظة: ${input.kindLabel}\nالعنوان: ${input.title}\nالشرح: ${input.explanation}\n\nالمقتطفات المستند إليها:\n${ev}${whole}\n\nأعد JSON فقط.`;
+    return this.run(SYSTEM_FINDING, user, [...input.clauseTexts, ...(input.contractClauses ?? []).map((c) => c.text)].join('\n'), []);
   }
 
   private async run(system: string, user: string, clauseText: string, articleTexts: string[]): Promise<VerifierOutcome> {

@@ -13,6 +13,8 @@ export interface SegmentationResult {
   clauses: SegmentedClause[];
   /** تحذير غير حاجب — مثال: ترقيم غير متسلسل (بند مفقود أو مكرر) يستحق مراجعة بشرية قبل الاعتماد */
   warnings: string[];
+  /** نص ما قبل أول بند (ديباجة العقد: تعريف الطرفين)، مقتطع؛ فارغ إن لم يوجد */
+  preamble: string;
 }
 
 /**
@@ -213,6 +215,8 @@ export class SegmentationService {
       );
     }
 
-    return { clauses, warnings };
+    const firstHead = heads[0];
+    const preamble = firstHead ? text.slice(0, firstHead.lineStart).trim().slice(0, 4000) : '';
+    return { clauses, warnings, preamble };
   }
 }

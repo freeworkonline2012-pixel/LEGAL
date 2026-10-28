@@ -48,3 +48,21 @@ describe('describePosition', () => {
     expect(describePosition(null)).toBeNull();
   });
 });
+
+describe('describePosition مع أسماء الأطراف (الجولة 31)', () => {
+  it('يربط التسمية بالاسم ويطلب عدم رفع الخطورة عند عدم اليقين', () => {
+    const d = describePosition({
+      contractType: 'عقد خدمات',
+      clientRole: 'طالب الخدمة',
+      clientParty: 'second',
+      partyNames: { first: 'بلاك بيلتس', second: 'أروب لتأمينات الممتلكات' },
+    })!;
+    expect(d).toContain('«الطرف الثانى (أروب لتأمينات الممتلكات)»');
+    expect(d).toContain('«الطرف الأول (بلاك بيلتس)»');
+    expect(d).toContain('لا ترفع درجة الخطورة');
+  });
+  it('بلا أسماء: لا ذكر لربط الأسماء', () => {
+    const d = describePosition({ contractType: null, clientRole: 'المستأجر', clientParty: 'first', partyNames: { first: null, second: null } })!;
+    expect(d).not.toContain('الأسماء الواردة');
+  });
+});

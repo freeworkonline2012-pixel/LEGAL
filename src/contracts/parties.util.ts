@@ -1,0 +1,117 @@
+import { normalizeArabicForMatch } from './reasoning.util';
+
+/**
+ * أطراف العقد من ديباجته (الجولة 31). العقود المصرية تعرّف الطرفين فى الصدر بالاسم ثم تحيل إليهما فى البنود إما بـ«الطرف الأول/الثانى»
+ * أو بالاسم مباشرة («يجوز لشركة أروب الرجوع على بلاك بيلتس»). بلا هذا الربط يخمّن النموذج أى الطرفين هو العميل فتنقلب اتجاهات
+ * المخاطر (وقع فعلاً: حق ممنوح للعميل وُصف بأنه يعرّضه لتعويض بلا سقف). الاستخراج حتمى ومحافظ: ما لم يُقرأ بيقين يبقى null
+ * ولا يُخمَّن، وكل اتجاه لا يمكن ربطه بطرف يُعامل «غير معروف» فلا تُبنى عليه درجة خطورة.
+ */
+
+export interface PartyNames {
+  first: string | null;
+  second: string | null;
+}
+
+const MAX_PREAMBLE = 4000;
+const MAX_NAME_WORDS = 5;
+const ENTITY = /(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|مجموعة|مجموعه|الأستاذ|الاستاذ|السيد|السيدة|السيده)\s+/gu;
+/** كلمات تنهى الاسم (ما بعدها وصف لا اسم). */
+const STOP = new Set(
+  [
+    'ويمثلها', 'ويمثله', 'وتمثلها', 'يمثلها', 'يمثله', 'ممثلة', 'ممثله', 'ممثل', 'ومقرها', 'مقرها', 'ومقره', 'مقره', 'الكائن', 'والكائن', 'الكائنة',
+    'رقم', 'ورقم', 'سجل', 'والمسجلة', 'المسجلة', 'المقيدة', 'بطاقة', 'ويقيم', 'المقيم', 'والمقيم', 'بصفته', 'بصفتها', 'ويشار', 'والمشار', 'المشار',
+    'ومركزها', 'ومركزه', 'وعنوانها', 'عنوانها', 'وعنوانه', 'عنوانه', 'والتي', 'التي', 'والتى', 'التى', 'الذي', 'الذى', 'والذي', 'والذى',
+    'ش.م.م', 'ش.ذ.م.م', 'المحدودة', 'المحدوده', 'المساهمة', 'المساهمه', 'تأسست', 'تاسست', 'وفقا', 'وفقاً', 'طبقا', 'طبقاً', 'من', 'فى', 'في', 'ب', 'ومقيد',
+  ].map((w) => normalizeArabicForMatch(w)),
+);
+const GENERIC = new Set(['شركه', 'مؤسسه', 'بنك', 'مكتب', 'مجموعه', 'السيد', 'السيده', 'الاستاذ'].map((w) => normalizeArabicForMatch(w)));
+
+const DESIGNATION = /(?:ال)?طرف\s*(?:ال)?\s*(أول|اول|الأول|الاول|ثان[يى]|الثان[يى]|ثاني|الثاني)/gu;
+
+function cleanName(raw: string): string | null {
+  const words = raw
+    .replace(/[()（）\[\]«»"“”]/g, ' ')
+    .split(/[\s،,;:؛]+/)
+    .filter(Boolean);
+  const out: string[] = [];
+  for (const w of words) {
+    if (STOP.has(normalizeArabicForMatch(w))) break;
+    if (/[\d٠-٩]/.test(w)) break;
+    out.push(w);
+    if (out.length >= MAX_NAME_WORDS) break;
+  }
+  const name = out.join(' ').trim();
+  return normalizeArabicForMatch(name).length >= 3 ? name : null;
+}
+
+/** آخر اسم جهة وردت فى المقطع (الاسم يسبق عادة عبارة «الطرف الأول/الثانى» التى تعرّفه). */
+function lastEntityName(segment: string): string | null {
+  let best: string | null = null;
+  ENTITY.lastIndex = 0;
+  for (const m of segment.matchAll(ENTITY)) {
+    const start = (m.index ?? 0) + m[0].length;
+    const name = cleanName(segment.slice(start, start + 120));
+    if (name) best = name;
+  }
+  return best;
+}
+
+export function extractPartyNames(preamble: string | null | undefined): PartyNames {
+  const text = (preamble ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_PREAMBLE);
+  const names: PartyNames = { first: null, second: null };
+  if (!text) return names;
+  let prevEnd = 0;
+  DESIGNATION.lastIndex = 0;
+  for (const m of text.matchAll(DESIGNATION)) {
+    const idx = m.index ?? 0;
+    const side = /ثان/.test(m[1]) ? 'second' : 'first';
+    const name = lastEntityName(text.slice(prevEnd, idx));
+    prevEnd = idx + m[0].length;
+    if (name && !names[side]) names[side] = name;
+  }
+  // اسم واحد لطرفين = التباس: لا نعتمد أيهما
+  if (names.first && names.second && sameName(names.first, names.second)) return { first: null, second: null };
+  return names;
+}
+
+function tokens(s: string): string[] {
+  return normalizeArabicForMatch(s)
+    .split(' ')
+    .map((t) => t.replace(/^(?:[وفبكل])?ال(?=[ء-ي]{2})/, ''))
+    .filter((t) => t.length >= 2);
+}
+
+function sameName(a: string, b: string): boolean {
+  const ta = aliasTokens(a);
+  const tb = aliasTokens(b);
+  return ta.length > 0 && ta.join(' ') === tb.join(' ');
+}
+
+/** الرمز/الرمزان المميزان للاسم (بعد «شركة»)، به يُحال إلى الطرف فى البنود: «شركة بلاك بيلتس لتكنولوجيا …» ⇒ [بلاك، بيلتس]. */
+export function aliasTokens(name: string): string[] {
+  return tokens(name)
+    .filter((t) => !GENERIC.has(t))
+    .slice(0, 2);
+}
+
+/** أى الطرفين يُذكر فى نص البند بالاسم؟ (تسامح مع تشويه المسح: «روب» لـ«أروب» بلاحقة/بادئة حرف). */
+export function partiesNamedIn(clauseText: string, names: PartyNames | null | undefined): Array<'first' | 'second'> {
+  if (!names) return [];
+  const hay = tokens(clauseText);
+  const out: Array<'first' | 'second'> = [];
+  for (const side of ['first', 'second'] as const) {
+    const n = names[side];
+    if (!n) continue;
+    const alias = aliasTokens(n)[0];
+    if (!alias || alias.length < 3) continue;
+    if (hay.some((h) => h === alias || (h.length >= 3 && (h.endsWith(alias) || alias.endsWith(h))))) out.push(side);
+  }
+  return out;
+}
+
+/** هل البند يحيل إلى الطرفين بالاسم أو بـ«الطرف الأول/الثانى» بما يسمح بالحكم على اتجاه الحق/الالتزام فيه؟ */
+const GENERIC_PARTY_REF = /(?:ال)?طرف (?:ال)?(?:اول|ثان[يى])/;
+export function directionResolvable(clauseText: string, names: PartyNames | null | undefined): boolean {
+  if (GENERIC_PARTY_REF.test(normalizeArabicForMatch(clauseText))) return true;
+  return partiesNamedIn(clauseText, names).length > 0;
+}

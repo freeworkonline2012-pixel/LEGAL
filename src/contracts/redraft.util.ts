@@ -70,6 +70,50 @@ function articleRefNumbers(text: string): number[] {
   return out;
 }
 
+/** كلمات لا تنتهى بها جملة تامة: ورودها آخر نص البند الأصلى يعنى أن القراءة الآلية بُترت عندها. */
+const DANGLING_END = new Set(
+  ['على', 'الى', 'إلى', 'فى', 'في', 'من', 'عن', 'ب', 'ل', 'و', 'ان', 'أن', 'التي', 'التى', 'الذي', 'الذى', 'مع', 'حتى', 'او', 'أو', 'ثم', 'كما', 'بين', 'ما', 'عند', 'قبل', 'بعد', 'خلال', 'لدى', 'لدي'].map((w) =>
+    normalizeArabicForMatch(w),
+  ),
+);
+export const TRUNCATION_PLACEHOLDER = '[عبارة غير مكتملة فى الأصل المقروء — تُستكمل من النسخة الموقعة]';
+export const TRUNCATION_NOTE = 'أُبقيت آخر عبارة فى البند كما قُرئت دون استكمالها بالتخمين؛ تُستكمل من النسخة الموقعة.';
+
+interface RawToken {
+  norm: string;
+  end: number;
+}
+
+function rawTokens(text: string): RawToken[] {
+  const out: RawToken[] = [];
+  for (const m of text.matchAll(/\S+/g)) {
+    const norm = normalizeArabicForMatch(m[0]);
+    if (norm) out.push({ norm, end: (m.index ?? 0) + m[0].length });
+  }
+  return out;
+}
+
+/**
+ * القراءة الآلية للمسح الضوئى قد تبتر البند فى منتصف جملة («للحفاظ على»). النموذج يميل إلى إكمالها بما يخمّنه («حقوقه») فتُنسب
+ * للعقد عبارة لم يقرأها أحد. إن انتهى الأصل بكلمة لا تنتهى بها جملة تامة وبلا علامة وقف، تُقطع الصياغة عند أول عبارتين مطابقتين
+ * لذيل الأصل ويُستبدل ما بعدهما بعلامة صريحة، فلا تُستكمل العبارة بالتخمين. فشل مغلق: إن لم يوجد الذيل فى الصياغة لا تغيير.
+ */
+export function sealTruncatedTail(original: string, proposed: string): { text: string; sealed: boolean } {
+  const orig = (original ?? '').trim();
+  if (!orig || /[.!؟؛:)»"”\]]$/.test(orig)) return { text: proposed, sealed: false };
+  const ot = rawTokens(orig);
+  if (ot.length < 3 || !DANGLING_END.has(ot[ot.length - 1].norm)) return { text: proposed, sealed: false };
+  const tail = [ot[ot.length - 2].norm, ot[ot.length - 1].norm];
+  const pt = rawTokens(proposed);
+  for (let i = pt.length - 2; i >= 0; i -= 1) {
+    if (pt[i].norm !== tail[0] || pt[i + 1].norm !== tail[1]) continue;
+    const rest = proposed.slice(pt[i + 1].end).replace(/[\s.،؛:!؟\-–—]+/g, '');
+    if (rest.length === 0) return { text: proposed, sealed: false };
+    return { text: `${proposed.slice(0, pt[i + 1].end).trimEnd()} ${TRUNCATION_PLACEHOLDER}`, sealed: true };
+  }
+  return { text: proposed, sealed: false };
+}
+
 export function validateRedraft(input: {
   proposedText: string;
   changes: string[];
@@ -77,7 +121,8 @@ export function validateRedraft(input: {
   articleTexts: string[];
   approvedArticleNos: number[];
 }): { ok: true; proposal: RedraftProposal } | { ok: false; reason: string } {
-  const text = (input.proposedText ?? '').trim();
+  const sealedTail = sealTruncatedTail(input.originalText, (input.proposedText ?? '').trim());
+  const text = sealedTail.text;
   if (text.length < 20) return { ok: false, reason: 'empty_or_too_short' };
   if (text.length > Math.max(1500, input.originalText.length * 3 + 400)) {
     return { ok: false, reason: 'too_long' };
@@ -127,6 +172,7 @@ export function validateRedraft(input: {
       return refs.length > 0 && refs.some((n) => hasMandatoryMarker(textOfArticle.get(n) ?? ''));
     })
     .slice(0, 6);
+  if (sealedTail.sealed) changes.unshift(TRUNCATION_NOTE);
 
   return { ok: true, proposal: { text, changes } };
 }

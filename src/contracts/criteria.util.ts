@@ -293,11 +293,47 @@ const SERVICES_TOPICS: ReadonlyArray<{ pattern: RegExp; articles: number[] }> = 
   { pattern: /استحاله|هلاك|حادث مفاجئ|قوه قهريه/, articles: [664, 665] },
 ];
 
-export function servicesAnchorArticleNumbers(title: string | null | undefined, text: string, max = 3): number[] {
+/**
+ * `contractIsServices`: نوع العقد (من مدخل المستخدم) خدمات/مقاولة/توريد. حينئذ يُكتفى به سياقاً: بنود مثل «لا يجوز لأحد الطرفين
+ * فسخ العقد من جانب واحد» لا تحوى كلمة مقاولة أو برنامج فكان السياق على مستوى البند وحده يُسقطها فلا تُقيَّم. الاستبعاد
+ * (إيجار/بيع/عمل) يبقى على مستوى البند فى الحالين.
+ */
+export function servicesAnchorArticleNumbers(
+  title: string | null | undefined,
+  text: string,
+  max = 3,
+  contractIsServices = false,
+): number[] {
   const haystack = normalizeArabicForMatch(`${title ?? ''} ${text ?? ''}`);
-  if (!matchesLoose(SERVICES_CONTEXT, haystack) || matchesLoose(SERVICES_EXCLUDE, haystack)) return [];
+  if ((!contractIsServices && !matchesLoose(SERVICES_CONTEXT, haystack)) || matchesLoose(SERVICES_EXCLUDE, haystack)) return [];
   return roundRobinArticles(
     SERVICES_TOPICS.filter((t) => matchesLoose(t.pattern, haystack)).map((t) => [...t.articles]),
+    max,
+  );
+}
+
+/**
+ * بنود ملكية البرامج والمصنفات: مواد قانون حماية الملكية الفكرية 82/2002 المتحقَّق من نصها فى migrations/239
+ * (140 المصنفات المحمية ومنها برامج الحاسب، 147 الحق الاستئثارى للمؤلف، 149 شرط نقل الحقوق المالية كتابةً وتفصيلاً،
+ * 150 المقابل النقدى أو العينى لنقلها، 151 رقابة المحكمة على الاتفاق المجحف). بحث نصى عام كان يختار المادة 802 المدنية
+ * (حق المالك) لبند «ملكية البرامج للطرف الأول»، وهى لا تحكم الحقوق على المصنفات؛ والمراسى تضع المواد الأقرب موضوعاً أمام النموذج.
+ * تُفعَّل فقط حين يظهر من البند نفسه أنه بند ملكية فكرية أو برامج.
+ */
+export const IP_LAW = { lawNo: 82, lawYear: 2002 } as const;
+const IP_CONTEXT =
+  /ملكيه فكريه|حقوق (?:ال)?(?:مؤلف|ملكيه)|حق (?:ال)?مؤلف|(?:شفر|كود)\S*\s+(?:ال)?مصدري|(?:ملكيه|مملوك|ملك)\S*.{0,50}(?:البرامج|برنامج|البرمجيات|النظام|الكود|التطبيق)|(?:البرامج|برنامج|البرمجيات|التطبيق).{0,50}(?:مملوك|ملكيه|ملكا)/;
+const IP_TOPICS: ReadonlyArray<{ pattern: RegExp; articles: number[] }> = [
+  { pattern: /ملكيه|مملوك|ملكا|حقوق|حق /, articles: [147, 140] },
+  { pattern: /نقل|تنازل|تصريح|ترخيص|بيع|تسويق|تسليم الشفره|التصرف/, articles: [149, 147] },
+  { pattern: /مقابل|ثمن|اجر|نسبه/, articles: [150, 149] },
+  { pattern: /مجحف|اخلال|تعويض/, articles: [151] },
+];
+
+export function ipAnchorArticleNumbers(title: string | null | undefined, text: string, max = 3): number[] {
+  const haystack = normalizeArabicForMatch(`${title ?? ''} ${text ?? ''}`);
+  if (!matchesLoose(IP_CONTEXT, haystack)) return [];
+  return roundRobinArticles(
+    IP_TOPICS.filter((t) => matchesLoose(t.pattern, haystack)).map((t) => [...t.articles]),
     max,
   );
 }

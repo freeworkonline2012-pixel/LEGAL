@@ -73,4 +73,30 @@ describe('ClauseVerifierService', () => {
     if (out.status === 'ok') expect(out.verification.basis).toBe('refuted');
     else throw new Error('expected ok');
   });
+
+  it('الجولة 31: يُعرض على مدقق الملاحظة نص العقد كاملاً (بند آخر لم يُنقل مقتطفه)، مع سقف للحجم', async () => {
+    const fetchMock = reply({ verdict: 'confirmed', reason: 'قائمة.' });
+    global.fetch = fetchMock as never;
+    const long = 'ن'.repeat(9000);
+    await new ClauseVerifierService().verifyFinding({
+      kindLabel: 'شرط مفتوح',
+      title: 't',
+      explanation: 'e',
+      evidence: [{ clauseLabel: 'البند الثانى', quote: 'رسوم الاستضافة سوف تتحدد بعد الانتهاء' }],
+      clauseTexts: ['رسوم الاستضافة سوف تتحدد بعد الانتهاء من تنفيذ البرامج.'],
+      contractClauses: [
+        { clauseLabel: 'البند الثانى', text: 'رسوم الاستضافة سوف تتحدد بعد الانتهاء من تنفيذ البرامج.' },
+        { clauseLabel: 'البند الرابع', text: 'ولا يجوز له المطالبة بأى رسوم إضافية فى أى مرحلة.' },
+        { clauseLabel: 'البند التاسع', text: long },
+        { clauseLabel: 'البند العاشر', text: long },
+      ],
+    });
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
+    const user: string = body.messages[1].content;
+    expect(user).toContain('نص العقد كاملاً');
+    expect(user).toContain('البند الرابع');
+    expect(user).toContain('ولا يجوز له المطالبة بأى رسوم إضافية');
+    expect(user).not.toContain('البند العاشر'); // تجاوز السقف
+    expect(body.messages[0].content).toContain('لا تعدّ غياب مقتطفه دليلاً');
+  });
 });

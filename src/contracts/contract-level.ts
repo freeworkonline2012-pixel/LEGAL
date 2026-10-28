@@ -58,6 +58,8 @@ export interface ContractLevelResult {
   /** حالة تمرير النموذج: ok | not_configured | skipped (عقد أطول من الحد) | error */
   model: ModelPassStatus;
   generatedAt: string;
+  /** اسما الطرفين من ديباجة العقد (إن قُرئا بيقين) ليستعملهما مسار الصياغة لاحقاً بلا إعادة قراءة النص */
+  parties?: { first: string | null; second: string | null };
 }
 
 const SEVERITY_RANK: Record<FindingSeverity, number> = { حرج: 0, عالٍ: 1, متوسط: 2, منخفض: 3 };

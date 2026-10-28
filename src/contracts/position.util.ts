@@ -14,6 +14,8 @@ export interface ClientPosition {
   contractType: string | null;
   clientRole: string | null;
   clientParty?: ClientParty | null;
+  /** اسما الطرفين كما وردا فى ديباجة العقد (يُستخرجان حتمياً؛ null إن لم يُقرآ بيقين) */
+  partyNames?: { first: string | null; second: string | null } | null;
 }
 
 function cleanPart(value: unknown): string | null {
@@ -41,7 +43,13 @@ export function describePosition(position: ClientPosition | null | undefined): s
   if (!position?.clientRole) return null;
   const base = position.contractType ? `${position.clientRole} (فى ${position.contractType})` : position.clientRole;
   if (!position.clientParty) return base;
+  const otherKey = position.clientParty === 'first' ? 'second' : 'first';
   const mine = CLIENT_PARTY_LABEL[position.clientParty];
-  const other = CLIENT_PARTY_LABEL[position.clientParty === 'first' ? 'second' : 'first'];
-  return `${base} — وهو «${mine}» فى نص العقد، والطرف الآخر هو «${other}»؛ فكل حق أو التزام ورد فى البند لـ«${mine}» فهو للعميل، وما ورد لـ«${other}» فهو للطرف المقابل`;
+  const other = CLIENT_PARTY_LABEL[otherKey];
+  const myName = position.partyNames?.[position.clientParty];
+  const otherName = position.partyNames?.[otherKey];
+  const mineFull = myName ? `${mine} (${myName})` : mine;
+  const otherFull = otherName ? `${other} (${otherName})` : other;
+  const named = myName || otherName ? ' والأسماء الواردة فى البنود تُربط بهذا التعريف لا بالترتيب فى الجملة.' : '';
+  return `${base} — وهو «${mineFull}» فى نص العقد، والطرف الآخر هو «${otherFull}»؛ فكل حق أو التزام ورد فى البند لـ«${mine}» فهو للعميل، وما ورد لـ«${other}» فهو للطرف المقابل.${named} إن لم تستطع تحديد لمن الحق أو الالتزام بيقين فصرّح بذلك ولا ترفع درجة الخطورة على هذا الأساس`;
 }

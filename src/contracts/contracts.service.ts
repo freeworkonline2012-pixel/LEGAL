@@ -22,6 +22,8 @@ import {
   classifyClauseCriteria,
   leaseAnchorArticleNumbers,
   servicesAnchorArticleNumbers,
+  ipAnchorArticleNumbers,
+  IP_LAW,
   scopedLawsForClause,
   serializeCriteria,
 } from './criteria.util';
@@ -39,6 +41,8 @@ import {
   tidyNoTextReasoning,
 } from './reasoning.util';
 import { ClientPosition, describePosition } from './position.util';
+import { directionResolvable, extractPartyNames } from './parties.util';
+import { playbookFamily } from './playbook';
 import { riskLevelFor } from './risk-level.util';
 import { neutralizeOcrNoise } from './ocr-noise.util';
 import { describeRedraftRejection, describeWeakeningFeedback, REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
@@ -48,7 +52,7 @@ import { ContractResponseDto } from './dto/contract-response.dto';
 import { canonicalHeading, countHeadingLines, looseHeadingLineNumber, missingHeadingNumbers, ordinalWords } from './clause-headings';
 import { numericWarnings } from './numeric-checks.util';
 import { ClauseFactsService } from './clause-facts.service';
-import { hasAnyFact } from './clause-facts';
+import { hasAnyFact, neutralizeDirections } from './clause-facts';
 import { evaluateRules, summarizeFindings } from './clause-rules';
 import { ContractConsistencyService } from './contract-consistency.service';
 import { ClauseVerifierService } from './clause-verifier.service';
@@ -205,6 +209,9 @@ export class ContractsService {
     }
 
     const segmentation = this.segmentationService.segment(extraction.text);
+    // اسما الطرفين من الديباجة: يربطان الأسماء الواردة فى البنود بالطرف الأول/الثانى فلا يخمّن النموذج اتجاه الحق والالتزام
+    const partyNames = extractPartyNames(segmentation.preamble);
+    position = { ...position, partyNames };
 
     contract.status = 'processing';
     contract.clauseCount = segmentation.clauses.length;
@@ -234,10 +241,8 @@ export class ContractsService {
     await this.verifyClauseFlags(clauseRows, position);
 
     // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
-    contract.contractFindings = (await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings)) as unknown as Record<
-      string,
-      unknown
-    >;
+    const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings);
+    contract.contractFindings = { ...level, parties: partyNames } as unknown as Record<string, unknown>;
 
     await this.verifyContractFindings(contract.contractFindings as unknown as ContractLevelResult | null, clauseRows);
 
@@ -329,6 +334,7 @@ export class ContractsService {
           explanation: f.explanation,
           evidence: f.evidence.map((e) => ({ clauseLabel: e.clauseLabel, quote: e.quote })),
           clauseTexts: f.evidence.map((e) => byIndex.get(e.clauseIndex)?.clauseText ?? ''),
+          contractClauses: rows.map((r) => ({ clauseLabel: r.clauseLabel, text: r.clauseText })),
         });
         if (out.status === 'ok') f.verification = out.verification;
       } catch (err) {
@@ -428,6 +434,7 @@ export class ContractsService {
           contractType: contract.contractType,
           clientRole: contract.clientRole,
           clientParty: contract.clientParty,
+          partyNames: (contract.contractFindings as { parties?: { first: string | null; second: string | null } } | null)?.parties ?? null,
         }),
         reviewNote: clause.assessmentReasoning ?? '',
         articles: matched.map((m) => ({
@@ -626,11 +633,14 @@ export class ContractsService {
   ): Promise<boolean> {
     if (!this.factsService?.isConfigured) return false;
     if (!criteria.some((c) => RULE_TOPIC_CRITERIA.includes(c))) return false;
-    let out = await this.factsService.extract({ clauseText: row.clauseText });
-    if (out.status === 'error') out = await this.factsService.extract({ clauseText: row.clauseText });
+    const parties = position.partyNames ?? null;
+    let out = await this.factsService.extract({ clauseText: row.clauseText, parties });
+    if (out.status === 'error') out = await this.factsService.extract({ clauseText: row.clauseText, parties });
     if (out.status !== 'ok' || !hasAnyFact(out.facts)) return false;
-    row.facts = out.facts as unknown as Record<string, unknown>;
-    const findings = evaluateRules(out.facts, { clientParty: position.clientParty ?? null });
+    // بند يسمّى الطرف باسم لا يُعرف انتماؤه إلى الأول/الثانى: لا اتجاه، فلا درجة خطورة تُبنى على «من المتضرر»
+    const facts = directionResolvable(row.clauseText, parties) ? out.facts : neutralizeDirections(out.facts);
+    row.facts = facts as unknown as Record<string, unknown>;
+    const findings = evaluateRules(facts, { clientParty: position.clientParty ?? null });
     row.ruleFindings = findings as unknown as Array<Record<string, unknown>>;
     if (findings.length === 0) return false;
     const summary = summarizeFindings(findings);
@@ -681,7 +691,7 @@ export class ContractsService {
       ]);
       const merged = this.mergeCandidates(ftsCandidates, semanticCandidates);
 
-      const anchors = await this.anchorCandidates(criteria, row.clauseText, row.clauseTitle);
+      const anchors = await this.anchorCandidates(criteria, row.clauseText, row.clauseTitle, playbookFamily(position.contractType) === 'services');
 
       if (merged.length === 0 && anchors.length === 0) {
         row.assessmentStatus = 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';
@@ -992,7 +1002,12 @@ export class ContractsService {
    * فعلياً (النسخة السارية)، وأى مادة غير موجودة تُتخطّى بلا اختلاق.
    */
   /** مواد القانون المدنى 131/1948 المفهرَسة بأرقامها (النسخة السارية)، بترتيب الأرقام المطلوبة. */
-  private async civilCodeCandidates(articleNos: number[]): Promise<ClauseCandidate[]> {
+  private civilCodeCandidates(articleNos: number[]): Promise<ClauseCandidate[]> {
+    return this.lawArticleCandidates(CIVIL_CODE, articleNos);
+  }
+
+  /** مواد محددة من قانون مفهرَس بأرقامها (مراسى بلا بحث نصى)؛ فارغ إن لم تُفهرَس. */
+  private async lawArticleCandidates(law: { lawNo: number; lawYear: number }, articleNos: number[]): Promise<ClauseCandidate[]> {
     const out: ClauseCandidate[] = [];
     if (articleNos.length === 0) return out;
     const rows: Array<{
@@ -1010,7 +1025,7 @@ export class ContractsService {
        JOIN article_versions av ON av.article_id = a.id AND av.effective_to IS NULL
        WHERE l.law_no = $1 AND l.law_year = $2 AND a.article_suffix_order = 0
          AND a.article_no = ANY($3::int[])`,
-      [CIVIL_CODE.lawNo, CIVIL_CODE.lawYear, articleNos],
+      [law.lawNo, law.lawYear, articleNos],
     );
     const order = new Map(articleNos.map((n, i) => [n, i]));
     rows
@@ -1036,16 +1051,19 @@ export class ContractsService {
     criteria: ReturnType<typeof classifyClauseCriteria>,
     clauseText: string,
     clauseTitle: string | null,
+    contractIsServices = false,
   ): Promise<ClauseCandidate[]> {
     const out: ClauseCandidate[] = [];
     const articleNos = Array.from(
       new Set([
         ...anchorArticleNumbers(criteria, 3),
         ...leaseAnchorArticleNumbers(clauseTitle, clauseText, 3),
-        ...servicesAnchorArticleNumbers(clauseTitle, clauseText, 3),
+        ...servicesAnchorArticleNumbers(clauseTitle, clauseText, 3, contractIsServices),
       ]),
     );
     out.push(...(await this.civilCodeCandidates(articleNos)));
+    const ipNos = ipAnchorArticleNumbers(clauseTitle, clauseText, 3);
+    if (ipNos.length > 0) out.push(...(await this.lawArticleCandidates(IP_LAW, ipNos)));
     for (const scope of scopedLawsForClause(criteria, clauseTitle, clauseText)) {
       const scoped = await this.ftsCandidates(`${scope.seed ?? ''} ${clauseText}`.trim(), 2, scope);
       out.push(...scoped.map((c) => ({ ...c, source: 'anchor' as const })));

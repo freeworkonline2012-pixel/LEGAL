@@ -124,3 +124,37 @@ describe('summarizeFindings', () => {
     expect(s.reasoning).toContain('لا يعنى اعتماد بقية أحكام البند');
   });
 });
+
+describe('الجولة 31: اتجاه غير معروف لا يبنى عليه خطورة ولا اتهام', () => {
+  const discretion = (payer: 'first' | 'second' | 'unknown'): ClauseFacts => ({
+    compensation: {
+      method: 'party_discretion',
+      waivesProofOfDamage: false,
+      hasCap: false,
+      payer,
+      quote: 'يجوز لشركة أروب الرجوع على بلاك بيلتس بما تراه من تعويضات',
+    },
+  });
+  it('الدافع هو العميل فعلاً ⇒ عالية وتنبيه بالتعرض', () => {
+    const [f] = evaluateRules(discretion('second'), { clientParty: 'second' });
+    expect(f.severity).toBe('high');
+    expect(f.explanation).toContain('يعرّض العميل');
+  });
+  it('الدافع هو الطرف المقابل (الحق للعميل) ⇒ متوسطة ولا نص يتهم العميل', () => {
+    const [f] = evaluateRules(discretion('first'), { clientParty: 'second' });
+    expect(f.severity).toBe('medium');
+    expect(f.explanation).not.toContain('يعرّض العميل');
+  });
+  it('الدافع غير معروف (اسم لا يُربط بطرف) ⇒ متوسطة ولا نص يتهم العميل', () => {
+    const [f] = evaluateRules(discretion('unknown'), { clientParty: 'second' });
+    expect(f.severity).toBe('medium');
+    expect(f.explanation).not.toContain('يعرّض العميل');
+  });
+  it('قوة قاهرة مفتوحة والمستفيد غير معروف ⇒ لا ترفع إلى عالية', () => {
+    const fm: ClauseFacts = {
+      forceMajeure: { extraCauses: 'open_ended', counterpartyCanReject: false, noticeRequired: false, beneficiary: 'unknown', quote: 'أسباباً أخرى خارجة عن الإرادة' },
+    };
+    const [f] = evaluateRules(fm, { clientParty: 'second' });
+    expect(f.severity).toBe('medium');
+  });
+});

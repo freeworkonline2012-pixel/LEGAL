@@ -32,6 +32,7 @@ type Rel = 'client' | 'other' | 'both' | 'none' | 'unknown';
 function relOf(ref: PartyRef, ctx: RuleContext): Rel {
   if (ref === 'both') return 'both';
   if (ref === 'none') return 'none';
+  if (ref === 'unknown') return 'unknown';
   if (!ctx.clientParty) return 'unknown';
   return ref === ctx.clientParty ? 'client' : 'other';
 }
@@ -158,7 +159,7 @@ function forceMajeure(facts: ClauseFacts, ctx: RuleContext): RuleFinding[] {
         ruleId: 'force_majeure.open_ended.unchecked',
         topic,
         status: 'review',
-        severity: beneficiary === 'client' ? 'medium' : 'high',
+        severity: beneficiary === 'other' ? 'high' : 'medium',
         articles: [165, 373, 215],
         quotes: [f.quote],
         explanation:

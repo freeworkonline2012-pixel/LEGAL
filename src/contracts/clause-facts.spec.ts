@@ -1,4 +1,4 @@
-import { hasAnyFact, quoteInText, validateClauseFacts } from './clause-facts';
+import { hasAnyFact, neutralizeDirections, quoteInText, validateClauseFacts } from './clause-facts';
 
 // نصوص مُصطنَعة بالكامل
 const CLAUSE = 'يجوز للطرف الثانى فسخ هذا العقد من جانب واحد إذا أخل الطرف الأول بالتزام جوهرى، وذلك دون حاجة الى إنذار أو تنبيه، مع احتفاظه بحق التعويض.';
@@ -58,5 +58,33 @@ describe('validateClauseFacts', () => {
       CLAUSE,
     );
     expect(f.forceMajeure).toBeUndefined();
+  });
+});
+
+describe('neutralizeDirections (الجولة 31)', () => {
+  it('first/second تصير unknown، وboth/none تبقى', () => {
+    const out = neutralizeDirections({
+      termination: { mechanism: 'unilateral_right', holder: 'first', quote: 'يجوز لشركة س فسخ العقد' },
+      liability: { kind: 'exclusion', grossFault: 'unspecified', beneficiary: 'both', quote: 'يعفى الطرفان من المسئولية' },
+      forceMajeure: { extraCauses: 'listed', counterpartyCanReject: false, noticeRequired: false, beneficiary: 'second', quote: 'القوة القاهرة والحريق' },
+      compensation: { method: 'party_discretion', waivesProofOfDamage: false, hasCap: false, payer: 'second', quote: 'بما تراه من تعويضات' },
+    });
+    expect(out.termination?.holder).toBe('unknown');
+    expect(out.liability?.beneficiary).toBe('both');
+    expect(out.forceMajeure?.beneficiary).toBe('unknown');
+    expect(out.compensation?.payer).toBe('unknown');
+  });
+  it('لا يغيّر شيئاً آخر ولا يعدّل الأصل', () => {
+    const src = { compensation: { method: 'fixed_amount' as const, waivesProofOfDamage: false, hasCap: true, payer: 'first' as const, quote: 'مبلغ 5000 جنيه' } };
+    const out = neutralizeDirections(src);
+    expect(out.compensation?.method).toBe('fixed_amount');
+    expect(src.compensation.payer).toBe('first');
+  });
+  it('validateClauseFacts يقبل unknown قيمة اتجاه', () => {
+    const f = validateClauseFacts(
+      { compensation: { method: 'party_discretion', waives_proof_of_damage: false, has_cap: false, payer: 'unknown', quote: 'بما تراه من تعويضات' } },
+      'يجوز لشركة أروب الرجوع على بلاك بيلتس بما تراه من تعويضات.',
+    );
+    expect(f.compensation?.payer).toBe('unknown');
   });
 });

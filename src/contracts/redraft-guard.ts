@@ -14,18 +14,20 @@ export interface Weakening {
   explanation: string;
 }
 
-type Rel = 'client' | 'other' | 'both' | 'none';
+type Rel = 'client' | 'other' | 'both' | 'none' | 'unknown';
 
 function rel(ref: PartyRef, clientParty: 'first' | 'second'): Rel {
   if (ref === 'both') return 'both';
   if (ref === 'none') return 'none';
+  if (ref === 'unknown') return 'unknown';
   return ref === clientParty ? 'client' : 'other';
 }
 
+// اتجاه غير معروف قبل الصياغة أو بعدها: لا يُحكم بإضعاف (لا نتهم الصياغة بما لا نعرفه)
 const gainsForOther = (before: Rel, after: Rel): boolean =>
-  (after === 'other' || after === 'both') && !(before === 'other' || before === 'both');
+  before !== 'unknown' && after !== 'unknown' && (after === 'other' || after === 'both') && !(before === 'other' || before === 'both');
 const losesForClient = (before: Rel, after: Rel): boolean =>
-  (before === 'client' || before === 'both') && !(after === 'client' || after === 'both');
+  before !== 'unknown' && after !== 'unknown' && (before === 'client' || before === 'both') && !(after === 'client' || after === 'both');
 
 export function compareFactsForClient(
   original: ClauseFacts,

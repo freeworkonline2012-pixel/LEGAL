@@ -1,4 +1,4 @@
-import { validateRedraft } from './redraft.util';
+import { sealTruncatedTail, TRUNCATION_NOTE, TRUNCATION_PLACEHOLDER, validateRedraft } from './redraft.util';
 
 const base = {
   originalText: 'يلتزم المستأجر بسداد غرامة تأخير قدرها 5% عن كل يوم تأخير، ولا يجوز تخفيضها بأى حال.',
@@ -151,5 +151,37 @@ describe('validateRedraft', () => {
       const r = run(['تُرك فراغ [____] للمهلة.'], `${TEXT} وتكون المهلة [____].`);
       expect(r.ok && r.proposal.changes.length).toBe(1);
     });
+  });
+});
+
+describe('الجولة 31: لا استكمال بالتخمين لبند بُترت قراءته', () => {
+  const ORIGINAL =
+    'اتفق الطرفان على أن كلا منهما لا يكون مسئولا قبل الطرف الآخر عن التأخير، وفى حالة وجود أسباب أخرى خارجه عن إرادة أيا منهما يلتزم الطرف المتأخر بإخطار الطرف الآخر ويجوز للطرف الآخر الموافقة على تلك الأسباب أو رفضها وإتخاذ ما يلزم من إجراءات قانونية فى مواجهته للحفاظ على';
+  it('يقطع الصياغة عند الذيل المبتور ويستبدل التخمين بعلامة صريحة', () => {
+    const proposed =
+      'اتفق الطرفان على أن كلا منهما لا يكون مسئولا قبل الطرف الآخر عن التأخير، ولا يسرى هذا الإعفاء على ما ينشأ عن الغش أو الخطأ الجسيم، ويجوز للطرف الآخر الموافقة على تلك الأسباب أو رفضها وإتخاذ ما يلزم من إجراءات قانونية فى مواجهته للحفاظ على حقوقه.';
+    const r = sealTruncatedTail(ORIGINAL, proposed);
+    expect(r.sealed).toBe(true);
+    expect(r.text.endsWith(`للحفاظ على ${TRUNCATION_PLACEHOLDER}`)).toBe(true);
+    expect(r.text).not.toContain('حقوقه');
+  });
+  it('validateRedraft يُبقى التعديل المفيد ويضيف ملاحظة عدم الاستكمال', () => {
+    const proposed =
+      'اتفق الطرفان على أن كلا منهما لا يكون مسئولا قبل الطرف الآخر عن التأخير، ولا يسرى هذا الإعفاء على ما ينشأ عن الغش أو الخطأ الجسيم، ويجوز للطرف الآخر الموافقة على تلك الأسباب أو رفضها وإتخاذ ما يلزم من إجراءات قانونية فى مواجهته للحفاظ على حقوقه.';
+    const r = validateRedraft({ originalText: ORIGINAL, proposedText: proposed, articleTexts: [], approvedArticleNos: [], changes: ['إضافة استثناء الغش'] });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.proposal.text).toContain(TRUNCATION_PLACEHOLDER);
+      expect(r.proposal.text).not.toContain('حقوقه');
+      expect(r.proposal.changes[0]).toBe(TRUNCATION_NOTE);
+    }
+  });
+  it('أصل تام (ينتهى بنقطة) أو بكلمة تامة: لا تغيير', () => {
+    expect(sealTruncatedTail('يلتزم المستأجر بسداد الأجرة فى موعدها.', 'يلتزم المستأجر بسداد الأجرة فى موعدها كاملة.').sealed).toBe(false);
+    expect(sealTruncatedTail('يلتزم المستأجر بسداد الأجرة فى موعدها', 'يلتزم المستأجر بسداد الأجرة كاملة فى موعدها').sealed).toBe(false);
+  });
+  it('الذيل غير موجود فى الصياغة أو ينتهى بها: لا تغيير', () => {
+    expect(sealTruncatedTail('يلتزم الطرف الأول بالمحافظة على سرية المعلومات للحفاظ على', 'يلتزم الطرف الأول بسرية المعلومات.').sealed).toBe(false);
+    expect(sealTruncatedTail('يلتزم الطرف الأول بالمحافظة على سرية المعلومات للحفاظ على', 'يلتزم الطرف الأول بالمحافظة على سرية المعلومات للحفاظ على').sealed).toBe(false);
   });
 });

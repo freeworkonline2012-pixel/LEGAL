@@ -3,6 +3,7 @@ import {
   classifyClauseCriteria,
   leaseAnchorArticleNumbers,
   servicesAnchorArticleNumbers,
+  ipAnchorArticleNumbers,
   scopedLawsForClause,
   scopedLawsForCriteria,
   serializeCriteria,
@@ -157,5 +158,28 @@ describe('servicesAnchorArticleNumbers (الجولة 30)', () => {
     expect(
       servicesAnchorArticleNumbers(null, 'يسلم المقاول العمل ويسدد رب العمل الأجر ويجوز إنهاء العقد ومن الباطن واستحالة المواصفات.', 3).length,
     ).toBeLessThanOrEqual(3);
+  });
+  it('نوع العقد خدمات يكفى سياقاً: بند الفسخ من جانب واحد يجلب 663، ولا يجلبها بنوع غير معروف', () => {
+    const t = 'لا يجوز لأحد الطرفين فسخ هذا العقد من جانب واحد أو الامتناع عن تنفيذ التزاماته.';
+    expect(servicesAnchorArticleNumbers(null, t, 3, true)).toContain(663);
+    expect(servicesAnchorArticleNumbers(null, t)).toEqual([]);
+  });
+  it('نوع العقد خدمات لا يتخطى الاستبعاد: بند إيجار أو بيع لا يجلب مواد المقاولة', () => {
+    expect(servicesAnchorArticleNumbers(null, 'يلتزم المستأجر بسداد الأجرة وعدم فسخ العقد.', 3, true)).toEqual([]);
+  });
+});
+
+describe('ipAnchorArticleNumbers (الجولة 31)', () => {
+  it('بند ملكية البرامج للطرف الأول يجلب 147 و140 و149', () => {
+    const r = ipAnchorArticleNumbers(null, 'الملكية الفكرية الخاصة بتلك البرامج تكون مملوكة للطرف الأول ولا يحق للطرف الثانى تسويقها أو بيعها أو التصريح بها.');
+    expect(r).toEqual(expect.arrayContaining([147, 149]));
+    expect(r.length).toBeLessThanOrEqual(3);
+  });
+  it('بند ترخيص واستخدام الشفرة المصدرية', () => {
+    expect(ipAnchorArticleNumbers(null, 'يسلم الطرف الأول الشفرة المصدرية ويمنح الطرف الثانى ترخيصاً بالاستخدام.')).toContain(149);
+  });
+  it('لا مراسى لبند لا صلة له بالملكية الفكرية أو البرامج', () => {
+    expect(ipAnchorArticleNumbers(null, 'يسدد الطرف الثانى الأجر على ثلاث دفعات متساوية.')).toEqual([]);
+    expect(ipAnchorArticleNumbers(null, 'يخضع العقد للقانون المصرى.')).toEqual([]);
   });
 });
