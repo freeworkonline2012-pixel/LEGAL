@@ -87,4 +87,49 @@ describe('extractKeyTerms (الجولة 6)', () => {
     const many = Array.from({ length: 80 }, (_, i) => clause(i + 1, `السعر ${1000 + i} جنيه.`));
     expect(extractKeyTerms(many)).toHaveLength(60);
   });
+
+  describe('الجولة 30: ضجيج المسح الضوئى', () => {
+    const REAL =
+      'قيمة هذا العقد هى مبلغ 1125000 ) مليون ومائة وذ خمسة وعشرون ألف جنيه مصرى فقط ) مقسمة على ثلاث مجموعات.';
+
+    it('never emits a partial amount from words broken by OCR noise (25,000 instead of 1,125,000)', () => {
+      const amounts = extractKeyTerms([clause(1, REAL)]).filter((x) => x.kind === 'amount');
+      expect(amounts.map((a) => a.value)).toEqual(['1,125,000 جنيه']);
+      expect(amounts.some((a) => a.value === '25,000 جنيه')).toBe(false);
+    });
+
+    it('reads the full amount from words when OCR noise sits inside it and no digits exist', () => {
+      const t = extractKeyTerms([clause(1, 'قيمة العقد مليون ومائة وذ خمسة وعشرون ألف جنيه مصرى فقط تسدد على دفعات.')]);
+      const a = t.find((x) => x.kind === 'amount');
+      expect(a).toMatchObject({ value: '1,125,000 جنيه', fromWords: true });
+    });
+
+    it('does not swallow ordinary words before the number (fail closed on the span)', () => {
+      const t = extractKeyTerms([clause(1, 'يلتزم الطرف الأول بدفع مبلغ خمسون ألف جنيه عند التسليم.')]);
+      expect(t.find((x) => x.kind === 'amount')?.value).toBe('50,000 جنيه');
+    });
+
+    it('flags "15 96 سنويا" as a suspect percentage instead of dropping it', () => {
+      const t = extractKeyTerms([clause(1, 'رسوم ثابتة وقدرها 15 96 سنويا من قيمة كل مجموعة.')]);
+      const p = t.find((x) => x.kind === 'percent');
+      expect(p?.value).toBe('15%');
+      expect(p?.suspect).toContain('96');
+      expect(p?.quote).toContain('15 96');
+    });
+
+    it('flags "قيمتها 9640" as a suspect 40% but leaves real amounts alone', () => {
+      const t = extractKeyTerms([clause(1, 'الدفعة الثالثة : قيمتها 9640 تسدد بعد إنهاء تفعيل البرامج.')]);
+      const p = t.find((x) => x.kind === 'percent');
+      expect(p?.value).toBe('40%');
+      expect(p?.suspect).toBeTruthy();
+      const none = extractKeyTerms([clause(1, 'قيمتها 9640 جنيه تسدد عند التسليم.')]);
+      expect(none.some((x) => x.kind === 'percent')).toBe(false);
+      expect(none.find((x) => x.kind === 'amount')?.value).toBe('9,640 جنيه');
+    });
+
+    it('clean percentages carry no suspect flag', () => {
+      const t = extractKeyTerms([clause(1, 'تسدد 40 % عند التسليم.')]);
+      expect(t[0].suspect).toBeUndefined();
+    });
+  });
 });

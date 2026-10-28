@@ -21,6 +21,7 @@ import {
   CIVIL_CODE,
   classifyClauseCriteria,
   leaseAnchorArticleNumbers,
+  servicesAnchorArticleNumbers,
   scopedLawsForClause,
   serializeCriteria,
 } from './criteria.util';
@@ -1038,7 +1039,11 @@ export class ContractsService {
   ): Promise<ClauseCandidate[]> {
     const out: ClauseCandidate[] = [];
     const articleNos = Array.from(
-      new Set([...anchorArticleNumbers(criteria, 3), ...leaseAnchorArticleNumbers(clauseTitle, clauseText, 3)]),
+      new Set([
+        ...anchorArticleNumbers(criteria, 3),
+        ...leaseAnchorArticleNumbers(clauseTitle, clauseText, 3),
+        ...servicesAnchorArticleNumbers(clauseTitle, clauseText, 3),
+      ]),
     );
     out.push(...(await this.civilCodeCandidates(articleNos)));
     for (const scope of scopedLawsForClause(criteria, clauseTitle, clauseText)) {

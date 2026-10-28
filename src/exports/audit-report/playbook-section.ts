@@ -9,8 +9,17 @@ import { type Cell, type RBlock, type Tone } from './model';
 
 const STATUS_TONE: Record<PlaybookStatus, Tone> = { concern: 'critical', found: 'medium', missing: 'high' };
 
+/** ملاحظات كلها «تسرى على الطرفين» (لا يُعرف من صاحب الحق): تستلزم الانتباه ولا تُوصف بأنها ضد موقف القارئ. */
+function isNeutral(row: PlaybookRow): boolean {
+  return row.status === 'concern' && row.concerns.length > 0 && row.concerns.every((c) => c.against === 'both');
+}
+
+function rowTone(row: PlaybookRow): Tone {
+  return isNeutral(row) ? 'high' : STATUS_TONE[row.status];
+}
+
 function statusText(row: PlaybookRow, sideKnown: boolean): string {
-  if (row.status === 'concern') return sideKnown ? 'فيه ما يميل ضد موقفك' : 'فيه ما يستلزم الانتباه';
+  if (row.status === 'concern') return sideKnown && !isNeutral(row) ? 'فيه ما يميل ضد موقفك' : 'فيه ما يستلزم الانتباه';
   if (row.status === 'found') return 'مرصود';
   return 'لم يُرصد';
 }
@@ -26,7 +35,7 @@ function observedText(row: PlaybookRow, sideKnown: boolean): string {
     parts.push(`${row.evidence.clauseLabel}: «${row.evidence.quote}»`);
   }
   for (const c of row.concerns) {
-    const who = sideKnown ? '' : ` (يضر بـ${c.againstLabel})`;
+    const who = c.against === 'both' ? ' (قد يسرى على الطرفين — تحقق لمن الحق قبل الحكم عليه)' : sideKnown ? '' : ` (يضر بـ${c.againstLabel})`;
     parts.push(`${c.clauseLabel}: «${c.quote}»\n⚠ ${c.note}${who}`);
   }
   return parts.join('\n\n');
@@ -49,11 +58,14 @@ export function playbookIntro(pb: PlaybookResult): string[] {
   const side = pb.sideLabel ? ` من منظور «${pb.sideLabel}»` : '';
   const who = pb.sideLabel ? 'موقفك' : 'أحد الطرفين';
   const parts: string[] = [];
+  const neutral = pb.rows.filter(isNeutral).length;
+  const directional = pb.counts.concern - neutral;
   parts.push(
-    pb.counts.concern > 0
-      ? `رُصد ما يميل ضد ${who} فى ${axes(pb.counts.concern)} من أصل ${n}.`
+    directional > 0
+      ? `رُصد ما يميل ضد ${who} فى ${axes(directional)} من أصل ${n}.`
       : `لم يُرصد فى أى من المحاور الـ${n} ما يميل ضد ${who} بالأنماط المطبَّقة.`,
   );
+  if (neutral > 0) parts.push(`ورُصد فى ${axes(neutral)} ما يستلزم الانتباه دون أن يتحدد انحيازه لطرف (ينطبق على الطرفين).`);
   if (pb.counts.missing > 0) parts.push(`ولم يُرصد نص فى ${axes(pb.counts.missing)}.`);
   if (pb.counts.found > 0) parts.push(`وبقية المحاور المرصودة (${pb.counts.found}) دون ملاحظة.`);
   return [
@@ -79,7 +91,7 @@ export function playbookBlocks(pb: PlaybookResult): RBlock[] {
     widths: [14, 12, 36, 38],
     rows: pb.rows.map((r): Cell[] => [
       { text: r.label, bold: true },
-      { text: statusText(r, sideKnown), tone: STATUS_TONE[r.status], center: true },
+      { text: statusText(r, sideKnown), tone: rowTone(r), center: true },
       { text: observedText(r, sideKnown) },
       { text: stanceText(r) },
     ]),

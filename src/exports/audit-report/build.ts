@@ -392,9 +392,10 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         tone: SEVERITY_TONE[r.sev],
         order: 0,
       })),
-      ...findings.map((f) => ({
+      // الملاحظات التى اعترض عليها المدقق المستقل لا تتصدر «أهم ما يستوجب الانتباه»؛ تبقى فى سجل المخاطر موسومة «غير مؤكدة»
+      ...confirmedFindings.map((f) => ({
         where: f.evidence.length > 0 ? [...new Set(f.evidence.map((e) => e.clauseLabel))].join('، ') : 'العقد ككل',
-        text: clip(f.title, 150) + (f.verification?.status === 'unconfirmed' ? ' (غير مؤكدة)' : ''),
+        text: clip(f.title, 150),
         sev: f.severity,
         tone: FINDING_TONE(f.severity),
         order: 1,
@@ -418,6 +419,13 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
           { text: t.sev, tone: t.tone, center: true },
         ]),
       });
+      const heldBack = findings.length - confirmedFindings.length;
+      if (heldBack > 0) {
+        blocks.push({
+          t: 'p',
+          text: `لم تُدرج هنا ${heldBack} ملاحظة غير مؤكدة (اعترض عليها المدقق المستقل أو لم يجزم)؛ ترد فى مصفوفة المخاطر موسومة «غير مؤكدة» لمراجعتها بشرياً.`,
+        });
+      }
     }
     const recommendation =
       counts['حرج'] > 0 || findingCounts.critical > 0
@@ -454,9 +462,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         widths: [10, 20, 16, 54],
         rows: terms.map((t) => [
           { text: KEY_TERM_KIND_LABEL[t.kind], tone: 'info' as Tone, center: true },
-          { text: t.fromWords ? `${t.value} (بالحروف)` : t.value, bold: true },
+          { text: t.suspect ? `${t.value} (؟ يلزم التحقق)` : t.fromWords ? `${t.value} (بالحروف)` : t.value, bold: true, ...(t.suspect ? { tone: 'medium' as Tone } : {}) },
           { text: t.clauseLabel, center: true },
-          { text: t.quote },
+          { text: t.suspect ? `${t.quote} — تنبيه: ${t.suspect}` : t.quote },
         ]),
       });
     }

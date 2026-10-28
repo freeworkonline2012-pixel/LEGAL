@@ -26,6 +26,8 @@ export interface KeyTerm {
   quote: string;
   /** هل القيمة مقروءة من أرقام (false) أم من حروف (true) */
   fromWords: boolean;
+  /** تنبيه إن كانت القراءة الآلية مشكوكاً فيها (مثل رمز % مقروء 96)؛ تُعرض القيمة مع التنبيه ولا تُعتمد دون مطابقة الأصل */
+  suspect?: string;
 }
 
 export interface KeyTermClause {
@@ -82,20 +84,68 @@ function quoteAround(text: string, pos: number, len: number): string {
   return slice.replace(/\s+/g, ' ').trim();
 }
 
-/** يحاول قراءة عدد مكتوب بالحروف من آخر 1–3 كلمات قبل الموضع (الأطول أولاً). */
+/** هل الكلمة (بعد التوحيد) جزء من عدد بالحروف؟ */
+function isNumberWord(token: string): boolean {
+  return parseArabicNumberWords(token) !== null;
+}
+
+const FUNCTION_WORDS = new Set(['من', 'في', 'فى', 'عن', 'على', 'الى', 'إلى', 'ثم', 'او', 'أو', 'لا', 'ما', 'هو', 'هي', 'هى', 'مع', 'بل', 'قد', 'كل']);
+
+/** ضجيج مسح ضوئى محتمل: حرف أو حرفان لا يكوّنان كلمة وظيفية معروفة ولا كلمة عددية. */
+function isNoiseToken(token: string): boolean {
+  return token.length <= 2 && !FUNCTION_WORDS.has(token) && !isNumberWord(token);
+}
+
+/** الفاصل المسموح بين كلمات العدد الواحد: مسافات وأقواس وشرطات فقط (لا أرقام ولا نقطة ولا فاصلة). */
+const NUMBER_GAP = /^[\s()（）\-–]*$/u;
+
+/**
+ * يقرأ العدد المكتوب بالحروف الذى ينتهى قبل الموضع. يمشى للخلف كلمة كلمة: كلمة عددية تُضمّ، وحرف أو حرفان لا معنى لهما
+ * (ضجيج مسح ضوئى مثل «وذ») يُتخطّيان ولا يقطعان العبارة، وأى كلمة أخرى توقف المشى. العبارة كلها تُقرأ دفعة واحدة، فلا يُخرَج
+ * جزء من عدد أكبر (فشل مغلق): إن لم تُقرأ العبارة كاملة يُرجَع null.
+ */
 function wordsBefore(text: string, end: number): { value: number; start: number } | null {
-  const head = text.slice(Math.max(0, end - 80), end);
+  const winStart = Math.max(0, end - 160);
+  const head = text.slice(winStart, end);
   const tokens = [...head.matchAll(/[ء-ي]+/g)];
-  for (let take = Math.min(4, tokens.length); take >= 1; take -= 1) {
-    const slice = tokens.slice(tokens.length - take);
-    const phrase = slice.map((m) => m[0]).join(' ');
-    const v = parseArabicNumberWords(phrase);
-    if (v !== null && v > 0) {
-      const firstIdx = slice[0].index ?? 0;
-      return { value: v, start: Math.max(0, end - 80) + firstIdx };
+  const kept: Array<{ word: string; idx: number }> = [];
+  let prevStart = head.length;
+  let sawNumber = false;
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    const t = tokens[i];
+    const idx = t.index ?? 0;
+    const gap = head.slice(idx + t[0].length, prevStart);
+    if (!NUMBER_GAP.test(gap)) break;
+    if (isNumberWord(t[0])) {
+      kept.unshift({ word: t[0], idx });
+      sawNumber = true;
+    } else if (isNoiseToken(t[0]) && sawNumber) {
+      // ضجيج: نتخطاه، ولا يجوز أن تبدأ العبارة به (يُقصّ لاحقاً)
+      kept.unshift({ word: '', idx });
+    } else {
+      break;
     }
+    prevStart = idx;
   }
-  return null;
+  while (kept.length > 0 && kept[0].word === '') kept.shift();
+  if (kept.length === 0) return null;
+  const v = parseArabicNumberWords(kept.map((k) => k.word).filter(Boolean).join(' '));
+  if (v === null || v <= 0) return null;
+  return { value: v, start: winStart + kept[0].idx };
+}
+
+/**
+ * بعد رقم المبلغ: هل تتبعه كتابته بالحروف ثم العملة؟ (قوس اختيارى ثم كلمات كلها عددية أو ضجيج مسح ثم العملة).
+ * يُرجَع موضع نهاية العملة، وإلا null؛ فلا نلتقط مبلغاً لمجرد وجود عملة بعيدة.
+ */
+function amountWordsTail(text: string, from: number): { currency: string; end: number } | null {
+  const tail = text.slice(from, from + 200);
+  const m = tail.match(new RegExp(`^[\\s]*[)）(（]?[\\s]*((?:[ء-ي]+[\\s)）(（]*){1,14}?)(${CURRENCY})`, 'u'));
+  if (!m) return null;
+  const words = [...m[1].matchAll(/[ء-ي]+/g)].map((x) => x[0]);
+  if (words.length === 0 || !words.some((w) => isNumberWord(w))) return null;
+  if (!words.every((w) => isNumberWord(w) || isNoiseToken(w))) return null;
+  return { currency: m[2], end: from + m[0].length };
 }
 
 interface Hit {
@@ -104,6 +154,7 @@ interface Hit {
   pos: number;
   len: number;
   fromWords: boolean;
+  suspect?: string;
 }
 
 function scan(rawText: string): Hit[] {
@@ -115,13 +166,20 @@ function scan(rawText: string): Hit[] {
   const amountDigits = new RegExp(`(\\d[\\d,٬]*(?:\\.\\d+)?)\\s*(?:([(（][^()（）\\n]{0,100}[)）])\\s*)?(${CURRENCY})?`, 'gu');
   const amountSpans: Array<[number, number]> = [];
   for (const m of text.matchAll(amountDigits)) {
-    const curMatch = m[3] ?? (m[2] ? m[2].match(new RegExp(CURRENCY, 'u'))?.[0] : undefined);
-    if (!curMatch) continue;
+    let curMatch = m[3] ?? (m[2] ? m[2].match(new RegExp(CURRENCY, 'u'))?.[0] : undefined);
+    let spanEnd = (m.index ?? 0) + m[0].length;
+    if (!curMatch) {
+      // الرقم ثم كتابته بالحروف (قد يضيع القوس الافتتاحى فى المسح): «1125000 ) مليون ومائة … ألف جنيه»
+      const tail = amountWordsTail(text, spanEnd);
+      if (!tail) continue;
+      curMatch = tail.currency;
+      spanEnd = tail.end;
+    }
     const n = Number(m[1].replace(/[,٬]/g, ''));
     if (!Number.isFinite(n) || n <= 0) continue;
     const cur = /دولار/.test(curMatch) ? 'دولار' : /يورو/.test(curMatch) ? 'يورو' : /ريال/.test(curMatch) ? 'ريال' : /درهم/.test(curMatch) ? 'درهم' : 'جنيه';
-    hits.push({ kind: 'amount', value: `${fmtNumber(n)} ${cur}`, pos: m.index ?? 0, len: m[0].length, fromWords: false });
-    amountSpans.push([m.index ?? 0, (m.index ?? 0) + m[0].length]);
+    hits.push({ kind: 'amount', value: `${fmtNumber(n)} ${cur}`, pos: m.index ?? 0, len: spanEnd - (m.index ?? 0), fromWords: false });
+    amountSpans.push([m.index ?? 0, spanEnd]);
   }
   // مبالغ بالحروف فقط: "مبلغ ... خمسون ألف جنيه"
   const currencyOnly = new RegExp(`(${CURRENCY})`, 'gu');
@@ -140,6 +198,35 @@ function scan(rawText: string): Hit[] {
     const n = Number(m[1].replace(',', '.'));
     if (!Number.isFinite(n) || n <= 0 || n > 1000) continue;
     hits.push({ kind: 'percent', value: `${fmtNumber(n)}%`, pos: m.index ?? 0, len: m[0].length, fromWords: false });
+  }
+
+  // نسب مشكوك فيها بسبب المسح الضوئى: الرمز % يُقرأ أحياناً «96» («15 96 سنويا» أو «قيمتها 9640»). لا نُسقط الشرط
+  // ولا نعتمده بصمت: يُعرض بالقيمة المرجَّحة مع تنبيه صريح، والاقتباس حرفى فيرى القارئ ما فى النص المقروء.
+  const ocrPct1 = /(?<![\d.,/])(\d{1,3})\s+96(?![\d%٪])(?=\s*(?:سنوي|شهري|اسبوعي|أسبوعي|من\s|عن\s|تسدد|تدفع|يدفع|عند|مقابل|بحد))/gu;
+  for (const m of text.matchAll(ocrPct1)) {
+    const n = Number(m[1]);
+    if (n < 1 || n > 100) continue;
+    hits.push({
+      kind: 'percent',
+      value: `${fmtNumber(n)}%`,
+      pos: m.index ?? 0,
+      len: m[0].length,
+      fromWords: false,
+      suspect: `النص المقروء «${m[1]} 96»؛ يُرجَّح أن الرمز % قُرئ آلياً «96» — طابق الأصل`,
+    });
+  }
+  const ocrPct2 = /(?<![\d.,/])(?:قيمتها|قيمتهما|نسبتها|بنسبة|وقدرها|وقدره|بواقع|نسبة)\s*96(\d{2})(?![\d%٪])(?!\s*(?:ج\.?م|جنيه|دولار|يورو|ريال|درهم))/gu;
+  for (const m of text.matchAll(ocrPct2)) {
+    const n = Number(m[1]);
+    if (n < 1 || n > 99) continue;
+    hits.push({
+      kind: 'percent',
+      value: `${fmtNumber(n)}%`,
+      pos: m.index ?? 0,
+      len: m[0].length,
+      fromWords: false,
+      suspect: `النص المقروء «96${m[1]}»؛ يُرجَّح أن الرمز % قُرئ آلياً «96» — طابق الأصل`,
+    });
   }
 
   // مدد بالأرقام: 30 يوماً / 12 (اثنا عشر) شهراً
@@ -199,6 +286,7 @@ export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
         clauseTitle: c.clauseTitle,
         quote,
         fromWords: h.fromWords,
+        ...(h.suspect ? { suspect: h.suspect } : {}),
       });
       if (out.length >= MAX_TERMS) return out;
     }

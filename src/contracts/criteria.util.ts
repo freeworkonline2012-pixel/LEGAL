@@ -246,11 +246,9 @@ const LEASE_TOPICS: ReadonlyArray<{ pattern: RegExp; articles: number[] }> = [
   { pattern: /نقل الملكيه|يحل محل|خلف/, articles: [604] },
 ];
 
-export function leaseAnchorArticleNumbers(title: string | null | undefined, text: string, max = 3): number[] {
-  const haystack = normalizeArabicForMatch(`${title ?? ''} ${text ?? ''}`);
-  if (!matchesLoose(LEASE_CONTEXT, haystack)) return [];
+/** توزيع دورى للمواد بين المواضيع المطابقة (الأول من كل موضوع، ثم الثانى…) حتى الحد الأقصى. */
+function roundRobinArticles(lists: number[][], max: number): number[] {
   const out: number[] = [];
-  const lists = LEASE_TOPICS.filter((t) => matchesLoose(t.pattern, haystack)).map((t) => [...t.articles]);
   let progressed = true;
   while (out.length < max && progressed) {
     progressed = false;
@@ -263,4 +261,43 @@ export function leaseAnchorArticleNumbers(title: string | null | undefined, text
     }
   }
   return out;
+}
+
+export function leaseAnchorArticleNumbers(title: string | null | undefined, text: string, max = 3): number[] {
+  const haystack = normalizeArabicForMatch(`${title ?? ''} ${text ?? ''}`);
+  if (!matchesLoose(LEASE_CONTEXT, haystack)) return [];
+  return roundRobinArticles(
+    LEASE_TOPICS.filter((t) => matchesLoose(t.pattern, haystack)).map((t) => [...t.articles]),
+    max,
+  );
+}
+
+/**
+ * بنود عقود الخدمات والمقاولة والتوريد والتطوير: مواد عقد المقاولة من القانون المدنى (646-667) بحسب موضوع البند.
+ * نصها الحرفى متحقَّق منه من migrations/074 (648-650 جودة المادة وطريقة التنفيذ، 651-654 ضمان المبانى، 655 تسلم العمل،
+ * 656 وقت استحقاق الأجر، 657-659 تقدير الأجر والزيادة، 661-662 المقاول من الباطن، 663 تحلل رب العمل، 664-665 الاستحالة
+ * والهلاك). تُفعَّل فقط حين يظهر من البند نفسه أنه بند خدمات/مقاولة، وتُستبعد بنود الإيجار والبيع والعمل.
+ */
+const SERVICES_CONTEXT =
+  /مقاول|رب العمل|مقدم الخدمه|تنفيذ (?:العمل|المشروع|الاعمال|الخدمات)|الخدمات المتفق|اعمال التطوير|تطوير|برمج|برنامج|منصه|تطبيق|المشروع|اتمام العمل|تسليم (?:العمل|المشروع|الاعمال)/;
+const SERVICES_EXCLUDE = /مؤجر|مستاجر|ايجار|العين المؤجره|بائع|مشتري|المبيع|صاحب العمل|العامل|الراتب|اجر شهري/;
+
+const SERVICES_TOPICS: ReadonlyArray<{ pattern: RegExp; articles: number[] }> = [
+  { pattern: /تسليم|تسلم|استلام|قبول|محضر/, articles: [655, 650] },
+  { pattern: /الاجر|المقابل|الدفعه|دفعات|سداد|يسدد|مستخلص|قيمه العقد|الاتعاب|رسوم/, articles: [656, 659, 658] },
+  { pattern: /اجر اجمالي|مقطوع|زياده|اعمال اضافيه|اعمال جديده|تعديل|مجاوزه/, articles: [658, 657] },
+  { pattern: /من الباطن|التعاقد مع الغير|التنازل عن العقد|الاسناد/, articles: [661, 662] },
+  { pattern: /انهاء|فسخ|وقف التنفيذ|وقف العمل|الغاء/, articles: [663, 664] },
+  { pattern: /مواد|جوده|مطابق|مواصفات|معيب|عيوب|اصول الفن/, articles: [648, 650, 649] },
+  { pattern: /مبان|منشات|تهدم|انشاءات|عماره|اعمال بناء/, articles: [651, 653, 654] },
+  { pattern: /استحاله|هلاك|حادث مفاجئ|قوه قهريه/, articles: [664, 665] },
+];
+
+export function servicesAnchorArticleNumbers(title: string | null | undefined, text: string, max = 3): number[] {
+  const haystack = normalizeArabicForMatch(`${title ?? ''} ${text ?? ''}`);
+  if (!matchesLoose(SERVICES_CONTEXT, haystack) || matchesLoose(SERVICES_EXCLUDE, haystack)) return [];
+  return roundRobinArticles(
+    SERVICES_TOPICS.filter((t) => matchesLoose(t.pattern, haystack)).map((t) => [...t.articles]),
+    max,
+  );
 }

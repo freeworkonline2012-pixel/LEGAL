@@ -2,6 +2,7 @@ import {
   anchorArticleNumbers,
   classifyClauseCriteria,
   leaseAnchorArticleNumbers,
+  servicesAnchorArticleNumbers,
   scopedLawsForClause,
   scopedLawsForCriteria,
   serializeCriteria,
@@ -128,5 +129,33 @@ describe('scopedLawsForClause (الجولة 5: التحكيم والملكية �
   it('المرشَّح يحمل كلمات موضوعية للبحث', () => {
     const r = scopedLawsForClause([], null, 'اتفق الطرفان على التحكيم');
     expect(r[0].seed).toContain('التحكيم');
+  });
+});
+
+describe('servicesAnchorArticleNumbers (الجولة 30)', () => {
+  it('بند تسليم وقبول فى عقد تطوير يجلب مادة تسلم العمل', () => {
+    const r = servicesAnchorArticleNumbers('التسليم', 'يلتزم الطرف الأول بتسليم المشروع وفق مراحل التطوير ويقبل الطرف الثانى العمل بمحضر استلام.');
+    expect(r).toContain(655);
+  });
+  it('بند الأجر والدفعات يجلب 656 و659', () => {
+    const r = servicesAnchorArticleNumbers(null, 'يسدد رب العمل الأجر على دفعات حسب مراحل تنفيذ العمل.', 3);
+    expect(r).toEqual(expect.arrayContaining([656]));
+  });
+  it('إنهاء العقد من رب العمل يجلب 663', () => {
+    expect(servicesAnchorArticleNumbers(null, 'لرب العمل إنهاء العقد ووقف تنفيذ العمل فى أى وقت.')).toContain(663);
+  });
+  it('المقاول من الباطن يجلب 661', () => {
+    expect(servicesAnchorArticleNumbers(null, 'لا يجوز للمقاول التعاقد من الباطن لتنفيذ العمل دون موافقة رب العمل.')).toContain(661);
+  });
+  it('لا مواد مقاولة لبنود الإيجار أو البيع أو العمل', () => {
+    expect(servicesAnchorArticleNumbers(null, 'يلتزم المستأجر بسداد الأجرة وتسليم العين المؤجرة عند انتهاء مدة المشروع.')).toEqual([]);
+    expect(servicesAnchorArticleNumbers(null, 'يلتزم البائع بتسليم المبيع وسداد المشتري للثمن.')).toEqual([]);
+    expect(servicesAnchorArticleNumbers(null, 'يلتزم العامل بتنفيذ العمل مقابل الراتب.')).toEqual([]);
+  });
+  it('بند لا صلة له بالخدمات لا يجلب شيئاً، ويحترم الحد الأقصى', () => {
+    expect(servicesAnchorArticleNumbers(null, 'يقر الطرفان بصحة العناوين الواردة بصدر العقد.')).toEqual([]);
+    expect(
+      servicesAnchorArticleNumbers(null, 'يسلم المقاول العمل ويسدد رب العمل الأجر ويجوز إنهاء العقد ومن الباطن واستحالة المواصفات.', 3).length,
+    ).toBeLessThanOrEqual(3);
   });
 });

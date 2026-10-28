@@ -327,6 +327,16 @@ describe('الجولة 6: الملخص التنفيذى وسجل المخاطر 
     expect(JSON.stringify(unconfirmed.blocks)).toContain('(غير مؤكدة)');
   });
 
+  it('الجولة 30: الملاحظة غير المؤكدة لا تتصدر «أهم ما يستوجب الانتباه» لكنها تبقى فى سجل المخاطر مع تنبيه', () => {
+    const unconf = finding({ title: 'ملاحظة اعترض عليها المدقق', verification: { status: 'unconfirmed', reason: 'لا تعارض' } });
+    const { report: r } = buildContractAuditReport({ ...INPUT, contractFindings: [unconf], contractFindingsModel: 'ok' });
+    const top = gridBy(r, 'الملاحظة')!;
+    expect(JSON.stringify(top.rows)).not.toContain('ملاحظة اعترض عليها المدقق');
+    expect(JSON.stringify(r.blocks)).toContain('لم تُدرج هنا 1 ملاحظة غير مؤكدة');
+    const matrix = gridBy(r, 'وصف المخاطرة')!;
+    expect(JSON.stringify(matrix.rows)).toContain('ملاحظة اعترض عليها المدقق');
+  });
+
   it('سجل المخاطر يضم ملاحظات العقد ككل بمعرّفات ع1، ع2 وبالموضع، ويتّسق ترقيمها فى قسمها', () => {
     const { report: r } = buildContractAuditReport({
       ...INPUT,
