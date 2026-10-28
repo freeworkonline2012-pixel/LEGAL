@@ -39,6 +39,20 @@ export function normalizeArabicForMatch(text: string): string {
     .trim();
 }
 
+/**
+ * نص بلا «ال» التعريف وحروف الجر الملتصقة بها (و/ف/ب/ك/ل + ال) فى أول كل كلمة، لتُطابق الأنماط الصياغات المعرَّفة:
+ * «القوة القاهرة» و«الشرط الجزائى» و«الملكية الفكرية» و«تختص المحاكم». (اختبار حى: بند القوة القاهرة نفسه كان يُعلَن «غير مرصود»
+ * لأن النمط «قوه قاهره» لا يطابق «القوه القاهره».) تُجرَّب الأنماط على النص كما هو وعلى هذا النص معاً.
+ */
+export function stripDefiniteArticle(normalized: string): string {
+  return normalized.replace(/(^| )(?:[وفبكل])?ال(?=[ء-ي]{2})/g, '$1');
+}
+
+/** النمط على النص الموحَّد كما هو وعلى نسخته بلا «ال» التعريف. */
+export function matchesLoose(re: RegExp, normalized: string): boolean {
+  return re.test(normalized) || re.test(stripDefiniteArticle(normalized));
+}
+
 const MIN_QUOTE_LENGTH = 10;
 
 /** هل العبارة المستشهَد بها موجودة حرفياً (بعد التوحيد) فى أحد نصوص المواد المعتمَدة؟ */

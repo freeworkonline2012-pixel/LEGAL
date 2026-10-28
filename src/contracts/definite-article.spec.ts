@@ -68,3 +68,19 @@ describe('الصياغات المعرَّفة بـ«ال» فى الدليل ا�
     expect(rowStatus('تظل الملكية الفكرية للبرامج للطرف الأول.', /الملكية/)).not.toBe('missing');
   });
 });
+
+import { CHECKS } from './contract-level';
+import { CRITERIA } from './criteria.util';
+
+describe('حارس الأنماط: لا حرف لا يمكن أن يظهر فى النص الموحَّد', () => {
+  // النص الموحَّد بلا همزات ألف/تاء مربوطة/ألف مقصورة؛ نمط يحويها لا يطابق شيئاً أبداً.
+  const IMPOSSIBLE = /[أإآةى]/;
+  it('أنماط البنود غير المرصودة', () => {
+    const bad = CHECKS.flatMap((c) => c.patterns.filter((p) => IMPOSSIBLE.test(p.source)).map((p) => `${c.id}: ${p.source.match(/\S*[أإآةى]\S*/)?.[0]}`));
+    expect(bad).toEqual([]);
+  });
+  it('أنماط معايير التصنيف', () => {
+    const bad = CRITERIA.flatMap((c) => c.triggers.filter((p) => IMPOSSIBLE.test(p.source)).map((p) => `${c.key}: ${p.source.match(/\S*[أإآةى]\S*/)?.[0]}`));
+    expect(bad).toEqual([]);
+  });
+});

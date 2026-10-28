@@ -1,6 +1,8 @@
 import { quoteInText } from './clause-facts';
 import type { Verification } from './verification';
-import { normalizeArabicForMatch } from './reasoning.util';
+import { normalizeArabicForMatch, stripDefiniteArticle } from './reasoning.util';
+
+export { stripDefiniteArticle };
 
 /**
  * تحليل العقد ككل (الجولة 3): ما لا يظهر عند قراءة كل بند وحده — البنود الناقصة، المصطلحات المُحال إليها دون تعريف، الشروط المفتوحة،
@@ -136,7 +138,7 @@ interface MissingCheck {
   suggestion: string;
 }
 
-const CHECKS: MissingCheck[] = [
+export const CHECKS: MissingCheck[] = [
   {
     id: 'duration',
     label: 'مدة العقد وبدايته ونهايته',
@@ -325,7 +327,7 @@ const CHECKS: MissingCheck[] = [
     id: 'finance_return',
     label: 'العائد أو الفائدة وطريقة احتسابه',
     families: ['finance'],
-    patterns: [/فائده|عائد|ربح|هامش|مصروفات ادارية/],
+    patterns: [/فائده|عائد|ربح|هامش|مصروفات اداريه/],
     severity: 'عالٍ',
     why: 'عقد التمويل بلا عائد أو بلا طريقة احتساب واضحة يصعب تقدير كلفته أو الاعتراض على المطالبة به.',
     suggestion: 'نص يحدد المعدل وطريقة الاحتساب ومواعيد الاستحقاق وحدود الفوائد المتأخرة.',
@@ -334,7 +336,7 @@ const CHECKS: MissingCheck[] = [
     id: 'finance_security',
     label: 'الضمانات',
     families: ['finance'],
-    patterns: [/ضمان|رهن|كفاله|كفيل|سند اذني|شيك|كمبيالة|ضمانات/],
+    patterns: [/ضمان|رهن|كفاله|كفيل|سند اذني|شيك|كمبياله|ضمانات/],
     severity: 'عالٍ',
     why: 'نوع الضمان وأولوية الدائن ومصير الضمان عند الوفاء يلزم أن يكون واضحاً.',
     suggestion: 'نص يحدد الضمانات المقدمة وإجراءات إنشائها وفكها.',
@@ -353,7 +355,7 @@ const CHECKS: MissingCheck[] = [
     id: 'partnership_capital',
     label: 'الحصص ورأس المال',
     families: ['partnership'],
-    patterns: [/حصه|حصص|راس المال|مساهمه|رأس المال/],
+    patterns: [/حصه|حصص|راس المال|مساهمه/],
     severity: 'عالٍ',
     why: 'مقدار ما يقدمه كل شريك ونوعه وموعده يحدد الحقوق والخسارة المحتملة.',
     suggestion: 'نص يحدد حصة كل شريك وكيفية الوفاء بها.',
@@ -439,15 +441,6 @@ export function definesDuration(sentenceNorm: string): boolean {
 
 function textDefinesDuration(clauses: LevelClause[]): boolean {
   return clauses.some((c) => sentencesOf(c.clauseText).some((s) => definesDuration(norm(s))));
-}
-
-/**
- * نص بلا «ال» التعريف وحروف الجر الملتصقة بها (و/ف/ب/ك/ل + ال) فى أول كل كلمة، لتُطابق الأنماط الصياغات المعرَّفة:
- * «القوة القاهرة» و«الشرط الجزائى» و«الملكية الفكرية» و«تختص المحاكم». (اختبار حى: بند القوة القاهرة نفسه كان يُعلَن «غير مرصود»
- * لأن النمط «قوه قاهره» لا يطابق «القوه القاهره».) تُجرَّب الأنماط على النص كما هو وعلى هذا النص معاً.
- */
-export function stripDefiniteArticle(normalized: string): string {
-  return normalized.replace(/(^| )(?:[وفبكل])?ال(?=[ء-ي]{2})/g, '$1');
 }
 
 function checkMatches(check: MissingCheck, fullNorm: string, clauses: LevelClause[]): boolean {

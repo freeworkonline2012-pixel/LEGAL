@@ -1,4 +1,4 @@
-import { normalizeArabicForMatch } from './reasoning.util';
+import { matchesLoose, normalizeArabicForMatch, stripDefiniteArticle } from './reasoning.util';
 
 /**
  * معايير مراجعة العقود العشرة (مرجع المالك). تصنيف البند إليها حتمى بكلمات مفتاحية
@@ -159,12 +159,14 @@ export function criterionLabel(key: string): string | null {
  */
 export function classifyClauseCriteria(title: string | null | undefined, text: string): ContractCriterion[] {
   const haystack = normalizeArabicForMatch(`${title ?? ''} ${title ?? ''} ${text ?? ''}`);
+  // الصياغات المعرَّفة بـ«ال» («الملكية الفكرية») تُطابَق كما تُطابَق نكرتاها: يُحسب الأكثر مطابقةً من النص ونسخته بلا «ال»
+  const loose = stripDefiniteArticle(haystack);
   const scored: Array<{ key: ContractCriterion; score: number; order: number }> = [];
   CRITERIA.forEach((def, order) => {
     let score = 0;
     for (const re of def.triggers) {
-      const m = haystack.match(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g'));
-      if (m) score += m.length;
+      const g = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+      score += Math.max(haystack.match(g)?.length ?? 0, loose.match(g)?.length ?? 0);
     }
     if (score > 0) scored.push({ key: def.key, score, order });
   });
@@ -213,7 +215,7 @@ export function scopedLawsForClause(
     if (!out.some((o) => o.lawNo === s.lawNo && o.lawYear === s.lawYear)) out.push(s);
   };
   scopedLawsForCriteria(criteria).forEach(add);
-  for (const t of TOPIC_SCOPES) if (t.pattern.test(haystack)) add(t.scope);
+  for (const t of TOPIC_SCOPES) if (matchesLoose(t.pattern, haystack)) add(t.scope);
   return out;
 }
 
@@ -246,9 +248,9 @@ const LEASE_TOPICS: ReadonlyArray<{ pattern: RegExp; articles: number[] }> = [
 
 export function leaseAnchorArticleNumbers(title: string | null | undefined, text: string, max = 3): number[] {
   const haystack = normalizeArabicForMatch(`${title ?? ''} ${text ?? ''}`);
-  if (!LEASE_CONTEXT.test(haystack)) return [];
+  if (!matchesLoose(LEASE_CONTEXT, haystack)) return [];
   const out: number[] = [];
-  const lists = LEASE_TOPICS.filter((t) => t.pattern.test(haystack)).map((t) => [...t.articles]);
+  const lists = LEASE_TOPICS.filter((t) => matchesLoose(t.pattern, haystack)).map((t) => [...t.articles]);
   let progressed = true;
   while (out.length < max && progressed) {
     progressed = false;
