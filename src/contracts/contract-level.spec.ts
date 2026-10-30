@@ -5,6 +5,7 @@ import {
   checkMissingClauses,
   contractFamily,
   definesDuration,
+  inferContractFamily,
   deterministicFindings,
   mergeFindings,
   validateModelFindings,
@@ -180,5 +181,101 @@ describe('validateModelFindings', () => {
     expect(dup).toHaveLength(1);
     const merged = mergeFindings(rules, dup);
     expect(merged.filter((f) => f.kind === 'open_term')).toHaveLength(1);
+  });
+});
+
+describe('تصنيف الأنواع الإضافية (أنواع الموسوعة)', () => {
+  it.each([
+    ['عقد رهن حيازى', 'security'],
+    ['عقد رهن رسمي', 'security'],
+    ['عقد كفالة', 'security'],
+    ['عقد هبة', 'gift'],
+    ['عقد وديعة', 'deposit'],
+    ['عقد عارية استعمال', 'deposit'],
+    ['عقد صلح', 'settlement'],
+    ['مخالصة نهائية', 'settlement'],
+    ['عقد تأمين على الحياة', 'insurance'],
+    ['اتفاقية عدم إفصاح', 'nda'],
+    ['اتفاقية سرية المعلومات', 'nda'],
+    ['عقد شركة تضامن', 'partnership'],
+    ['عقد قرض', 'finance'],
+    ['عقد تأجير تمويلى', 'finance'],
+    ['عقد وكالة تجارية', 'agency'],
+    ['عقد امتياز تجارى', 'licence'],
+    ['عقد أتعاب محاماة', 'services'],
+    ['عقد مقايضة', 'sale'],
+  ])('%s ⇒ %s', (t, f) => {
+    expect(contractFamily(t)).toBe(f);
+  });
+});
+
+describe('inferContractFamily (من عنوان العقد)', () => {
+  it.each([
+    ['عقد رهن حيازى\nإنه فى يوم الأحد', 'security'],
+    ['\nعقد بيع شقة سكنية بين السيد/ أحمد والسيد/ محمود', 'sale'],
+    ['بسم الله\nاتفاقية عدم إفصاح بين شركة ألفا وشركة بيتا', 'nda'],
+    ['نموذج عقد إيجار وحدة سكنية', 'lease'],
+  ])('%j ⇒ %s', (t, f) => {
+    expect(inferContractFamily(t)).toBe(f);
+  });
+
+  it('لا عنوان واضحاً أو أسماء أطراف فقط ⇒ unknown (لا تخمين)', () => {
+    expect(inferContractFamily('')).toBe('unknown');
+    expect(inferContractFamily(null)).toBe('unknown');
+    expect(inferContractFamily('إنه فى يوم الأحد تحرر هذا العقد بين شركة ألفا للتجارة وشركة بيتا')).toBe('unknown');
+    expect(inferContractFamily('العقد\nبين شركة ألفا والسيد أحمد')).toBe('unknown');
+  });
+
+  it('نوع المستخدم الصريح مقدَّم على العنوان؛ والاستنتاج يعمل حين لا نوع', () => {
+    const gift = [
+      { clauseIndex: 1, clauseLabel: 'البند الأول', clauseTitle: null, clauseText: 'وهب الطرف الأول للطرف الثانى الشىء المبين وصفه بعد هذا وقبل الموهوب له الهبة قبولاً تاماً نافذاً.' },
+    ];
+    const withTitle = checkMissingClauses(gift, { contractType: null, titleText: 'عقد هبة منقول', textMayBeIncomplete: false });
+    expect(withTitle.some((f) => f.id === 'missing:gift_form')).toBe(false);
+    expect(withTitle.some((f) => f.id === 'missing:gift_revocation')).toBe(true);
+    const noTitle = checkMissingClauses(gift, { contractType: null, titleText: null, textMayBeIncomplete: false });
+    expect(noTitle.some((f) => f.id.startsWith('missing:gift_'))).toBe(false);
+    const stated = checkMissingClauses(gift, { contractType: 'عقد بيع', titleText: 'عقد هبة', textMayBeIncomplete: false });
+    expect(stated.some((f) => f.id.startsWith('missing:gift_'))).toBe(false);
+  });
+});
+
+describe('فحوص البنود الناقصة للأنواع الإضافية', () => {
+  const mk = (txt: string): LevelClause[] => [{ clauseIndex: 1, clauseLabel: 'البند الأول', clauseTitle: null, clauseText: txt }];
+  const filler = ' يلتزم الطرفان بتنفيذ هذا الاتفاق بحسن نية وفقاً لما تقضى به القواعد العامة وبما لا يخالف النظام العام.';
+  const ids = (fs: { id: string }[]) => fs.map((f) => f.id);
+
+  it('اتفاقية سرية بلا تعريف ولا مدة ⇒ تُعلن ناقصة، وببنودها تُرصد', () => {
+    const bare = checkMissingClauses(mk('تتعهد الأطراف بالتعاون.' + filler), { contractType: 'اتفاقية عدم إفصاح', textMayBeIncomplete: false });
+    expect(ids(bare)).toEqual(expect.arrayContaining(['missing:nda_definition', 'missing:nda_exceptions', 'missing:nda_duration', 'missing:nda_return', 'missing:nda_remedy']));
+    const full = checkMissingClauses(
+      mk(
+        'يقصد بالمعلومات السرية كل ما يفصح عنه أحد الطرفين من بيانات. لا تشمل المعلومات السرية ما أصبح متاحاً للجمهور. يستمر الالتزام بالسرية لمدة ثلاث سنوات من تاريخ انتهاء الاتفاق. يلتزم المتلقى برد جميع المعلومات أو إتلافها عند الطلب. يلتزم المخل بالتعويض عن الأضرار.' + filler,
+      ),
+      { contractType: 'اتفاقية عدم إفصاح', textMayBeIncomplete: false },
+    );
+    expect(ids(full).filter((i) => i.startsWith('missing:nda_'))).toEqual([]);
+  });
+
+  it('رهن بلا بيع ولا فك ⇒ يعلن الناقص ولا يعلن ما ورد', () => {
+    const r = checkMissingClauses(mk('رهن الطرف الأول العقار المبين حيازياً ضماناً لسداد الدين المضمون بمبلغ مائة ألف جنيه.' + filler), {
+      contractType: 'عقد رهن',
+      textMayBeIncomplete: false,
+    });
+    expect(ids(r)).toEqual(expect.arrayContaining(['missing:security_enforcement', 'missing:security_release']));
+    expect(ids(r)).not.toContain('missing:security_debt');
+  });
+
+  it('تأمين: القسط وإخطار الحادث والاستثناءات', () => {
+    const r = checkMissingClauses(mk('يؤمن الطرف الأول على المنشأة ضد الحريق والخطر المؤمن منه.' + filler), { contractType: 'عقد تأمين', textMayBeIncomplete: false });
+    expect(ids(r)).toEqual(expect.arrayContaining(['missing:insurance_premium', 'missing:insurance_claim', 'missing:insurance_exclusions']));
+    expect(ids(r)).not.toContain('missing:insurance_risk');
+  });
+
+  it('فحص قيد الترخيص لا ينطبق إلا على ترخيص العلامات', () => {
+    const noTm = checkMissingClauses(mk('يرخص المرخص برنامج حاسب آلي للمرخص له لمدة سنة.' + filler), { contractType: 'عقد ترخيص', textMayBeIncomplete: false });
+    expect(ids(noTm)).not.toContain('missing:licence_registration');
+    const tm = checkMissingClauses(mk('يرخص المرخص باستعمال العلامة التجارية المسجلة للمرخص له لمدة سنة.' + filler), { contractType: 'عقد ترخيص', textMayBeIncomplete: false });
+    expect(ids(tm)).toContain('missing:licence_registration');
   });
 });

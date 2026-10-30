@@ -241,7 +241,7 @@ export class ContractsService {
     await this.verifyClauseFlags(clauseRows, position);
 
     // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
-    const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings);
+    const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings, segmentation.preamble);
     contract.contractFindings = { ...level, parties: partyNames } as unknown as Record<string, unknown>;
 
     await this.verifyContractFindings(contract.contractFindings as unknown as ContractLevelResult | null, clauseRows);
@@ -266,6 +266,7 @@ export class ContractsService {
     clauseRows: ContractClause[],
     contractType: string | null,
     extractionWarnings: string[],
+    titleText: string | null = null,
   ): Promise<ContractLevelResult> {
     const clauses: LevelClause[] = clauseRows.map((c) => ({
       clauseIndex: c.clauseIndex,
@@ -276,7 +277,7 @@ export class ContractsService {
     const textMayBeIncomplete = extractionWarnings.some((w) => /OCR|ترقيم|بند/.test(w));
     let rules: ContractFinding[] = [];
     try {
-      rules = deterministicFindings(clauses, { contractType, textMayBeIncomplete });
+      rules = deterministicFindings(clauses, { contractType, textMayBeIncomplete, titleText });
     } catch (err) {
       this.logger.warn(`contract-level rules failed (non-fatal): ${(err as Error).message}`);
     }

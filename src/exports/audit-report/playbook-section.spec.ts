@@ -56,6 +56,23 @@ describe('قسم الدليل التفاوضى فى تقرير تدقيق الع
     expect(banners.map((b) => Number.parseInt(b, 10))).toEqual(banners.map((_, k) => k + 1));
   });
 
+  it('يظهر لأنواع الجولة 33 (شراكة وتمويل ووكالة وترخيص) باسم النوع والصفة وبمحاورها', () => {
+    const cases: Array<[string, string, string, string, number]> = [
+      ['عقد شراكة أو استثمار', 'الشريك المستثمر', 'الإدارة: ينفرد الشريك المدير بإدارة المشروع ويتخذ جميع القرارات دون الرجوع إلى المستثمر.', 'عقد شراكة أو استثمار من منظور الشريك المستثمر', 8],
+      ['عقد تمويل أو قرض', 'المقترض (المدين)', 'الفائدة: يسدد المقترض فائدة سنوية قدرها 18 % من رصيد القرض.', 'عقد تمويل أو قرض من منظور المقترض (المدين)', 6],
+      ['عقد وكالة أو سمسرة أو تسويق', 'الوكيل أو السمسار', 'العمولة: للموكل خصم أى مبالغ من العمولة المستحقة للوكيل.', 'عقد وكالة أو سمسرة أو تسويق من منظور الوكيل أو السمسار', 6],
+      ['عقد ترخيص أو امتياز تجارى', 'المرخَّص له', 'المقابل: يسدد المرخص له رسوم دخول غير قابلة للاسترداد.', 'عقد ترخيص أو امتياز تجارى من منظور المرخَّص له', 7],
+    ];
+    for (const [type, role, text, heading, rows] of cases) {
+      const { report } = buildContractAuditReport(base({ contractType: type, clientRole: role, clauses: [clause(1, text)] }));
+      const banners = bannerTexts(report.blocks);
+      expect(banners.some((b) => b.endsWith(`الدليل التفاوضى — ${heading}`))).toBe(true);
+      const grid = of(report.blocks, 'grid').find((g) => g.columns[0] === 'المحور')!;
+      expect(grid.rows).toHaveLength(rows);
+      expect(grid.rows.some((r) => r[1].tone === 'critical')).toBe(true);
+    }
+  });
+
   it('الجدول: صف لكل محور، الاقتباس حرفى بين «»، وموقف بثلاث درجات، والحالات بنغماتها', () => {
     const { report } = buildContractAuditReport(base());
     const grid = of(report.blocks, 'grid').find((g) => g.columns[0] === 'المحور')!;
@@ -101,7 +118,7 @@ describe('قسم الدليل التفاوضى فى تقرير تدقيق الع
 
   it('لا يظهر لنوع غير مدعوم أو بلا نوع أو بلا بنود', () => {
     for (const over of [
-      { contractType: 'عقد شراكة أو استثمار', clientRole: 'الشريك المستثمر' },
+      { contractType: 'عقد رهن', clientRole: 'الراهن' },
       { contractType: null, clientRole: null },
       { clauses: [] },
     ] as Array<Partial<AuditReportInput>>) {
@@ -112,7 +129,7 @@ describe('قسم الدليل التفاوضى فى تقرير تدقيق الع
 
   it('عرض فقط: لا يغيّر مستوى المخاطرة العام ولا عدد البنود ولا الغلاف', () => {
     const withPb = buildContractAuditReport(base()).report;
-    const without = buildContractAuditReport(base({ contractType: 'عقد شراكة أو استثمار', clientRole: 'الشريك المستثمر' })).report;
+    const without = buildContractAuditReport(base({ contractType: 'عقد رهن', clientRole: 'الراهن' })).report;
     const level = (r: typeof withPb) => r.cover.rows.find((x) => x.label === 'مستوى المخاطرة العام');
     expect(level(withPb)).toEqual(level(without));
   });

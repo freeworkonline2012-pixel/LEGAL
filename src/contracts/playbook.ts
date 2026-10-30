@@ -29,6 +29,10 @@ const FAMILY_LABEL: Record<PlaybookFamily, string> = {
   sale: 'عقد بيع',
   services: 'عقد خدمات أو مقاولة أو توريد',
   employment: 'عقد عمل',
+  partnership: 'عقد شراكة أو استثمار',
+  finance: 'عقد تمويل أو قرض',
+  agency: 'عقد وكالة أو سمسرة أو تسويق',
+  licence: 'عقد ترخيص أو امتياز تجارى',
 };
 
 const SIDE_LABEL: Record<PlaybookFamily, Record<PlaybookSide, string>> = {
@@ -36,6 +40,10 @@ const SIDE_LABEL: Record<PlaybookFamily, Record<PlaybookSide, string>> = {
   sale: { a: 'البائع', b: 'المشترى' },
   services: { a: 'مقدم الخدمة (المقاول / المورد)', b: 'طالب الخدمة (العميل)' },
   employment: { a: 'صاحب العمل', b: 'العامل' },
+  partnership: { a: 'الشريك المستثمر', b: 'الشريك المدير أو صاحب المشروع' },
+  finance: { a: 'الممول (الدائن)', b: 'المقترض (المدين)' },
+  agency: { a: 'الموكِّل (صاحب المنتج أو الخدمة)', b: 'الوكيل أو السمسار' },
+  licence: { a: 'مانح الترخيص', b: 'المرخَّص له' },
 };
 
 export interface PlaybookEvidence {
@@ -89,10 +97,22 @@ export interface PlaybookInput {
   clauses: LevelClause[];
 }
 
-/** الأنواع المدعومة فقط؛ غيرها (شراكة، تمويل، وكالة، ترخيص، غير محدد) لا دليل لها بعد. */
+/** الأنواع التى لها دليل تفاوضى (ثمانية)؛ غيرها (رهن، هبة، وديعة، صلح، تأمين، سرية، غير محدد) لها فحوص بنود ناقصة فقط. */
 export function playbookFamily(contractType: string | null | undefined): PlaybookFamily | null {
   const f = contractFamily(contractType);
-  return f === 'lease' || f === 'sale' || f === 'services' || f === 'employment' ? f : null;
+  switch (f) {
+    case 'lease':
+    case 'sale':
+    case 'services':
+    case 'employment':
+    case 'partnership':
+    case 'finance':
+    case 'agency':
+    case 'licence':
+      return f;
+    default:
+      return null;
+  }
 }
 
 /** صفة العميل → الطرف a/b بالنص المطابق للأدوار المعروضة فى الاستيضاح؛ نص حر لا يُفهم = null (دليل محايد). */
@@ -110,6 +130,20 @@ export function playbookSide(family: PlaybookFamily, clientRole: string | null |
       return null;
     case 'employment':
       return /^(?:عامل|موظف)/.test(r) ? 'b' : /^(?:صاحب العمل|رب العمل|منشاه|شركه|مؤسسه)/.test(r) ? 'a' : null;
+    case 'partnership':
+      // الشريك المستثمر (الممول بالمال) = a؛ الشريك المدير أو صاحب المشروع = b. «الشريك» وحدها لا تحدد الصفة.
+      if (/^(?:شريك (?:ال)?)?(?:مستثمر|ممول|صامت|موصي)/.test(r)) return 'a';
+      return /^(?:شريك (?:ال)?)?(?:مدير|عامل|متضامن|منفذ|مؤسس)|^صاحب (?:ال)?مشروع/.test(r) ? 'b' : null;
+    case 'finance':
+      if (/^(?:مقترض|مدين|متمول|مستفيد)/.test(r)) return 'b';
+      return /^(?:ممول|دائن|مقرض|بنك|مصرف|شركه تمويل|مؤسسه تمويل)/.test(r) ? 'a' : null;
+    case 'agency':
+      if (/^(?:وكيل|سمسار|مسوق|موزع|وسيط)/.test(r)) return 'b';
+      return /^(?:موكل|صاحب (?:ال)?(?:منتج|خدمه)|منتج)/.test(r) ? 'a' : null;
+    case 'licence':
+      // «المرخص له» قبل «المانح/المرخِّص» حتى لا يلتبس اللفظان.
+      if (/^(?:مرخص له|حامل (?:ال)?ترخيص|صاحب (?:ال)?امتياز|ممنوح له)/.test(r)) return 'b';
+      return /^(?:مانح|مرخص|مالك|صاحب (?:ال)?علامه)/.test(r) ? 'a' : null;
   }
 }
 
@@ -179,7 +213,7 @@ function flagHit(prepared: PreparedClause[], flag: PlaybookFlag, ctx: PlaybookCt
     if (flag.pattern && !reHit(flag.pattern, s.norm)) return false;
     if (flag.test && !flag.test(s.norm, s.raw, p.clauseNorm, ctx)) return false;
     if (!flag.pattern && !flag.test) return false;
-    if (flag.unless && flag.unless.test(p.clauseNorm)) return false;
+    if (flag.unless && reHit(flag.unless, p.clauseNorm)) return false;
     return true;
   });
 }

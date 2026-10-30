@@ -1,3 +1,4 @@
+import { COMMERCIAL_TOPICS } from './playbook-data-commercial';
 import { daysIn, hoursIn, percentsIn } from './playbook-util';
 
 /**
@@ -10,8 +11,8 @@ import { daysIn, hoursIn, percentsIn } from './playbook-util';
  *  - أنماط المطابقة مكتوبة على النص الموحَّد (بلا همزة ولا تاء مربوطة ولا ألف مقصورة)؛ يحرس ذلك اختبار.
  */
 
-export type PlaybookFamily = 'lease' | 'sale' | 'services' | 'employment';
-/** a = الطرف الذى يقدم الأداء الرئيسى (مؤجر/بائع/مقدم خدمة/صاحب عمل)، b = المقابل (مستأجر/مشترٍ/عميل/عامل) */
+export type PlaybookFamily = 'lease' | 'sale' | 'services' | 'employment' | 'partnership' | 'finance' | 'agency' | 'licence';
+/** a = الطرف الذى يقدم الأداء الرئيسى (مؤجر/بائع/مقدم خدمة/صاحب عمل/مستثمر/ممول/موكِّل/مانح ترخيص)، b = المقابل (مستأجر/مشترٍ/عميل/عامل/مدير/مقترض/وكيل/مرخَّص له) */
 export type PlaybookSide = 'a' | 'b';
 
 export interface Stance {
@@ -76,7 +77,7 @@ const AUTO_RESCISSION: PlaybookFlag = {
   note: 'فسخ تلقائى دون حكم أو إعذار: جائز بالاتفاق (المادة 158) لكنه يلزم التحقق ممن يسرى عليه وهل تُشترط مهلة تدارك.',
 };
 
-export const PLAYBOOK_TOPICS: PlaybookTopic[] = [
+const CORE_TOPICS: PlaybookTopic[] = [
   // ======================= الإيجار =======================
   {
     id: 'lease_rent',
@@ -1235,3 +1236,5 @@ export const PLAYBOOK_TOPICS: PlaybookTopic[] = [
     ],
   },
 ];
+
+export const PLAYBOOK_TOPICS: PlaybookTopic[] = [...CORE_TOPICS, ...COMMERCIAL_TOPICS];
