@@ -3,6 +3,7 @@ import { contractFamily, sentencesOf, stripDefiniteArticle, type LevelClause } f
 import {
   LAW_NAME,
   PLAYBOOK_TOPICS,
+  type PlaybookCtx,
   type PlaybookFamily,
   type PlaybookFlag,
   type PlaybookSide,
@@ -83,6 +84,8 @@ export interface PlaybookResult {
 export interface PlaybookInput {
   contractType: string | null;
   clientRole: string | null;
+  /** أى الطرفين فى نص العقد هو العميل إن حُدِّد (يُستعمل لتحديد من هو مقدم الخدمة بالترتيب). */
+  clientParty?: 'first' | 'second' | null;
   clauses: LevelClause[];
 }
 
@@ -108,6 +111,13 @@ export function playbookSide(family: PlaybookFamily, clientRole: string | null |
     case 'employment':
       return /^(?:عامل|موظف)/.test(r) ? 'b' : /^(?:صاحب العمل|رب العمل|منشاه|شركه|مؤسسه)/.test(r) ? 'a' : null;
   }
+}
+
+/** مقدم الخدمة بالترتيب: العميل هو الجانب b فى الخدمات؛ فمقدم الخدمة هو الطرف المقابل لترتيب العميل (وعند كون العميل هو المقدم نفسه فهو ترتيبه). */
+export function playbookCtx(family: PlaybookFamily, side: PlaybookSide | null, clientParty: 'first' | 'second' | null): PlaybookCtx {
+  if (family !== 'services' || !side || !clientParty) return { providerOrdinal: null };
+  const other = clientParty === 'first' ? 'second' : 'first';
+  return { providerOrdinal: side === 'b' ? other : clientParty };
 }
 
 const MAX_QUOTE = 300;
@@ -164,10 +174,10 @@ function firstEvidence(
   return fallback;
 }
 
-function flagHit(prepared: PreparedClause[], flag: PlaybookFlag): PlaybookEvidence | null {
+function flagHit(prepared: PreparedClause[], flag: PlaybookFlag, ctx: PlaybookCtx): PlaybookEvidence | null {
   return firstEvidence(prepared, (s, p) => {
     if (flag.pattern && !reHit(flag.pattern, s.norm)) return false;
-    if (flag.test && !flag.test(s.norm, s.raw, p.clauseNorm)) return false;
+    if (flag.test && !flag.test(s.norm, s.raw, p.clauseNorm, ctx)) return false;
     if (!flag.pattern && !flag.test) return false;
     if (flag.unless && flag.unless.test(p.clauseNorm)) return false;
     return true;
@@ -178,12 +188,12 @@ function sideName(family: PlaybookFamily, against: PlaybookSide | 'both'): strin
   return against === 'both' ? 'الطرفين' : SIDE_LABEL[family][against];
 }
 
-function buildRow(topic: PlaybookTopic, family: PlaybookFamily, side: PlaybookSide | null, prepared: PreparedClause[], fullNorm: string): PlaybookRow {
+function buildRow(topic: PlaybookTopic, family: PlaybookFamily, side: PlaybookSide | null, prepared: PreparedClause[], fullNorm: string, ctx: PlaybookCtx): PlaybookRow {
   const evidence = firstEvidence(prepared, (s) => reHit(topic.detect, s.norm), topic.detect);
   const concerns: PlaybookConcern[] = [];
   for (const f of topic.flags) {
     if (side && f.against !== 'both' && f.against !== side) continue;
-    const ev = flagHit(prepared, f);
+    const ev = flagHit(prepared, f, ctx);
     if (ev) concerns.push({ ...ev, flagId: f.id, note: f.note, against: f.against, againstLabel: sideName(family, f.against) });
   }
   const status: PlaybookStatus = concerns.length > 0 ? 'concern' : evidence ? 'found' : 'missing';
@@ -210,7 +220,8 @@ export function buildPlaybook(input: PlaybookInput): PlaybookResult | null {
   const side = playbookSide(family, input.clientRole);
   const prepared = prepare(input.clauses);
   const fullNorm = prepared.map((p) => p.clauseNorm).join(' ');
-  const rows = PLAYBOOK_TOPICS.filter((t) => t.families.includes(family)).map((t) => buildRow(t, family, side, prepared, fullNorm));
+  const ctx = playbookCtx(family, side, input.clientParty ?? null);
+  const rows = PLAYBOOK_TOPICS.filter((t) => t.families.includes(family)).map((t) => buildRow(t, family, side, prepared, fullNorm, ctx));
   return {
     version: 1,
     family,

@@ -2,7 +2,8 @@ import { createHash } from 'crypto';
 import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortReference } from '../document-model';
 import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
 import { extractKeyTerms, KEY_TERM_KIND_LABEL } from '../../contracts/key-terms';
-import { buildPlaybook } from '../../contracts/playbook';
+import { buildPlaybook, type PlaybookResult } from '../../contracts/playbook';
+import { ACTION_TIMELINE, extraActions, PRIORITY_RANK, type ActionPriority } from './recommendations';
 import { playbookBlocks } from './playbook-section';
 import { type AuditReport, type Cell, type RBlock, type Tone } from './model';
 
@@ -595,8 +596,8 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   }
 
   // ---------- الدليل التفاوضى (الجولة 7) ----------
+  const playbook: PlaybookResult | null = buildPlaybook({ contractType: input.contractType, clientRole: input.clientRole, clientParty: input.clientParty ?? null, clauses: baseClauses });
   {
-    const playbook = buildPlaybook({ contractType: input.contractType, clientRole: input.clientRole, clauses: baseClauses });
     if (playbook) {
       banner(`الدليل التفاوضى — ${playbook.familyLabel}${playbook.sideLabel ? ` من منظور ${playbook.sideLabel}` : ''}`);
       blocks.push(...playbookBlocks(playbook));
@@ -630,7 +631,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
           blocks.push({ t: 'note', label: 'تنبيه قراءة آلية:', text: OCR_NOISE_NOTE(findOcrNoiseTokens(r.c.clauseText)) });
         }
         if (r.redraft.changes.length > 0) {
-          blocks.push({ t: 'commentary', text: `⚖ التعليق القانونى: ${r.redraft.changes.join(' ')}` });
+          blocks.push({ t: 'commentary', text: `التعليق القانونى:${r.redraft.changes.join(' ')}` });
         }
       } else if (r.redraft) {
         blocks.push({ t: 'p', text: `لا يلزم تعديل هذا البند.${r.redraft.note ? ` ${r.redraft.note}` : ''}` });
@@ -640,23 +641,34 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
 
   // ---------- 5. التوصيات ----------
   banner('توصيات التنفيذ والجدول الزمنى للتفاوض');
-  if (totalRisky === 0) {
+  // إجراءات البنود المقيَّمة، ثم الملاحظات المؤكدة على العقد ككل، ثم محاور الدليل التفاوضى؛ مرتَّبة بالأولوية (ثابتة داخل الدرجة الواحدة)
+  const actionRows = [
+    ...risky.map((r) => ({
+      text:
+        `مراجعة ${r.c.clauseLabel}${r.c.clauseTitle ? ` (${r.c.clauseTitle})` : ''} وتعديله` + (r.redraft && !r.redraft.noChange ? ' وفق الصياغة المقترحة' : ''),
+      priority: PRIORITY[r.sev] as ActionPriority | string,
+      tone: SEVERITY_TONE[r.sev],
+      timeline: TIMELINE[r.sev],
+      note: PRIORITY_NOTE[r.sev],
+    })),
+    ...extraActions(confirmedFindings, playbook),
+  ]
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => (PRIORITY_RANK[x.a.priority as ActionPriority] ?? 2) - (PRIORITY_RANK[y.a.priority as ActionPriority] ?? 2) || x.i - y.i)
+    .map(({ a }) => a);
+  if (actionRows.length === 0) {
     blocks.push({ t: 'p', text: 'لا توجد إجراءات تعديل مطلوبة وفق النصوص المفهرسة؛ ويُنصح بمراجعة محامٍ مختص قبل التوقيع.' });
   } else {
     blocks.push({
       t: 'grid',
       columns: ['#', 'الإجراء المطلوب', 'الأولوية', 'الجدول الزمنى', 'ملاحظات'],
       widths: [6, 38, 14, 20, 22],
-      rows: risky.map((r) => [
-        { text: String(r.n), center: true },
-        {
-          text:
-            `مراجعة ${r.c.clauseLabel}${r.c.clauseTitle ? ` (${r.c.clauseTitle})` : ''} وتعديله` +
-            (r.redraft && !r.redraft.noChange ? ' وفق الصياغة المقترحة' : ''),
-        },
-        { text: PRIORITY[r.sev], tone: SEVERITY_TONE[r.sev], center: true },
-        { text: TIMELINE[r.sev], center: true },
-        { text: PRIORITY_NOTE[r.sev] },
+      rows: actionRows.map((a, i) => [
+        { text: String(i + 1), center: true },
+        { text: a.text },
+        { text: a.priority, tone: a.tone, center: true },
+        { text: a.timeline, center: true },
+        { text: a.note },
       ]),
     });
     if (counts['حرج'] > 0) {
@@ -717,18 +729,28 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   }
   lawList.forEach((l, i) => {
     blocks.push({ t: 'sub', text: `${LETTERS[i] ?? String(i + 1)}. ${l.name}`, tone: 'navy' });
-    blocks.push({
-      t: 'grid',
-      columns: ['المصدر الرسمى', 'الموضوع', 'المادة'],
-      widths: [30, 56, 14],
-      rows: [...l.articles.entries()]
-        .sort((a, b) => a[0] - b[0])
-        .map(([no, a]) => [
-          { text: hostOf(a.url), link: a.url },
-          { text: clip(a.snippet, 1500) },
-          { text: `م. ${no}`, tone: 'info' as Tone, center: true },
-        ]),
-    });
+    const sorted = [...l.articles.entries()].sort((a, b) => a[0] - b[0]);
+    // عمود المصدر الرسمى لا يُعرض إن لم يتوافر رابط لأى مادة من القانون (بدل تكرار «غير متاح» فى كل صف)
+    const anyLink = sorted.some(([, a]) => safeUrl(a.url) !== null);
+    blocks.push(
+      anyLink
+        ? {
+            t: 'grid',
+            columns: ['المصدر الرسمى', 'الموضوع', 'المادة'],
+            widths: [30, 56, 14],
+            rows: sorted.map(([no, a]) => [
+              { text: hostOf(a.url), link: a.url },
+              { text: clip(a.snippet, 1500) },
+              { text: `م. ${no}`, tone: 'info' as Tone, center: true },
+            ]),
+          }
+        : {
+            t: 'grid',
+            columns: ['الموضوع', 'المادة'],
+            widths: [86, 14],
+            rows: sorted.map(([no, a]) => [{ text: clip(a.snippet, 1500) }, { text: `م. ${no}`, tone: 'info' as Tone, center: true }]),
+          },
+    );
   });
   const restRows: Cell[][] = [
     ...soundClauses.map((c) => [{ text: 'لم يظهر اختلاف عن النصوص المفهرسة', tone: 'medium' as Tone, bold: false }, { text: clauseHeading(c) }]),

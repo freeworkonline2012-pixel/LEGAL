@@ -232,6 +232,21 @@ describe('buildContractAuditReport', () => {
     expect(appendix.rows.find((r) => r[2].text === 'م. 604')![0].link).toBe('https://www.example.gov.eg/law');
   });
 
+  it('الجولة 32: قانون بلا رابط رسمى لأى مادة ⇒ يُحذف عمود «المصدر الرسمى» بدل تكرار «غير متاح»', () => {
+    const grids = of(report.blocks, 'grid').filter((g) => g.columns.includes('المادة'));
+    expect(grids.length).toBeGreaterThan(0);
+    const noLink = buildContractAuditReport({
+      ...INPUT,
+      clauses: CLAUSES.map((c) => ({ ...c, matchedArticles: (c.matchedArticles ?? []).map((a) => ({ ...a, official_url: null })) })),
+    }).report;
+    const g = of(noLink.blocks, 'grid').filter((x) => x.columns.includes('المادة'));
+    expect(g.length).toBeGreaterThan(0);
+    for (const x of g) {
+      expect(x.columns).toEqual(['الموضوع', 'المادة']);
+      expect(JSON.stringify(x.rows)).not.toContain('غير متاح');
+    }
+  });
+
   it('بصمة التحقق حتمية: نفس البيانات نفس البصمة، وتغيّر بتغيّر المحتوى', () => {
     const digest = (r: typeof report) => of(r.blocks, 'idtable')[0].rows[1].value;
     expect(digest(report)).toMatch(/^[0-9A-F]{64}$/);
@@ -348,6 +363,16 @@ describe('الجولة 6: الملخص التنفيذى وسجل المخاطر 
     expect(tail).toEqual([['ع1', 'حرج', 'البند 2، البند 5'], ['ع2', 'متوسط', 'العقد ككل']]);
     const json = JSON.stringify(r.blocks);
     expect(json).toContain('ع1. بند يُبقى الملكية للمورد');
+  });
+
+  it('الجولة 32: التوصيات تضم الملاحظات المؤكدة على العقد ككل (بند ناقص) ولا تضم غير المؤكدة', () => {
+    const missing = finding({ kind: 'missing_clause', severity: 'متوسط', title: 'لم يُرصد بند يتناول: جزاء التأخير', suggestion: 'نص يحدد الجزاء.', evidence: [], verification: { status: 'confirmed', reason: 'ثابتة' } });
+    const unconf = finding({ kind: 'open_term', severity: 'عالٍ', title: 'شرط مفتوح: رسوم مفتوحة', evidence: [], verification: { status: 'unconfirmed', reason: 'محتملة' } });
+    const { report: r } = buildContractAuditReport({ ...base, contractFindings: [missing, unconf], contractFindingsModel: 'ok' });
+    const g = gridBy(r, 'الإجراء المطلوب')!;
+    const json = JSON.stringify(g.rows);
+    expect(json).toContain('إضافة بند يتناول: جزاء التأخير');
+    expect(json).not.toContain('رسوم مفتوحة');
   });
 
   it('عقد بلا بنود مراجعة لكن بملاحظة عقد: السجل يظهر ولا يقول إنه لا توجد مخاطر', () => {

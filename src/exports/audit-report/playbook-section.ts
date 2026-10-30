@@ -36,7 +36,7 @@ function observedText(row: PlaybookRow, sideKnown: boolean): string {
   }
   for (const c of row.concerns) {
     const who = c.against === 'both' ? ' (قد يسرى على الطرفين — تحقق لمن الحق قبل الحكم عليه)' : sideKnown ? '' : ` (يضر بـ${c.againstLabel})`;
-    parts.push(`${c.clauseLabel}: «${c.quote}»\n⚠ ${c.note}${who}`);
+    parts.push(`${c.clauseLabel}: «${c.quote}»\nتنبيه: ${c.note}${who}`);
   }
   return parts.join('\n\n');
 }

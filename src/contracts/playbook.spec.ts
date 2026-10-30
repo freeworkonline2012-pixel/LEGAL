@@ -232,6 +232,7 @@ const FLAG_CASES: FlagCase[] = [
   ['svc_termination', 'auto_rescission', 'يعتبر العقد مفسوخاً دون حاجة إلى إنذار عند الإخلال الجوهرى.', 'يجوز طلب الفسخ بعد إنذار الطرف المخل.'],
   ['svc_termination', 'convenience_no_comp', 'للعميل إنهاء العقد فى أى وقت بدون سبب ودون أى تعويض للمقاول.', 'للعميل إنهاء العقد فى أى وقت بإخطار قبل شهر مع سداد قيمة الأعمال المنفذة.'],
   ['svc_ip', 'limited_licence', 'يمنح المورد ترخيص استخدام غير حصرى للنظام.', 'تؤول ملكية النظام بالكامل للعميل بعد السداد.'],
+  ['svc_ip', 'supplier_owns_output', 'كافة حقوق الملكية الفكرية الخاصة بتلك البرامج تكون مملوكة للطرف الأول.', 'تؤول ملكية البرامج للعميل بعد السداد الكامل.'],
   ['svc_ip', 'assign_pre_existing', 'تؤول جميع حقوق الملكية الفكرية للعميل بما فى ذلك الأدوات السابقة الخاصة بمقدم الخدمة.', 'تؤول ملكية المخرجات المخصصة للعميل بعد السداد.'],
   ['svc_warranty', 'no_warranty', 'يسلم النظام كما هو عليه دون ضمان.', 'يقدم المورد ضمان 12 شهراً.'],
   ['svc_warranty', 'open_warranty', 'يقدم المقاول ضماناً مدى الحياة.', 'يقدم المقاول ضمان 12 شهراً.'],
@@ -260,7 +261,7 @@ function concernIds(topicId: string, flagId: string, text: string): string[] {
     employment: { a: 'صاحب العمل', b: 'العامل' },
   };
   const type: Record<PlaybookFamily, string> = { lease: 'عقد إيجار', sale: 'عقد بيع', services: 'عقد خدمات أو مقاولة أو توريد', employment: 'عقد عمل' };
-  const pb = buildPlaybook({ contractType: type[family], clientRole: role[family][side], clauses: [cl(text)] });
+  const pb = buildPlaybook({ contractType: type[family], clientRole: role[family][side], clientParty: side === 'b' ? 'second' : 'first', clauses: [cl(text)] });
   return pb!.rows.find((r) => r.topicId === topicId)!.concerns.map((c) => c.flagId);
 }
 
@@ -274,6 +275,32 @@ describe('أعلام الرصد (حالة موجبة وأخرى سالبة لك�
   it.each(FLAG_CASES)('%s / %s', (topicId, flagId, positive, negative) => {
     expect(concernIds(topicId, flagId, positive)).toContain(flagId);
     expect(concernIds(topicId, flagId, negative)).not.toContain(flagId);
+  });
+});
+
+describe('ملكية المخرجات لمقدم الخدمة (الترتيب لا الافتراض)', () => {
+  const owns = 'كافة حقوق الملكية الفكرية الخاصة بتلك البرامج تكون مملوكة للطرف الأول.';
+  const run = (clientParty: 'first' | 'second' | null, text = owns) =>
+    buildPlaybook({ contractType: 'عقد خدمات أو مقاولة أو توريد', clientRole: 'طالب الخدمة (صاحب العمل / العميل)', clientParty, clauses: [cl(text)] })!
+      .rows.find((r) => r.topicId === 'svc_ip')!;
+
+  it('العميل هو الطرف الثانى والملكية للأول ⇒ ضد العميل', () => {
+    const row = run('second');
+    expect(row.status).toBe('concern');
+    expect(row.concerns.map((c) => c.flagId)).toContain('supplier_owns_output');
+    expect(row.concerns[0].against).toBe('b');
+  });
+
+  it('العميل هو الطرف الأول والملكية للأول ⇒ لا يُرصد ضده', () => {
+    expect(run('first').concerns.map((c) => c.flagId)).not.toContain('supplier_owns_output');
+  });
+
+  it('ترتيب العميل غير معلوم ⇒ لا حكم بالترتيب (فاشل الأمان)', () => {
+    expect(run(null).concerns.map((c) => c.flagId)).not.toContain('supplier_owns_output');
+  });
+
+  it('النص على ترخيص دائم أو إيداع الشفرة يُسقط الرصد', () => {
+    expect(run('second', owns + ' ويمنح الطرف الأول الطرف الثانى ترخيص دائم باستخدامها.').concerns.map((c) => c.flagId)).not.toContain('supplier_owns_output');
   });
 });
 
