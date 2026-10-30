@@ -24,19 +24,22 @@ function statusText(row: PlaybookRow, sideKnown: boolean): string {
   return 'لم يُرصد';
 }
 
+/** كل سطر من كلام المنصة داخل عمود «ما رُصد فى العقد» يبدأ بهذه البادئة، فلا يُلتبس بالاقتباس الحرفى من العقد (الجولة 34). */
+export const PLATFORM_NOTE = 'ملاحظة المنصة (ليست من نص العقد):';
+
 function stanceLines(s: Stance): string {
   return `الأفضل: ${s.prefer}\nالبديل: ${s.fallback}\nالخط الأحمر: ${s.redLine}`;
 }
 
 function observedText(row: PlaybookRow, sideKnown: boolean): string {
-  if (row.status === 'missing') return `لم يُرصد نص فى العقد المرفوع. ${row.ifMissing}`;
+  if (row.status === 'missing') return `لم يُرصد نص فى العقد المرفوع.\n${PLATFORM_NOTE} ${row.ifMissing}`;
   const parts: string[] = [];
   if (row.evidence && !row.concerns.some((c) => c.quote === row.evidence?.quote)) {
     parts.push(`${row.evidence.clauseLabel}: «${row.evidence.quote}»`);
   }
   for (const c of row.concerns) {
     const who = c.against === 'both' ? ' (قد يسرى على الطرفين — تحقق لمن الحق قبل الحكم عليه)' : sideKnown ? '' : ` (يضر بـ${c.againstLabel})`;
-    parts.push(`${c.clauseLabel}: «${c.quote}»\nتنبيه: ${c.note}${who}`);
+    parts.push(`${c.clauseLabel}: «${c.quote}»\n${PLATFORM_NOTE} ${c.note}${who}`);
   }
   return parts.join('\n\n');
 }

@@ -342,14 +342,71 @@ describe('الجولة 6: الملخص التنفيذى وسجل المخاطر 
     expect(JSON.stringify(unconfirmed.blocks)).toContain('(غير مؤكدة)');
   });
 
-  it('الجولة 30: الملاحظة غير المؤكدة لا تتصدر «أهم ما يستوجب الانتباه» لكنها تبقى فى سجل المخاطر مع تنبيه', () => {
+  it('الجولة 34: الملاحظة غير المؤكدة لا تتصدر «أهم ما يستوجب الانتباه» ولا تُخلط بالمؤكدة: تُعرض فى قسم «مرشّحات» بدرجة رمادية وسبب عدم التأكيد', () => {
     const unconf = finding({ title: 'ملاحظة اعترض عليها المدقق', verification: { status: 'unconfirmed', reason: 'لا تعارض' } });
     const { report: r } = buildContractAuditReport({ ...INPUT, contractFindings: [unconf], contractFindingsModel: 'ok' });
     const top = gridBy(r, 'الملاحظة')!;
     expect(JSON.stringify(top.rows)).not.toContain('ملاحظة اعترض عليها المدقق');
     expect(JSON.stringify(r.blocks)).toContain('لم تُدرج هنا 1 ملاحظة غير مؤكدة');
     const matrix = gridBy(r, 'وصف المخاطرة')!;
-    expect(JSON.stringify(matrix.rows)).toContain('ملاحظة اعترض عليها المدقق');
+    expect(JSON.stringify(matrix.rows)).not.toContain('ملاحظة اعترض عليها المدقق');
+    expect(of(r.blocks, 'sub').map((b) => b.text)).toContain('مرشّحات للمراجعة البشرية — غير مؤكدة');
+    const cand = gridBy(r, 'سبب عدم التأكيد')!;
+    expect(cand.rows).toHaveLength(1);
+    expect(cand.rows[0][0].text).toBe('ع1');
+    expect(cand.rows[0][1].text).toContain('ملاحظة اعترض عليها المدقق');
+    expect(cand.rows[0][2]).toMatchObject({ text: 'حرج (مرشّحة)', tone: 'grey' });
+    expect(cand.rows[0][4].text).toContain('لا تعارض');
+  });
+
+  it('الجولة 34: بند غير مؤكد لا يدخل أعداد المخاطر ولا المستوى العام، ويظهر مرشّحاً بإجراء تحقق', () => {
+    const clauses = [
+      clause({ clauseIndex: 1, assessmentStatus: 'يحتاج مراجعة', riskLevel: 'حرج', assessmentReasoning: 'يخالف نصاً آمراً.', verification: { status: 'unconfirmed', reason: 'البند يعفى صراحة من الإنذار.', quote: 'دون حاجة إلى إنذار' } }),
+      clause({ clauseIndex: 2, assessmentStatus: 'يحتاج مراجعة', riskLevel: 'متوسط', assessmentReasoning: 'يلزم تحديد المدة.' }),
+    ];
+    const { report: r } = buildContractAuditReport({ ...INPUT, clauses });
+    expect(r.cover.rows.at(-1)!.tone).toBe('medium'); // المتوسط المؤكد وحده؛ الحرج غير المؤكد لا يرفع المستوى
+    const strip = of(r.blocks, 'strip')[0];
+    expect(strip.cells.map((c) => c.text)).toEqual(['1 بند متوسط', '0 بنود عالية', '0 بنود حرجة', '1 بند للمراجعة']);
+    expect(JSON.stringify(r.blocks)).toContain('ومعها مرشّحة واحدة للمراجعة البشرية');
+    const matrix = gridBy(r, 'وصف المخاطرة')!;
+    expect(matrix.rows.map((x) => x[3].text)).toEqual(['البند 2']);
+    const cand = gridBy(r, 'سبب عدم التأكيد')!;
+    expect(cand.rows[0][3].text).toBe('البند 1');
+    expect(cand.rows[0][4].text).toContain('اقتباس المدقق: «دون حاجة إلى إنذار»');
+    const actions = gridBy(r, 'الإجراء المطلوب')!;
+    const texts = actions.rows.map((x) => x[1].text);
+    expect(texts.some((t) => t.startsWith('مراجعة البند 2'))).toBe(true);
+    const cRow = actions.rows.find((x) => x[1].text.includes('التحقق البشرى من مرشّحة غير مؤكدة: البند 1'))!;
+    expect(cRow[2].text).toBe('متوسطة'); // مرشّحة حرجة الدرجة لا تضيع فى «منخفضة»
+    expect(texts.some((t) => t.startsWith('مراجعة البند 1'))).toBe(false);
+  });
+
+  it('الجولة 34: جدول الدفعات يظهر بالمبالغ المحسوبة وفحص المجموع، ونسبة OCR المشكوك فيها تُوسَم وتُقارَن بالمتبقى', () => {
+    const text = 'تبلغ قيمة العقد 1125000 جنيه مصرى. تسدد على ثلاث دفعات: الأولى 30% عند التوقيع، والثانية 30% عند التسليم، والباقى 40 96 مقابل القبول النهائى.';
+    const { report: r } = buildContractAuditReport({ ...base, clauses: [clause({ clauseIndex: 2, clauseTitle: 'المقابل', clauseText: text })] });
+    const g = gridBy(r, 'المبلغ المحسوب')!;
+    expect(g.rows.map((x) => x.map((c) => c.text))).toEqual([
+      ['الدفعة 1', '30%', '337,500 جنيه'],
+      ['الدفعة 2', '30%', '337,500 جنيه'],
+      ['الدفعة 3', '40% (؟ يلزم التحقق)', '450,000 جنيه'],
+      ['المجموع', '100%', '1,125,000 جنيه'],
+    ]);
+    const note = of(r.blocks, 'note').find((n) => n.label === 'فحص المجموع:')!;
+    expect(note.text).toContain('تساوى المتبقى');
+    expect(note.text).toContain('أكبر مبلغ ورد فى البند');
+    // ملاحظة المنصة منفصلة عن الاقتباس الحرفى فى جدول الشروط
+    const terms = gridBy(r, 'من نص العقد')!;
+    expect(terms.rows.some((x) => x[1].text === '30% — ترد 2 مرات فى النص')).toBe(true);
+    expect(terms.rows.some((x) => x[3].text.includes('\nملاحظة المنصة (ليست من نص العقد):'))).toBe(true);
+  });
+
+  it('الجولة 34: دفعات مجموعها لا يبلغ 100% تُنبَّه ولا تغيّر مستوى المخاطرة', () => {
+    const text = 'قيمة العقد 100000 جنيه. تسدد الأولى 30% عند التوقيع والثانية 30% عند التسليم.';
+    const { report: r } = buildContractAuditReport({ ...base, clauses: [clause({ clauseIndex: 1, clauseText: text })] });
+    const note = of(r.blocks, 'note').find((n) => n.label === 'فحص المجموع:')!;
+    expect(note.text).toContain('مجموع النسب 60% وليس 100%');
+    expect(r.cover.rows.at(-1)!.tone).toBe('info');
   });
 
   it('سجل المخاطر يضم ملاحظات العقد ككل بمعرّفات ع1، ع2 وبالموضع، ويتّسق ترقيمها فى قسمها', () => {
@@ -372,7 +429,9 @@ describe('الجولة 6: الملخص التنفيذى وسجل المخاطر 
     const g = gridBy(r, 'الإجراء المطلوب')!;
     const json = JSON.stringify(g.rows);
     expect(json).toContain('إضافة بند يتناول: جزاء التأخير');
-    expect(json).not.toContain('رسوم مفتوحة');
+    // غير المؤكدة لا تصير إجراء تعديل («تحديد الشرط المفتوح») بل إجراء تحقق بشرى فقط
+    expect(json).not.toContain('تحديد الشرط المفتوح');
+    expect(json).toContain('التحقق البشرى من مرشّحة غير مؤكدة: شرط مفتوح: رسوم مفتوحة');
   });
 
   it('عقد بلا بنود مراجعة لكن بملاحظة عقد: السجل يظهر ولا يقول إنه لا توجد مخاطر', () => {

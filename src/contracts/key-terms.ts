@@ -28,6 +28,8 @@ export interface KeyTerm {
   fromWords: boolean;
   /** تنبيه إن كانت القراءة الآلية مشكوكاً فيها (مثل رمز % مقروء 96)؛ تُعرض القيمة مع التنبيه ولا تُعتمد دون مطابقة الأصل */
   suspect?: string;
+  /** عدد مرات ورود الشرط نفسه فى الاقتباس نفسه (يظهر فى الجدول مرة واحدة؛ يحتاجه فحص مجموع الدفعات: 30% مرتين = دفعتان) */
+  occurrences?: number;
 }
 
 export interface KeyTermClause {
@@ -270,15 +272,18 @@ function scan(rawText: string): Hit[] {
 /** الشروط الرئيسية لكل البنود بترتيب ورودها، بلا تكرار، بحد أقصى. */
 export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
   const out: KeyTerm[] = [];
-  const seen = new Set<string>();
+  const seen = new Map<string, KeyTerm>();
   const ordered = [...clauses].sort((a, b) => a.clauseIndex - b.clauseIndex);
   for (const c of ordered) {
     for (const h of scan(c.clauseText ?? '')) {
       const quote = quoteAround(c.clauseText, h.pos, h.len);
       const key = `${c.clauseIndex}|${h.kind}|${h.value}|${quote}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({
+      const prior = seen.get(key);
+      if (prior) {
+        prior.occurrences = (prior.occurrences ?? 1) + 1;
+        continue;
+      }
+      const term: KeyTerm = {
         kind: h.kind,
         value: h.value,
         clauseIndex: c.clauseIndex,
@@ -287,7 +292,9 @@ export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
         quote,
         fromWords: h.fromWords,
         ...(h.suspect ? { suspect: h.suspect } : {}),
-      });
+      };
+      seen.set(key, term);
+      out.push(term);
       if (out.length >= MAX_TERMS) return out;
     }
   }

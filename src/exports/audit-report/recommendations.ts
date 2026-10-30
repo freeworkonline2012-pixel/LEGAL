@@ -71,6 +71,15 @@ export function playbookAction(row: PlaybookRow, sideKnown: boolean): ExtraActio
   return make(text, priority, note);
 }
 
+/**
+ * مرشّحة للمراجعة البشرية: لم يؤكدها المدقق المستقل المعاكس (اعترض أو لم يجزم). الإجراء هنا «تحقق» لا «تعديل»، وأولويته أدنى
+ * من المؤكدة (متوسطة إن كانت الدرجة المرشّحة حرجة أو عالية كى لا تضيع، وإلا منخفضة). لا تدخل فى مستوى المخاطرة العام.
+ */
+export function candidateAction(subject: string, candidateSeverity: string, reason: string): ExtraAction {
+  const priority: ActionPriority = candidateSeverity === 'حرج' || candidateSeverity === 'عالٍ' ? 'متوسطة' : 'منخفضة';
+  return make(`التحقق البشرى من مرشّحة غير مؤكدة: ${clip(subject, 110)}`, priority, `لم يؤكدها المدقق المستقل: ${clip(reason, 110)}`);
+}
+
 export function extraActions(confirmedFindings: ActionFinding[], playbook: PlaybookResult | null): ExtraAction[] {
   const out: ExtraAction[] = confirmedFindings.map(findingAction);
   if (playbook) {

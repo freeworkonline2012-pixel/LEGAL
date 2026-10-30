@@ -82,11 +82,11 @@ describe('قسم الدليل التفاوضى فى تقرير تدقيق الع
     expect(rent[1]).toMatchObject({ text: 'فيه ما يميل ضد موقفك', tone: 'critical' });
     expect(rent[2].text).toContain('«الأجرة: القيمة الإيجارية الشهرية 20000 جنيه.');
     expect(rent[2].text).toContain('بالنسبة التى يقدرها.»');
-    expect(rent[2].text).toContain('تنبيه:');
+    expect(rent[2].text).toContain('\nملاحظة المنصة (ليست من نص العقد):');
     expect(rent[3].text).toMatch(/^الأفضل: .*\nالبديل: .*\nالخط الأحمر: /s);
     const deposit = grid.rows.find((r) => r[0].text.startsWith('التأمين'))!;
     expect(deposit[1]).toMatchObject({ text: 'لم يُرصد', tone: 'high' });
-    expect(deposit[2].text).toMatch(/^لم يُرصد نص فى العقد المرفوع\./);
+    expect(deposit[2].text).toMatch(/^لم يُرصد نص فى العقد المرفوع\.\nملاحظة المنصة \(ليست من نص العقد\): /);
     const term = grid.rows.find((r) => r[0].text.startsWith('المدة'))!;
     expect(term[1]).toMatchObject({ text: 'مرصود', tone: 'medium' });
   });
