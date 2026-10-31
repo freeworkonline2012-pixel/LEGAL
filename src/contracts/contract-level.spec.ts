@@ -105,7 +105,8 @@ describe('الفحوص الحتمية على العقد الذهبى المُص�
 
   it('عقد إيجار: يطلب تسليم العين والتأمين والصيانة من عقد لا يذكرها', () => {
     const l = checkMissingClauses(clauses, { contractType: 'عقد إيجار', textMayBeIncomplete: false });
-    for (const id of ['lease_handover', 'lease_deposit', 'lease_maintenance', 'lease_use']) expect(find(l, `missing:${id}`)).toBeDefined();
+    // lease_use ليس هنا: هذا العقد (توريد) يحظر «التنازل عن العقد» وهو بعينه موضوع التنازل/التأجير من الباطن فى الإيجار
+    for (const id of ['lease_handover', 'lease_deposit', 'lease_maintenance']) expect(find(l, `missing:${id}`)).toBeDefined();
   });
 
   it('حين تُعرَّف مدة صريحة تزول الإحالة غير المعرَّفة', () => {
