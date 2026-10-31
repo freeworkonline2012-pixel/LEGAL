@@ -51,7 +51,7 @@ export const ALTERNATIVES = ORDINALS.flatMap(([num, spellings]) => spellings.map
 // (?![ء-ي]) يمنع التقاط تهجئة ناقصة كجزء من كلمة أطول. (?<pre>…) حرف شاذ واحد قبل "البند" (ختم/شخبطة
 // تقرؤها القراءة الآلية مثل "ش البند الثان,")؛ لا يُقبل إلا إن كان باقى السطر قصيراً (عنوان لا جملة إحالة).
 export const CLAUSE_RE = new RegExp(
-  `^[ \\t]*(?<pre>[^\\s\\d:.،,\\-][ \\t]+)?البند${SEP}+(?<ord>${ALTERNATIVES.join('|')})(?![\\u0621-\\u064A])\\s*[:.]?`,
+  `^[ \\t]*(?<pre>[^\\s\\d:.،,\\-][ \\t]+)?البند${SEP}*(?<ord>${ALTERNATIVES.join('|')})(?![\\u0621-\\u064A])\\s*[:.]?`,
   'gmu',
 );
 export const MAX_REST_AFTER_NOISE_PREFIX = 30;

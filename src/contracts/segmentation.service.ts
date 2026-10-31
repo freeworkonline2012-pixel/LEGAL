@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { findAlternativeHeads } from './clause-headings-alt';
 import { BARE_RE, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
 
 export interface SegmentedClause {
@@ -106,13 +107,23 @@ export class SegmentationService {
   }
 
   segment(rawText: string): SegmentationResult {
-    const text = rawText.replace(INVISIBLE_MARKS_RE, '').replace(/\r\n/g, '\n');
-    const heads = this.findHeads(text);
+    // علامات تنسيق Markdown (**عريض**، ### عنوان) تصل أحياناً حرفية فى نص العقد وتُخفى عنوان البند عن المطابقة
+    const text = rawText
+      .replace(INVISIBLE_MARKS_RE, '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\*\*/g, '')
+      .replace(/^[ \t]*#{1,6}[ \t]+/gm, '');
+    let heads = this.findHeads(text);
+    // نمط الترقيم الأصلى («البند الأول…») لم يجد بنوداً كافية: جرّب «المادة 1» و«المادة الأولى» و«1. العنوان»
+    if (heads.length < 2) {
+      const alt = findAlternativeHeads(text);
+      if (alt.length > heads.length) heads = alt;
+    }
     const warnings: string[] = [];
 
     if (heads.length === 0) {
       warnings.push(
-        'لم يُعثَر على أى بند بنمط "البند + ترتيبى" — قد يستخدم العقد نمط ترقيم مختلف (مثال: "المادة رقم")، أو تقسيماً بلا ترقيم صريح إطلاقاً. يلزم مراجعة بشرية كاملة قبل أى استخدام آلى.',
+        'لم يُعثَر على أى بند بترقيم مقروء (لا «البند الأول» ولا «المادة 1» ولا «1. العنوان») — قد يكون العقد بلا ترقيم صريح أصلاً. يلزم مراجعة بشرية كاملة قبل أى استخدام آلى.',
       );
     }
 

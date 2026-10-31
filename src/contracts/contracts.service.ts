@@ -29,7 +29,7 @@ import {
 } from './criteria.util';
 import { Contract, ContractStatus } from '../database/entities/contract.entity';
 import { ContractClause, MatchedArticle } from '../database/entities/contract-clause.entity';
-import { DocumentReaderService, looksLikeVisualOrderArabic } from '../documents/document-reader.service';
+import { DocumentReaderService, hasBrokenArabicLigatures, looksLikeVisualOrderArabic } from '../documents/document-reader.service';
 import { ExtractionService } from './extraction.service';
 import {
   dropUnapprovedArticleSentences,
@@ -162,7 +162,7 @@ export class ContractsService {
       isPdf &&
       (extraction.status === 'empty' ||
         extraction.status === 'corrupted_encoding' ||
-        (extraction.status === 'ok' && looksLikeVisualOrderArabic(extraction.text)));
+        (extraction.status === 'ok' && (looksLikeVisualOrderArabic(extraction.text) || hasBrokenArabicLigatures(extraction.text))));
     if (needsOcr) {
       try {
         const read = await this.documentReader.read(file.buffer, {

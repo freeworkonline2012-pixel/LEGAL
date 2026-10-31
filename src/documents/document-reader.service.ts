@@ -14,6 +14,19 @@ export function looksLikeVisualOrderArabic(text: string): boolean {
   return presentation / arabic > 0.25;
 }
 
+/**
+ * طبقة نص PDF فقدت حرف اللام فى «لا/لأ» (ligature) فصار «الاجتماعى» «االجتماعى» و«الأول» «األول» و«كلا» «كال» — وغالباً
+ * معها أرقام مقلوبة أو مبدّلة (وقع فى عقد حقيقى: «2025» قُرئت «0202» و«159 لسنة 1981» قُرئت «921 لسنة 9199»). النص يبدو عربياً
+ * سليماً فيمرّ كل الفحوص الأخرى ثم تُبنى عليه مبالغ وتواريخ وأرقام قوانين خاطئة. فى النص السليم لا تقع هذه التركيبة تقريباً أبداً
+ * (قيس 0.0 لكل ألف حرف على عقود Word وممسوحة سليمة مقابل 8.4 هنا)، فتكفى عتبة قليلة الحساسية. العلاج الجذرى: القراءة الآلية لصور الصفحات.
+ */
+export function hasBrokenArabicLigatures(text: string): boolean {
+  const arabic = (text.match(/[ء-ي]/g) ?? []).length;
+  if (arabic < 300) return false;
+  const hits = (text.match(/اال(?=[ء-ي])/g) ?? []).length + (text.match(/ا[أإآ]ل/g) ?? []).length;
+  return hits >= 4 && (hits * 1000) / arabic >= 2;
+}
+
 const MIME_BY_TYPE = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -78,7 +91,7 @@ export class DocumentReaderService {
         MIME_BY_TYPE[type],
         type === 'pdf' ? 'document.pdf' : 'document.docx',
       );
-      const visualOrder = extracted.status === 'ok' && looksLikeVisualOrderArabic(extracted.text);
+      const visualOrder = extracted.status === 'ok' && (looksLikeVisualOrderArabic(extracted.text) || hasBrokenArabicLigatures(extracted.text));
       if (extracted.status === 'ok' && !(type === 'pdf' && visualOrder)) {
         text = extracted.text;
       } else if (

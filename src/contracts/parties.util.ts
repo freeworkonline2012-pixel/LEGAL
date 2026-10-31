@@ -24,10 +24,21 @@ const STOP = new Set(
     'رقم', 'ورقم', 'سجل', 'والمسجلة', 'المسجلة', 'المقيدة', 'بطاقة', 'ويقيم', 'المقيم', 'والمقيم', 'بصفته', 'بصفتها', 'ويشار', 'والمشار', 'المشار',
     'ومركزها', 'ومركزه', 'وعنوانها', 'عنوانها', 'وعنوانه', 'عنوانه', 'والتي', 'التي', 'والتى', 'التى', 'الذي', 'الذى', 'والذي', 'والذى',
     'ش.م.م', 'ش.ذ.م.م', 'المحدودة', 'المحدوده', 'المساهمة', 'المساهمه', 'مساهمة', 'مساهمه', 'تأسست', 'تاسست', 'وفقا', 'وفقاً', 'طبقا', 'طبقاً', 'من', 'فى', 'في', 'ب', 'ومقيد',
-    'مصرية', 'مصريه', 'منشأة', 'منشاه', 'ومنشأة', 'ومنشاه', 'شركة', 'شركه', 'ذات', 'ثانيا', 'ثانياً', 'ثالثا', 'اولا', 'أولا', 'أولاً', 'تجارى', 'تجاري', 'سجلها', 'ومسجلة', 'ومسجله', 'ويقع', 'يقع', 'تحت',
+    'مصرية', 'مصريه', 'منشأة', 'منشاه', 'ومنشأة', 'ومنشاه', 'شركة', 'شركه', 'مسجلة', 'مسجله', 'ذات', 'ثانيا', 'ثانياً', 'ثالثا', 'اولا', 'أولا', 'أولاً', 'تجارى', 'تجاري', 'سجلها', 'ومسجلة', 'ومسجله', 'ويقع', 'يقع', 'تحت',
   ].map((w) => normalizeArabicForMatch(w)),
 );
 const GENERIC = new Set(['شركه', 'مؤسسه', 'بنك', 'مكتب', 'مجموعه', 'السيد', 'السيده', 'الاستاذ'].map((w) => normalizeArabicForMatch(w)));
+
+/** بعد عبارة الطرف مباشرة نقطتان (وقد يتوسطهما دور بين قوسين): «الطرف الأول:» «طرف أول (العميل):» */
+const LABEL_AFTER = /^\s*(?:\([^)]{0,40}\)\s*)?[:：]\s*/u;
+
+/** الاسم بعد «الطرف الأول:» — بلا اشتراط كلمة «شركة»؛ يقف عند القوس أو الفاصلة أو النقطة أو الشرطة المحاطة بمسافات. */
+function nameAfterLabel(raw: string): string | null {
+  let seg = raw.replace(/^\s*\d+\s*[-.)]\s*/, '').replace(/^(?:ال)?(?:سيد|سيده|سيدة|استاذ|أستاذ)\s*[/:]?\s*/u, '');
+  seg = seg.replace(/^(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|مجموعة|مجموعه)\s+/u, '');
+  const cut = seg.search(/[(（,،.:؛;/]|\s[-–—]\s|[–—]/u);
+  return cleanName(cut >= 0 ? seg.slice(0, cut) : seg);
+}
 
 /** «بصفته/بصفتها» بكل تشويهات المسح الشائعة (حرف زائد أو ناقص أو ة بدل ه). */
 const NOISE_CAPACITY = /^[وف]?ب?ص[سص]?ف[تط]?[هةها]*$/u;
@@ -120,6 +131,20 @@ export function extractPartyNames(preamble: string | null | undefined): PartyNam
   const text = stripBidi(preamble ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_PREAMBLE);
   const names: PartyNames = { first: null, second: null };
   if (!text) return names;
+  // الصيغة الشائعة الأخرى: العبارة أولاً ثم الاسم («الطرف الأول: شركة …» أو «طرف أول (العميل): شركة …»). تُقرأ أولاً لأن الاسم
+  // يتبعها لا يسبقها؛ ولو قُرئ بصيغة الاسم-قبل-العبارة لأُخذ اسم الطرف السابق وانقلب الطرفان (اتجاه كل حق والتزام).
+  const all = [...text.matchAll(DESIGNATION)];
+  all.forEach((m, i) => {
+    const side = /ثان/.test(m[1]) ? 'second' : 'first';
+    if (names[side]) return;
+    const after = text.slice((m.index ?? 0) + m[0].length);
+    const label = LABEL_AFTER.exec(after);
+    if (!label) return;
+    const nextAt = all[i + 1] ? (all[i + 1].index ?? 0) - ((m.index ?? 0) + m[0].length) : after.length;
+    const name = nameAfterLabel(after.slice(label[0].length, Math.min(nextAt, label[0].length + 400)));
+    if (name) names[side] = name;
+  });
+
   let prevEnd = 0;
   DESIGNATION.lastIndex = 0;
   for (const m of text.matchAll(DESIGNATION)) {
