@@ -101,6 +101,12 @@ table{width:100%;border-collapse:collapse;table-layout:fixed}
 td,th{border:1px solid ${hex(PALETTE.line)};padding:5px 9px;vertical-align:middle;overflow-wrap:anywhere}
 table.cover-t td{font-size:11.5pt;padding:11px 12px;text-align:center}
 table.cover-t td.k{width:36%;background:${hex(PALETTE.info)};color:${hex(PALETTE.navy)};font-weight:700}
+table.cover-t tr{break-inside:avoid}
+/* غلاف كثيف الصفوف (أطراف العقد، المرشحات، نطاق التغطية…): يُضغط ليبقى كله فى صفحة واحدة ولا يتسرب صف الخطورة العامة إلى صفحة شبه فارغة */
+.cover.dense{padding-top:12mm}
+.cover.dense h1{font-size:24pt}
+.cover.dense hr{margin:16px 0 18px}
+.cover.dense table.cover-t td{font-size:10.5pt;padding:6px 10px;line-height:1.6}
 h2.banner{background:${hex(PALETTE.navy)};color:#fff;font-size:16pt;font-weight:700;margin:26px 0 12px;padding:3px 10px;line-height:1.6;break-after:avoid}
 h3.sub{font-size:14pt;font-weight:700;margin:16px 0 8px;padding-bottom:2px;border-bottom:1px solid;break-after:avoid}
 h3.sub.critical{color:${hex(PALETTE.criticalInk)};border-color:${hex(PALETTE.criticalInk)}}
@@ -163,7 +169,7 @@ export function renderAuditHtml(r: AuditReport, title: string): string {
     `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data:">` +
     `<title>${t(title)}</title><style>${embeddedFontCss()}\n${CSS}\n${pageCss(r)}</style></head><body>` +
     (r.watermark ? `<div class="watermark">${t(r.watermark)}</div>` : '') +
-    `<section class="cover"><h1>${t(r.cover.title)}</h1><p class="sub">${t(r.cover.subtitle)}</p><hr>` +
+    `<section class="cover${r.cover.rows.length > 8 ? ' dense' : ''}"><h1>${t(r.cover.title)}</h1><p class="sub">${t(r.cover.subtitle)}</p><hr>` +
     `<table class="cover-t"><tbody>${coverRows}</tbody></table></section>` +
     r.blocks.map(block).join('\n') +
     `</body></html>`

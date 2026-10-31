@@ -547,3 +547,22 @@ describe('نسخة العميل المبسطة', () => {
     expect(buf.subarray(0, 2).toString()).toBe('PK');
   });
 });
+
+describe('الغلاف الكثيف الصفوف', () => {
+  const rich = buildContractAuditReport({
+    ...INPUT,
+    partyNames: { first: 'بلاك بيلتس', second: 'أروب' },
+    extractionWarnings: ['قُرئ هذا العقد آلياً من صور ممسوحة ضوئياً (OCR).'],
+  }).report;
+
+  it('يُضغط (فئة dense) حين تزيد صفوفه على ثمانية كى لا يتسرب صف الخطورة العامة إلى صفحة شبه فارغة', () => {
+    expect(rich.cover.rows.length).toBeGreaterThan(8);
+    expect(renderAuditHtml(rich, 'ت')).toContain('class="cover dense"');
+    expect(renderAuditHtml(rich, 'ت')).toContain('table.cover-t tr{break-inside:avoid}');
+  });
+
+  it('الغلاف القليل الصفوف يبقى بهيئته الأصلية', () => {
+    const lean = { ...rich, cover: { ...rich.cover, rows: rich.cover.rows.slice(0, 6) } };
+    expect(renderAuditHtml(lean, 'ت')).toContain('<section class="cover">');
+  });
+});

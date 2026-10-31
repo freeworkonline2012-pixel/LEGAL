@@ -15,6 +15,8 @@ export interface PartyNames {
 const MAX_PREAMBLE = 4000;
 const MAX_NAME_WORDS = 5;
 const ENTITY = /(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|مجموعة|مجموعه|الأستاذ|الاستاذ|السيد|السيدة|السيده)\s+/gu;
+/** ألقاب الأشخاص: تُحسب اسم طرف فقط إن لم يرد فى المقطع اسم جهة (الشخص بعد اسم الشركة هو الممثل الموقّع لا الطرف). */
+const PERSON_TITLE = new Set(['الأستاذ', 'الاستاذ', 'السيد', 'السيدة', 'السيده'].map((w) => normalizeArabicForMatch(w)));
 /** كلمات تنهى الاسم (ما بعدها وصف لا اسم). */
 const STOP = new Set(
   [
@@ -22,9 +24,13 @@ const STOP = new Set(
     'رقم', 'ورقم', 'سجل', 'والمسجلة', 'المسجلة', 'المقيدة', 'بطاقة', 'ويقيم', 'المقيم', 'والمقيم', 'بصفته', 'بصفتها', 'ويشار', 'والمشار', 'المشار',
     'ومركزها', 'ومركزه', 'وعنوانها', 'عنوانها', 'وعنوانه', 'عنوانه', 'والتي', 'التي', 'والتى', 'التى', 'الذي', 'الذى', 'والذي', 'والذى',
     'ش.م.م', 'ش.ذ.م.م', 'المحدودة', 'المحدوده', 'المساهمة', 'المساهمه', 'تأسست', 'تاسست', 'وفقا', 'وفقاً', 'طبقا', 'طبقاً', 'من', 'فى', 'في', 'ب', 'ومقيد',
+    'مصرية', 'مصريه', 'منشأة', 'منشاه', 'ومنشأة', 'ومنشاه', 'شركة', 'شركه', 'ذات', 'تجارى', 'تجاري', 'سجلها', 'ومسجلة', 'ومسجله', 'ويقع', 'يقع', 'تحت',
   ].map((w) => normalizeArabicForMatch(w)),
 );
 const GENERIC = new Set(['شركه', 'مؤسسه', 'بنك', 'مكتب', 'مجموعه', 'السيد', 'السيده', 'الاستاذ'].map((w) => normalizeArabicForMatch(w)));
+
+/** «بصفته/بصفتها» بكل تشويهات المسح الشائعة (حرف زائد أو ناقص أو ة بدل ه). */
+const NOISE_CAPACITY = /^[وف]?ب?ص[سص]?ف[تط]?[هةها]*$/u;
 
 const DESIGNATION = /(?:ال)?طرف\s*(?:ال)?\s*(أول|اول|الأول|الاول|ثان[يى]|الثان[يى]|ثاني|الثاني)/gu;
 
@@ -35,8 +41,16 @@ function cleanName(raw: string): string | null {
     .filter(Boolean);
   const out: string[] = [];
   for (const w of words) {
-    if (STOP.has(normalizeArabicForMatch(w))) break;
+    const nw = normalizeArabicForMatch(w);
+    if (STOP.has(nw)) break;
     if (/[\d٠-٩]/.test(w)) break;
+    // رمز بلا حروف (« / » بعد «السيد»، شرطة…): قبل أول كلمة يُتجاوز، وبعدها يُنهى به الاسم ولا يكون جزءاً منه
+    if (!/[\p{L}]/u.test(w)) {
+      if (out.length === 0) continue;
+      break;
+    }
+    // «بصفته/بصفتها» وما يشوّهه المسح منها («بصسفته»، «بصفتة») تنهى الاسم كذلك
+    if (NOISE_CAPACITY.test(nw)) break;
     out.push(w);
     if (out.length >= MAX_NAME_WORDS) break;
   }
@@ -44,16 +58,24 @@ function cleanName(raw: string): string | null {
   return normalizeArabicForMatch(name).length >= 3 ? name : null;
 }
 
-/** آخر اسم جهة وردت فى المقطع (الاسم يسبق عادة عبارة «الطرف الأول/الثانى» التى تعرّفه). */
-function lastEntityName(segment: string): string | null {
-  let best: string | null = null;
+/**
+ * اسم الطرف فى المقطع الذى يسبق عبارة «الطرف الأول/الثانى». الاسم يرد أول المقطع (جهة التعاقد)، ويليه عادة وصفها ثم ممثلها
+ * الموقّع («ويمثلها السيد / فلان بصفته …»)، فالممثل ليس الطرف. لذلك تُفضَّل أول جهة اعتبارية (شركة/مؤسسة/بنك…)، ولا يُؤخذ لقب شخص
+ * («السيد») إلا إذا لم يرد فى المقطع اسم جهة اعتبارية، أى كان الطرف شخصاً طبيعياً. ما لا يصلح اسماً يبقى null ولا يُخمَّن.
+ */
+function pickEntityName(segment: string): string | null {
+  let firstCorporate: string | null = null;
+  let firstPerson: string | null = null;
   ENTITY.lastIndex = 0;
   for (const m of segment.matchAll(ENTITY)) {
     const start = (m.index ?? 0) + m[0].length;
     const name = cleanName(segment.slice(start, start + 120));
-    if (name) best = name;
+    if (!name) continue;
+    const isPerson = PERSON_TITLE.has(normalizeArabicForMatch(m[0].trim()));
+    if (isPerson) firstPerson ??= name;
+    else firstCorporate ??= name;
   }
-  return best;
+  return firstCorporate ?? firstPerson;
 }
 
 export function extractPartyNames(preamble: string | null | undefined): PartyNames {
@@ -65,7 +87,7 @@ export function extractPartyNames(preamble: string | null | undefined): PartyNam
   for (const m of text.matchAll(DESIGNATION)) {
     const idx = m.index ?? 0;
     const side = /ثان/.test(m[1]) ? 'second' : 'first';
-    const name = lastEntityName(text.slice(prevEnd, idx));
+    const name = pickEntityName(text.slice(prevEnd, idx));
     prevEnd = idx + m[0].length;
     if (name && !names[side]) names[side] = name;
   }
