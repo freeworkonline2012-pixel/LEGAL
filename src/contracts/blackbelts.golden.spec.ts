@@ -95,3 +95,21 @@ describe('سقف المسئولية/الغرامة فى بند آخر لا يُ�
     expect(c?.mitigatedBy?.clauseLabel).toBe('البند 2');
   });
 });
+
+describe('Blackbelts — القانون الواجب وفض المنازعات (البند 15)', () => {
+  const pb = buildPlaybook({ contractType: 'عقد تقديم خدمات إلكترونية ودعم فنى وصيانة', clientRole: 'طالب الخدمة', clientParty: 'second', clauses })!;
+  const row = pb.rows.find((r) => r.topicId === 'common_disputes')!;
+
+  it('رُصد البند 15 ولا يُدّعى غياب القانون الواجب ولا يُتخيَّل تحكيم', () => {
+    expect(row.status).not.toBe('missing');
+    expect(row.evidence?.clauseLabel).toBe('البند الخامس عشر');
+    expect(row.concerns.map((c) => c.flagId)).toEqual([]);
+  });
+
+  it('يذكر قانون المحاكم الاقتصادية سنداً عاماً دون رقم مادة، ولا يذكر قانون التحكيم', () => {
+    const names = row.basis.map((b) => b.lawName).join('|');
+    expect(names).toContain('المحاكم الاقتصادية');
+    expect(names).not.toContain('التحكيم');
+    expect(row.basis.every((b) => b.article === null)).toBe(true);
+  });
+});

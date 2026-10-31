@@ -73,6 +73,7 @@ const CASES: Case[] = [
     role: 'المشترى',
     clauseCount: 7,
     expected: {
+      common_disputes: ['missing'],
       sale_price: ['concern', 'full_prepay', 'nonrefundable'],
       sale_delivery: ['concern', 'soft_dates'],
       sale_warranty: ['concern', 'sold_as_is', 'short_notice'],
@@ -89,6 +90,7 @@ const CASES: Case[] = [
     role: 'البائع',
     clauseCount: 7,
     expected: {
+      common_disputes: ['missing'],
       sale_price: ['found'],
       sale_delivery: ['found'],
       sale_warranty: ['found'],
@@ -105,6 +107,7 @@ const CASES: Case[] = [
     role: PROVIDER,
     clauseCount: 7,
     expected: {
+      common_disputes: ['missing'],
       svc_scope: ['concern', 'free_changes'],
       svc_payment: ['concern', 'slow_pay', 'retention'],
       svc_acceptance: ['found'],
@@ -124,6 +127,7 @@ const CASES: Case[] = [
     role: CUSTOMER,
     clauseCount: 7,
     expected: {
+      common_disputes: ['missing'],
       svc_scope: ['found'],
       svc_payment: ['found'],
       svc_acceptance: ['concern', 'deemed_accept'],
@@ -143,6 +147,7 @@ const CASES: Case[] = [
     role: CUSTOMER,
     clauseCount: 15,
     expected: {
+      common_disputes: ['found'],
       svc_scope: ['found'],
       svc_payment: ['found'],
       svc_acceptance: ['found'],
@@ -162,6 +167,7 @@ const CASES: Case[] = [
     role: PROVIDER,
     clauseCount: 15,
     expected: {
+      common_disputes: ['found'],
       svc_scope: ['found'],
       svc_payment: ['found'],
       svc_acceptance: ['found'],
@@ -213,6 +219,7 @@ const CASES: Case[] = [
     role: 'الشريك المستثمر',
     clauseCount: 8,
     expected: {
+      common_disputes: ['missing'],
       prt_form: ['concern', 'verbal_amendments'],
       prt_contribution: ['concern', 'lump_sum_upfront', 'inkind_self_valued'],
       prt_profit: ['concern', 'loss_exempt', 'profit_discretion'],
@@ -230,6 +237,7 @@ const CASES: Case[] = [
     role: 'الشريك المدير أو صاحب المشروع',
     clauseCount: 8,
     expected: {
+      common_disputes: ['missing'],
       prt_form: ['concern', 'verbal_amendments'],
       prt_contribution: ['found'],
       prt_profit: ['concern', 'loss_exempt'],
@@ -247,6 +255,7 @@ const CASES: Case[] = [
     role: 'الممول (الدائن)',
     clauseCount: 7,
     expected: {
+      common_disputes: ['found'],
       fin_principal: ['found'],
       fin_interest: ['found'],
       fin_repayment: ['found'],
@@ -262,6 +271,7 @@ const CASES: Case[] = [
     role: 'المقترض (المدين)',
     clauseCount: 7,
     expected: {
+      common_disputes: ['found'],
       fin_principal: ['concern', 'fees_netted'],
       fin_interest: ['concern', 'rate_above_cap', 'hidden_fee', 'compound_interest', 'rate_unilateral'],
       fin_repayment: ['concern', 'heavy_late_charge'],
@@ -277,6 +287,7 @@ const CASES: Case[] = [
     role: 'الموكِّل (صاحب المنتج أو الخدمة)',
     clauseCount: 6,
     expected: {
+      common_disputes: ['missing'],
       agy_authority: ['concern', 'broad_authority', 'sub_agent_free'],
       agy_commission: ['concern', 'commission_post_termination'],
       agy_exclusivity: ['concern', 'exclusive_no_target'],
@@ -292,6 +303,7 @@ const CASES: Case[] = [
     role: 'الوكيل أو السمسار',
     clauseCount: 6,
     expected: {
+      common_disputes: ['missing'],
       agy_authority: ['found'],
       agy_commission: ['concern', 'commission_setoff', 'commission_on_collection'],
       agy_exclusivity: ['concern', 'principal_may_compete'],
@@ -307,6 +319,7 @@ const CASES: Case[] = [
     role: 'مانح الترخيص',
     clauseCount: 7,
     expected: {
+      common_disputes: ['missing'],
       lic_scope: ['concern', 'exclusive_no_minimum', 'scope_unlimited'],
       lic_fees: ['found'],
       lic_term: ['found'],
@@ -323,6 +336,7 @@ const CASES: Case[] = [
     role: 'المرخَّص له',
     clauseCount: 7,
     expected: {
+      common_disputes: ['missing'],
       lic_scope: ['found'],
       lic_fees: ['concern', 'minimum_royalty', 'upfront_nonrefundable', 'royalty_gross_base'],
       lic_term: ['concern', 'licensor_terminate_anytime', 'licensee_exit_balance'],
