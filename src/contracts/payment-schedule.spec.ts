@@ -64,3 +64,30 @@ describe('buildPaymentSchedules (الجولة 34)', () => {
     expect(s.verdict).toBe('unverifiable');
   });
 });
+
+describe('buildPaymentSchedules — أساس الدفعات الصريح (عقد Blackbelts)', () => {
+  const text = require('fs').readFileSync(require('path').join(__dirname, '__fixtures__', 'golden', 'blackbelts-2019.txt'), 'utf-8');
+  const { SegmentationService } = require('./segmentation.service');
+  const seg = new SegmentationService().segment(text);
+  const terms = extractKeyTerms(seg.clauses.map((c: any, i: number) => ({ clauseIndex: i + 1, clauseLabel: c.label, clauseTitle: c.title, clauseText: c.text })));
+  const [s] = buildPaymentSchedules(terms);
+
+  it('الدفعات تُحسب على 375000 لكل مجموعة لا على 1125000', () => {
+    expect(s).toBeDefined();
+    expect(s.clauseLabel).toBe('البند الثالث');
+    expect(s.total).toBe(375000);
+    expect(s.baseBasis).toBe('explicit');
+    expect(s.perUnit).toBe(true);
+    expect(s.unitCount).toBe(3);
+    expect(s.largestAmount).toBe(1125000);
+    expect(s.installments.map((i) => i.amount)).toEqual([112500, 112500, 150000]);
+    expect(s.verdict).toBe('consistent');
+  });
+
+  it('بلا نص صريح يبقى الافتراض القديم (أكبر مبلغ) ويُوسَم بذلك', () => {
+    const [d] = buildPaymentSchedules(extractKeyTerms([clause(2, 'تبلغ قيمة العقد 1125000 جنيه مصرى. تسدد 30% عند التعاقد و30% عند التسليم و40% بعد القبول.')]));
+    expect(d.baseBasis).toBe('largest');
+    expect(d.perUnit).toBe(false);
+    expect(d.unitCount).toBeNull();
+  });
+});

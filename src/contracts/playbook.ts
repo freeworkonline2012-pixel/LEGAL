@@ -54,6 +54,8 @@ export interface PlaybookEvidence {
 export interface PlaybookConcern extends PlaybookEvidence {
   flagId: string;
   note: string;
+  /** اقتباس من بند آخر يخفف الرصد أو يعالجه (انظر PlaybookFlag.elsewhere)؛ الملاحظة عندئذ لا تقرر غياب ما وُجد */
+  mitigatedBy?: PlaybookEvidence;
   against: PlaybookSide | 'both';
   /** «المؤجر» / «الطرفين»… لعرضه حين يكون الطرف غير محدد */
   againstLabel: string;
@@ -218,6 +220,11 @@ function flagHit(prepared: PreparedClause[], flag: PlaybookFlag, ctx: PlaybookCt
   });
 }
 
+/** أول جملة فى بند غير بند الرصد تطابق نمط التخفيف (اقتباس حرفى موثَّق)، أو null. */
+function elsewhereEvidence(prepared: PreparedClause[], re: RegExp, ownLabel: string): PlaybookEvidence | null {
+  return firstEvidence(prepared, (s, p) => p.c.clauseLabel !== ownLabel && reHit(re, s.norm));
+}
+
 function sideName(family: PlaybookFamily, against: PlaybookSide | 'both'): string {
   return against === 'both' ? 'الطرفين' : SIDE_LABEL[family][against];
 }
@@ -228,7 +235,16 @@ function buildRow(topic: PlaybookTopic, family: PlaybookFamily, side: PlaybookSi
   for (const f of topic.flags) {
     if (side && f.against !== 'both' && f.against !== side) continue;
     const ev = flagHit(prepared, f, ctx);
-    if (ev) concerns.push({ ...ev, flagId: f.id, note: f.note, against: f.against, againstLabel: sideName(family, f.against) });
+    if (!ev) continue;
+    const mitigatedBy = f.elsewhere ? elsewhereEvidence(prepared, f.elsewhere, ev.clauseLabel) : null;
+    concerns.push({
+      ...ev,
+      flagId: f.id,
+      note: mitigatedBy && f.noteIfMitigated ? f.noteIfMitigated : f.note,
+      ...(mitigatedBy ? { mitigatedBy } : {}),
+      against: f.against,
+      againstLabel: sideName(family, f.against),
+    });
   }
   const status: PlaybookStatus = concerns.length > 0 ? 'concern' : evidence ? 'found' : 'missing';
   return {

@@ -25,6 +25,14 @@ export interface PaymentSchedule {
   clauseLabel: string;
   total: number | null;
   currency: string | null;
+  /** كيف اختير أساس الحساب: explicit = نص البند يحدده صراحة («تحسب الدفعات على أساس ...»)، largest = أكبر مبلغ فى البند (افتراض) */
+  baseBasis: 'explicit' | 'largest' | null;
+  /** الأساس المحدَّد صراحة خاص بكل وحدة (مجموعة/مرحلة/مشروع) لا بالإجمالى */
+  perUnit: boolean;
+  /** عدد الوحدات = الإجمالى ÷ أساس الوحدة إن كان قسمة صحيحة (2..20)؛ وإلا null */
+  unitCount: number | null;
+  /** إجمالى أكبر مبلغ ورد فى البند حين يختلف عن الأساس (للعرض فقط) */
+  largestAmount: number | null;
   installments: PaymentInstallment[];
   /** مجموع النسب المقروءة (تُحتسب المشكوك فيها بقيمتها المرجَّحة) */
   sumPercent: number;
@@ -34,6 +42,10 @@ export interface PaymentSchedule {
 
 const PAYMENT_WORDS = /(?:دفع|سداد|يسدد|تسدد|يُسدد|قسط|أقساط|اقساط|مقدم|توقيع|التعاقد|تسليم|تسلم|استلام|إستلام|قبول|إنجاز|انجاز|اعتماد|إتمام|اتمام)/u;
 const MAX_INSTALLMENTS = 8;
+/** جملة تحدد أساس احتساب الدفعات صراحة: «تحسب هذه الدفعات على أساس القيمة ... (375000 جنيه)». */
+const EXPLICIT_BASE_RE = /(?:تحسب|تحتسب|يحسب|يحتسب|تُحسب|تُحتسب|تستحق|تسدد)[^.؛\n]{0,60}(?:الدفعات|الدفعة|الأقساط|الاقساط|النسب|المبالغ)[^.؛\n]{0,60}(?:على أساس|على اساس|بناء على|بناءً على|من قيمة|على قيمة)/u;
+/** الأساس خاص بكل وحدة لا بالإجمالى. */
+const PER_UNIT_RE = /(?:كل|لكل|كلا|كلاً|كلّ)\s*(?:مجموعة|مجموعه|مرحلة|مرحله|مشروع|وحدة|وحده|نظام|برنامج|موقع|فرع|عقار|دفعة)|على حدا|على حده|على حدة|منفرد/u;
 const EPS = 0.005;
 
 function parseNumber(v: string): number | null {
@@ -112,9 +124,16 @@ export function buildPaymentSchedules(terms: KeyTerm[]): PaymentSchedule[] {
     if (count < 2 || count > MAX_INSTALLMENTS) continue;
     const amounts = list
       .filter((t) => t.kind === 'amount')
-      .map((t) => ({ n: parseNumber(t.value), cur: t.value.replace(/^[\d,.]+\s*/, '').trim() }))
-      .filter((a): a is { n: number; cur: string } => a.n !== null && a.n > 0);
-    const base = amounts.length > 0 ? amounts.reduce((m, a) => (a.n > m.n ? a : m)) : null;
+      .map((t) => ({ n: parseNumber(t.value), cur: t.value.replace(/^[\d,.]+\s*/, '').trim(), quote: t.quote }))
+      .filter((a): a is { n: number; cur: string; quote: string } => a.n !== null && a.n > 0);
+    const largest = amounts.length > 0 ? amounts.reduce((m, a) => (a.n > m.n ? a : m)) : null;
+    // أساس صريح: مبلغ ورد فى جملة تقول إن الدفعات تُحسب عليه؛ يتقدم على «أكبر مبلغ» الافتراضى
+    const explicitAmt = amounts.find((a) => EXPLICIT_BASE_RE.test(a.quote));
+    const base = explicitAmt ?? largest;
+    const baseBasis: PaymentSchedule['baseBasis'] = base ? (explicitAmt ? 'explicit' : 'largest') : null;
+    const perUnit = Boolean(explicitAmt && PER_UNIT_RE.test(explicitAmt.quote));
+    const ratio = base && largest && largest.n > base.n ? largest.n / base.n : null;
+    const unitCount = perUnit && ratio !== null && Number.isInteger(round2(ratio)) && ratio >= 2 && ratio <= 20 ? Math.round(ratio) : null;
     const installments: PaymentInstallment[] = percents
       .map((t) => ({ t, p: parseNumber(t.value) }))
       .filter((x): x is { t: KeyTerm; p: number } => x.p !== null)
@@ -128,6 +147,10 @@ export function buildPaymentSchedules(terms: KeyTerm[]): PaymentSchedule[] {
       clauseLabel: percents[0].clauseLabel,
       total: base ? base.n : null,
       currency: base ? base.cur : null,
+      baseBasis,
+      perUnit,
+      unitCount,
+      largestAmount: base && largest && largest.n !== base.n ? largest.n : null,
       installments,
       sumPercent: j.sum,
       verdict: j.verdict,

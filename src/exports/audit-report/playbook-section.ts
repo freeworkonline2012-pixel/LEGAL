@@ -39,7 +39,8 @@ function observedText(row: PlaybookRow, sideKnown: boolean): string {
   }
   for (const c of row.concerns) {
     const who = c.against === 'both' ? ' (قد يسرى على الطرفين — تحقق لمن الحق قبل الحكم عليه)' : sideKnown ? '' : ` (يضر بـ${c.againstLabel})`;
-    parts.push(`${c.clauseLabel}: «${c.quote}»\n${PLATFORM_NOTE} ${c.note}${who}`);
+    const also = c.mitigatedBy ? `\nورد أيضاً فى ${c.mitigatedBy.clauseLabel}: «${c.mitigatedBy.quote}»` : '';
+    parts.push(`${c.clauseLabel}: «${c.quote}»\n${PLATFORM_NOTE} ${c.note}${who}${also}`);
   }
   return parts.join('\n\n');
 }

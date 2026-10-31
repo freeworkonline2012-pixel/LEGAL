@@ -63,6 +63,8 @@ export interface AuditReportInput {
   contractFindings?: AuditContractFinding[] | null;
   /** حالة تمرير النموذج على العقد كاملاً؛ تظهر ملاحظة إن لم يكتمل. */
   contractFindingsModel?: 'ok' | 'not_configured' | 'skipped' | 'error' | null;
+  /** اسما الطرفين المقروءان من الديباجة (قد يكون أحدهما أو كلاهما null)؛ يظهران فى الغلاف كما قُرئا ولا يُستنتج ما لم يُقرأ. */
+  partyNames?: { first: string | null; second: string | null } | null;
   generatedAt: Date;
   brand?: string;
 }
@@ -283,6 +285,14 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     const party = input.clientParty === 'first' ? 'الطرف الأول' : input.clientParty === 'second' ? 'الطرف الثانى' : null;
     coverRows.push({ label: 'منظور التدقيق (العميل)', value: party ? `${input.clientRole} — ${party} فى نص العقد` : input.clientRole });
   }
+  const pn = input.partyNames;
+  if (pn && (pn.first || pn.second)) {
+    coverRows.push({
+      label: 'أطراف العقد (كما قُرئت من الديباجة)',
+      value: `الطرف الأول: ${pn.first ?? 'لم يُقرأ'} — الطرف الثانى: ${pn.second ?? 'لم يُقرأ'}`,
+      ...(pn.first && pn.second ? {} : { tone: 'medium' as Tone }),
+    });
+  }
   coverRows.push({
     label: 'القانون الحاكم',
     value:
@@ -316,6 +326,17 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     label: 'حالة التقرير',
     value: approved ? 'معتمد بعد مراجعة بشرية' : 'مسودة آلية — بانتظار المراجعة البشرية',
   });
+  // مرشحات عالية/حرجة لم يؤكدها المدقق المستقل لا ترفع المستوى لكن لا تُخفى: المستوى «مؤقت» حتى تُحسم بمراجعة بشرية
+  const highCandidates =
+    candidateRisky.filter((r) => r.sev === 'حرج' || r.sev === 'عالٍ').length +
+    candidateFindings.filter((x) => x.f.severity === 'حرج' || x.f.severity === 'عالٍ').length;
+  if (highCandidates > 0) {
+    coverRows.push({
+      label: 'مرشحات عالية لم تُحسم',
+      value: `${highCandidates} ملاحظة بدرجة عالية/حرجة لم يؤكدها المدقق المستقل ولم تدخل المستوى أعلاه؛ المستوى مؤقت إلى أن يحسمها مراجع بشرى (القسم الخاص بالمرشحات).`,
+      tone: 'high',
+    });
+  }
   coverRows.push({ label: 'مستوى المخاطرة العام', value: overall.text, tone: overall.tone });
 
   const blocks: RBlock[] = [];
@@ -515,7 +536,17 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
           label: 'فحص المجموع:',
           text:
             sch.verdictText +
-            (hasAmount ? ` المبالغ محسوبة آلياً على ${money(sch.total as number)} (أكبر مبلغ ورد فى البند) وليست نصاً من العقد؛ تأكد أنه أساس الدفعات.` : ''),
+            (hasAmount
+              ? sch.baseBasis === 'explicit'
+                ? ` المبالغ محسوبة آلياً على ${money(sch.total as number)}، وهو الأساس الذى ينص عليه البند صراحة لاحتساب الدفعات` +
+                  (sch.perUnit
+                    ? sch.unitCount !== null
+                      ? ` عن كل وحدة (مجموعة)؛ والإجمالى ${money(sch.largestAmount as number)} يساوى ${sch.unitCount} وحدات × ${money(sch.total as number)}.`
+                      : ` عن كل وحدة (مجموعة) لا عن الإجمالى${sch.largestAmount !== null ? ` (${money(sch.largestAmount)})` : ''}.`
+                    : '.') +
+                  ' المبالغ ناتج حساب المنصة وليست نصاً من العقد.'
+                : ` المبالغ محسوبة آلياً على ${money(sch.total as number)} (أكبر مبلغ ورد فى البند) وليست نصاً من العقد؛ تأكد أنه أساس الدفعات.`
+              : ''),
         });
       }
     }

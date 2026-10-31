@@ -149,7 +149,7 @@ const CASES: Case[] = [
       svc_liability: ['found'],
       svc_delay: ['missing'],
       svc_termination: ['concern', 'auto_rescission'],
-      svc_ip: ['concern', 'limited_licence'],
+      svc_ip: ['concern', 'limited_licence', 'licence_term_bound'],
       svc_confidentiality: ['found'],
       svc_data_protection: ['found'],
       svc_warranty: ['found'],

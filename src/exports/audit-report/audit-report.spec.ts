@@ -458,3 +458,29 @@ describe('الجولة 6: الملخص التنفيذى وسجل المخاطر 
     expect(of(r.blocks, 'p').some((p) => p.text.includes('لم تُستخرج مبالغ أو نسب أو مدد أو تواريخ'))).toBe(true);
   });
 });
+
+describe('الغلاف التجارى: الأطراف والمرشحات العالية غير المحسومة', () => {
+  const coverVal = (inp: AuditReportInput, label: string) => buildContractAuditReport(inp).report.cover.rows.find((r) => r.label.startsWith(label));
+
+  it('يعرض اسمى الطرفين كما قُرئا، وينبّه إن لم يُقرأ أحدهما', () => {
+    const both = coverVal({ ...INPUT, partyNames: { first: 'بلاك بيلتس', second: 'أروب' } }, 'أطراف العقد');
+    expect(both?.value).toContain('الطرف الأول: بلاك بيلتس');
+    expect(both?.value).toContain('الطرف الثانى: أروب');
+    const one = coverVal({ ...INPUT, partyNames: { first: 'بلاك بيلتس', second: null } }, 'أطراف العقد');
+    expect(one?.value).toContain('لم يُقرأ');
+    expect(one?.tone).toBe('medium');
+    expect(coverVal(INPUT, 'أطراف العقد')).toBeUndefined();
+  });
+
+  it('مرشح عالٍ غير مؤكد لا يرفع المستوى لكنه يظهر فى الغلاف', () => {
+    const quiet = [clause({ clauseIndex: 1, assessmentStatus: 'يحتاج مراجعة', riskLevel: 'عالٍ', assessmentReasoning: 'تحتاج مراجعة.', verification: { status: 'unconfirmed', reason: 'لم يجزم المدقق.' } })];
+    const inp = { ...INPUT, clauses: quiet };
+    const { report } = buildContractAuditReport(inp);
+    const overall = report.cover.rows.find((r) => r.label === 'مستوى المخاطرة العام');
+    expect(overall?.value).not.toContain('مرتفعة');
+    const cand = coverVal(inp, 'مرشحات عالية');
+    expect(cand?.value).toContain('1 ملاحظة');
+    expect(cand?.value).toContain('مؤقت');
+    expect(coverVal({ ...INPUT, clauses: [clause({ clauseIndex: 1 })] }, 'مرشحات عالية')).toBeUndefined();
+  });
+});

@@ -221,6 +221,7 @@ export class ExportsService {
           ? contract.extractionWarnings.filter((w): w is string => typeof w === 'string')
           : null,
         ...this.reportFindings(contract.contractFindings),
+        partyNames: this.reportParties(contract.contractFindings),
         generatedAt: new Date(),
         brand: this.brand,
       }),
@@ -281,6 +282,14 @@ export class ExportsService {
   private reportVerification(v: Record<string, unknown> | null | undefined): { status: 'confirmed' | 'unconfirmed'; reason: string; quote: string | null } | null {
     if (!v || (v.status !== 'confirmed' && v.status !== 'unconfirmed') || typeof v.reason !== 'string' || !v.reason) return null;
     return { status: v.status, reason: v.reason, quote: typeof v.quote === 'string' && v.quote ? v.quote : null };
+  }
+
+  /** اسما الطرفين المخزَّنان وقت الرفع (contractFindings.parties)؛ null إن لم يُخزَّنا (عقد قديم). */
+  private reportParties(stored: Record<string, unknown> | null | undefined): { first: string | null; second: string | null } | null {
+    const p = (stored as { parties?: { first?: unknown; second?: unknown } } | null | undefined)?.parties;
+    if (!p || typeof p !== 'object') return null;
+    const n = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
+    return { first: n(p.first), second: n(p.second) };
   }
 
   /** ملاحظات العقد ككل المخزَّنة (migrations/237) بصيغة التقرير؛ لا شىء للعقود التى لم تُحلَّل. */
