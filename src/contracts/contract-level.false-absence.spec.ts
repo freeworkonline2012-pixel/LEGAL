@@ -42,3 +42,29 @@ describe('اتفاقية: «لا تكون أي تعديلات على هذه ال
     expect(missing(c, 'اتفاقية سرية')).not.toContain('amendments');
   });
 });
+
+describe('مدة مفتوحة صراحة ليست «غير مرصودة»', () => {
+  const nda = [
+    clause(1, 'يتعهد المصمم بالحفاظ على السرية التامة لجميع المعلومات السرية التى يطلع عليها بموجب هذه الاتفاقية.'),
+    clause(2, 'تظل هذه الاتفاقية سارية إلى أجل غير مسمى أو حتى يتم إنهاؤها باتفاق خطي متبادل بين الطرفين.', 'المدة'),
+  ];
+
+  it('«سارية إلى أجل غير مسمى»: بند مدة مفتوحة بدليل من نص العقد لا ادّعاء غياب', () => {
+    const f = checkMissingClauses(nda as never, { contractType: 'اتفاقية سرية', textMayBeIncomplete: false });
+    expect(f.some((x) => x.id === 'missing:duration')).toBe(false);
+    const open = f.find((x) => x.id === 'open:indefinite_duration')!;
+    expect(open.kind).toBe('open_term');
+    expect(open.severity).toBe('متوسط');
+    expect(open.evidence[0].quote).toContain('أجل غير مسمى');
+    expect(open.evidence[0].clauseLabel).toBe('البند 2');
+  });
+
+  it('عقد بلا أى ذكر للمدة يبقى «غير مرصود» بعالٍ', () => {
+    const f = checkMissingClauses([clause(1, 'يلتزم الطرف الاول بتسليم البضاعة المتفق عليها للطرف الثانى فى مقر الشركة وفق الاصول.')] as never, {
+      contractType: 'عقد خدمات أو مقاولة أو توريد',
+      textMayBeIncomplete: false,
+    });
+    const d = f.find((x) => x.id === 'missing:duration')!;
+    expect(d.severity).toBe('عالٍ');
+  });
+});

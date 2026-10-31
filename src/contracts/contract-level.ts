@@ -801,6 +801,33 @@ export interface MissingOptions {
   textMayBeIncomplete: boolean;
 }
 
+/** عقد ينص صراحة على مدة مفتوحة («إلى أجل غير مسمى»، «لمدة غير محددة»): المدة مذكورة لكنها بلا نهاية، فليست «غير مرصودة». */
+const INDEFINITE_DURATION =
+  /الي اجل غير مسمي|الى اجل غير مسمى|لاجل غير مسمي|اجل غير مسمي|مده غير محدده|لمده غير محدده|لمده غير محدوده|غير محدده المده|مده غير معينه|بدون مده محدده|بلا مده محدده/;
+
+function indefiniteDurationFinding(clauses: LevelClause[], caveat: string): ContractFinding | null {
+  for (const c of clauses) {
+    for (const sentence of sentencesOf(c.clauseText)) {
+      if (!INDEFINITE_DURATION.test(norm(sentence))) continue;
+      const ev = evidenceOf(c, sentence);
+      if (!ev) continue;
+      return {
+        id: 'open:indefinite_duration',
+        kind: 'open_term',
+        severity: 'متوسط',
+        title: 'مدة العقد مفتوحة بلا أجل محدد',
+        explanation:
+          'ينص العقد على سريانه إلى أجل غير مسمى أو لمدة غير محددة، فلا تاريخ ينتهى به ولا مدة يُقاس بها الالتزام. بلا مدة محددة أو آلية إنهاء بإخطار مسبق يصعب معرفة متى ينتهى الالتزام ومتى يجوز لأى طرف التحلل منه، وتتفاوت آثار ذلك بحسب نوع العقد.' +
+          caveat,
+        suggestion: 'نص يحدد مدة محددة للعقد، أو يجيز لكل طرف إنهاءه بإخطار مسبق معقول، وفى اتفاقيات السرية مدة محددة للالتزام بالسرية بعد الإنهاء.',
+        evidence: [ev],
+        source: 'rule',
+      };
+    }
+  }
+  return null;
+}
+
 export function checkMissingClauses(clauses: LevelClause[], opts: MissingOptions): ContractFinding[] {
   const stated = contractFamily(opts.contractType);
   const family = stated === 'unknown' ? inferContractFamily(opts.titleText) : stated;
@@ -814,6 +841,13 @@ export function checkMissingClauses(clauses: LevelClause[], opts: MissingOptions
     const caveat = opts.textMayBeIncomplete
       ? ' تنبيه: توجد تحذيرات قراءة أو ترقيم لهذا الملف، فقد يكون هذا البند ضمن نص لم يُقرأ؛ قارن بالأصل قبل الاعتماد.'
       : '';
+    if (check.id === 'duration') {
+      const open = indefiniteDurationFinding(clauses, caveat);
+      if (open) {
+        out.push(open);
+        continue;
+      }
+    }
     out.push({
       id: `missing:${check.id}`,
       kind: 'missing_clause',
