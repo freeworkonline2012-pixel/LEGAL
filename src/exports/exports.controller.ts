@@ -38,6 +38,12 @@ function parseFormat(raw: string | undefined): ExportFormat {
   return f;
 }
 
+function parseAudience(raw: string | undefined): 'lawyer' | 'client' {
+  const a = (raw ?? 'lawyer').toLowerCase();
+  if (a !== 'lawyer' && a !== 'client') throw new BadRequestException('audience يجب أن يكون lawyer أو client');
+  return a;
+}
+
 function actorOf(request: RequestWithUser): ExportActor {
   const user = request.user;
   if (!user) throw new UnauthorizedException('authentication required');
@@ -113,13 +119,15 @@ export class ExportsController {
 
   @Get('contracts/:id')
   @ApiQuery({ name: 'format', enum: ['pdf', 'docx'], required: false })
+  @ApiQuery({ name: 'audience', enum: ['lawyer', 'client'], required: false, description: 'lawyer: التقرير الكامل (الافتراضى)؛ client: نسخة العميل المبسطة' })
   async contract(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Query('format') format: string | undefined,
+    @Query('audience') audience: string | undefined,
     @Req() request: RequestWithUser,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
-    return send(res, await this.exportsService.exportContract(id, parseFormat(format), actorOf(request)));
+    return send(res, await this.exportsService.exportContract(id, parseFormat(format), actorOf(request), parseAudience(audience)));
   }
 
   @Get('contracts/:id/tracked')

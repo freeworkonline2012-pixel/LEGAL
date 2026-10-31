@@ -22,7 +22,7 @@ export function buildContractDocument(input: ContractExportInput): LegalDocument
     watermark: report.watermark,
     blocks: [],
     disclaimer: STANDARD_DISCLAIMER,
-    filenameBase: `contract-${reference.slice(4).toLowerCase()}-${compactCairoDate(input.generatedAt)}${approved ? '' : '-draft'}`,
+    filenameBase: `contract-${reference.slice(4).toLowerCase()}-${compactCairoDate(input.generatedAt)}${input.audience === 'client' ? '-client' : ''}${approved ? '' : '-draft'}`,
     audit: report,
   };
 }

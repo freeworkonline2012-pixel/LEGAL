@@ -6,6 +6,7 @@ import { buildPlaybook, type PlaybookResult } from '../../contracts/playbook';
 import { ACTION_TIMELINE, candidateAction, extraActions, PRIORITY_RANK, type ActionPriority } from './recommendations';
 import { buildPaymentSchedules, formatMoney, formatPercent } from '../../contracts/payment-schedule';
 import { playbookBlocks } from './playbook-section';
+import { buildClientAuditReport } from './client-version';
 import { type AuditReport, type Cell, type RBlock, type Tone } from './model';
 
 export type Severity = 'حرج' | 'عالٍ' | 'متوسط' | 'غير مصنَّف';
@@ -65,6 +66,8 @@ export interface AuditReportInput {
   contractFindingsModel?: 'ok' | 'not_configured' | 'skipped' | 'error' | null;
   /** اسما الطرفين المقروءان من الديباجة (قد يكون أحدهما أو كلاهما null)؛ يظهران فى الغلاف كما قُرئا ولا يُستنتج ما لم يُقرأ. */
   partyNames?: { first: string | null; second: string | null } | null;
+  /** lawyer (الافتراضى) = التقرير الكامل؛ client = نسخة العميل المبسطة (مشتقة من البيانات نفسها) */
+  audience?: 'lawyer' | 'client';
   generatedAt: Date;
   brand?: string;
 }
@@ -914,6 +917,48 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     label: 'ملاحظة:',
     text: 'هذا التقرير ناتج تحليل آلى للنصوص المفهرسة، ولا يُغنى عن مراجعة محامٍ مقيد قبل التوقيع على العقد أو الاستناد إلى التقرير أمام أى جهة.',
   });
+
+  if (input.audience === 'client') {
+    const recommendationText =
+      counts['حرج'] > 0 || findingCounts.critical > 0
+        ? 'لا نوصى بالتوقيع قبل معالجة النقاط الحرجة أدناه وعرضها على محامٍ مختص.'
+        : counts['عالٍ'] > 0 || findingCounts.high > 0
+          ? 'نوصى بمعالجة النقاط عالية الخطورة قبل التوقيع وعرضها على محامٍ مختص.'
+          : totalRisky > 0 || findings.length > 0 || candidateTotal > 0
+            ? 'نوصى بمراجعة النقاط المذكورة مع محامٍ قبل التوقيع.'
+            : 'لم تُرصد نقاط فى النطاق المقيَّس آلياً؛ وتبقى مراجعة المحامى شرطاً قبل التوقيع.';
+    const clientReport = buildClientAuditReport({
+      brand,
+      contractType: input.contractType,
+      reference,
+      year,
+      approved,
+      coverRows,
+      overall,
+      counts: { critical: counts['حرج'], high: counts['عالٍ'], medium: counts['متوسط'] },
+      risks: confirmedRisky.slice(0, 10).map((r) => ({
+        where: r.c.clauseLabel,
+        title: r.c.clauseTitle,
+        sev: r.sev as string,
+        tone: SEVERITY_TONE[r.sev],
+        reason: clip(firstSentence(r.c.assessmentReasoning ?? ''), 260) || clauseHeading(r.c),
+        change: r.redraft && !r.redraft.noChange && r.redraft.changes.length > 0 ? clip(r.redraft.changes[0], 200) : null,
+      })),
+      findings: confirmedFindings.slice(0, 6).map((f) => ({
+        where: f.evidence.length > 0 ? [...new Set(f.evidence.map((e) => e.clauseLabel))].join('، ') : 'العقد ككل',
+        title: clip(f.title, 200),
+        sev: f.severity,
+        tone: FINDING_TONE(f.severity),
+        suggestion: f.suggestion ? clip(f.suggestion, 220) : null,
+      })),
+      candidateTotal,
+      warnings,
+      clauses: baseClauses,
+      actions: actionRows.map((a) => ({ text: a.text, priority: String(a.priority), tone: a.tone as Tone, timeline: a.timeline })),
+      recommendation: recommendationText,
+    });
+    return { reference, report: clientReport };
+  }
 
   const cover = { title: 'تقرير مراجعة وتدقيق مخاطر العقد', subtitle: 'تحليل قانونى احترافى متكامل — إطار القانون المصرى', rows: coverRows };
   const digest = createHash('sha256').update(JSON.stringify({ cover, blocks })).digest('hex').toUpperCase();

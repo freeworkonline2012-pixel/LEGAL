@@ -191,7 +191,7 @@ export class ExportsService {
     return { contract, clauses, approved };
   }
 
-  async exportContract(contractId: string, format: ExportFormat, actor: ExportActor): Promise<ExportedFile> {
+  async exportContract(contractId: string, format: ExportFormat, actor: ExportActor, audience: 'lawyer' | 'client' = 'lawyer'): Promise<ExportedFile> {
     const { contract, clauses, approved } = await this.loadContractForExport(contractId, actor);
     const doc = this.guard(() =>
       buildContractDocument({
@@ -222,6 +222,7 @@ export class ExportsService {
           : null,
         ...this.reportFindings(contract.contractFindings),
         partyNames: this.reportParties(contract.contractFindings),
+        audience,
         generatedAt: new Date(),
         brand: this.brand,
       }),

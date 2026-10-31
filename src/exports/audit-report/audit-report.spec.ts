@@ -484,3 +484,66 @@ describe('الغلاف التجارى: الأطراف والمرشحات الع�
     expect(coverVal({ ...INPUT, clauses: [clause({ clauseIndex: 1 })] }, 'مرشحات عالية')).toBeUndefined();
   });
 });
+
+describe('نسخة العميل المبسطة', () => {
+  const clientInput: AuditReportInput = { ...INPUT, audience: 'client', partyNames: { first: 'شركة أ', second: 'شركة ب' } };
+  const { report } = buildContractAuditReport(clientInput);
+  const banners = of(report.blocks, 'banner').map((b) => b.text);
+
+  it('عنوان ونطاق مختلفان وأقسام العميل فقط', () => {
+    expect(report.cover.title).toContain('نسخة العميل');
+    expect(banners).toEqual(['1. الخلاصة', '2. النقاط التى تحتاج قرارك', '3. ما نوصى بتفاوضه أولاً', '4. ما يجب أن تعرفه عن هذا التقرير']);
+    expect(report.cover.rows.some((r) => r.label.startsWith('القانون الحاكم'))).toBe(false);
+    expect(report.cover.rows.some((r) => r.label.startsWith('أطراف العقد'))).toBe(true);
+  });
+
+  it('لا نصوص مواد ولا اقتباسات حرفية ولا توقيعات ولا مقارنات', () => {
+    const json = JSON.stringify(report.blocks);
+    expect(of(report.blocks, 'compare')).toHaveLength(0);
+    expect(of(report.blocks, 'signatures')).toHaveLength(0);
+    expect(json).not.toContain('تاريخ ثابت سابق على البيع');
+    expect(json).not.toContain('الإطار القانونى والتشريعى');
+  });
+
+  it('بنود المخاطرة المؤكدة تظهر بالترتيب والعدد صحيح، والتعديل المقترح يظهر', () => {
+    const grid = of(report.blocks, 'grid')[0];
+    expect(grid.columns).toEqual(['#', 'الموضع', 'ما المشكلة', 'ما المطلوب', 'الدرجة']);
+    expect(grid.rows.map((r) => r[4].text)).toEqual(['حرج', 'عالٍ', 'متوسط', 'غير مصنَّف']);
+    expect(JSON.stringify(grid.rows)).toContain('أُضيف التزام المؤجر.');
+    const strip = of(report.blocks, 'strip')[0];
+    expect(strip.cells.slice(0, 3).map((c) => c.text)).toEqual(['1 حرجة', '1 عالية', '1 متوسطة']);
+  });
+
+  it('المرشح غير المؤكد لا يظهر كخطر مؤكد لكن يُذكر عدده', () => {
+    const c = [...CLAUSES, clause({ clauseIndex: 7, assessmentStatus: 'يحتاج مراجعة', riskLevel: 'عالٍ', assessmentReasoning: 'محتملة فقط.', verification: { status: 'unconfirmed', reason: 'لم يجزم.' } })];
+    const { report: r } = buildContractAuditReport({ ...clientInput, clauses: c });
+    const json = JSON.stringify(r.blocks);
+    expect(json).not.toContain('محتملة فقط');
+    expect(json).toContain('1 ملاحظة لم يستطع الفحص المستقل تأكيدها');
+  });
+
+  it('جدول الدفعات بأساس العقد الصريح (375,000 لكل مجموعة)', () => {
+    const c = [
+      clause({
+        clauseIndex: 1,
+        clauseText:
+          'إجمالى القيمة 1125000 جنيه مصرى مقسمة على ثلاث مجموعات. تسدد قيمة كل مجموعة: الدفعة الأولى 30 % عند التعاقد، والثانية 30 % بعد تحميل البرامج، والثالثة 40 % بعد إنهاء التفعيل. على أن تحسب هذه الدفعات على أساس القيمة المقدرة لكل مجموعة كلا على حدا وهى ( 375000 جنيه مصرى ).',
+      }),
+    ];
+    const { report: r } = buildContractAuditReport({ ...clientInput, clauses: c });
+    const json = JSON.stringify(r.blocks);
+    expect(json).toContain('112,500');
+    expect(json).toContain('لكل وحدة (مجموعة)');
+    expect(json).toContain('3 × 375,000');
+  });
+
+  it('الإصدار الافتراضى لم يتغير، واسم الملف يحمل -client والمُخرِجان يعملان', async () => {
+    const full = buildContractAuditReport(INPUT).report;
+    expect(of(full.blocks, 'banner')[0].text).toBe('1. الملخص التنفيذى');
+    const doc = buildContractDocument(clientInput);
+    expect(doc.filenameBase).toContain('-client');
+    expect(renderAuditHtml(doc.audit!, 'ت')).toContain('نسخة العميل');
+    const buf = await renderDocx(doc);
+    expect(buf.subarray(0, 2).toString()).toBe('PK');
+  });
+});
