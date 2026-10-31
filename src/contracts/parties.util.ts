@@ -14,7 +14,7 @@ export interface PartyNames {
 
 const MAX_PREAMBLE = 4000;
 const MAX_NAME_WORDS = 5;
-const ENTITY = /(?<=(?:^|[^ء-ي])[وفبلك]?)(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|مجموعة|مجموعه|الأستاذ|الاستاذ|السيد|السيدة|السيده)\s+/gu;
+const ENTITY = /(?<!ال)(?<!لل)(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|مجموعة|مجموعه|الأستاذ|الاستاذ|السيد|السيدة|السيده)\s+/gu;
 /** ألقاب الأشخاص: تُحسب اسم طرف فقط إن لم يرد فى المقطع اسم جهة (الشخص بعد اسم الشركة هو الممثل الموقّع لا الطرف). */
 const PERSON_TITLE = new Set(['الأستاذ', 'الاستاذ', 'السيد', 'السيدة', 'السيده'].map((w) => normalizeArabicForMatch(w)));
 /** كلمات تنهى الاسم (ما بعدها وصف لا اسم). */
@@ -23,7 +23,7 @@ const STOP = new Set(
     'ويمثلها', 'ويمثله', 'وتمثلها', 'يمثلها', 'يمثله', 'ممثلة', 'ممثله', 'ممثل', 'ومقرها', 'مقرها', 'ومقره', 'مقره', 'الكائن', 'والكائن', 'الكائنة',
     'رقم', 'ورقم', 'سجل', 'والمسجلة', 'المسجلة', 'المقيدة', 'بطاقة', 'ويقيم', 'المقيم', 'والمقيم', 'بصفته', 'بصفتها', 'ويشار', 'والمشار', 'المشار',
     'ومركزها', 'ومركزه', 'وعنوانها', 'عنوانها', 'وعنوانه', 'عنوانه', 'والتي', 'التي', 'والتى', 'التى', 'الذي', 'الذى', 'والذي', 'والذى',
-    'ش.م.م', 'ش.ذ.م.م', 'المحدودة', 'المحدوده', 'المساهمة', 'المساهمه', 'تأسست', 'تاسست', 'وفقا', 'وفقاً', 'طبقا', 'طبقاً', 'من', 'فى', 'في', 'ب', 'ومقيد',
+    'ش.م.م', 'ش.ذ.م.م', 'المحدودة', 'المحدوده', 'المساهمة', 'المساهمه', 'مساهمة', 'مساهمه', 'تأسست', 'تاسست', 'وفقا', 'وفقاً', 'طبقا', 'طبقاً', 'من', 'فى', 'في', 'ب', 'ومقيد',
     'مصرية', 'مصريه', 'منشأة', 'منشاه', 'ومنشأة', 'ومنشاه', 'شركة', 'شركه', 'ذات', 'ثانيا', 'ثانياً', 'ثالثا', 'اولا', 'أولا', 'أولاً', 'تجارى', 'تجاري', 'سجلها', 'ومسجلة', 'ومسجله', 'ويقع', 'يقع', 'تحت',
   ].map((w) => normalizeArabicForMatch(w)),
 );
@@ -66,23 +66,58 @@ function cleanName(raw: string): string | null {
  * الموقّع («ويمثلها السيد / فلان بصفته …»)، فالممثل ليس الطرف. لذلك تُفضَّل أول جهة اعتبارية (شركة/مؤسسة/بنك…)، ولا يُؤخذ لقب شخص
  * («السيد») إلا إذا لم يرد فى المقطع اسم جهة اعتبارية، أى كان الطرف شخصاً طبيعياً. ما لا يصلح اسماً يبقى null ولا يُخمَّن.
  */
-function pickEntityName(segment: string): string | null {
+function pickEntityName(raw: string): string | null {
+  const segment = stripBidi(raw);
   let firstCorporate: string | null = null;
   let firstPerson: string | null = null;
   ENTITY.lastIndex = 0;
   for (const m of segment.matchAll(ENTITY)) {
-    const start = (m.index ?? 0) + m[0].length;
+    const at = m.index ?? 0;
+    const start = at + m[0].length;
     const name = cleanName(segment.slice(start, start + 120));
     if (!name) continue;
     const isPerson = PERSON_TITLE.has(normalizeArabicForMatch(m[0].trim()));
+    // شخص سبقته عبارة «ويمثلها/ممثلاً بـ» هو الممثل الموقّع لا الطرف
+    if (isPerson && REPRESENTATIVE.test(segment.slice(0, at))) continue;
     if (isPerson) firstPerson ??= name;
     else firstCorporate ??= name;
   }
-  return firstCorporate ?? firstPerson;
+  return firstCorporate ?? nameBeforeDescription(segment) ?? firstPerson;
+}
+
+const REPRESENTATIVE = /(?<![ء-ي])(?:و?يمثل(?:ها|ه|هم)?|و?ممثل[ةه]?|و?تمثل(?:ها)?|وكيل(?:ها|ه)?)(?![ء-ي])/u;
+/** أول ما يدل على أن ما قبله اسم الجهة وما بعده وصفها (شكلها القانونى أو سجلها أو مقرها أو ممثلها). */
+const DESCRIPTION_MARK =
+  /(?<![ء-ي])(?:شركة|شركه)\s+(?:مساهمة|مساهمه|مصرية|مصريه|ذات|توصية|تضامن)|(?<![ء-ي])(?:منشأة|منشاه|ومنشأة|ومنشاه|سجل|مقرها|ومقرها|مقره|ومقره|ويمثلها|يمثلها|الكائن)(?![ء-ي])/u;
+
+/**
+ * احتياط حين لا تسبق الاسمَ كلمةُ «شركة» (وقع فى مسح حقيقى: عنوان «ثانياً: شركة» تحول إلى رموز لاتينية فصار الاسم أول ما يُقرأ):
+ * الاسم هو سلسلة الكلمات العربية الملاصقة قبل أول عبارة وصف (شكل الشركة/السجل/المقر)، مقطوعة عند الشرطة، وبحد أقصى خمس كلمات.
+ */
+function nameBeforeDescription(segment: string): string | null {
+  const mark = DESCRIPTION_MARK.exec(segment);
+  if (!mark) return null;
+  const tokens = segment.slice(0, mark.index).split(/\s+/).filter(Boolean);
+  const run: string[] = [];
+  for (let i = tokens.length - 1; i >= 0 && run.length < 8; i--) {
+    const t = tokens[i];
+    if (/^[\u0621-\u064A]{2,}$/u.test(t) || /^[—–-]+$/.test(t)) run.unshift(t);
+    else break;
+  }
+  const dash = run.findIndex((t) => /^[—–-]+$/.test(t));
+  let head = (dash >= 0 ? run.slice(0, dash) : run).join(' ');
+  // كلمة «شركة» ملتصقة برقم الترتيب بعد المسح («ثانياشركة أروب…»): الاسم ما بعدها
+  const glued = /(?:شركة|شركه)\s+/u.exec(head);
+  if (glued) head = head.slice(glued.index + glued[0].length);
+  return cleanName(head);
+}
+
+function stripBidi(s: string): string {
+  return s.replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '');
 }
 
 export function extractPartyNames(preamble: string | null | undefined): PartyNames {
-  const text = (preamble ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_PREAMBLE);
+  const text = stripBidi(preamble ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_PREAMBLE);
   const names: PartyNames = { first: null, second: null };
   if (!text) return names;
   let prevEnd = 0;

@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { aliasTokens, directionResolvable, extractPartyNames, partiesNamedIn } from './parties.util';
 
 const PREAMBLE =
@@ -87,5 +89,38 @@ describe('الطرف الثانى حين تضيع عبارة «(طرف ثانى)
   it('يقرأ الطرفين من الترقيم وحده، ولا يخمّن حيث لا اسم جهة', () => {
     expect(extractPartyNames('بين: أولا: شركة ألفا للتجارة ثانيا: شركة بيتا للمقاولات').first).toBe('ألفا للتجارة');
     expect(extractPartyNames('بين: أولا: السيد فلان ثانيا: ورثة المرحوم').second).toBeNull();
+  });
+});
+
+describe('ديباجة ممسوحة حقيقية (Blackbelts، ناتج Tesseract الفعلى للصفحة الأولى)', () => {
+  const fixture = (name: string) => {
+    const t = readFileSync(join(__dirname, '__fixtures__', 'golden', name), 'utf-8');
+    const end = t.indexOf('تمهيد');
+    return end > 0 ? t.slice(0, end) : t.slice(0, 1500);
+  };
+
+  it('بدقة 200: الطرفان من الاسم رغم أن عنوان «ثانياً: شركة» صار رموزاً لاتينية وعلامات اتجاه مخفية', () => {
+    expect(extractPartyNames(fixture('blackbelts-ocr-page1-200dpi.txt'))).toEqual({
+      first: 'بلاك بيلتس',
+      second: 'أروب لتأمينات الممتلكات والمسئوليات',
+    });
+  });
+
+  it('بدقة 120 (أسوأ): الطرف الثانى يُقرأ، والأول يحتمل حرفاً زائداً من المسح لكنه لا يصير اسم الموقّع', () => {
+    const p = extractPartyNames(fixture('blackbelts-ocr-page1-120dpi.txt'));
+    expect(p.second).toBe('أروب لتأمينات الممتلكات والمسئوليات');
+    expect(p.first).toMatch(/^بلاك بيلتس/);
+  });
+
+  it('الموقّع بعد «ويمثلها» لا يصير طرفاً حتى لو لم يرد اسم الجهة بكلمة «شركة»', () => {
+    const p = extractPartyNames('أروب لتأمينات الممتلكات مصر ومقرها القاهرة ويمثلها السيد / مدحت صابر بصفته العضو المنتدب ( طرف ثانى )');
+    expect(p.second).toBe('أروب لتأمينات الممتلكات مصر');
+  });
+});
+
+describe('التصاق كلمة «شركة» برقم الترتيب بعد المسح', () => {
+  it('«أولاشركة» و«ثانياشركة» تُقرآن، و«الشركة» و«للشركة» ليستا بداية اسم', () => {
+    const p = extractPartyNames('بين أولاشركة بلاك بيلتس شركة مصرية ويمثلها السيد / محمد بصفته رئيس الشركة ( طرف أول ) ثانياشركة أروب للتأمين شركة مساهمة ومقرها القاهرة ( طرف ثانى )');
+    expect(p).toEqual({ first: 'بلاك بيلتس', second: 'أروب للتأمين' });
   });
 });

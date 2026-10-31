@@ -212,6 +212,15 @@ export class ContractsService {
     // اسما الطرفين من الديباجة: يربطان الأسماء الواردة فى البنود بالطرف الأول/الثانى فلا يخمّن النموذج اتجاه الحق والالتزام
     const partyNames = extractPartyNames(segmentation.preamble);
     position = { ...position, partyNames };
+    if (!partyNames.first || !partyNames.second) {
+      // تشخيص بلا نص العقد (سرى): أطوال وعدادات فقط، لنعرف سبب تعذر قراءة طرف دون تسجيل محتوى الديباجة
+      const pre = segmentation.preamble;
+      this.logger.warn(
+        `contract ${contract.id}: party names not fully read (first=${partyNames.first ? 'ok' : 'null'}, second=${partyNames.second ? 'ok' : 'null'}) ` +
+          `preambleLen=${pre.length} designations=${(pre.match(/طرف/g) ?? []).length} firstMarks=${(pre.match(/أول|اول/g) ?? []).length} secondMarks=${(pre.match(/ثان/g) ?? []).length} ` +
+          `companyWord=${(pre.match(/شركة|شركه/g) ?? []).length} latinRuns=${(pre.match(/[A-Za-z]{2,}/g) ?? []).length}`,
+      );
+    }
 
     contract.status = 'processing';
     contract.clauseCount = segmentation.clauses.length;
