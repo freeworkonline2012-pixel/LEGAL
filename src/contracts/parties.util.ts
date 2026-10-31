@@ -14,7 +14,7 @@ export interface PartyNames {
 
 const MAX_PREAMBLE = 4000;
 const MAX_NAME_WORDS = 5;
-const ENTITY = /(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|مجموعة|مجموعه|الأستاذ|الاستاذ|السيد|السيدة|السيده)\s+/gu;
+const ENTITY = /(?<=(?:^|[^ء-ي])[وفبلك]?)(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|مجموعة|مجموعه|الأستاذ|الاستاذ|السيد|السيدة|السيده)\s+/gu;
 /** ألقاب الأشخاص: تُحسب اسم طرف فقط إن لم يرد فى المقطع اسم جهة (الشخص بعد اسم الشركة هو الممثل الموقّع لا الطرف). */
 const PERSON_TITLE = new Set(['الأستاذ', 'الاستاذ', 'السيد', 'السيدة', 'السيده'].map((w) => normalizeArabicForMatch(w)));
 /** كلمات تنهى الاسم (ما بعدها وصف لا اسم). */
@@ -24,7 +24,7 @@ const STOP = new Set(
     'رقم', 'ورقم', 'سجل', 'والمسجلة', 'المسجلة', 'المقيدة', 'بطاقة', 'ويقيم', 'المقيم', 'والمقيم', 'بصفته', 'بصفتها', 'ويشار', 'والمشار', 'المشار',
     'ومركزها', 'ومركزه', 'وعنوانها', 'عنوانها', 'وعنوانه', 'عنوانه', 'والتي', 'التي', 'والتى', 'التى', 'الذي', 'الذى', 'والذي', 'والذى',
     'ش.م.م', 'ش.ذ.م.م', 'المحدودة', 'المحدوده', 'المساهمة', 'المساهمه', 'تأسست', 'تاسست', 'وفقا', 'وفقاً', 'طبقا', 'طبقاً', 'من', 'فى', 'في', 'ب', 'ومقيد',
-    'مصرية', 'مصريه', 'منشأة', 'منشاه', 'ومنشأة', 'ومنشاه', 'شركة', 'شركه', 'ذات', 'تجارى', 'تجاري', 'سجلها', 'ومسجلة', 'ومسجله', 'ويقع', 'يقع', 'تحت',
+    'مصرية', 'مصريه', 'منشأة', 'منشاه', 'ومنشأة', 'ومنشاه', 'شركة', 'شركه', 'ذات', 'ثانيا', 'ثانياً', 'ثالثا', 'اولا', 'أولا', 'أولاً', 'تجارى', 'تجاري', 'سجلها', 'ومسجلة', 'ومسجله', 'ويقع', 'يقع', 'تحت',
   ].map((w) => normalizeArabicForMatch(w)),
 );
 const GENERIC = new Set(['شركه', 'مؤسسه', 'بنك', 'مكتب', 'مجموعه', 'السيد', 'السيده', 'الاستاذ'].map((w) => normalizeArabicForMatch(w)));
@@ -32,7 +32,10 @@ const GENERIC = new Set(['شركه', 'مؤسسه', 'بنك', 'مكتب', 'مجم
 /** «بصفته/بصفتها» بكل تشويهات المسح الشائعة (حرف زائد أو ناقص أو ة بدل ه). */
 const NOISE_CAPACITY = /^[وف]?ب?ص[سص]?ف[تط]?[هةها]*$/u;
 
-const DESIGNATION = /(?:ال)?طرف\s*(?:ال)?\s*(أول|اول|الأول|الاول|ثان[يى]|الثان[يى]|ثاني|الثاني)/gu;
+// «طرف ثان» بلا ياء تُقرأ أيضاً (المسح يُسقط الياء/الألف المقصورة الأخيرة كثيراً)
+const DESIGNATION = /(?:ال)?طرف\s*(?:ال)?\s*(أول|اول|الأول|الاول|ثان[يى]?|الثان[يى]?)(?![ء-ي])/gu;
+/** ترقيم الأطراف فى الصدر: «أولاً: شركة …» «ثانياً: شركة …» — احتياط حين تضيع عبارة «(طرف ثان)» من المسح. */
+const ORDINAL = /(?:^|\s)(?:(?<first>[أا]ولا)|(?<second>ثانيا))[ًا]?\s*[:：\-–—]/gu;
 
 function cleanName(raw: string): string | null {
   const words = raw
@@ -90,6 +93,20 @@ export function extractPartyNames(preamble: string | null | undefined): PartyNam
     const name = pickEntityName(text.slice(prevEnd, idx));
     prevEnd = idx + m[0].length;
     if (name && !names[side]) names[side] = name;
+  }
+  // احتياط: ما لم تحدده عبارة «طرف أول/ثان» يُقرأ من ترقيم «أولاً:/ثانياً:» (اسم الجهة الأولى بعد الرقم مباشرة)
+  if (!names.first || !names.second) {
+    const marks = [...text.matchAll(ORDINAL)].map((m) => ({ side: m.groups?.second ? ('second' as const) : ('first' as const), start: (m.index ?? 0) + m[0].length }));
+    marks.forEach((mk, i) => {
+      if (names[mk.side]) return;
+      let end = marks[i + 1]?.start ?? Math.min(text.length, mk.start + 700);
+      // ولا يتعدى عبارة التعريف «(طرف …)» إن وُجدت، فما بعدها ليس اسم هذا الطرف
+      DESIGNATION.lastIndex = 0;
+      const d = DESIGNATION.exec(text.slice(mk.start, end));
+      if (d) end = mk.start + d.index;
+      const name = pickEntityName(text.slice(mk.start, end));
+      if (name) names[mk.side] = name;
+    });
   }
   // اسم واحد لطرفين = التباس: لا نعتمد أيهما
   if (names.first && names.second && sameName(names.first, names.second)) return { first: null, second: null };
