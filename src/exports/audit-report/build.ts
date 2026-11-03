@@ -3,7 +3,7 @@ import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortRefe
 import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
 import { extractKeyTerms, KEY_TERM_KIND_LABEL } from '../../contracts/key-terms';
 import { buildPlaybook, type PlaybookResult } from '../../contracts/playbook';
-import { ACTION_TIMELINE, candidateAction, extraActions, PRIORITY_RANK, type ActionPriority } from './recommendations';
+import { ACTION_TIMELINE, candidateAction, extraActions, findingAction, playbookAction, PRIORITY_RANK, type ActionPriority } from './recommendations';
 import { buildPaymentSchedules, formatMoney, formatPercent } from '../../contracts/payment-schedule';
 import { coveredTopicRefs } from '../../contracts/missing-topic-map';
 import { playbookBlocks } from './playbook-section';
@@ -147,6 +147,28 @@ const ADJ = {
   review: ['للمراجعة', 'للمراجعة', 'مراجعة', 'للمراجعة'] as [string, string, string, string],
 };
 
+/** «ملاحظة واحدة / ملاحظتان / 5 ملاحظات / 12 ملاحظة» (العدد والمعدود). */
+function notes(n: number): string {
+  if (n === 1) return 'ملاحظة واحدة';
+  if (n === 2) return 'ملاحظتان';
+  if (n <= 10) return `${n} ملاحظات`;
+  return `${n} ملاحظة`;
+}
+/** «1 ملاحظة عالية / 2 ملاحظتان عاليتان / 3 ملاحظات عالية» بصرف صحيح للصفة. */
+function notePhrase(n: number, adj: [string, string, string]): string {
+  if (n === 1) return `1 ملاحظة ${adj[0]}`;
+  if (n === 2) return `2 ملاحظتان ${adj[1]}`;
+  if (n <= 10) return `${n} ملاحظات ${adj[2]}`;
+  return `${n} ملاحظة ${adj[2]}`;
+}
+const NOTE_ADJ = {
+  critical: ['حرجة', 'حرجتان', 'حرجة'] as [string, string, string],
+  high: ['عالية', 'عاليتان', 'عالية'] as [string, string, string],
+  medium: ['متوسطة', 'متوسطتان', 'متوسطة'] as [string, string, string],
+};
+/** ترتيب الدرجات لدمج ملاحظات العقد ككل فى بند واحد بأعلى درجة (الأقل رقماً أخطر). */
+const SEV_RANK: Record<string, number> = { حرج: 0, عالٍ: 1, متوسط: 2, 'غير مصنَّف': 3, منخفض: 4 };
+
 function oneLine(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
 }
@@ -225,12 +247,50 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   const reference = shortReference('CTR', input.contractId);
 
   const counts: Record<Severity, number> = { حرج: 0, عالٍ: 0, متوسط: 0, 'غير مصنَّف': 0 };
-  const risky: Array<{ c: AuditClause; sev: Severity; n: number; redraft: Redraft | null; unconfirmed: boolean }> = [];
+  const risky: Array<{ c: AuditClause; sev: Severity; baseSev: Severity; n: number; redraft: Redraft | null; unconfirmed: boolean }> = [];
   const isUnconfirmed = (c: AuditClause): boolean => c.verification?.status === 'unconfirmed';
+
+  // وحدة معالجة واحدة لكل بند: ملاحظة «قاعدة المكتب» المؤكدة التى يقع دليلها فى بند مؤكد الخطورة تُدمج فيه
+  // (لا تُعدّ ولا تُعرض مرتين)، وتصير درجة الوحدة أعلى الدرجتين، ويبقى نص الملاحظة مُحالاً إليه فى التفصيل والتوصيات.
+  const findings = input.contractFindings ?? [];
+  const isUnconfirmedFinding = (f: AuditContractFinding): boolean => f.verification?.status === 'unconfirmed';
+  const confirmedFindings = findings.filter((f) => !isUnconfirmedFinding(f));
+  const candidateFindings = findings.map((f, i) => ({ f, i })).filter((x) => isUnconfirmedFinding(x.f));
+  const confirmedClauseLabels = new Set(clauses.filter((c) => severityOf(c) !== null && !isUnconfirmed(c)).map((c) => c.clauseLabel));
+  const absorbedBy = new Map<string, number[]>();
+  const absorbedInto = new Map<number, string>();
+  findings.forEach((f, i) => {
+    if (isUnconfirmedFinding(f) || f.kind !== 'office_rule') return;
+    const label = f.evidence.map((e) => e.clauseLabel).find((l) => confirmedClauseLabels.has(l));
+    if (!label) return;
+    absorbedBy.set(label, [...(absorbedBy.get(label) ?? []), i]);
+    absorbedInto.set(i, label);
+  });
+  /** الملاحظة المدمجة التى رفعت درجة البند (الأعلى درجةً)، إن رفعته. */
+  const raisingFinding = (label: string, base: Severity): number | null => {
+    let best: number | null = null;
+    let bestRank = SEV_RANK[base];
+    for (const i of absorbedBy.get(label) ?? []) {
+      const rk = SEV_RANK[findings[i].severity] ?? 4;
+      if (rk < bestRank) {
+        best = i;
+        bestRank = rk;
+      }
+    }
+    return best;
+  };
+  const unitSeverity = (label: string, base: Severity): Severity => {
+    const i = raisingFinding(label, base);
+    const s = i === null ? base : findings[i].severity;
+    return s === 'حرج' || s === 'عالٍ' || s === 'متوسط' ? s : base;
+  };
   // المؤكدة أولاً بترتيب الخطورة ثم المرشّحات غير المؤكدة (الجولة 34): لا تدخل الأعداد ولا مستوى المخاطرة، وتُعرض فى قسم مستقل
   const ordered = clauses
-    .map((c) => ({ c, sev: severityOf(c) }))
-    .filter((x): x is { c: AuditClause; sev: Severity } => x.sev !== null)
+    .map((c) => {
+      const base = severityOf(c);
+      return { c, baseSev: base, sev: base !== null && !isUnconfirmed(c) ? unitSeverity(c.clauseLabel, base) : base };
+    })
+    .filter((x): x is { c: AuditClause; sev: Severity; baseSev: Severity } => x.sev !== null && x.baseSev !== null)
     .sort(
       (a, b) =>
         Number(isUnconfirmed(a.c)) - Number(isUnconfirmed(b.c)) ||
@@ -270,9 +330,6 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   }
   const lawList = [...laws.values()];
 
-  const findings = input.contractFindings ?? [];
-  const confirmedFindings = findings.filter((f) => f.verification?.status !== 'unconfirmed');
-  const candidateFindings = findings.map((f, i) => ({ f, i })).filter((x) => x.f.verification?.status === 'unconfirmed');
   const candidateTotal = candidateRisky.length + candidateFindings.length;
   const findingCounts = {
     critical: confirmedFindings.filter((f) => f.severity === 'حرج').length,
@@ -280,6 +337,21 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     medium: confirmedFindings.filter((f) => f.severity === 'متوسط').length,
   };
   const overall = overallRisk(counts, findingCounts);
+  // ملاحظات العقد ككل المؤكدة غير المدمجة فى بند: تدخل العدّاد بدرجتها (ملاحظة المكتب بدرجة «عالٍ» تُعدّ عالية)
+  const standalone = findings.map((f, i) => ({ f, i })).filter((x) => !isUnconfirmedFinding(x.f) && !absorbedInto.has(x.i));
+  const standaloneBy = (sev: string): number => standalone.filter((x) => x.f.severity === sev).length;
+  const standaloneLow = standalone.filter((x) => x.f.severity !== 'حرج' && x.f.severity !== 'عالٍ' && x.f.severity !== 'متوسط').length;
+  const unit = {
+    critical: counts['حرج'] + standaloneBy('حرج'),
+    high: counts['عالٍ'] + standaloneBy('عالٍ'),
+    medium: counts['متوسط'] + standaloneBy('متوسط'),
+    unclassified: counts['غير مصنَّف'],
+    low: standaloneLow,
+  };
+  const totalUnits = totalRisky + standalone.length;
+  const noteMode = standalone.length > 0;
+  /** رقم الملاحظة (ع…) المُحال إليها من وحدة البند. */
+  const absorbedRefs = (label: string): string => (absorbedBy.get(label) ?? []).map((i) => `ع${i + 1}`).join('، ');
   const year = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Cairo', year: 'numeric' }).format(input.generatedAt);
   const dateText = formatCairoDate(input.generatedAt);
 
@@ -380,18 +452,25 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     candidateTotal > 0
       ? ` ومعها ${candidateTotal === 1 ? 'مرشّحة واحدة' : candidateTotal === 2 ? 'مرشّحتان' : candidateTotal <= 10 ? `${candidateTotal} مرشّحات` : `${candidateTotal} مرشّحة`} للمراجعة البشرية لم يؤكدها المدقق المستقل؛ لا تدخل فى الأعداد أعلاه ولا فى مستوى المخاطرة العام، وتُعرض فى قسم مستقل بمصفوفة المخاطر.`
       : '';
-  if (totalRisky > 0) {
+  if (totalUnits > 0) {
     const dist: string[] = [];
-    if (counts['حرج']) dist.push(`حرجة (${counts['حرج']})`);
-    if (counts['عالٍ']) dist.push(`عالية الخطورة (${counts['عالٍ']})`);
-    if (counts['متوسط']) dist.push(`متوسطة (${counts['متوسط']})`);
-    if (counts['غير مصنَّف']) dist.push(`غير مصنَّفة الدرجة (${counts['غير مصنَّف']})`);
+    if (unit.critical) dist.push(`حرجة (${unit.critical})`);
+    if (unit.high) dist.push(`عالية الخطورة (${unit.high})`);
+    if (unit.medium) dist.push(`متوسطة (${unit.medium})`);
+    if (unit.unclassified) dist.push(`غير مصنَّفة الدرجة (${unit.unclassified})`);
+    if (unit.low) dist.push(`منخفضة (${unit.low})`);
+    const onClauses = totalRisky + standalone.filter((x) => x.f.evidence.length > 0).length;
+    const onWhole = standalone.filter((x) => x.f.evidence.length === 0).length;
+    const scope = onWhole > 0 ? `${onClauses > 0 ? `${onClauses} منها على بنود محددة من أصل ${bands(baseClauses.length)}، و` : ''}${onWhole} على العقد ككل` : `${onClauses} منها على بنود محددة من أصل ${bands(baseClauses.length)}`;
     blocks.push({
       t: 'p',
-      text:
-        `رُصد فى هذا العقد ${bands(totalRisky)} ${totalRisky === 1 ? 'يحتاج' : totalRisky === 2 ? 'يحتاجان' : 'تحتاج'} مراجعة من أصل ${bands(baseClauses.length)}، ` +
-        `${totalRisky === 1 ? 'وهو' : totalRisky === 2 ? 'وهما' : 'وهى'} بحسب الخطورة: ${dist.join('، ')}. ` +
-        `ويرتكز هذا التحليل على النصوص القانونية المصرية المفهرسة لدى المنصة${lawsPhrase}.${position}${candidatesSentence}`,
+      text: noteMode
+        ? `رُصدت فى هذا العقد ${notes(totalUnits)} تحتاج مراجعة، ${scope}، وهى بحسب الخطورة: ${dist.join('، ')}. ` +
+          `وتُعدّ ملاحظات قواعد المكتب بدرجتها مع غيرها؛ وإن اجتمعت مع ملاحظة على البند نفسه حُسبت مرة واحدة بأعلى الدرجتين. ` +
+          `ويرتكز هذا التحليل على النصوص القانونية المصرية المفهرسة لدى المنصة${lawsPhrase}.${position}${candidatesSentence}`
+        : `رُصد فى هذا العقد ${bands(totalRisky)} ${totalRisky === 1 ? 'يحتاج' : totalRisky === 2 ? 'يحتاجان' : 'تحتاج'} مراجعة من أصل ${bands(baseClauses.length)}، ` +
+          `${totalRisky === 1 ? 'وهو' : totalRisky === 2 ? 'وهما' : 'وهى'} بحسب الخطورة: ${dist.join('، ')}. ` +
+          `ويرتكز هذا التحليل على النصوص القانونية المصرية المفهرسة لدى المنصة${lawsPhrase}.${position}${candidatesSentence}`,
     });
   } else {
     blocks.push({
@@ -402,12 +481,19 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   }
   blocks.push({
     t: 'strip',
-    cells: [
-      { text: countPhrase(counts['متوسط'], ADJ.medium), tone: 'medium' },
-      { text: countPhrase(counts['عالٍ'], ADJ.high), tone: 'high' },
-      { text: countPhrase(counts['حرج'], ADJ.critical), tone: 'critical' },
-      { text: countPhrase(totalRisky, ADJ.review), tone: 'navy' },
-    ],
+    cells: noteMode
+      ? [
+          { text: notePhrase(unit.medium, NOTE_ADJ.medium), tone: 'medium' },
+          { text: notePhrase(unit.high, NOTE_ADJ.high), tone: 'high' },
+          { text: notePhrase(unit.critical, NOTE_ADJ.critical), tone: 'critical' },
+          { text: `${notes(totalUnits)} للمراجعة`, tone: 'navy' },
+        ]
+      : [
+          { text: countPhrase(counts['متوسط'], ADJ.medium), tone: 'medium' },
+          { text: countPhrase(counts['عالٍ'], ADJ.high), tone: 'high' },
+          { text: countPhrase(counts['حرج'], ADJ.critical), tone: 'critical' },
+          { text: countPhrase(totalRisky, ADJ.review), tone: 'navy' },
+        ],
   });
   blocks.push({
     t: 'p',
@@ -430,15 +516,20 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     const rank = (sev: string): number => ['حرج', 'عالٍ', 'متوسط'].indexOf(sev) === -1 ? 3 : ['حرج', 'عالٍ', 'متوسط'].indexOf(sev);
     type Top = { where: string; text: string; sev: string; tone: Tone; order: number };
     const tops: Top[] = [
-      ...confirmedRisky.map((r) => ({
-        where: r.c.clauseLabel,
-        text: clip(firstSentence(r.c.assessmentReasoning ?? ''), 150) || clauseHeading(r.c),
-        sev: r.sev as string,
-        tone: SEVERITY_TONE[r.sev],
-        order: 0,
-      })),
+      ...confirmedRisky.map((r) => {
+        // بند رُفعت درجته بقاعدة المكتب: يُعرض سبب الرفع (الملاحظة) بموضعها لا نص التقييم الأدنى
+        const rf = raisingFinding(r.c.clauseLabel, r.baseSev);
+        const rfi = rf === null ? null : findings[rf];
+        return {
+          where: rfi ? [...new Set(rfi.evidence.map((e) => e.clauseLabel))].join('، ') : r.c.clauseLabel,
+          text: rfi ? clip(rfi.title, 150) : clip(firstSentence(r.c.assessmentReasoning ?? ''), 150) || clauseHeading(r.c),
+          sev: r.sev as string,
+          tone: SEVERITY_TONE[r.sev],
+          order: 0,
+        };
+      }),
       // الملاحظات التى اعترض عليها المدقق المستقل لا تتصدر «أهم ما يستوجب الانتباه»؛ تبقى فى سجل المخاطر موسومة «غير مؤكدة»
-      ...confirmedFindings.map((f) => ({
+      ...standalone.map(({ f }) => ({
         where: f.evidence.length > 0 ? [...new Set(f.evidence.map((e) => e.clauseLabel))].join('، ') : 'العقد ككل',
         text: clip(f.title, 150),
         sev: f.severity,
@@ -571,14 +662,20 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     };
     const rows: Cell[][] = confirmedRisky.map((r) => [
       { text: String(r.n), center: true },
-      { text: clip(firstSentence(r.c.assessmentReasoning ?? ''), 120) || '—' },
+      {
+        text:
+          (clip(firstSentence(r.c.assessmentReasoning ?? ''), 120) || '—') +
+          (absorbedBy.has(r.c.clauseLabel)
+            ? ` — ويشمل أيضاً ${absorbedRefs(r.c.clauseLabel)} (قاعدة المكتب)${r.sev !== r.baseSev ? `؛ رُفعت الدرجة إلى ${r.sev}` : ''}`
+            : ''),
+      },
       { text: r.sev, tone: SEVERITY_TONE[r.sev], center: true },
       { text: r.c.clauseLabel, center: true },
       statusOf(r),
     ]);
     // ملاحظات العقد ككل المؤكدة (ع1، ع2…) فى السجل نفسه؛ الترقيم ثابت (موضع الملاحظة بين كل الملاحظات) ليتّسق مع قسمها
     findings.forEach((f, i) => {
-      if (f.verification?.status === 'unconfirmed') return;
+      if (f.verification?.status === 'unconfirmed' || absorbedInto.has(i)) return;
       const where = f.evidence.length > 0 ? [...new Set(f.evidence.map((e) => e.clauseLabel))].join('، ') : 'العقد ككل';
       rows.push([
         { text: `ع${i + 1}`, center: true },
@@ -589,7 +686,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
       ]);
     });
     if (rows.length > 0) {
-      blocks.push({ t: 'grid', columns: ['#', 'وصف المخاطرة', 'الدرجة', 'البند', 'الحالة'], rows, widths: [6, 38, 12, 16, 28] });
+      blocks.push({ t: 'grid', columns: ['#', 'وصف المخاطرة', 'الدرجة', 'البند', 'الحالة'], rows, widths: [8, 36, 12, 16, 28] });
     } else {
       blocks.push({ t: 'p', text: 'لا توجد بنود أو ملاحظات مؤكدة تحتاج مراجعة؛ وما يلى مرشّحات للمراجعة البشرية فقط.' });
     }
@@ -625,7 +722,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         t: 'grid',
         columns: ['#', 'المرشّحة', 'الدرجة المرشّحة', 'البند', 'سبب عدم التأكيد'],
         rows: candRows,
-        widths: [6, 30, 14, 14, 36],
+        widths: [8, 30, 14, 14, 34],
       });
     }
   }
@@ -643,7 +740,14 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         rows: [
           { label: 'المشكلة', tone: 'critical', value: r.c.assessmentReasoning?.trim() || '—' },
           { label: 'الأساس القانونى', tone: 'info', value: basis.length > 0 ? basis.join('\n') : 'لا مادة معتمدة مرتبطة بهذا البند.' },
-          { label: 'الخطر القانونى', tone: 'high', value: r.unconfirmed ? `${RISK_TEXT[r.sev]} (هذه الدرجة مرشّحة لم يؤكدها المدقق المستقل؛ لا تُعدّ حكماً قبل المراجعة البشرية.)` : RISK_TEXT[r.sev] },
+          { label: 'الخطر القانونى', tone: 'high', value: r.unconfirmed ? `${RISK_TEXT[r.sev]} (هذه الدرجة مرشّحة لم يؤكدها المدقق المستقل؛ لا تُعدّ حكماً قبل المراجعة البشرية.)` : RISK_TEXT[r.baseSev] },
+          ...(r.unconfirmed
+            ? []
+            : (absorbedBy.get(r.c.clauseLabel) ?? []).map((i) => ({
+                label: 'قاعدة المكتب',
+                tone: 'medium' as Tone,
+                value: `ع${i + 1} (${findings[i].severity}): ${findings[i].title}${findings[i].suggestion ? `\nالمعالجة المقترحة: ${findings[i].suggestion}` : ''}${r.sev !== r.baseSev && raisingFinding(r.c.clauseLabel, r.baseSev) === i ? `\nرُفعت درجة هذا البند من ${r.baseSev} إلى ${r.sev} بهذه القاعدة.` : ''}`,
+              }))),
           ...(r.c.verification
             ? [{ label: 'التحقق المستقل', tone: (r.c.verification.status === 'confirmed' ? 'info' : 'high') as Tone, value: verificationText(r.c.verification) }]
             : []),
@@ -699,12 +803,17 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         rows: findings.map((f, i) => [
           { text: `ع${i + 1}`, center: true },
           { text: f.kindLabel },
-          { text: clip(f.title, 140) + (f.verification?.status === 'unconfirmed' ? ' (غير مؤكدة)' : '') },
+          {
+            text:
+              clip(f.title, 140) +
+              (f.verification?.status === 'unconfirmed' ? ' (غير مؤكدة)' : '') +
+              (absorbedInto.has(i) ? ` (محسوبة ضمن ${absorbedInto.get(i)} بأعلى الدرجتين)` : ''),
+          },
           f.verification?.status === 'unconfirmed'
             ? { text: `${f.severity} (مرشّحة)`, tone: 'grey' as Tone, center: true }
             : { text: f.severity, tone: FINDING_TONE(f.severity), center: true },
         ]),
-        widths: [6, 24, 52, 18],
+        widths: [8, 22, 52, 18],
       });
       findings.forEach((f, i) => {
         blocks.push({ t: 'h3', text: `ع${i + 1}. ${f.title}` });
@@ -773,16 +882,49 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   // ---------- 5. التوصيات ----------
   banner('توصيات التنفيذ والجدول الزمنى للتفاوض');
   // إجراءات البنود المقيَّمة، ثم الملاحظات المؤكدة على العقد ككل، ثم محاور الدليل التفاوضى؛ مرتَّبة بالأولوية (ثابتة داخل الدرجة الواحدة)
-  const actionRows = [
-    ...confirmedRisky.map((r) => ({
+  // إجراء واحد لكل بند: ما دُمج فيه من ملاحظات قواعد المكتب ومن محاور الدليل التفاوضى المتعلقة به يُذكر فى إجرائه لا فى صفوف مستقلة
+  const unitLabels = new Set(confirmedRisky.map((r) => r.c.clauseLabel));
+  const foldedPlaybook = new Map<string, Array<{ label: string; priority: ActionPriority }>>();
+  const keptPlaybook: PlaybookResult | null = playbook
+    ? {
+        ...playbook,
+        rows: playbook.rows.filter((row) => {
+          const a = playbookAction(row, playbook.side !== null);
+          const lbl = row.concerns[0]?.clauseLabel;
+          if (!a || !lbl || !unitLabels.has(lbl)) return true;
+          foldedPlaybook.set(lbl, [...(foldedPlaybook.get(lbl) ?? []), { label: row.label, priority: a.priority }]);
+          return false;
+        }),
+      }
+    : null;
+  const PRIORITY_BY_RANK: ActionPriority[] = ['حرجة', 'عالية', 'متوسطة', 'منخفضة'];
+  const TONE_BY_RANK: Tone[] = ['critical', 'high', 'medium', 'grey'];
+  const clauseAction = (r: (typeof confirmedRisky)[number]) => {
+    const label = r.c.clauseLabel;
+    const inc: string[] = [];
+    for (const i of absorbedBy.get(label) ?? []) {
+      const fa = findingAction(findings[i]);
+      inc.push(`قاعدة المكتب (ع${i + 1})${fa.note && fa.note !== '—' ? `: ${fa.note}` : ''}`);
+    }
+    const pb = foldedPlaybook.get(label) ?? [];
+    for (const x of pb) inc.push(`محور «${x.label}» التفاوضى`);
+    const base = {
       text:
-        `مراجعة ${r.c.clauseLabel}${r.c.clauseTitle ? ` (${r.c.clauseTitle})` : ''} وتعديله` + (r.redraft && !r.redraft.noChange ? ' وفق الصياغة المقترحة' : ''),
+        `مراجعة ${label}${r.c.clauseTitle ? ` (${r.c.clauseTitle})` : ''} وتعديله` + (r.redraft && !r.redraft.noChange ? ' وفق الصياغة المقترحة' : ''),
       priority: PRIORITY[r.sev] as ActionPriority | string,
-      tone: SEVERITY_TONE[r.sev],
+      tone: SEVERITY_TONE[r.sev] as Tone,
       timeline: TIMELINE[r.sev],
       note: PRIORITY_NOTE[r.sev],
-    })),
-    ...extraActions(confirmedFindings, playbook),
+    };
+    if (pb.length === 0) return inc.length > 0 ? { ...base, note: `${base.note}؛ ويشمل: ${inc.join('؛ ')}` } : base;
+    // محور تفاوضى أعلى أولوية من درجة البند يرفع أولوية الإجراء
+    const rank = Math.min(PRIORITY_RANK[base.priority as ActionPriority] ?? 2, ...pb.map((x) => PRIORITY_RANK[x.priority]));
+    const priority = PRIORITY_BY_RANK[rank];
+    return { ...base, priority, tone: TONE_BY_RANK[rank], timeline: ACTION_TIMELINE[priority], note: `${base.note}؛ ويشمل: ${inc.join('؛ ')}` };
+  };
+  const actionRows = [
+    ...confirmedRisky.map(clauseAction),
+    ...extraActions(standalone.map((x) => x.f), keptPlaybook),
     // مرشّحات غير مؤكدة: إجراء «تحقق بشرى» لا «تعديل»، بأولوية أدنى (الجولة 34)
     ...candidateRisky.map((r) => candidateAction(`${r.c.clauseLabel}${r.c.clauseTitle ? ` (${r.c.clauseTitle})` : ''}`, r.sev, r.c.verification?.reason ?? '')),
     ...candidateFindings.map(({ f }) => candidateAction(f.title, f.severity, f.verification?.reason ?? '')),
@@ -939,16 +1081,22 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
       approved,
       coverRows,
       overall,
-      counts: { critical: counts['حرج'], high: counts['عالٍ'], medium: counts['متوسط'] },
+      counts: { critical: unit.critical, high: unit.high, medium: unit.medium },
       risks: confirmedRisky.slice(0, 10).map((r) => ({
         where: r.c.clauseLabel,
         title: r.c.clauseTitle,
         sev: r.sev as string,
         tone: SEVERITY_TONE[r.sev],
         reason: clip(firstSentence(r.c.assessmentReasoning ?? ''), 260) || clauseHeading(r.c),
-        change: r.redraft && !r.redraft.noChange && r.redraft.changes.length > 0 ? clip(r.redraft.changes[0], 200) : null,
+        change:
+          r.redraft && !r.redraft.noChange && r.redraft.changes.length > 0
+            ? clip(r.redraft.changes[0], 200)
+            : (() => {
+                const fi = (absorbedBy.get(r.c.clauseLabel) ?? []).map((i) => findings[i]).find((f) => f.suggestion);
+                return fi?.suggestion ? clip(fi.suggestion, 200) : null;
+              })(),
       })),
-      findings: confirmedFindings.slice(0, 6).map((f) => ({
+      findings: standalone.slice(0, 6).map(({ f }) => ({
         where: f.evidence.length > 0 ? [...new Set(f.evidence.map((e) => e.clauseLabel))].join('، ') : 'العقد ككل',
         title: clip(f.title, 200),
         sev: f.severity,
