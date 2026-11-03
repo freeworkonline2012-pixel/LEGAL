@@ -100,6 +100,30 @@ describe('buildTrackedDocx (الجولة 6)', () => {
     }
   });
 
+  it('بند مرشّح لم يؤكده المدقق المستقل: لا تعديل متتبَّع، ويبقى نصه الأصلى مع تعليق «غير مؤكدة»', async () => {
+    const input = {
+      ...INPUT,
+      clauses: [
+        clause({
+          clauseIndex: 2,
+          clauseText: 'يظل العقد ساريا فى مواجهة من تنتقل إليه الملكية.',
+          assessmentStatus: 'يحتاج مراجعة',
+          riskLevel: 'متوسط',
+          assessmentReasoning: 'مرشّحة.',
+          suggestedWording: JSON.stringify({ text: 'يظل العقد ساريا بشرط التاريخ الثابت.', changes: ['قُيِّد النفاذ.'] }),
+          verification: { status: 'unconfirmed' as const, reason: 'البند صريح.' },
+        }),
+      ],
+    };
+    const { buffer, stats } = await buildTrackedDocx(input);
+    const { doc, comments } = await parts(buffer);
+    expect(stats.trackedClauses).toBe(0);
+    expect(doc).not.toContain('<w:ins ');
+    expect(doc).not.toContain('<w:del ');
+    expect(textOf(doc, 't')).toContain('يظل العقد ساريا فى مواجهة من تنتقل إليه الملكية.');
+    expect(comments).toContain('غير مؤكدة');
+  });
+
   it('ملاحظة الاستخدام والحدود تظهر فى أول المستند، والمسودة موسومة قبل الاعتماد', async () => {
     const { doc } = await parts((await buildTrackedDocx(INPUT)).buffer);
     const text = textOf(doc, 't');

@@ -382,6 +382,17 @@ describe('الجولة 6: الملخص التنفيذى وسجل المخاطر 
     expect(texts.some((t) => t.startsWith('مراجعة البند 1'))).toBe(false);
   });
 
+  it('النسخة المعدَّلة للبنود المؤكدة فقط: لا صياغة مقترحة لمرشّحة لم يؤكدها المدقق (قد تضعف مركز العميل)', () => {
+    const wording = JSON.stringify({ text: 'صياغة مقترحة لبند مرشّح.', changes: ['قُيِّد النفاذ.'] });
+    const clauses = [
+      clause({ clauseIndex: 1, assessmentStatus: 'يحتاج مراجعة', riskLevel: 'متوسط', assessmentReasoning: 'مرشّحة.', suggestedWording: wording, verification: { status: 'unconfirmed', reason: 'البند صريح.', quote: null } }),
+      clause({ clauseIndex: 2, assessmentStatus: 'يحتاج مراجعة', riskLevel: 'متوسط', assessmentReasoning: 'مؤكدة.', suggestedWording: JSON.stringify({ text: 'صياغة مقترحة لبند مؤكد.', changes: ['أُضيفت مهلة.'] }) }),
+    ];
+    const json = JSON.stringify(buildContractAuditReport({ ...INPUT, clauses }).report.blocks);
+    expect(json).toContain('صياغة مقترحة لبند مؤكد.');
+    expect(json).not.toContain('صياغة مقترحة لبند مرشّح.');
+  });
+
   it('الجولة 34: جدول الدفعات يظهر بالمبالغ المحسوبة وفحص المجموع، ونسبة OCR المشكوك فيها تُوسَم وتُقارَن بالمتبقى', () => {
     const text = 'تبلغ قيمة العقد 1125000 جنيه مصرى. تسدد على ثلاث دفعات: الأولى 30% عند التوقيع، والثانية 30% عند التسليم، والباقى 40 96 مقابل القبول النهائى.';
     const { report: r } = buildContractAuditReport({ ...base, clauses: [clause({ clauseIndex: 2, clauseTitle: 'المقابل', clauseText: text })] });

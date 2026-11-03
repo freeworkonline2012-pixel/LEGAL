@@ -736,7 +736,8 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
 
   // ---------- 4. النسخة المعدّلة ----------
   banner('النسخة الاحترافية المُعدَّلة للبنود');
-  const redrafted = risky.filter((r) => r.redraft).sort((a, b) => a.c.clauseIndex - b.c.clauseIndex);
+  // الصياغة المعدَّلة للبنود المؤكدة فقط: المرشّحة التى لم يؤكدها المدقق المستقل لا تُقترح لها صياغة تُنسب إلى العميل (قد تضعف مركزه)
+  const redrafted = confirmedRisky.filter((r) => r.redraft).sort((a, b) => a.c.clauseIndex - b.c.clauseIndex);
   if (redrafted.length === 0) {
     blocks.push({
       t: 'p',

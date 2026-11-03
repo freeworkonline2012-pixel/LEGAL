@@ -138,10 +138,11 @@ describe('قواعد المكتب — الضمانات العامة', () => {
     for (const e of f.evidence) expect(quoteInText(e.quote, c.clauseText)).toBe(true);
   });
 
-  it('الشرح يعلن أنها ممارسة مكتب وأن مصدرها عينة محدودة', () => {
+  it('الشرح يعلن أنها ممارسة مكتب لا نص قانونى، ولا يكشف بيانات التطوير الداخلية للعميل', () => {
     const [f] = officeRuleFindings([c], opts('خدمات'));
     expect(f.explanation).toContain('قاعدة المكتب');
-    expect(f.explanation).toContain('مصدر القاعدة');
+    expect(f.explanation).toContain('ممارسة تعاقدية للمكتب وليست نصاً قانونياً');
+    expect(f.explanation).not.toMatch(/الدفعة|المجموعة الذهبية|عينة|محامى المكتب على|مصدر القاعدة/);
   });
 
   it('تنبيه القراءة الآلية يُضاف للشرح عند وجود تحذيرات ترقيم', () => {

@@ -322,7 +322,8 @@ export function officeRuleFindings(
       kind: 'office_rule',
       severity: rule.severity,
       title: rule.title,
-      explanation: `${rule.explanation} ${rule.provenance}${caveat}`,
+      // المصدر (provenance) للتوثيق الداخلى فى الكود فقط: لا يُعرض فى تقرير العميل أسماء دفعات التطوير ولا عدد العقود.
+      explanation: `${rule.explanation} وهذه ممارسة تعاقدية للمكتب وليست نصاً قانونياً.${caveat}`,
       suggestion: rule.suggestion,
       evidence: evidence.slice(0, 4),
       source: 'rule',

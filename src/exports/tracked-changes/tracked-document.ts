@@ -141,7 +141,8 @@ export async function buildTrackedDocx(input: TrackedInput): Promise<{ buffer: B
     );
 
     const redraft = parseRedraft(c.suggestedWording);
-    const tracked = redraft !== null && !redraft.noChange && redraft.text.trim().length > 0;
+    // لا تعديل متتبَّع على بند مرشّح لم يؤكده المدقق المستقل: قد تضعف الصياغة مركز العميل؛ يبقى نصه الأصلى مع تعليق «غير مؤكدة»
+    const tracked = redraft !== null && !redraft.noChange && redraft.text.trim().length > 0 && c.verification?.status !== 'unconfirmed';
     const flagged = c.assessmentStatus === NEEDS_REVIEW;
 
     // أسطر الفقرات: كل سطر قائمة أبناء
