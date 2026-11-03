@@ -271,7 +271,11 @@ export function buildPlaybook(input: PlaybookInput): PlaybookResult | null {
   const prepared = prepare(input.clauses);
   const fullNorm = prepared.map((p) => p.clauseNorm).join(' ');
   const ctx = playbookCtx(family, side, input.clientParty ?? null);
-  const rows = PLAYBOOK_TOPICS.filter((t) => t.families.includes(family)).map((t) => buildRow(t, family, side, prepared, fullNorm, ctx));
+  const rows = PLAYBOOK_TOPICS.filter((t) => t.families.includes(family))
+    .map((t) => ({ t, row: buildRow(t, family, side, prepared, fullNorm, ctx) }))
+    // محور لم يُرصد نصه ولا ينطبق على هذا العقد لا يُعرض «غير مرصود» (appliesWhen)
+    .filter(({ t, row }) => row.status !== 'missing' || !t.appliesWhen || reHit(t.appliesWhen, fullNorm))
+    .map(({ row }) => row);
   return {
     version: 1,
     family,

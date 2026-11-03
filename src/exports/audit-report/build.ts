@@ -5,6 +5,7 @@ import { extractKeyTerms, KEY_TERM_KIND_LABEL } from '../../contracts/key-terms'
 import { buildPlaybook, type PlaybookResult } from '../../contracts/playbook';
 import { ACTION_TIMELINE, candidateAction, extraActions, PRIORITY_RANK, type ActionPriority } from './recommendations';
 import { buildPaymentSchedules, formatMoney, formatPercent } from '../../contracts/payment-schedule';
+import { coveredTopicRefs } from '../../contracts/missing-topic-map';
 import { playbookBlocks } from './playbook-section';
 import { buildClientAuditReport } from './client-version';
 import { type AuditReport, type Cell, type RBlock, type Tone } from './model';
@@ -73,6 +74,8 @@ export interface AuditReportInput {
 }
 
 export interface AuditContractFinding {
+  /** معرّف الملاحظة المخزَّن (مثل missing:warranty)؛ يُستعمل لربطها بمحور الدليل التفاوضى. غائب فى الملاحظات القديمة. */
+  id?: string;
   kind: string;
   kindLabel: string;
   severity: string;
@@ -727,7 +730,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   {
     if (playbook) {
       banner(`الدليل التفاوضى — ${playbook.familyLabel}${playbook.sideLabel ? ` من منظور ${playbook.sideLabel}` : ''}`);
-      blocks.push(...playbookBlocks(playbook));
+      blocks.push(...playbookBlocks(playbook, coveredTopicRefs(findings)));
     }
   }
 

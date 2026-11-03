@@ -173,3 +173,54 @@ describe('قواعد المكتب — الضمانات العامة', () => {
     expect(a.priority).toBe('عالية');
   });
 });
+
+describe('قواعد المكتب — الصياغات العامة (عدم التنازل وتحديد المسئولية)', () => {
+  const nonWaiver = clause(14, 'التنازل عن الحقوق', 'لا يعتبر تنازل أى من الطرفين عن حق من حقوقه بموجب هذا العقد فى أى مناسبة بمثابة تنازل عن هذا الحق فى مناسبات لاحقة.');
+  const cap = clause(
+    11,
+    'تحديد المسئولية',
+    'لن يكون مقدم الخدمة مسئولا عن الأضرار غير المباشرة أو العرضية أو التبعية، بما فى ذلك خسارة الأرباح. يجب ألا تتجاوز المسئولية الإجمالية لمقدم الخدمة المبلغ الذى دفعه العميل بموجب هذه الاتفاقية.',
+  );
+
+  it('عدم التنازل بصيغة عامة: يُرصد مع توصية الحذف وإعادة الصياغة', () => {
+    const f = officeRuleFindings([nonWaiver], opts('خدمات')).find((x) => x.id === 'office:generic_non_waiver');
+    expect(f).toBeDefined();
+    expect(f!.title).toContain('حذفه وإعادة صياغته');
+    expect(f!.evidence.map((e) => e.clauseIndex)).toEqual([14]);
+  });
+
+  it('لا يُرصد بند عدم التنازل إن اشترط الكتابة والتوقيع', () => {
+    const c = clause(14, 'التنازل', 'لا يعتبر تنازل أى طرف عن حق بمثابة تنازل عن غيره، ولا يصح أى تنازل إلا إذا كان صريحاً ومكتوباً وموقعاً من الطرف المتنازل.');
+    expect(ids([c], 'خدمات')).not.toContain('office:generic_non_waiver');
+  });
+
+  it('لا يُرصد بند عدم التنازل فى عقد العمل ولا النوع غير المحدد', () => {
+    expect(ids([nonWaiver], 'عقد عمل')).not.toContain('office:generic_non_waiver');
+    expect(ids([nonWaiver], null)).not.toContain('office:generic_non_waiver');
+  });
+
+  it('تحديد المسئولية بصيغة عامة: يُرصد', () => {
+    expect(ids([cap], 'خدمات')).toContain('office:generic_liability_limit');
+  });
+
+  it('لا يُرصد إن استثنى البند الغش والخطأ الجسيم', () => {
+    const c = clause(11, 'تحديد المسئولية', `${cap.clauseText} ولا يسرى هذا السقف فى حالة الغش أو الخطأ الجسيم.`);
+    expect(ids([c], 'خدمات')).not.toContain('office:generic_liability_limit');
+  });
+
+  it('لا يُرصد ذكر عابر لخسارة الأرباح فى بند لا يتناول المسئولية', () => {
+    const c = clause(6, 'المقابل', 'يسدد العميل المقابل الشهرى، ولا تُحتسب فيه أى مبالغ عن خسارة الأرباح المتوقعة للعميل.');
+    expect(ids([c], 'خدمات')).not.toContain('office:generic_liability_limit');
+  });
+
+  it('لا ينطبق سقف المسئولية على البيع (خارج أنواع القاعدة)', () => {
+    expect(ids([cap], 'بيع')).not.toContain('office:generic_liability_limit');
+  });
+
+  it('مصدر القاعدتين معلن بأنه بند واحد فى عقد واحد', () => {
+    for (const id of ['generic_non_waiver', 'generic_liability_limit']) {
+      const r = DEFAULT_OFFICE_PROFILE.rules.find((x) => x.id === id)!;
+      expect(r.provenance).toContain('بند واحد فى عقد واحد');
+    }
+  });
+});

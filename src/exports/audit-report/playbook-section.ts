@@ -31,8 +31,17 @@ function stanceLines(s: Stance): string {
   return `الأفضل: ${s.prefer}\nالبديل: ${s.fallback}\nالخط الأحمر: ${s.redLine}`;
 }
 
-function observedText(row: PlaybookRow, sideKnown: boolean): string {
-  if (row.status === 'missing') return `لم يُرصد نص فى العقد المرفوع.\n${PLATFORM_NOTE} ${row.ifMissing}`;
+/** محور الدليل -> رقم الملاحظة التى سبق أن نبّهت إلى غياب الموضوع نفسه فى «ملاحظات العقد ككل» (فلا يبدو ملاحظة ثانية مستقلة). */
+export type CoveredTopics = ReadonlyMap<string, string>;
+
+function observedText(row: PlaybookRow, sideKnown: boolean, covered?: CoveredTopics): string {
+  if (row.status === 'missing') {
+    const ref = covered?.get(row.topicId);
+    const head = ref
+      ? `لم يُرصد نص فى العقد المرفوع — سبق التنبيه إليه فى «ملاحظات العقد ككل» (${ref})، ويُضاف هنا الأثر القانونى والموقف التفاوضى لا ملاحظة جديدة.`
+      : 'لم يُرصد نص فى العقد المرفوع.';
+    return `${head}\n${PLATFORM_NOTE} ${row.ifMissing}`;
+  }
   const parts: string[] = [];
   if (row.evidence && !row.concerns.some((c) => c.quote === row.evidence?.quote)) {
     parts.push(`${row.evidence.clauseLabel}: «${row.evidence.quote}»`);
@@ -78,7 +87,7 @@ export function playbookIntro(pb: PlaybookResult): string[] {
   ];
 }
 
-export function playbookBlocks(pb: PlaybookResult): RBlock[] {
+export function playbookBlocks(pb: PlaybookResult, covered?: CoveredTopics): RBlock[] {
   const sideKnown = pb.side !== null;
   const blocks: RBlock[] = [];
   for (const p of playbookIntro(pb)) blocks.push({ t: 'p', text: p });
@@ -96,7 +105,7 @@ export function playbookBlocks(pb: PlaybookResult): RBlock[] {
     rows: pb.rows.map((r): Cell[] => [
       { text: r.label, bold: true },
       { text: statusText(r, sideKnown), tone: rowTone(r), center: true },
-      { text: observedText(r, sideKnown) },
+      { text: observedText(r, sideKnown, covered) },
       { text: stanceText(r) },
     ]),
   });

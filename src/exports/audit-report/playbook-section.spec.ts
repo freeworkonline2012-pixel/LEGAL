@@ -156,3 +156,37 @@ describe('قسم الدليل التفاوضى فى تقرير تدقيق الع
     }
   });
 });
+
+describe('الإحالة من محور الدليل إلى «ملاحظات العقد ككل» (منع الازدواج)', () => {
+  const SERVICES = [clause(1, 'نطاق الخدمات: يطور الطرف الثانى برمجيات ونظم معلومات للطرف الأول ويسلمها بعد الاختبار.')];
+  const svc = (findings?: Array<{ id: string; title: string }>) =>
+    base({
+      contractType: 'عقد خدمات أو مقاولة أو توريد',
+      clientRole: 'العميل',
+      clauses: SERVICES,
+      contractFindings: findings?.map((f) => ({ id: f.id, kind: 'missing_clause', kindLabel: 'بند غير مرصود', severity: 'متوسط', title: f.title, explanation: 'ش', suggestion: null, evidence: [] })),
+    });
+  const cellOf = (blocks: RBlock[], label: string): string => {
+    const g = of(blocks, 'grid').find((x) => x.columns[0] === 'المحور')!;
+    const row = g.rows.find((r) => r[0].text.includes(label))!;
+    return row[2].text;
+  };
+
+  it('المحور غير المرصود الذى سبقت الملاحظة عليه يُحيل إلى رقمها ويُبقى الأثر القانونى', () => {
+    const { report } = buildContractAuditReport(svc([{ id: 'missing:delay_penalty', title: 'لم يُرصد بند يتناول: جزاء التأخير' }]));
+    const t = cellOf(report.blocks, 'غرامات التأخير');
+    expect(t).toContain('سبق التنبيه إليه');
+    expect(t).toContain('(ع1)');
+    expect(t).toContain('ملاحظة المنصة');
+  });
+
+  it('بلا ملاحظة سابقة لا إحالة', () => {
+    const { report } = buildContractAuditReport(svc());
+    expect(cellOf(report.blocks, 'غرامات التأخير')).not.toContain('سبق التنبيه إليه');
+  });
+
+  it('الرقم يتبع ترتيب الجدول فى «ملاحظات العقد ككل» لا ترتيب التخزين', () => {
+    const { report } = buildContractAuditReport(svc([{ id: 'open:x', title: 'شرط مفتوح' }, { id: 'missing:acceptance', title: 'لم يُرصد بند يتناول: القبول' }]));
+    expect(cellOf(report.blocks, 'التسليم والقبول')).toContain('(ع2)');
+  });
+});

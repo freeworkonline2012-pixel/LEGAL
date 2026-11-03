@@ -310,6 +310,7 @@ export class ExportsService {
     const list = (doc.findings as Array<Record<string, unknown>>)
       .filter((f) => f && typeof f === 'object' && str(f.title) && str(f.explanation))
       .map((f) => ({
+        id: str(f.id) || undefined,
         kind: str(f.kind),
         kindLabel: labels[str(f.kind)] ?? str(f.kind),
         severity: str(f.severity) || 'متوسط',
