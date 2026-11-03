@@ -54,6 +54,9 @@ export function findingAction(f: ActionFinding): ExtraAction {
     case 'open_term':
       text = `تحديد الشرط المفتوح: ${clip(title.replace(/^شرط مفتوح:\s*/, ''), 110)}`;
       break;
+    case 'office_rule':
+      text = `تعديل وفق قاعدة المكتب: ${clip(title, 110)}`;
+      break;
     default:
       text = `معالجة: ${clip(title, 120)}`;
   }

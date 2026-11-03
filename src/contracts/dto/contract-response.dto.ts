@@ -10,7 +10,7 @@ export class FindingEvidenceDto {
 
 export class ContractFindingDto {
   @ApiProperty() id: string;
-  @ApiProperty({ enum: ['missing_clause', 'undefined_term', 'open_term', 'conflict', 'scope_mismatch'] }) kind: string;
+  @ApiProperty({ enum: ['missing_clause', 'undefined_term', 'open_term', 'conflict', 'scope_mismatch', 'office_rule'] }) kind: string;
   @ApiProperty() kind_label: string;
   @ApiProperty({ enum: ['حرج', 'عالٍ', 'متوسط', 'منخفض'] }) severity: string;
   @ApiProperty() title: string;

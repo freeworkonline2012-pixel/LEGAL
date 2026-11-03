@@ -303,6 +303,7 @@ export class ExportsService {
       open_term: 'شرط مفتوح',
       conflict: 'تعارض محتمل بين بندين',
       scope_mismatch: 'عدم اتساق فى النطاق',
+      office_rule: 'قاعدة المكتب',
     };
     const str = (v: unknown) => (typeof v === 'string' ? v : '');
     const rank: Record<string, number> = { حرج: 0, عالٍ: 1, متوسط: 2, منخفض: 3 };

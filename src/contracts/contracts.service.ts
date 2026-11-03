@@ -69,6 +69,7 @@ import {
   mergeFindings,
   sortFindings,
 } from './contract-level';
+import { officeRuleFindings } from './office-rules';
 
 // معايير الموضوعات التى لها قواعد حتمية (clause-rules.ts)
 const RULE_TOPIC_CRITERIA: readonly string[] = ['exit', 'liability', 'force_majeure', 'compensation'];
@@ -286,7 +287,10 @@ export class ContractsService {
     const textMayBeIncomplete = extractionWarnings.some((w) => /OCR|ترقيم|بند/.test(w));
     let rules: ContractFinding[] = [];
     try {
-      rules = deterministicFindings(clauses, { contractType, textMayBeIncomplete, titleText });
+      rules = sortFindings([
+        ...deterministicFindings(clauses, { contractType, textMayBeIncomplete, titleText }),
+        ...officeRuleFindings(clauses, { contractType, textMayBeIncomplete, titleText }),
+      ]);
     } catch (err) {
       this.logger.warn(`contract-level rules failed (non-fatal): ${(err as Error).message}`);
     }
