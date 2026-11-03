@@ -280,3 +280,25 @@ describe('فحوص البنود الناقصة للأنواع الإضافية',
     expect(ids(tm)).toContain('missing:licence_registration');
   });
 });
+
+describe('بند تعديل العقد: معيار المكتب (ملحق مكتوب موقع، وشمول الالتزامات للملاحق، وعدم الاعتداد بالمراسلات)', () => {
+  const base = [
+    { clauseIndex: 1, clauseLabel: 'البند 1', clauseTitle: 'المقابل', clauseText: 'يسدد العميل المقابل الشهرى فى أول كل شهر وخلال ثلاثين يوماً من تاريخ الفاتورة، وتشمل الخدمات ما ورد بنطاق العمل.' },
+    { clauseIndex: 2, clauseLabel: 'البند 2', clauseTitle: 'مدة العقد', clauseText: 'مدة هذا العقد سنة ميلادية تبدأ من 1/1/2027 وتنتهى فى 31/12/2027.' },
+  ];
+
+  it('غياب بند التعديل: الملاحظة تحمل نص المكتب كاملاً', () => {
+    const f = checkMissingClauses(base, { contractType: 'خدمات', textMayBeIncomplete: false }).find((x) => x.id === 'missing:amendments');
+    expect(f).toBeDefined();
+    expect(f!.suggestion).toContain('ملحق مكتوب');
+    expect(f!.suggestion).toContain('يوقعه الطرفان');
+    expect(f!.suggestion).toContain('وما يلحقه من ملاحق');
+    expect(f!.suggestion).toContain('المراسلات البريدية أو الإلكترونية');
+    expect(f!.explanation).toContain('ممارسة المكتب');
+  });
+
+  it('وجود بند تعديل بالكتابة والتوقيع لا يُنتج ملاحظة (كما قبله المستشار فى عقوده)', () => {
+    const c = [...base, { clauseIndex: 3, clauseLabel: 'البند 3', clauseTitle: 'تعديل البنود', clauseText: 'لا يعتد بأى تعديل على بنود هذا العقد إلا إذا كان مكتوباً وموقعاً من ممثلى الطرفين المخولين.' }];
+    expect(checkMissingClauses(c, { contractType: 'خدمات', textMayBeIncomplete: false }).some((x) => x.id === 'missing:amendments')).toBe(false);
+  });
+});
