@@ -109,6 +109,14 @@ describe('الفحوص الحتمية على العقد الذهبى المُص�
     for (const id of ['lease_handover', 'lease_deposit', 'lease_maintenance']) expect(find(l, `missing:${id}`)).toBeDefined();
   });
 
+  it('القوة القاهرة: لا تُطلب من عقد إيجار (حكم المستشار) وتبقى مطلوبة من الخدمات والتوريد', () => {
+    const lease = checkMissingClauses(clauses, { contractType: 'عقد إيجار', textMayBeIncomplete: false });
+    expect(find(lease, 'missing:force_majeure')).toBeUndefined();
+    const noFm = clauses.map((c) => ({ ...c, clauseText: c.clauseText.replace(/قاهر[ةه]|قهري[ةه]/g, 'عارضة') }));
+    const services = checkMissingClauses(noFm, { contractType: SERVICES, textMayBeIncomplete: false });
+    expect(find(services, 'missing:force_majeure')).toBeDefined();
+  });
+
   it('حين تُعرَّف مدة صريحة تزول الإحالة غير المعرَّفة', () => {
     const patched = clauses.map((c) => (c.clauseIndex === 4 ? { ...c, clauseText: `${c.clauseText} مدة هذا العقد ثلاث سنوات تبدأ من تاريخ التوقيع.` } : c));
     const l = deterministicFindings(patched, { contractType: SERVICES, textMayBeIncomplete: false });
