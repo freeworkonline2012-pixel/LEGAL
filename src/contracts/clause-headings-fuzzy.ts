@@ -105,6 +105,8 @@ interface NumberOption {
   n: number;
   d: number;
   weight: number;
+  /** مسافة التصفية: الأدنى بين الهيكل الكامل والمقطوع (11–19) */
+  fd: number;
 }
 
 /** أثر كلمة العنوان («البند» أو «المادة») فى أول الهيكل: نافذة من 4 إلى 7 أحرف بمسافة تحرير ≤ 1 (تُسقط «الباب» و«المرفق» وأمثالها) */
@@ -132,11 +134,29 @@ function numberOptions(sk: string, family: Family): NumberOption[] {
         bestLen = t.length;
       }
     }
-    if (best !== Infinity) all.push({ n, d: best, weight: 1 - (best / bestLen / MAX_RATIO) * 0.6 });
+    let weight = best !== Infinity ? 1 - (best / bestLen / MAX_RATIO) * 0.6 : 0;
+    let fd = best;
+    // 11–19: القراءة الآلية تُسقط «عشر» أحياناً فيبقى «السادس» وحده: يُقبل وزناً أخفض (0.6) ومسافة +1، ولا يفوز إلا حيث يمنع الترتيب الرقم المفرد
+    if (n >= 11 && n <= 19) {
+      const unit = family.spellings(n)[0]?.split(' ')[0] ?? '';
+      const t = `${family.word}${skeleton(unit)}`;
+      const limit = Math.floor(t.length * MAX_RATIO);
+      const d = editDistance(sk, t, limit);
+      if (d <= limit) {
+        const w = (1 - (d / t.length / MAX_RATIO) * 0.6) * 0.6;
+        fd = Math.min(fd, d + 1);
+        if (w > weight) {
+          weight = w;
+          best = d + 1;
+          bestLen = t.length;
+        }
+      }
+    }
+    if (best !== Infinity) all.push({ n, d: best, weight, fd });
   }
   if (all.length === 0) return [];
-  const nearest = Math.min(...all.map((o) => o.d));
-  return all.filter((o) => o.d <= nearest + 1).sort((a, b) => a.d - b.d);
+  const nearest = Math.min(...all.map((o) => o.fd));
+  return all.filter((o) => o.fd <= nearest + 1).sort((a, b) => a.d - b.d);
 }
 
 interface Candidate {
