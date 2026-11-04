@@ -75,7 +75,10 @@ export class OcrService {
   private readonly tesseract = process.env.OCR_TESSERACT_PATH ?? 'tesseract';
   private readonly pdftoppm = process.env.OCR_PDFTOPPM_PATH ?? 'pdftoppm';
   private readonly lang = process.env.OCR_LANGS ?? 'ara+eng';
+  /** مجلد نموذج لغة ثانٍ (ara «fast» + eng) يُقرأ به كل صفحة قراءة إضافية؛ الغائب = لا قراءة إضافية */
+  private readonly altTessdata = process.env.OCR_TESSDATA_ALT?.trim() || null;
   private availability: Promise<boolean> | null = null;
+  private altAvailability: Promise<boolean> | null = null;
   private active = 0;
   private waiters: Array<() => void> = [];
 
@@ -109,8 +112,9 @@ export class OcrService {
     this.waiters.shift()?.();
   }
 
-  private async recognizeFile(path: string): Promise<string> {
-    const { stdout } = await execFileAsync(this.tesseract, [path, 'stdout', '-l', this.lang, '--psm', '3'], {
+  private async recognizeFile(path: string, tessdataDir?: string): Promise<string> {
+    const args = [path, 'stdout', '-l', this.lang, '--psm', '3', ...(tessdataDir ? ['--tessdata-dir', tessdataDir] : [])];
+    const { stdout } = await execFileAsync(this.tesseract, args, {
       timeout: PAGE_TIMEOUT_MS,
       maxBuffer: 8 * 1024 * 1024,
     });
@@ -151,6 +155,54 @@ export class OcrService {
       this.logger.warn(`OCR second pass skipped: ${(err as Error).message.slice(0, 120)}`);
     }
     return out;
+  }
+
+  /** هل نموذج اللغة الثانى مهيّأ ويحوى كل اللغات المطلوبة؟ (يُتحقق مرة واحدة، والفشل = تعطيل صامت للقراءة الإضافية) */
+  private async isAltAvailable(): Promise<boolean> {
+    if (!this.altTessdata) return false;
+    this.altAvailability ??= (async () => {
+      try {
+        const { stdout, stderr } = await execFileAsync(this.tesseract, ['--tessdata-dir', this.altTessdata as string, '--list-langs'], { timeout: 10_000 });
+        const langs = `${stdout}\n${stderr}`;
+        const ok = this.lang.split('+').every((l) => new RegExp(`^${l}$`, 'm').test(langs));
+        if (!ok) this.logger.warn('OCR alternate model dir lacks required languages: alternate reading disabled');
+        return ok;
+      } catch {
+        this.logger.warn('OCR alternate model dir unusable: alternate reading disabled');
+        return false;
+      }
+    })();
+    return this.altAvailability;
+  }
+
+  /**
+   * نماذج Tesseract العربية تختلف فيما تُسقطه من عناوين البنود المسطّرة (تحقق حى على 5 عقود ممسوحة: نموذج «fast» وحده التقط
+   * عناوين لم يلتقطها النموذج العادى، والعكس فى عقود أخرى). فنقرأ كل صفحة بالنموذج الثانى أيضاً ونختار لكل صفحة القراءة ذات
+   * المقياس الأعلى؛ وعند التعادل تبقى القراءة الحالية. أى فشل أو انقضاء السقف الزمنى يُبقى ما قُرئ سابقاً.
+   */
+  private async rereadWithAlternateModel(
+    images: string[],
+    texts: string[],
+    score: (t: string) => number,
+    report?: (done: number, total: number) => void,
+    deadline?: number,
+  ): Promise<void> {
+    if (!(await this.isAltAvailable())) return;
+    let adopted = 0;
+    for (let i = 0; i < images.length; i++) {
+      if (deadline !== undefined && Date.now() > deadline) break;
+      try {
+        const alt = await this.recognizeFile(images[i], this.altTessdata as string);
+        if (score(alt) > score(texts[i])) {
+          texts[i] = alt;
+          adopted++;
+        }
+      } catch {
+        // نُبقى القراءة السابقة لهذه الصفحة
+      }
+      report?.(i + 1, images.length);
+    }
+    this.logger.log(`OCR alternate model: pages=${images.length} adopted=${adopted}`);
   }
 
   private async tsvLines(imagePath: string, psm: number): Promise<OcrLine[]> {
@@ -258,6 +310,13 @@ export class OcrService {
             deadline,
           );
           for (let i = 0; i < better.length; i++) texts[i] = better[i];
+          await this.rereadWithAlternateModel(
+            used.map((f) => join(dir as string, f)),
+            texts,
+            options.pageScore,
+            (done, total) => report({ stage: 'reread', done, total }),
+            deadline,
+          );
         }
         if (options.recoverMissing) {
           const lows = used.map((f) => join(dir as string, f));

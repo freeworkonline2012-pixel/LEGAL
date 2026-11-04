@@ -37,6 +37,13 @@ ENV PDF_CHROMIUM_PATH=/usr/bin/chromium
 # إن غابت هذه الحزم يبقى استخراج نص PDF/DOCX الرقمى يعمل وتُرجع الصور/الممسوحات رسالة 422 واضحة.
 RUN apk add --no-cache tesseract-ocr tesseract-ocr-data-ara tesseract-ocr-data-eng poppler-utils
 
+# نموذج عربى ثانٍ (tessdata_fast) للقراءة الإضافية لكل صفحة: كل نموذج يُسقط عناوين بنود يلتقطها الآخر فى العقود الممسوحة،
+# فتُقرأ الصفحة بالنموذجين وتُختار الأفضل (src/documents/ocr.service.ts). الإنجليزى يُنسخ من حزمة Alpine نفسها.
+# إن لم يجد الخادم النموذج أو غابت اللغة يُعطَّل هذا بصمت ويبقى النموذج العادى وحده.
+COPY --from=builder /app/ocr-models/ara.fast.traineddata /opt/tessdata-alt/ara.traineddata
+RUN ENG="$(find /usr/share -name eng.traineddata | head -n 1)"; if [ -n "$ENG" ]; then cp "$ENG" /opt/tessdata-alt/eng.traineddata; fi; chmod -R a+rX /opt/tessdata-alt
+ENV OCR_TESSDATA_ALT=/opt/tessdata-alt
+
 COPY --from=builder --chown=app:app /app/dist ./dist
 COPY --from=builder --chown=app:app /app/node_modules ./node_modules
 COPY --from=builder --chown=app:app /app/package.json ./package.json
