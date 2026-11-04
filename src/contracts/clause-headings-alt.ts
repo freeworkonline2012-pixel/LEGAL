@@ -13,34 +13,54 @@ export interface AltHead {
   declaredNumber: number;
 }
 
-const FEMININE: Array<[number, string[]]> = [
-  [1, ['الأولى', 'الاولى']],
-  [2, ['الثانية']],
-  [3, ['الثالثة']],
-  [4, ['الرابعة']],
-  [5, ['الخامسة']],
-  [6, ['السادسة']],
-  [7, ['السابعة']],
-  [8, ['الثامنة']],
-  [9, ['التاسعة']],
-  [10, ['العاشرة']],
-  [11, ['الحادية عشرة', 'الحادية عشر']],
-  [12, ['الثانية عشرة', 'الثانية عشر']],
-  [13, ['الثالثة عشرة', 'الثالثة عشر']],
-  [14, ['الرابعة عشرة', 'الرابعة عشر']],
-  [15, ['الخامسة عشرة', 'الخامسة عشر']],
-];
+const UNITS_F = ['الاولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة', 'الثامنة', 'التاسعة'];
+const TEENS_F = ['الحادية عشرة', 'الثانية عشرة', 'الثالثة عشرة', 'الرابعة عشرة', 'الخامسة عشرة', 'السادسة عشرة', 'السابعة عشرة', 'الثامنة عشرة', 'التاسعة عشرة'];
+
+/** كل تهجئة مكتوبة لترتيبى مؤنث (حتى الثلاثين) → رقمه؛ بعد توحيد الحروف (أ/إ→ا، ى→ي، ة→ه) لأن العقود الممسوحة والمكتوبة بيد تخلط بينها. */
+function normOrd(s: string): string {
+  return s
+    .replace(/[\u064b-\u0652\u0640]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const ORDINAL_SPELLINGS: Array<[number, string]> = [];
+UNITS_F.forEach((w, i) => ORDINAL_SPELLINGS.push([i + 1, w]));
+ORDINAL_SPELLINGS.push([10, 'العاشرة']);
+TEENS_F.forEach((w, i) => {
+  ORDINAL_SPELLINGS.push([11 + i, w]);
+  ORDINAL_SPELLINGS.push([11 + i, w.replace(/ عشرة$/, ' عشر')]);
+});
+ORDINAL_SPELLINGS.push([20, 'العشرون'], [20, 'العشرين']);
+// 21–29: «الحادية والعشرون» (لا «الأولى والعشرون»)، ثم الثانية…التاسعة
+UNITS_F.forEach((w, i) => {
+  const unit = i === 0 ? 'الحادية' : w;
+  ORDINAL_SPELLINGS.push([21 + i, `${unit} والعشرون`]);
+  ORDINAL_SPELLINGS.push([21 + i, `${unit} والعشرين`]);
+});
+ORDINAL_SPELLINGS.push([30, 'الثلاثون'], [30, 'الثلاثين']);
+const ORD_BY_NORM = new Map(ORDINAL_SPELLINGS.map(([n, w]) => [normOrd(w), n] as [string, number]));
+
+/** حرف موحَّد → فئة حروفه المقبولة فى النص الخام (حتى يطابق «الثامنه» و«الاولي» و«الأولى» جميعاً) */
+function looseOrdPattern(norm: string): string {
+  return [...norm]
+    .map((ch) => (ch === 'ا' ? '[أإآا]' : ch === 'ي' ? '[يى]' : ch === 'ه' ? '[هة]' : ch === ' ' ? '[ \\t]+' : ch))
+    .join('');
+}
 
 const toInt = (s: string): number => Number(s.replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))));
 
 const NUM = '[0-9٠-٩]{1,3}';
 // «المادة 3» / «مادة (3)» / «البند 3» (رقم بالأرقام) — بعدها فاصل اختيارى
 const KEYWORD_NUMBER_RE = new RegExp(`^[ \\t]*(?<kw>المادة|مادة|البند|بند)[ \\t]*(?:رقم[ \\t]*)?[(\\[]?(?<num>${NUM})[)\\]]?(?![0-9٠-٩.])[ \\t]*(?<punct>[:：.\\-–—])?`, 'gmu');
-// «المادة الأولى» (ترتيبى مؤنث بالكلمات)
+// «المادة الأولى» (ترتيبى مؤنث بالكلمات، بأى تهجئة شائعة، حتى الثلاثين)
 const KEYWORD_ORDINAL_RE = new RegExp(
-  `^[ \\t]*(?<kw>المادة|مادة)[ \\t]+(?<ord>${FEMININE.flatMap(([, s]) => s)
-    .sort((a, b) => b.length - a.length)
-    .map((s) => s.replace(/ /g, '[ \\t]+'))
+  `^[ \\t]*(?<kw>المادة|مادة)[ \\t]+(?<ord>${[...ORD_BY_NORM.keys()]
+    .sort((x, y) => y.length - x.length)
+    .map(looseOrdPattern)
     .join('|')})(?![ء-ي])[ \\t]*(?<punct>[:：.\\-–—])?`,
   'gmu',
 );
@@ -48,9 +68,7 @@ const KEYWORD_ORDINAL_RE = new RegExp(
 const BARE_NUMBER_RE = new RegExp(`^[ \\t]*(?<num>${NUM})[ \\t]*(?<punct>[.)])(?![0-9٠-٩])[ \\t]*(?=\\S)`, 'gmu');
 
 function ordinalWordToNumber(spelling: string): number | null {
-  const n = spelling.replace(/\s+/g, ' ').trim();
-  const f = FEMININE.find(([, s]) => s.includes(n));
-  return f ? f[0] : null;
+  return ORD_BY_NORM.get(normOrd(spelling)) ?? null;
 }
 
 interface Candidate extends AltHead {
@@ -93,10 +111,37 @@ function chain(cands: Candidate[]): Candidate[] {
   return out;
 }
 
+// إحالة إلى مادة فى نص آخر («المادة 157 من القانون المدنى») ليست عنوان بند فى هذا العقد
+const EXTERNAL_REF_AFTER_RE = /^[\s_\u0640]*(?:\(?\d+\)?[\s_\u0640]*)?من[\s_\u0640]+(?:ال)?(?:عقد|قانون|لائحة|لائحه|ملحق|اتفاق|اتفاقية|اتفاقيه|نظام)/u;
+/** أقصى قفزة مقبولة فوق أعلى رقم قُبِل (عقود حقيقية تقفز من «13» إلى «18» أو تكرر رقماً أو تكتبه خارج الترتيب). */
+const MAX_NUMBER_GAP = 10;
+
+/**
+ * سلسلة صارمة 1، 2، 3… ثم، لعناوين «المادة/البند» الصريحة فقط، يُقبَل ما بعدها من عناوين على بداية السطر حتى مع قفزة أو تكرار أو ترتيب
+ * مخالف (ما دام الرقم ضمن {@link MAX_NUMBER_GAP} فوق أعلى رقم مقبول) — فلا يسقط نصف العقد لأن ترقيمه المكتوب غير متسلسل. الشذوذ يُنبَّه إليه
+ * لاحقاً بتحذير «ترقيم غير متسلسل» لا بإسقاط البنود. الترقيم المجرد «1.» يبقى صارماً (قوائم المتون).
+ */
+function tolerantChain(cands: Candidate[], text: string): Candidate[] {
+  const strict = chain(cands);
+  if (strict.length < 3) return strict;
+  const last = strict[strict.length - 1];
+  let max = last.declaredNumber;
+  const out = [...strict];
+  for (const c of cands) {
+    if (c.lineStart <= last.lineStart) continue;
+    if (c.declaredNumber > max + MAX_NUMBER_GAP) continue;
+    const after = text.slice(c.markerStart + c.rawLength, c.markerStart + c.rawLength + 40);
+    if (EXTERNAL_REF_AFTER_RE.test(after)) continue;
+    out.push(c);
+    if (c.declaredNumber > max) max = c.declaredNumber;
+  }
+  return out;
+}
+
 export function findAlternativeHeads(text: string): AltHead[] {
   const options = [
-    chain(toCandidates(text, KEYWORD_NUMBER_RE, 'number')),
-    chain(toCandidates(text, KEYWORD_ORDINAL_RE, 'ordinal')),
+    tolerantChain(toCandidates(text, KEYWORD_NUMBER_RE, 'number'), text),
+    tolerantChain(toCandidates(text, KEYWORD_ORDINAL_RE, 'ordinal'), text),
     chain(toCandidates(text, BARE_NUMBER_RE, 'bare')),
   ];
   // الأطول تسلسلاً، وعند التساوى الأوضح (بكلمة مفتاحية قبل الرقم المجرد)؛ أقل من 3 بنود لا يُعدّ ترقيماً

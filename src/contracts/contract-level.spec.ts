@@ -310,3 +310,42 @@ describe('بند تعديل العقد: معيار المكتب (ملحق مكت
     expect(checkMissingClauses(c, { contractType: 'خدمات', textMayBeIncomplete: false }).some((x) => x.id === 'missing:amendments')).toBe(false);
   });
 });
+
+describe('عقود حقيقية (الدفعة 2): صياغات القانون الواجب والإنهاء والوساطة لا تُعدّ ناقصة', () => {
+  const mk = (txt: string): LevelClause[] => [{ clauseIndex: 1, clauseLabel: 'البند الأول', clauseTitle: null, clauseText: txt }];
+  const filler = ' يلتزم الطرفان بتنفيذ هذا العقد بحسن نية وفقاً لما تقضى به القواعد العامة وبما لا يخالف النظام العام ويتحمل كل منهما التزاماته.';
+  const ids = (txt: string, type = 'عقد خدمات') => checkMissingClauses(mk(txt + filler), { contractType: type, textMayBeIncomplete: false }).map((f) => f.id);
+
+  it.each([
+    'يخضع هذا العقد للقانون المصرى ويفسر وفقاً لأحكامه.',
+    'يخضع هذا العقد ويفسر طبقا للقوانين المعمول بها بجمهورية مصر العربية.',
+    'اتفق الطرفان على ان تختص محكمة الجيزة الابتدائية بنظر اى نزاع.',
+    'كل نزاع ينشأ عن هذا العقد تختص بنظره المحكمة الواقع فى دائرتها مقر الطرف الأول.',
+    'وفى حال النزاع يكون الإختصاص لمحاكم الجيزة بدرجاتها.',
+  ])('القانون الواجب/الاختصاص مرصود: %s', (t) => {
+    expect(ids(t)).not.toContain('missing:governing_law');
+  });
+
+  it('عقد بلا أى نص عن القانون أو الاختصاص ⇒ يبقى ناقصاً', () => {
+    expect(ids('يلتزم الطرف الأول بتقديم الخدمة المتفق عليها.')).toContain('missing:governing_law');
+  });
+
+  it.each([
+    'لا يجوز للطرف الأول إنهاء التعاقد من جانب واحد خلال مدة سريان العقد.',
+    'يكون للطرف الأول الحق فى أن يعتبر هذا العقد مفسوخا من تلقاء نفسه دون حكم قضائى.',
+  ])('الإنهاء/الفسخ مرصود: %s', (t) => {
+    expect(ids(t)).not.toContain('missing:termination');
+  });
+
+  it('عقد بلا نص إنهاء أو فسخ ⇒ يبقى ناقصاً', () => {
+    expect(ids('يلتزم الطرف الأول بتقديم الخدمة المتفق عليها.')).toContain('missing:termination');
+  });
+
+  it('وساطة تجارية (إنتاج/تأمين) ⇒ وكالة؛ والوساطة القضائية لا تُقرأ وكالة', () => {
+    expect(contractFamily('عقد وساطة فى الإنتاج')).toBe('agency');
+    expect(contractFamily('عقد وساطة تأمين')).toBe('agency');
+    expect(contractFamily('عقد وسيط تأمين')).toBe('agency');
+    expect(inferContractFamily('عقد وساطة فى الإنتاج\nإنه فى يوم')).toBe('agency');
+    expect(contractFamily('اتفاق وساطة لتسوية النزاع')).not.toBe('agency');
+  });
+});
