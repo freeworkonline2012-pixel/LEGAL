@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { findAlternativeHeads } from './clause-headings-alt';
+import { findAlignedHeads } from './clause-headings-fuzzy';
 import { BARE_RE, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
 
 export interface SegmentedClause {
@@ -120,6 +121,19 @@ export class SegmentationService {
       if (alt.length > heads.length) heads = alt;
     }
     const warnings: string[] = [];
+
+    // قراءة آلية شوّهت العناوين («البن دالاول»، «البندالالث»، «الند الخامس»…) فالتقط الكاشف الحرفى بنداً أو اثنين وألصق الباقى بهما:
+    // مطابقة تقريبية مقيَّدة بالتسلسل، لا تُعتمد إلا إن وجدت بنوداً أكثر مما وجده الكاشف الحرفى (فلا تمس عقداً سليم الترقيم).
+    const aligned = findAlignedHeads(text);
+    if (aligned.length >= 3 && aligned.length > heads.length) {
+      heads = aligned;
+      const fuzzy = aligned.filter((h) => h.distance > 0).length;
+      if (fuzzy > 0) {
+        warnings.push(
+          `قُرئت عناوين ${fuzzy} بنداً من ${aligned.length} من قراءة آلية مشوَّهة بمطابقة تقريبية مقيَّدة بالتسلسل — تحقق من أن حدود البنود وأرقامها صحيحة قبل الاعتماد.`,
+        );
+      }
+    }
 
     if (heads.length === 0) {
       warnings.push(
