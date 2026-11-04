@@ -49,6 +49,10 @@ export interface ReadDocumentOptions {
   ocrRecoverMissing?: OcrRecognizeOptions['recoverMissing'];
   /** حد أدنى لعدد الأحرف غير البيضاء المقبولة (افتراضى 20) */
   minChars?: number;
+  /** أقصى صفحات الممسوح المقروءة (الافتراضى {@link OCR_MAX_PAGES}؛ العقود فى الخلفية تمرر حداً أكبر). */
+  ocrMaxPages?: number;
+  /** نسبة تقدم القراءة الآلية (للمهام الخلفية). */
+  onOcrProgress?: OcrRecognizeOptions['onProgress'];
 }
 
 export interface ReadDocumentResult {
@@ -120,18 +124,25 @@ export class DocumentReaderService {
     warnings: string[],
     options: ReadDocumentOptions,
   ): Promise<string> {
-    const r = await (options.ocrPageScore || options.ocrRecoverMissing
-        ? this.ocr.recognize(buffer, kind, { pageScore: options.ocrPageScore, recoverMissing: options.ocrRecoverMissing })
+    const maxPages = options.ocrMaxPages ?? OCR_MAX_PAGES;
+    const r = await (options.ocrPageScore || options.ocrRecoverMissing || options.ocrMaxPages || options.onOcrProgress
+        ? this.ocr.recognize(buffer, kind, {
+            pageScore: options.ocrPageScore,
+            recoverMissing: options.ocrRecoverMissing,
+            // لا يُمرَّر إلا ما طُلب صراحةً: بقاء الاستدعاء الافتراضى كما كان (حد {@link OCR_MAX_PAGES} داخل OcrService)
+            ...(options.ocrMaxPages ? { maxPages: options.ocrMaxPages } : {}),
+            ...(options.onOcrProgress ? { onProgress: options.onOcrProgress } : {}),
+          })
         : this.ocr.recognize(buffer, kind));
     if (r.status === 'unavailable') throw new UnprocessableEntityException(options.messages.ocrUnavailable);
     if (r.status === 'error') throw new UnprocessableEntityException(options.messages.ocrFailed);
     if (r.truncatedPages) {
       if (options.failOnOcrTruncation) {
         throw new UnprocessableEntityException(
-          `المستند الممسوح أطول من ${OCR_MAX_PAGES} صفحات ولا نترجم جزءاً منه بصمت — ارفع نسخة نصية (Word أو PDF نصى) أو قسّمه.`,
+          `المستند الممسوح أطول من ${maxPages} صفحة ولا نقرأ جزءاً منه بصمت — ارفع نسخة نصية (Word أو PDF نصى) أو قسّمه.`,
         );
       }
-      warnings.push(`قُرئت أول ${OCR_MAX_PAGES} صفحات فقط من المستند.`);
+      warnings.push(`قُرئت أول ${maxPages} صفحات فقط من المستند.`);
     }
     return r.text;
   }

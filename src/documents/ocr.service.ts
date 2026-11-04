@@ -9,14 +9,38 @@ import { insertLinesByPosition, linesToText, OcrLine, parseTsvLines } from './oc
 
 const execFileAsync = promisify(execFile);
 
-/** صفحات PDF الممسوح التى تُقرأ كحد أقصى (الباقى يُتجاهل ويُنبَّه العميل). */
+/** صفحات PDF الممسوح التى تُقرأ كحد أقصى فى الطلبات المتزامنة (الباقى يُتجاهل ويُنبَّه العميل). */
 export const OCR_MAX_PAGES = 8;
+/**
+ * حد صفحات العقود الممسوحة حين تجرى المعالجة فى الخلفية (لا طلب HTTP واقف عليها): 34 صفحة، ويُعدَّل بـOCR_MAX_PAGES_BACKGROUND
+ * دون أن يقل عن حد الطلب المتزامن ولا يزيد على 100 (حماية من خطأ إعداد يفتح الباب لملفات ضخمة).
+ */
+export function backgroundOcrMaxPages(): number {
+  const n = Number(process.env.OCR_MAX_PAGES_BACKGROUND);
+  if (!Number.isFinite(n) || n < OCR_MAX_PAGES) return 34;
+  return Math.min(Math.floor(n), 100);
+}
 const PAGE_TIMEOUT_MS = 60_000;
 const RASTER_TIMEOUT_MS = 60_000;
+/** تحويل الصفحات إلى صور يطول بطول المستند: مهلة أساسية + ثوانٍ لكل صفحة */
+const RASTER_PER_PAGE_MS = 4_000;
+/** سقف زمنى لقراءة المستند كله (تتبع الصفحات تتابعاً) حتى لا تعلق مهمة خلفية إلى الأبد */
+const OVERALL_TIMEOUT_MS = 40 * 60_000;
 const MAX_CONCURRENT = 2;
 
 /** خيارات اختيارية: قراءة ثانية بدقة أعلى تُختار منها كل صفحة بالأفضل حسب مقياس تمرّره الخدمة المستدعية. */
+export type OcrProgressStage = 'read' | 'reread' | 'recover';
+export interface OcrProgress {
+  stage: OcrProgressStage;
+  done: number;
+  total: number;
+}
+
 export interface OcrRecognizeOptions {
+  /** أقصى صفحات تُقرأ (الافتراضى {@link OCR_MAX_PAGES}). ما زاد يُعلَن بـtruncatedPages ولا يُقرأ. */
+  maxPages?: number;
+  /** يُستدعى بعد كل صفحة مقروءة (للمهام الخلفية: نسبة التقدم). أى استثناء منه يُهمَل. */
+  onProgress?: (p: OcrProgress) => void;
   /** يُرجع «جودة» نص الصفحة (مثلاً عدد عناوين البنود المقروءة)؛ الأعلى يُختار، وعند التعادل تبقى القراءة الأولى. */
   pageScore?: (pageText: string) => number;
   /**
@@ -104,20 +128,24 @@ export class OcrService {
     pageCount: number,
     first: string[],
     score: (t: string) => number,
+    report?: (done: number, total: number) => void,
+    deadline?: number,
   ): Promise<string[]> {
     const out = [...first];
     try {
       await execFileAsync(this.pdftoppm, ['-r', '300', '-png', '-l', String(pageCount), pdfPath, join(dir, 'h')], {
-        timeout: RASTER_TIMEOUT_MS,
+        timeout: RASTER_TIMEOUT_MS + RASTER_PER_PAGE_MS * pageCount,
       });
       const hi = (await readdir(dir)).filter((f) => /^h-\d+\.png$/.test(f)).sort();
       for (let i = 0; i < Math.min(hi.length, pageCount); i++) {
+        if (deadline !== undefined && Date.now() > deadline) break; // نكتفى بما قُرئ (القراءة الثانية تحسين لا شرط)
         try {
           const alt = await this.recognizeFile(join(dir, hi[i]));
           if (score(alt) > score(out[i])) out[i] = alt;
         } catch {
           // نُبقى القراءة الأولى لهذه الصفحة
         }
+        report?.(i + 1, Math.min(hi.length, pageCount));
       }
     } catch (err) {
       this.logger.warn(`OCR second pass skipped: ${(err as Error).message.slice(0, 120)}`);
@@ -149,12 +177,16 @@ export class OcrService {
     texts: string[],
     imageSets: string[][],
     cfg: NonNullable<OcrRecognizeOptions['recoverMissing']>,
+    report?: (done: number, total: number) => void,
+    deadline?: number,
   ): Promise<void> {
     let missing = new Set(cfg.missingNumbers(texts.join('\n\n')));
     if (missing.size === 0) return;
     this.logger.log(`OCR heading gap: missing=${[...missing].join(',')} pages=${texts.length}`);
     for (const images of imageSets) {
       for (let i = 0; i < texts.length && missing.size > 0; i++) {
+        if (deadline !== undefined && Date.now() > deadline) return; // الاسترجاع تحسين اختيارى: نكتفى بما قُرئ
+        report?.(i + 1, texts.length);
         const image = images[i];
         if (!image) continue;
         try {
@@ -180,38 +212,66 @@ export class OcrService {
 
   async recognize(buffer: Buffer, kind: 'pdf' | 'png' | 'jpeg', options: OcrRecognizeOptions = {}): Promise<OcrOutcome> {
     if (!(await this.isAvailable())) return { status: 'unavailable' };
+    const maxPages = Math.max(1, Math.floor(options.maxPages ?? OCR_MAX_PAGES));
+    const report = (p: OcrProgress): void => {
+      try {
+        options.onProgress?.(p);
+      } catch {
+        // التقدم معلومة عرض فقط ولا يُسقط القراءة
+      }
+    };
     await this.acquire();
     let dir: string | null = null;
     try {
       dir = await mkdtemp(join(tmpdir(), 'ocr-'));
+      const deadline = Date.now() + OVERALL_TIMEOUT_MS;
       if (kind === 'pdf') {
         const pdfPath = join(dir, 'in.pdf');
         await writeFile(pdfPath, buffer, { mode: 0o600 });
         await execFileAsync(
           this.pdftoppm,
-          ['-r', '200', '-png', '-l', String(OCR_MAX_PAGES + 1), pdfPath, join(dir, 'p')],
-          { timeout: RASTER_TIMEOUT_MS },
+          ['-r', '200', '-png', '-l', String(maxPages + 1), pdfPath, join(dir, 'p')],
+          { timeout: RASTER_TIMEOUT_MS + RASTER_PER_PAGE_MS * (maxPages + 1) },
         );
         const pages = (await readdir(dir)).filter((f) => /^p-\d+\.png$/.test(f)).sort();
         if (pages.length === 0) return { status: 'error', detail: 'no_pages' };
-        const used = pages.slice(0, OCR_MAX_PAGES);
+        const used = pages.slice(0, maxPages);
         const texts: string[] = [];
-        for (const f of used) texts.push(await this.recognizeFile(join(dir, f)));
+        for (const f of used) {
+          // الصفحات الأولى لا غنى عنها: إن انقضى السقف الزمنى قبل اكتمالها فالقراءة فاشلة لا ناقصة بصمت
+          if (Date.now() > deadline) return { status: 'error', detail: 'ocr_deadline' };
+          texts.push(await this.recognizeFile(join(dir, f)));
+          report({ stage: 'read', done: texts.length, total: used.length });
+        }
         if (options.pageScore) {
-          const better = await this.rereadWithHigherDpi(pdfPath, dir, used.length, texts, options.pageScore);
+          const better = await this.rereadWithHigherDpi(
+            pdfPath,
+            dir,
+            used.length,
+            texts,
+            options.pageScore,
+            (done, total) => report({ stage: 'reread', done, total }),
+            deadline,
+          );
           for (let i = 0; i < better.length; i++) texts[i] = better[i];
         }
         if (options.recoverMissing) {
           const lows = used.map((f) => join(dir as string, f));
           const hi = (await readdir(dir)).filter((f) => /^h-\d+\.png$/.test(f)).sort();
           const highs = hi.slice(0, used.length).map((f) => join(dir as string, f));
-          await this.recoverMissingHeadings(texts, [lows, highs], options.recoverMissing);
+          await this.recoverMissingHeadings(
+            texts,
+            [lows, highs],
+            options.recoverMissing,
+            (done, total) => report({ stage: 'recover', done, total }),
+            deadline,
+          );
         }
         return {
           status: 'ok',
           text: texts.join('\n\n'),
           pages: used.length,
-          truncatedPages: pages.length > OCR_MAX_PAGES,
+          truncatedPages: pages.length > maxPages,
         };
       }
       const imgPath = join(dir, kind === 'png' ? 'in.png' : 'in.jpg');

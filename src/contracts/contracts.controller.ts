@@ -29,6 +29,11 @@ const ALLOWED_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]);
 
+/** حقل multipart نصى: 'true' أو '1' */
+function isTruthyFlag(v: unknown): boolean {
+  return v === true || v === 'true' || v === '1';
+}
+
 /**
  * Service 2 — المدقق القانونى للعقود (Phase 1+2 الأساسية). راجع تعليق
  * ContractsService للتصميم الكامل والفجوات المعروفة.
@@ -77,6 +82,8 @@ export class ContractsController {
       },
       // مركز العميل من الاستيضاح قبل الرفع (اختيارى): حقلا multipart نصيان يُنقّيان فى الخادم
       sanitizeClientPosition(body),
+      // التحليل فى الخلفية (يعود الطلب فوراً والواجهة تتابع الحالة)؛ غياب الحقل = السلوك القديم المتزامن، فلا تنكسر واجهة قديمة
+      { background: isTruthyFlag(body?.background) },
     );
   }
 

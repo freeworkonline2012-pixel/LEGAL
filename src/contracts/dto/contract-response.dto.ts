@@ -38,5 +38,10 @@ export class ContractResponseDto {
   contract_findings_model?: 'ok' | 'not_configured' | 'skipped' | 'error' | null;
   @ApiPropertyOptional({ type: [ContractClauseResponseDto] })
   clauses?: ContractClauseResponseDto[];
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'تقدم التحليل أثناء المعالجة (status=processing): المرحلة ونسبتها؛ null بعد الانتهاء',
+  })
+  processing?: { stage: string; label: string; done: number; total: number } | null;
   @ApiProperty() created_at: Date;
 }

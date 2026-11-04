@@ -5,10 +5,12 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
+  ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { DeepseekGenerationService } from '../llm/deepseek-generation.service';
 import { VoyageEmbeddingsService, toPgVectorLiteral } from '../llm/voyage-embeddings.service';
@@ -48,6 +50,8 @@ import { neutralizeOcrNoise } from './ocr-noise.util';
 import { describeRedraftRejection, describeWeakeningFeedback, REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
 import { SegmentationService, SegmentedClause } from './segmentation.service';
 import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
+import { ContractJobs, JOB_STAGE_LABEL, jobLimitsFromEnv, stageFromOcr, type JobProgress } from './contract-jobs';
+import { backgroundOcrMaxPages } from '../documents/ocr.service';
 import { ContractResponseDto } from './dto/contract-response.dto';
 import { canonicalHeading, countHeadingLines, looseHeadingLineNumber, missingHeadingNumbers, ordinalWords } from './clause-headings';
 import { numericWarnings } from './numeric-checks.util';
@@ -108,11 +112,12 @@ interface ClauseCandidate {
  * 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة' بدل تخمين استشهاد غير دقيق.
  */
 @Injectable()
-export class ContractsService {
+export class ContractsService implements OnModuleInit {
   private readonly logger = new Logger(ContractsService.name);
   private readonly contractRepository: Repository<Contract>;
   private readonly clauseRepository: Repository<ContractClause>;
   private readonly versionRepository: Repository<ArticleVersion>;
+  private readonly jobs = new ContractJobs(jobLimitsFromEnv().maxConcurrent, jobLimitsFromEnv().maxQueued);
 
   constructor(
     @InjectDataSource() private readonly dataSource: DataSource,
@@ -131,11 +136,36 @@ export class ContractsService {
     this.versionRepository = this.dataSource.getRepository(ArticleVersion);
   }
 
+  /**
+   * عقود بقيت «قيد المعالجة» لأن الخادم أُعيد تشغيله أثناء تحليلها: مهمتها ضاعت مع العملية، فتُعلَن فاشلة بوضوح بدل أن
+   * تبقى معلّقة (والواجهة تتابعها). تُستدعى عند الإقلاع وعند استعلام عقد معلّق لا مهمة له فى هذه العملية.
+   */
+  private static readonly INTERRUPTED_MESSAGE =
+    'انقطعت معالجة هذا العقد لأن الخادم أُعيد تشغيله أثناء التحليل — أعد رفع العقد.';
+  /** مهلة سماح قبل اعتبار عقد معلّق يتيماً عند الاستعلام (تغطى سباق النشر المتداخل بين نسختين) */
+  private static readonly ORPHAN_GRACE_MS = 5 * 60_000;
+
+  async onModuleInit(): Promise<void> {
+    try {
+      const res = await this.contractRepository.update(
+        { status: In(['uploaded', 'processing'] as ContractStatus[]) },
+        { status: 'extraction_failed' as ContractStatus, extractionError: ContractsService.INTERRUPTED_MESSAGE },
+      );
+      if (res.affected) this.logger.warn(`marked ${res.affected} interrupted contract(s) as failed at startup`);
+    } catch (err) {
+      this.logger.warn(`interrupted-contracts sweep skipped: ${(err as Error).message}`);
+    }
+  }
+
   async upload(
     file: { buffer: Buffer; mimetype: string; originalname: string },
     context: { userId: string; ipAddress: string | null; userAgent: string | null },
     position: ClientPosition = { contractType: null, clientRole: null, clientParty: null },
+    options: { background?: boolean } = {},
   ): Promise<ContractResponseDto> {
+    if (options.background && !this.jobs.hasCapacity()) {
+      throw new ServiceUnavailableException('الخادم مشغول بتحليل عقود أخرى الآن — أعد المحاولة بعد دقائق.');
+    }
     let contract = this.contractRepository.create({
       uploadedBy: context.userId,
       originalFilename: file.originalname,
@@ -150,8 +180,64 @@ export class ContractsService {
       filename: file.originalname,
       hasClientPosition: Boolean(position.clientRole),
       hasClientParty: Boolean(position.clientParty),
+      background: Boolean(options.background),
     });
 
+    if (!options.background) {
+      // السلوك القديم: الطلب واقف على التحليل كله ويعود بالنتيجة
+      const id = contract.id;
+      return this.jobs.track(id, () => this.processUpload(contract, file, context, position, false));
+    }
+
+    // الجديد: يعود الطلب فوراً بحالة «قيد المعالجة» والواجهة تتابع GET /contracts/:id (لا طلب HTTP يطول فينقطع)
+    contract.status = 'processing' as ContractStatus;
+    contract = await this.contractRepository.save(contract);
+    const snapshot = contract;
+    this.jobs.enqueue(
+      snapshot.id,
+      () => this.runBackgroundJob(snapshot, file, context, position),
+      (err) => this.logger.error(`background job crashed for contract ${snapshot.id}: ${(err as Error).message}`),
+    );
+    return this.toResponseDto(contract, [], [], this.jobs.get(contract.id));
+  }
+
+  private progressOf(contractId: string): (p: JobProgress) => void {
+    return (p) => this.jobs.set(contractId, p);
+  }
+
+  /** تغلّف التحليل الخلفى: أى فشل غير متوقَّع يصير حالة «فشل» مقروءة للمستخدم لا عقداً معلّقاً. لا ترمى. */
+  private async runBackgroundJob(
+    contract: Contract,
+    file: { buffer: Buffer; mimetype: string; originalname: string },
+    context: { userId: string; ipAddress: string | null; userAgent: string | null },
+    position: ClientPosition,
+  ): Promise<void> {
+    try {
+      await this.processUpload(contract, file, context, position, true);
+    } catch (err) {
+      this.logger.error(`background analysis failed for contract ${contract.id}: ${(err as Error).message}`);
+      try {
+        const fresh = await this.contractRepository.findOne({ where: { id: contract.id } });
+        if (fresh && fresh.status !== 'processed') {
+          fresh.status = 'extraction_failed' as ContractStatus;
+          fresh.extractionError = 'تعذّر إكمال تحليل العقد بسبب عطل فى الخادم — أعد رفع العقد، وإن تكرر ذلك فأبلغ الدعم.';
+          await this.contractRepository.save(fresh);
+        }
+        await this.audit(context, 'contracts.background_failed', contract.id, { reason: (err as Error).name });
+      } catch (inner) {
+        this.logger.error(`could not record background failure for ${contract.id}: ${(inner as Error).message}`);
+      }
+    }
+  }
+
+  private async processUpload(
+    contract: Contract,
+    file: { buffer: Buffer; mimetype: string; originalname: string },
+    context: { userId: string; ipAddress: string | null; userAgent: string | null },
+    position: ClientPosition,
+    background: boolean,
+  ): Promise<ContractResponseDto> {
+    const progress = this.progressOf(contract.id);
     let extraction = await this.extractionService.extract(file.buffer, file.mimetype, file.originalname);
     const uploadWarnings: string[] = [];
 
@@ -186,6 +272,14 @@ export class ContractsService {
             diagnosticWords: ordinalWords,
           },
           minChars: 200,
+          // فى الخلفية لا طلب HTTP واقف على القراءة فيتسع الحد (34 صفحة) وتظهر نسبة التقدم؛ المتزامن يبقى على حده القديم
+          ...(background
+            ? {
+                ocrMaxPages: backgroundOcrMaxPages(),
+                onOcrProgress: (p: { stage: 'read' | 'reread' | 'recover'; done: number; total: number }) =>
+                  progress({ stage: stageFromOcr(p.stage), done: p.done, total: p.total }),
+              }
+            : {}),
         });
         extraction = { status: 'ok', text: read.text };
         uploadWarnings.push(
@@ -209,6 +303,7 @@ export class ContractsService {
       return this.toResponseDto(contract, [], []);
     }
 
+    progress({ stage: 'segmenting', done: 0, total: 0 });
     const segmentation = this.segmentationService.segment(extraction.text);
     // اسما الطرفين من الديباجة: يربطان الأسماء الواردة فى البنود بالطرف الأول/الثانى فلا يخمّن النموذج اتجاه الحق والالتزام
     const partyNames = extractPartyNames(segmentation.preamble);
@@ -238,9 +333,11 @@ export class ContractsService {
     // فى هذا المشروع (راجع تقارير Voyage السابقة) — التوازى الكامل هنا كان
     // سيخاطر بإطلاقها من أول استخدام حقيقى لخدمة جديدة، مقابل فارق زمن استجابة
     // مقبول لمستخدم يرفع عقداً (عملية غير تفاعلية آنية أصلاً).
-    for (const row of clauseRows) {
-      await this.assessAndPersistClause(row, context, position);
+    for (let i = 0; i < clauseRows.length; i++) {
+      progress({ stage: 'assessing', done: i, total: clauseRows.length });
+      await this.assessAndPersistClause(clauseRows[i], context, position);
     }
+    progress({ stage: 'assessing', done: clauseRows.length, total: clauseRows.length });
 
     clauseRows = await this.clauseRepository.find({
       where: { contractId: contract.id },
@@ -248,9 +345,11 @@ export class ContractsService {
     });
 
     // الطبقة 4: تحقق مستقل بتعليمات معاكسة من ملاحظات البنود التى قيّمها النموذج (لا يُسقط المعالجة أبداً)
+    progress({ stage: 'verifying', done: 0, total: 0 });
     await this.verifyClauseFlags(clauseRows, position);
 
     // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
+    progress({ stage: 'contract_level', done: 0, total: 0 });
     const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings, segmentation.preamble);
     contract.contractFindings = { ...level, parties: partyNames } as unknown as Record<string, unknown>;
 
@@ -399,11 +498,23 @@ export class ContractsService {
       // بالتحديد اخترنا JwtAuthGuard الإلزامى (لا OptionalJwtAuthGuard كالحوكمة).
       throw new ForbiddenException('لا تملك صلاحية الاطّلاع على هذا العقد');
     }
+    // عقد معلّق لا مهمة له فى هذه العملية (الخادم أُعيد تشغيله): يُعلَن فاشلاً بدل أن تنتظره الواجهة إلى الأبد
+    if (
+      (contract.status === 'processing' || contract.status === 'uploaded') &&
+      !this.jobs.has(id) &&
+      Date.now() - new Date(contract.updatedAt).getTime() > ContractsService.ORPHAN_GRACE_MS
+    ) {
+      contract.status = 'extraction_failed' as ContractStatus;
+      contract.extractionError = ContractsService.INTERRUPTED_MESSAGE;
+      await this.contractRepository.save(contract);
+    }
     const clauses = await this.clauseRepository.find({
       where: { contractId: id },
       order: { clauseIndex: 'ASC' },
     });
-    return this.toResponseDto(contract, clauses, []);
+    // أثناء المعالجة تُعرض الحالة والتقدم فقط (بنود نصف مقيَّمة لا تُعرض كنتيجة)
+    const running = contract.status === 'processing' || contract.status === 'uploaded';
+    return this.toResponseDto(contract, running ? [] : clauses, [], running ? this.jobs.get(id) : null);
   }
 
   /**
@@ -876,6 +987,7 @@ export class ContractsService {
     contract: Contract,
     clauses: ContractClause[],
     warnings: string[],
+    progress: JobProgress | null = null,
   ): ContractResponseDto {
     return {
       id: contract.id,
@@ -889,6 +1001,7 @@ export class ContractsService {
       warnings,
       ...this.toFindingsDto(contract.contractFindings),
       clauses: clauses.map((c) => this.toClauseDto(c)),
+      processing: progress ? { stage: progress.stage, label: JOB_STAGE_LABEL[progress.stage], done: progress.done, total: progress.total } : null,
       created_at: contract.createdAt,
     };
   }
