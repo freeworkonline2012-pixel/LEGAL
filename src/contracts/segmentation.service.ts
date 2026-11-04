@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { findAlternativeHeads } from './clause-headings-alt';
 import { findAlignedHeads } from './clause-headings-fuzzy';
 import { BARE_RE, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
@@ -65,6 +65,8 @@ const EXTERNAL_REFERENCE_RE = /^[\s_\u0640]*من[\s_\u0640]+(?:ال)?(?:عقد|�
 
 @Injectable()
 export class SegmentationService {
+  private readonly logger = new Logger(SegmentationService.name);
+
   private findHeads(text: string): Head[] {
     const full: Head[] = [...text.matchAll(CLAUSE_RE)]
       .filter((m) => {
@@ -125,6 +127,10 @@ export class SegmentationService {
     // قراءة آلية شوّهت العناوين («البن دالاول»، «البندالالث»، «الند الخامس»…) فالتقط الكاشف الحرفى بنداً أو اثنين وألصق الباقى بهما:
     // مطابقة تقريبية مقيَّدة بالتسلسل، لا تُعتمد إلا إن وجدت بنوداً أكثر مما وجده الكاشف الحرفى (فلا تمس عقداً سليم الترقيم).
     const aligned = findAlignedHeads(text);
+    // أعداد وأرقام فقط (لا نص عقد): لتشخيص ما قرأه الخادم فعلاً حين تختلف القراءة الآلية بين البيئات
+    this.logger.log(
+      `segmentation heads: literal=${heads.length} aligned=${aligned.length} alignedNumbers=${aligned.map((h) => h.declaredNumber).join(',')}`,
+    );
     if (aligned.length >= 3 && aligned.length > heads.length) {
       heads = aligned;
       const fuzzy = aligned.filter((h) => h.distance > 0).length;

@@ -181,7 +181,10 @@ export class OcrService {
     deadline?: number,
   ): Promise<void> {
     let missing = new Set(cfg.missingNumbers(texts.join('\n\n')));
-    if (missing.size === 0) return;
+    if (missing.size === 0) {
+      this.logger.log(`OCR heading gap: none pages=${texts.length}`);
+      return;
+    }
     this.logger.log(`OCR heading gap: missing=${[...missing].join(',')} pages=${texts.length}`);
     for (const images of imageSets) {
       for (let i = 0; i < texts.length && missing.size > 0; i++) {

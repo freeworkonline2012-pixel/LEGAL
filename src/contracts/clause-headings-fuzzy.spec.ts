@@ -1,4 +1,4 @@
-import { editDistance, findAlignedHeads, skeleton } from './clause-headings-fuzzy';
+import { editDistance, findAlignedHeads, fuzzyHeadingLineNumber, missingHeadingNumbersFuzzy, skeleton } from './clause-headings-fuzzy';
 import { SegmentationService } from './segmentation.service';
 
 /**
@@ -75,6 +75,70 @@ describe('findAlignedHeads (مطابقة تقريبية مقيّدة بالتس�
   it('يرجع فارغاً إن وُجد أقل من عنوانين', () => {
     expect(findAlignedHeads('البند الأول\nنص')).toEqual([]);
     expect(findAlignedHeads('نص عادى بلا بنود')).toEqual([]);
+  });
+});
+
+describe('المحاذاة الشاملة (الجولة 46)', () => {
+  it('تصمد أمام فقد عدة عناوين متتالية بين عنوانين سليمين', () => {
+    const text = [
+      'البند الأول: أ',
+      body(1),
+      'البند الثانى: ب',
+      body(2),
+      body(3),
+      body(4),
+      body(5),
+      'البندالسادس',
+      body(6),
+      'البنسد السا بع',
+      body(7),
+    ].join('\n');
+    expect(findAlignedHeads(text).map((h) => h.declaredNumber)).toEqual([1, 2, 6, 7]);
+  });
+
+  it('يقبل عنواناً مشوّهاً بشدة إن اتسق مع الترتيب (فراغات وحرف مبدّل)', () => {
+    const text = build(['البند الأول', 'البند الثانى', 'البند الثالث', 'البند الرابع', 'البذ د الخام س']);
+    expect(findAlignedHeads(text).map((h) => h.declaredNumber)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('يتعرّف على عناوين «المادة» ويكتبها بصيغة المؤنث', () => {
+    const text = build(['المادة الأولى:', 'المادة الثانيه:', 'الماده الثالثة', 'المادة الرابعه;']);
+    const heads = findAlignedHeads(text);
+    expect(heads.map((h) => h.marker)).toEqual(['المادة الأولى:', 'المادة الثانية:', 'المادة الثالثة', 'المادة الرابعة']);
+  });
+
+  it('لا يقبل «الباب» أو «المرفق» عنواناً', () => {
+    const text = build(['الباب الأول', 'الباب الثانى', 'الباب الثالث', 'المرفق الرابع']);
+    expect(findAlignedHeads(text)).toEqual([]);
+  });
+
+  it('يلتقط سطراً معزولاً سقطت كلمة «البند» منه بين مرساتين', () => {
+    const text = [
+      'البند الخامس',
+      body(5),
+      '',
+      'اليتس دك السسسادس',
+      '',
+      body(6),
+      'البند السابع',
+      body(7),
+      'البند الثامن',
+      body(8),
+    ].join('\n');
+    expect(findAlignedHeads(text).map((h) => h.declaredNumber)).toEqual([5, 6, 7, 8]);
+  });
+
+  it('missingHeadingNumbersFuzzy: يحسب الناقص من القراءة التقريبية وأعلى بند يُحال إليه', () => {
+    const text = ['البند الأول', body(1), 'البن د الثانى', 'يُنفَّذ طبقاً للبند الخامس من هذا العقد.'].join('\n');
+    expect(missingHeadingNumbersFuzzy(text)).toEqual([3, 4, 5]);
+    expect(missingHeadingNumbersFuzzy('نص بلا بنود')).toEqual([]);
+  });
+
+  it('fuzzyHeadingLineNumber: عنوان مشوّه منفرد ولا يلتقط جملة', () => {
+    expect(fuzzyHeadingLineNumber('البذ د الراد ع عش')).toBe(14);
+    expect(fuzzyHeadingLineNumber('البند الحادى عش')).toBe(11);
+    expect(fuzzyHeadingLineNumber('طبقاً للبند الثالث من العقد يلتزم الطرف')).toBeNull();
+    expect(fuzzyHeadingLineNumber('الباب الثالث عشر')).toBeNull();
   });
 });
 
