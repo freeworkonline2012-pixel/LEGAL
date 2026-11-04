@@ -53,8 +53,8 @@ import { ContractClauseResponseDto } from './dto/contract-clause-response.dto';
 import { ContractJobs, JOB_STAGE_LABEL, jobLimitsFromEnv, stageFromOcr, type JobProgress } from './contract-jobs';
 import { backgroundOcrMaxPages } from '../documents/ocr.service';
 import { ContractResponseDto } from './dto/contract-response.dto';
-import { canonicalHeading, countHeadingLines, looseHeadingLineNumber, ordinalWords } from './clause-headings';
-import { fuzzyHeadingLineNumber, missingHeadingNumbersFuzzy } from './clause-headings-fuzzy';
+import { canonicalHeading, looseHeadingLineNumber, ordinalWords } from './clause-headings';
+import { fuzzyHeadingLineNumber, headingLikeScore, missingHeadingNumbersFuzzy } from './clause-headings-fuzzy';
 import { numericWarnings } from './numeric-checks.util';
 import { ClauseFactsService } from './clause-facts.service';
 import { hasAnyFact, neutralizeDirections } from './clause-facts';
@@ -265,7 +265,7 @@ export class ContractsService implements OnModuleInit {
               'لم نتمكن من قراءة نص كافٍ من هذا الملف الممسوح — تأكد من وضوح الصور أو ارفع نسخة Word أو PDF نصى من العقد.',
           },
           failOnOcrTruncation: true,
-          ocrPageScore: countHeadingLines,
+          ocrPageScore: headingLikeScore,
           ocrRecoverMissing: {
             missingNumbers: missingHeadingNumbersFuzzy,
             headingNumber: (line: string) => looseHeadingLineNumber(line) ?? fuzzyHeadingLineNumber(line),

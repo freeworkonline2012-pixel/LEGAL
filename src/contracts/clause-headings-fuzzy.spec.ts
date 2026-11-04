@@ -1,4 +1,12 @@
-import { editDistance, findAlignedHeads, fuzzyHeadingLineNumber, missingHeadingNumbersFuzzy, skeleton } from './clause-headings-fuzzy';
+import {
+  describeHeadingCandidates,
+  editDistance,
+  findAlignedHeads,
+  fuzzyHeadingLineNumber,
+  headingLikeScore,
+  missingHeadingNumbersFuzzy,
+  skeleton,
+} from './clause-headings-fuzzy';
 import { SegmentationService } from './segmentation.service';
 
 /**
@@ -139,6 +147,24 @@ describe('المحاذاة الشاملة (الجولة 46)', () => {
     expect(fuzzyHeadingLineNumber('البند الحادى عش')).toBe(11);
     expect(fuzzyHeadingLineNumber('طبقاً للبند الثالث من العقد يلتزم الطرف')).toBeNull();
     expect(fuzzyHeadingLineNumber('الباب الثالث عشر')).toBeNull();
+  });
+});
+
+describe('جودة الصفحة والتشخيص (الجولة 46)', () => {
+  it('headingLikeScore: القراءة الأوضح عناوين تفوز، وصفحة بلا عناوين صفر', () => {
+    const garbled = ['البن دالثالث', body(3), 'الند الرابع', body(4)].join('\n');
+    const clean = ['البند الثالث', body(3), 'البند الرابع', body(4)].join('\n');
+    expect(headingLikeScore(clean)).toBeGreaterThan(headingLikeScore(garbled));
+    expect(headingLikeScore(garbled)).toBeGreaterThan(0);
+    expect(headingLikeScore(body(1))).toBe(0);
+  });
+
+  it('describeHeadingCandidates: يسجّل الأسطر الشبيهة بعنوان فقط ويعلّم المعتمد منها', () => {
+    const text = build(['البند الأول', 'البن دالثانى', 'البند الثالث']) + '\nشركة المثال للتجارة\n';
+    const lines = describeHeadingCandidates(text);
+    expect(lines.length).toBe(3);
+    expect(lines.every((l) => /=>\d+$/.test(l))).toBe(true);
+    expect(lines.join('').includes('المثال')).toBe(false);
   });
 });
 

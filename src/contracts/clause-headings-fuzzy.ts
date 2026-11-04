@@ -335,3 +335,34 @@ export function missingHeadingNumbersFuzzy(text: string): number[] {
   for (let n = 1; n <= upper; n++) if (!have.has(n)) out.push(n);
   return out;
 }
+
+/**
+ * «جودة» نص صفحة من حيث عناوين البنود: مجموع أوزان الأسطر الشبيهة بعنوان («البند X» أو «المادة X») ولو مشوَّهة. يُستعمل لاختيار الأوفى
+ * من قراءتين لنفس الصفحة بدل عدّ العناوين السليمة حرفياً فقط (قراءة مشوَّهة العناوين كلها تساوى صفراً فتبقى الأولى دائماً).
+ */
+export function headingLikeScore(pageText: string): number {
+  const lines = (pageText ?? '').replace(INVISIBLE, '').split('\n');
+  const perFamily = FAMILIES.map((f) => collectCandidates(lines, f).reduce((sum, c) => sum + (c.options[0]?.weight ?? 0), 0));
+  return Math.max(...perFamily);
+}
+
+/**
+ * تشخيص بلا نص عقد إلا الأسطر الشبيهة بعنوان (قصيرة ≤ 34 حرفاً ومشابهة لـ«البند» أو «المادة»): كل سطر مرشَّح مع أقرب رقم ومسافته،
+ * و«=>N» = اعتُمد عنواناً برقم N. لمعرفة ما قرأه الخادم فعلاً حين تختلف القراءة الآلية بين البيئات.
+ */
+export function describeHeadingCandidates(rawText: string, max = 40): string[] {
+  const text = rawText.replace(INVISIBLE, '');
+  const lines = text.split('\n');
+  const used = new Map(findAlignedHeads(text).map((h) => [h.lineStart, h.declaredNumber] as [number, number]));
+  const out: string[] = [];
+  const seen = new Set<number>();
+  for (const family of FAMILIES) {
+    for (const c of collectCandidates(lines, family)) {
+      if (c.options.length === 0 || seen.has(c.line)) continue;
+      seen.add(c.line);
+      const o = c.options[0];
+      out.push(`L${c.line + 1} ${JSON.stringify(lines[c.line].trim().slice(0, 34))} -> ${o.n}/d${o.d}${used.has(c.lineStart) ? ` =>${used.get(c.lineStart)}` : ''}`);
+    }
+  }
+  return out.sort((a, b) => Number(a.slice(1, a.indexOf(' '))) - Number(b.slice(1, b.indexOf(' ')))).slice(0, max);
+}

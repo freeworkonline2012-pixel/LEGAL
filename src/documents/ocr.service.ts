@@ -203,6 +203,7 @@ export class OcrService {
           const base = await this.tsvLines(image, 3);
           const present = new Set(base.map((l) => cfg.headingNumber(l.text)).filter((n): n is number => n !== null));
           const toInsert = found.filter((l) => !present.has(cfg.headingNumber(l.text) as number));
+          this.logger.log(`OCR heading recovered: page=${i + 1} wanted=${found.map((l) => cfg.headingNumber(l.text)).join(',')} inserted=${toInsert.length} presentInBase=${[...present].join(',')}`);
           // الأداة نفسها وجدت العنوان فى القراءة العادية بصيغة TSV (لا فى نص هذه الصفحة المختار): نستعمل نص TSV كما هو
           texts[i] = toInsert.length === 0 ? linesToText(base) : insertLinesByPosition(base, toInsert);
           missing = new Set(cfg.missingNumbers(texts.join('\n\n')));

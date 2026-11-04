@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { findAlternativeHeads } from './clause-headings-alt';
-import { findAlignedHeads } from './clause-headings-fuzzy';
+import { describeHeadingCandidates, findAlignedHeads } from './clause-headings-fuzzy';
 import { BARE_RE, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
 
 export interface SegmentedClause {
@@ -131,6 +131,10 @@ export class SegmentationService {
     this.logger.log(
       `segmentation heads: literal=${heads.length} aligned=${aligned.length} alignedNumbers=${aligned.map((h) => h.declaredNumber).join(',')}`,
     );
+    if (heads.length < 4 || aligned.length > heads.length) {
+      // عقد قليل العناوين المقروءة (غالباً ممسوح): تُسجَّل الأسطر الشبيهة بعنوان فقط (≤ 34 حرفاً) لمعرفة سبب ما فاتنا
+      this.logger.log(`segmentation heading-like lines: ${describeHeadingCandidates(text).join(' | ')}`);
+    }
     if (aligned.length >= 3 && aligned.length > heads.length) {
       heads = aligned;
       const fuzzy = aligned.filter((h) => h.distance > 0).length;
