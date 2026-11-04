@@ -49,3 +49,26 @@ describe('توصيات التنفيذ من ملاحظات العقد ككل', ()
     expect(PRIORITY_RANK['متوسطة']).toBeLessThan(PRIORITY_RANK['منخفضة']);
   });
 });
+
+describe('اقتطاع الملاحظات عند حد طبيعى', () => {
+  const note = (sug: string) => findingAction(f('office_rule', 'عالٍ', 'ع', sug)).note;
+  it('عند نهاية جملة إن وُجدت بعد منتصف الحد، بلا نقاط اقتطاع', () => {
+    const s = `${'نص يبين المخالفة وأثرها على الطرفين بوضوح تام وشامل ويحدد الجزاء المترتب عليها بدقة. '}ثم جملة ثانية طويلة جداً تتجاوز الحد المسموح به للخانة وتستمر ${'كلمة '.repeat(20)}`;
+    const n = note(s);
+    expect(n.endsWith('.')).toBe(true);
+    expect(n.includes('…')).toBe(false);
+    expect(n.length).toBeLessThanOrEqual(130);
+  });
+  it('وإلا عند فاصلة ثم مسافة، ولا يُقطع وسط كلمة', () => {
+    const words = Array.from({ length: 40 }, (_, i) => `كلمة${i}`);
+    const s = `${words.slice(0, 12).join(' ')}، ${words.slice(12).join(' ')}`;
+    const n = note(s);
+    expect(n.endsWith('…')).toBe(true);
+    expect(n.length).toBeLessThanOrEqual(131);
+    const lastToken = n.replace('…', '').trim().split(' ').pop()!;
+    expect(words).toContain(lastToken);
+  });
+  it('النص القصير لا يُمس', () => {
+    expect(note('نص قصير.')).toBe('نص قصير.');
+  });
+});

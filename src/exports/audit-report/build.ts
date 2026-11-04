@@ -1,7 +1,8 @@
 import { createHash } from 'crypto';
 import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortReference } from '../document-model';
 import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
-import { extractKeyTerms, KEY_TERM_KIND_LABEL } from '../../contracts/key-terms';
+import { extractKeyTerms, KEY_TERM_KIND_LABEL, type KeyTerm } from '../../contracts/key-terms';
+import { groupKeyTerms } from './key-terms-display';
 import { buildPlaybook, type PlaybookResult } from '../../contracts/playbook';
 import { ACTION_TIMELINE, candidateAction, extraActions, findingAction, playbookAction, PRIORITY_RANK, type ActionPriority } from './recommendations';
 import { buildPaymentSchedules, formatMoney, formatPercent } from '../../contracts/payment-schedule';
@@ -595,16 +596,18 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         t: 'grid',
         columns: ['النوع', 'القيمة', 'البند', 'من نص العقد'],
         widths: [10, 20, 16, 54],
-        rows: terms.map((t) => [
-          { text: KEY_TERM_KIND_LABEL[t.kind], tone: 'info' as Tone, center: true },
-          {
-            text: (t.suspect ? `${t.value} (؟ يلزم التحقق)` : t.fromWords ? `${t.value} (بالحروف)` : t.value) + ((t.occurrences ?? 1) > 1 ? ` — ترد ${t.occurrences} مرات فى النص` : ''),
-            bold: true,
-            ...(t.suspect ? { tone: 'medium' as Tone } : {}),
-          },
-          { text: t.clauseLabel, center: true },
-          { text: t.suspect ? `${t.quote}\nملاحظة المنصة (ليست من نص العقد): ${t.suspect}` : t.quote },
-        ]),
+        // صف لكل مقطع من العقد: القيم المتجاورة فى المقطع نفسه معاً (لا يتكرر النص)، وما قُرئ بالأرقام والحروف معاً يُعرض مرة
+        rows: groupKeyTerms(terms).map((row) => {
+          const label = (t: KeyTerm): string =>
+            (t.suspect ? `${t.value} (؟ يلزم التحقق)` : t.fromWords ? `${t.value} (بالحروف)` : t.value) + ((t.occurrences ?? 1) > 1 ? ` — ترد ${t.occurrences} مرات فى النص` : '');
+          const notes = row.terms.filter((t) => t.suspect).map((t) => `ملاحظة المنصة (ليست من نص العقد): ${t.suspect}`);
+          return [
+            { text: row.terms.map((t) => KEY_TERM_KIND_LABEL[t.kind]).join('\n'), tone: 'info' as Tone, center: true },
+            { text: row.terms.map(label).join('\n'), bold: true, ...(row.terms.some((t) => t.suspect) ? { tone: 'medium' as Tone } : {}) },
+            { text: row.clauseLabel, center: true },
+            { text: [row.quote, ...notes].join('\n') },
+          ];
+        }),
       });
       // جدول الدفعات وفحص مجموعها (الجولة 34): حساب حتمى من النسب والمبلغ المقروءين، إنذار لا حكم
       for (const sch of buildPaymentSchedules(terms)) {
@@ -938,7 +941,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     blocks.push({
       t: 'grid',
       columns: ['#', 'الإجراء المطلوب', 'الأولوية', 'الجدول الزمنى', 'ملاحظات'],
-      widths: [6, 38, 14, 20, 22],
+      widths: [5, 34, 12, 16, 33],
       rows: actionRows.map((a, i) => [
         { text: String(i + 1), center: true },
         { text: a.text },

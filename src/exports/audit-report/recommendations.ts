@@ -29,9 +29,18 @@ export const ACTION_TIMELINE: Record<ActionPriority, string> = {
   منخفضة: 'قبل الاعتماد النهائى',
 };
 
+/** اقتطاع عند حد طبيعى: نهاية جملة، ثم فاصلة، ثم مسافة (لا وسط كلمة ولا وسط عبارة إن أمكن)، وتُلحَق «…» إن اقتُطع شىء. */
 function clip(text: string, max: number): string {
   const t = text.replace(/\s+/g, ' ').trim();
-  return t.length <= max ? t : `${t.slice(0, max).trim()}…`;
+  if (t.length <= max) return t;
+  const head = t.slice(0, max);
+  const floor = Math.floor(max * 0.5);
+  const stop = Math.max(head.lastIndexOf('.'), head.lastIndexOf('؛'), head.lastIndexOf('؟'));
+  if (stop >= floor) return head.slice(0, stop + 1).trim();
+  const comma = Math.max(head.lastIndexOf('،'), head.lastIndexOf(','));
+  if (comma >= floor) return `${head.slice(0, comma).trim()}…`;
+  const sp = head.lastIndexOf(' ');
+  return `${(sp >= floor ? head.slice(0, sp) : head).trim()}…`;
 }
 
 function make(text: string, priority: ActionPriority, note: string): ExtraAction {

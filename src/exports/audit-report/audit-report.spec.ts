@@ -408,7 +408,8 @@ describe('الجولة 6: الملخص التنفيذى وسجل المخاطر 
     expect(note.text).toContain('أكبر مبلغ ورد فى البند');
     // ملاحظة المنصة منفصلة عن الاقتباس الحرفى فى جدول الشروط
     const terms = gridBy(r, 'من نص العقد')!;
-    expect(terms.rows.some((x) => x[1].text === '30% — ترد 2 مرات فى النص')).toBe(true);
+    // القيم المتجاورة فى المقطع نفسه تُجمع فى صف واحد (كل قيمة فى سطر)، فتُفحص القيمة سطراً لا خلية كاملة
+    expect(terms.rows.some((x) => x[1].text.split('\n').includes('30% — ترد 2 مرات فى النص'))).toBe(true);
     expect(terms.rows.some((x) => x[3].text.includes('\nملاحظة المنصة (ليست من نص العقد):'))).toBe(true);
   });
 
