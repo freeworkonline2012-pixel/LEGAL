@@ -100,3 +100,30 @@ describe('ClauseVerifierService', () => {
     expect(body.messages[0].content).toContain('لا تعدّ غياب مقتطفه دليلاً');
   });
 });
+
+describe('ClauseVerifierService: مسار «اختلاف عن قاعدة مكملة» (الجولة 57)', () => {
+  const realFetch = global.fetch;
+  const env = { ...process.env };
+  beforeEach(() => {
+    process.env.DEEPSEEK_API_KEY = 'k';
+    delete process.env.CONTRACT_VERIFIER_ENABLED;
+  });
+  afterEach(() => {
+    global.fetch = realFetch;
+    process.env = { ...env };
+  });
+  const sysOf = (f: jest.Mock): string => JSON.parse((f.mock.calls[0][1] as { body: string }).body).messages[0].content as string;
+
+  it('الاختلاف عن القاعدة (deviation) يستعمل تعليمات لا تدحض بكون المادة مكملة، والآمر (الافتراضى) كما كان', async () => {
+    const f = reply({ verdict: 'confirmed', reason: 'سبب.' });
+    global.fetch = f as never;
+    await new ClauseVerifierService().verifyAssessment({ ...input, claimKind: 'deviation' });
+    expect(sysOf(f)).toContain('لا يصلح سبباً للدحض أبداً');
+    expect(sysOf(f)).not.toContain('قاعدة مكملة يجوز الاتفاق على خلافها وقد عوملت كأنها آمرة');
+
+    const g = reply({ verdict: 'confirmed', reason: 'سبب.' });
+    global.fetch = g as never;
+    await new ClauseVerifierService().verifyAssessment(input);
+    expect(sysOf(g)).toContain('قاعدة مكملة يجوز الاتفاق على خلافها وقد عوملت كأنها آمرة');
+  });
+});

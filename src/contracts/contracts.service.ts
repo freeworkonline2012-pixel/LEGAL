@@ -62,7 +62,7 @@ import { hasAnyFact, neutralizeDirections } from './clause-facts';
 import { evaluateRules, summarizeFindings } from './clause-rules';
 import { ContractConsistencyService } from './contract-consistency.service';
 import { ClauseVerifierService } from './clause-verifier.service';
-import { type Verification, needsVerification, pickForVerification } from './verification';
+import { type Verification, claimKindFromRisk, needsVerification, pickForVerification } from './verification';
 import { compareFactsForClient, describeWeakenings } from './redraft-guard';
 import type { ClauseFacts } from './clause-facts';
 import type { Weakening } from './redraft-guard';
@@ -436,6 +436,7 @@ export class ContractsService implements OnModuleInit {
           claim: row.assessmentReasoning ?? '',
           clientPosition,
           articles: (row.matchedArticles ?? []).map((m) => ({ lawTitle: m.law, articleNo: m.article_no, articleText: m.snippet })),
+          claimKind: claimKindFromRisk(row.riskLevel),
         });
         if (out.status !== 'ok') continue;
         row.verification = out.verification as unknown as Record<string, unknown>;

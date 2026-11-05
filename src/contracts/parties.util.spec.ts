@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { aliasTokens, clientRoleConflictWarning, directionResolvable, extractPartyNames, intermediarySide, partiesNamedIn } from './parties.util';
+import { aliasTokens, clientRoleConflictWarning, roleLabelConflictWarning, directionResolvable, extractPartyNames, intermediarySide, partiesNamedIn } from './parties.util';
 
 const PREAMBLE =
   'إنه فى يوم الثلاثاء الموافق 10/3/2026 تم الاتفاق بين كل من: 1- شركة بلاك بيلتس لتكنولوجيا المعلومات ، سجل تجارى رقم 12345 ويمثلها السيد/ أحمد ويشار إليها فيما بعد بـ (الطرف الأول). ' +
@@ -254,3 +254,71 @@ describe('الجولة 56: اسم الطرف يلى ترقيمه مباشرة', 
   });
 });
 
+
+describe('تنبيه اتجاه عام: صفة العميل مقابل وسم الطرف فى الديباجة (الجولة 57)', () => {
+  const PARTNERSHIP =
+    'أبرم هذا العقد فى مدينة الإسكندرية بين السيد/ هشام عادل (ويشار إليه بالشريك الممول أو الطرف الأول) والسيد/ طارق سامى (ويشار إليه بالشريك المدير أو الطرف الثانى).';
+  const EMPLOYMENT =
+    'أبرم هذا العقد بين شركة نور للتجارة ش.م.م (ويشار إليها بصاحب العمل أو الطرف الأول) والسيد/ كريم صلاح (ويشار إليه بالعامل أو الطرف الثانى).';
+  const SALE_AFTER = 'تم الاتفاق بين الطرف الأول (البائع) شركة الأفق والطرف الثانى (المشترى) السيدة منى فؤاد.';
+
+  it('الشريك المستثمر هو «الممول»: اختيار الطرف الثانى يُنبَّه، والأول لا', () => {
+    const w = roleLabelConflictWarning('الشريك المستثمر', 'second', PARTNERSHIP);
+    expect(w).toContain('تنبيه اتجاه');
+    expect(w).toContain('الطرف الأول');
+    expect(w).toContain('الممول');
+    expect(roleLabelConflictWarning('الشريك المستثمر', 'first', PARTNERSHIP)).toBeNull();
+    expect(clientRoleConflictWarning('الشريك المستثمر', 'second', PARTNERSHIP)).toContain('تنبيه اتجاه');
+  });
+
+  it('العامل والمشترى: الاختيار الصحيح بلا تنبيه والعكس بتنبيه', () => {
+    expect(roleLabelConflictWarning('العامل', 'second', EMPLOYMENT)).toBeNull();
+    expect(roleLabelConflictWarning('العامل', 'first', EMPLOYMENT)).toContain('الطرف الثانى');
+    expect(roleLabelConflictWarning('المشترى', 'second', SALE_AFTER)).toBeNull();
+    expect(roleLabelConflictWarning('المشترى', 'first', SALE_AFTER)).toContain('الطرف الثانى');
+  });
+
+  it('لا تنبيه حين لا وسم ملاصق، أو الصفة غير معروفة، أو لا مركز', () => {
+    expect(roleLabelConflictWarning('العامل', 'first', 'بين شركة نور والسيد كريم صلاح (الطرف الأول) و(الطرف الثانى).')).toBeNull();
+    expect(roleLabelConflictWarning('مستشار', 'first', EMPLOYMENT)).toBeNull();
+    expect(roleLabelConflictWarning(null, 'first', EMPLOYMENT)).toBeNull();
+    expect(roleLabelConflictWarning('العامل', null, EMPLOYMENT)).toBeNull();
+  });
+
+  it('وصف الصفة فى وصف الشركة داخل الديباجة بعيداً عن الوسم لا يُنسب لطرف', () => {
+    const p = 'بين شركة نور (الطرف الأول) وهى شركة عامل فى مجال التوزيع، والسيد كريم (الطرف الثانى).';
+    expect(roleLabelConflictWarning('العامل', 'second', p)).toBeNull();
+  });
+});
+
+describe('أسماء الأفراد بصيغة «السيد/ فلان» (الجولة 57)', () => {
+  it('شخص طبيعى بعد شركة وبعد شخص: «ويشار إليه بكذا أو الطرف الثانى»', () => {
+    const a = extractPartyNames('أبرم هذا العقد بين شركة نور للتجارة والتوزيع ش.م.م (ويشار إليها بصاحب العمل أو الطرف الأول) والسيد/ كريم صلاح (ويشار إليه بالعامل أو الطرف الثانى).');
+    expect(a).toMatchObject({ first: 'نور للتجارة والتوزيع', second: 'كريم صلاح' });
+    const c = extractPartyNames('بين السيد/ هشام عادل (ويشار إليه بالشريك الممول أو الطرف الأول) والسيد/ طارق سامى (ويشار إليه بالشريك المدير أو الطرف الثانى).');
+    expect(c).toMatchObject({ first: 'هشام عادل', second: 'طارق سامى' });
+  });
+
+  it('مؤنث: «والسيدة/ منى فؤاد (وتشار إليها بالمشترية…)» لا يلتصق بها وصف الصفة', () => {
+    const b = extractPartyNames('بين شركة الأفق للتطوير العقارى ش.م.م (ويشار إليها بالبائع أو الطرف الأول) والسيدة/ منى فؤاد (وتشار إليها بالمشترية أو الطرف الثانى).');
+    expect(b.second).toBe('منى فؤاد');
+  });
+
+  it('«(طرف أول)» و«أولاً: … "طرف أول"» بعد بطاقة أو إقامة', () => {
+    expect(
+      extractPartyNames('حرر هذا العقد بين السيد/ أحمد محمد على، المقيم بالقاهرة، ويحمل بطاقة رقم 29001010101010 (طرف أول) والسيد/ محمود حسن إبراهيم، المقيم بالجيزة (طرف ثان).'),
+    ).toMatchObject({ first: 'أحمد محمد على', second: 'محمود حسن إبراهيم' });
+    expect(
+      extractPartyNames('تحرر هذا العقد بين: أولاً: السيد/ أحمد محمد على المقيم بالقاهرة "طرف أول". ثانياً: السيدة/ نهى سمير حسن المقيمة بالجيزة "طرف ثان".'),
+    ).toMatchObject({ first: 'أحمد محمد على', second: 'نهى سمير حسن' });
+  });
+
+  it('ممثل الشركة بعد «ويمثلها السيد/» لا يصير اسم الطرف، والطرف الثانى الفرد يُقرأ', () => {
+    const g = extractPartyNames('تحرر هذا العقد بين شركة نور للتجارة ش.م.م ويمثلها السيد/ سعيد على (الطرف الأول) والسيد/ كريم صلاح (الطرف الثانى)');
+    expect(g).toMatchObject({ first: 'نور للتجارة', second: 'كريم صلاح' });
+  });
+
+  it('وسم الصفة وحده بلا ترتيب «طرف» لا يُخمَّن (فشل مغلق)', () => {
+    expect(extractPartyNames('بين السيد أحمد محمد على (البائع) والسيد محمود حسن (المشترى) تم الاتفاق')).toMatchObject({ first: null, second: null });
+  });
+});

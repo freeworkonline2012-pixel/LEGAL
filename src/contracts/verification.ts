@@ -56,6 +56,19 @@ export function validateVerdict(raw: unknown, clauseText: string, articleTexts: 
   return { status: 'unconfirmed', basis: 'uncertain', reason, quote: null, quoteSource: null, verifiedAt };
 }
 
+/**
+ * طبيعة الادعاء الذى يتحقق منه المدقق (تُشتق من درجة الخطورة المخزَّنة بلا حقل جديد):
+ *  - mandatory: ادعاء مخالفة نص آمر (حرج/عالٍ) ⇒ يُسأل المدقق هل المادة آمرة فعلاً وهل تنطبق.
+ *  - deviation: اختلاف عن قاعدة عامة أو اختلال لمصلحة طرف (متوسط) ⇒ كون المادة مكملة مسلَّم به فى الملاحظة نفسها فلا يصلح سبباً
+ *    للدحض، ويُسأل المدقق عن صحة الواقعة وانطباق المادة وجوهرية الاختلاف فقط.
+ * تقرير إنتاج 5 نوفمبر 2026 (ستة عقود اصطناعية): 19 من 27 ملاحظة صحيحة على بنود معيبة وُسمت «غير مؤكدة» لأن المدقق دحضها بأن المادة مكملة.
+ */
+export type ClaimKind = 'mandatory' | 'deviation';
+
+export function claimKindFromRisk(riskLevel: string | null | undefined): ClaimKind {
+  return riskLevel === 'حرج' || riskLevel === 'عالٍ' ? 'mandatory' : 'deviation';
+}
+
 /** البنود التى يستحق تقييمها الآلى تحققاً مستقلاً: المراجعة الآلية بالنموذج (لا القواعد الحتمية) وبمخاطرة غير منخفضة. */
 export function needsVerification(c: {
   assessmentStatus: string | null;

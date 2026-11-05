@@ -1,4 +1,4 @@
-import { needsVerification, pickForVerification, validateVerdict } from './verification';
+import { claimKindFromRisk, needsVerification, pickForVerification, validateVerdict } from './verification';
 
 const CLAUSE = 'يجوز للطرف الثانى فسخ العقد دون حاجة إلى إنذار أو تنبيه إذا أخل الطرف الأول بالتزام جوهرى.';
 const ART = 'يجوز الاتفاق على أن يعتبر العقد مفسوخاً من تلقاء نفسه دون حكم قضائى عند عدم الوفاء بالالتزامات.';
@@ -48,5 +48,14 @@ describe('needsVerification / pickForVerification', () => {
     const picked = pickForVerification(list);
     expect(picked).toHaveLength(12);
     expect(picked[0].clauseIndex).toBe(20);
+  });
+});
+
+describe('claimKindFromRisk (الجولة 57)', () => {
+  it('حرج/عالٍ ⇒ mandatory، ومتوسط أو غيره ⇒ deviation', () => {
+    expect(claimKindFromRisk('حرج')).toBe('mandatory');
+    expect(claimKindFromRisk('عالٍ')).toBe('mandatory');
+    expect(claimKindFromRisk('متوسط')).toBe('deviation');
+    expect(claimKindFromRisk(null)).toBe('deviation');
   });
 });

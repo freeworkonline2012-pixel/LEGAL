@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { type Verification, validateVerdict } from './verification';
+import { type ClaimKind, type Verification, validateVerdict } from './verification';
 
 export type VerifierOutcome =
   | { status: 'ok'; verification: Verification }
@@ -18,6 +18,14 @@ const SYSTEM_ASSESSMENT =
   'أنت محامٍ مصرى مدقق مستقل يراجع ملاحظة صدرت على بند عقد. أمامك نص البند، والملاحظة الصادرة عنه، ونصوص المواد التى بُنيت عليها. ' +
   'تحقق خصوصاً من: (أ) هل يتضمن نص البند فعلاً ما يعالج الأمر الذى تدّعى الملاحظة غيابه (مثل إعفاء صريح من الإنذار أو حد أقصى أو تحديد للمدة)؟ ' +
   '(ب) هل المادة المعروضة قاعدة مكملة يجوز الاتفاق على خلافها وقد عوملت كأنها آمرة؟ (ج) هل تحكم المادة فعلاً هذه العلاقة؟ ' +
+  SHARED;
+
+const SYSTEM_DEVIATION =
+  'أنت محامٍ مصرى مدقق مستقل يراجع ملاحظة صدرت على بند عقد. الملاحظة هنا ليست ادعاء بطلان ولا مخالفة لنص آمر؛ هى تنبّه إلى أن البند يختلف عن قاعدة عامة أو يحمّل أحد الطرفين ما لا يحمّله الأصل. ' +
+  'كون المادة المعروضة قاعدة مكملة يجوز الاتفاق على خلافها أمر مسلَّم به فى الملاحظة نفسها، فلا يصلح سبباً للدحض أبداً، ولا يكفى أن تقول إن الاتفاق على الخلاف جائز. ' +
+  'تحقق فقط من: (أ) أن ما تنسبه الملاحظة للبند موجود فعلاً فى نصه. (ب) أن المادة المعروضة تحكم هذه المسألة فعلاً لا مسألة أخرى. ' +
+  '(ج) أن البند يخالف الأصل الذى تصفه فعلاً لا أنه يوافقه أو يعالجه صراحة بما يزيل أثر الملاحظة. ' +
+  '(د) أن الاختلاف جوهرى لمركز العميل لا شكلى. وحين تُجيز المادة الاتفاق بشروط، فتحقق أن البند يستوفى تلك الشروط فعلاً؛ فإن لم يستوفها (كحد مكانى أو زمنى أو مقابل تشترطه المادة) فالملاحظة قائمة ولا تُدحض. ' +
   SHARED;
 
 const SYSTEM_FINDING =
@@ -60,13 +68,15 @@ export class ClauseVerifierService {
     claim: string;
     clientPosition: string | null;
     articles: Array<{ lawTitle: string; articleNo: number; articleText: string }>;
+    /** غائب = mandatory (السلوك السابق) */
+    claimKind?: ClaimKind;
   }): Promise<VerifierOutcome> {
     const arts = input.articles.map((a, i) => `${i + 1}) المادة ${a.articleNo} من ${a.lawTitle}:\n"""${a.articleText}"""`).join('\n\n');
     const user =
       `نص البند: """${input.clauseText}"""\n\n` +
       (input.clientPosition ? `مركز العميل: """${input.clientPosition}"""\n\n` : '') +
       `الملاحظة الصادرة: """${input.claim}"""\n\nالمواد:\n${arts}\n\nأعد JSON فقط.`;
-    return this.run(SYSTEM_ASSESSMENT, user, input.clauseText, input.articles.map((a) => a.articleText));
+    return this.run(input.claimKind === 'deviation' ? SYSTEM_DEVIATION : SYSTEM_ASSESSMENT, user, input.clauseText, input.articles.map((a) => a.articleText));
   }
 
   /** تحقق مستقل من ملاحظة على العقد ككل بالنموذج (تعارض/عدم اتساق...). */

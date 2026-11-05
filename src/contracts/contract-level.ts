@@ -188,6 +188,8 @@ export function inferContractFamily(titleText: string | null | undefined): Contr
 interface MissingCheck {
   id: string;
   label: string;
+  /** تسمية مخصصة لنوع العقد (قالب «المخرجات» للخدمات لا يوصف به فحص المبيع) */
+  labelByFamily?: Partial<Record<ContractFamily, string>>;
   /** null = كل الأنواع (بما فيها غير المحدَّد) */
   families: ContractFamily[] | null;
   /** يُرصد البند إن طابق أى نمط على النص الموحَّد للعقد كله */
@@ -296,6 +298,7 @@ export const CHECKS: MissingCheck[] = [
   {
     id: 'acceptance',
     label: 'التسليم والاستلام وقبول المخرجات',
+    labelByFamily: { sale: 'فحص المبيع عند التسليم وقبوله (مهلة الاعتراض وأثر السكوت)' },
     families: ['services', 'sale'],
     patterns: [/استلام|الاستلام|قبول|محضر.{0,12}(?:تسليم|استلام)|فحص|اختبار القبول|يعتبر مقبولا/],
     severity: 'متوسط',
@@ -883,8 +886,8 @@ export function checkMissingClauses(clauses: LevelClause[], opts: MissingOptions
       id: `missing:${check.id}`,
       kind: 'missing_clause',
       severity: check.severity,
-      title: `لم يُرصد بند يتناول: ${check.label}`,
-      explanation: `لم يُرصد فى نص العقد المرفوع ما يتناول ${check.label}. ${check.why}${caveat}`,
+      title: `لم يُرصد بند يتناول: ${check.labelByFamily?.[family] ?? check.label}`,
+      explanation: `لم يُرصد فى نص العقد المرفوع ما يتناول ${check.labelByFamily?.[family] ?? check.label}. ${check.why}${caveat}`,
       suggestion: check.suggestion,
       evidence: [],
       source: 'rule',

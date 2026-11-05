@@ -135,8 +135,37 @@ export function checkInstallments(text: string): InstallmentRead | null {
       reconstructed = true;
     }
   }
-  if (values.length < 2) return null;
+  if (values.length < 2) return checkInlineInstallments(text);
   return { percentages: values, reconstructed, sum: Math.round(values.reduce((a, b) => a + b, 0) * 100) / 100 };
+}
+
+/** صدر جملة السداد المقسَّط: «يسدد على الآتى:» «تدفع على النحو التالى» «على دفعات». */
+const INLINE_PAY_INTRO = /(?:يسدد|تسدد|يدفع|تدفع|يؤدى|تؤدى|يؤدي|تؤدي|سداد|الدفع|دفعات|اقساط|أقساط)/u;
+/** نسبة دفعة فى جملة واحدة: «20% عند التوقيع» «30 فى المائة بعد ستة أشهر» — تُعدّ دفعة فقط إن تلاها موعد استحقاق. */
+const INLINE_PERCENT = /(?<![\d.])(\d{1,3}(?:\.\d+)?)\s*(?:%|٪|فى المائة|في المائة|بالمائة|بالمئة)\s*(?:\(?[^%٪\d]{0,12}?\)?\s*)?(?=(?:عند|بعد|خلال|قبل|مقدما|مقدماً|فى\s|في\s|تسدد|يسدد|عقب|مع\s))/gu;
+/** ما يدل على أن الجملة لا تسرد كل الثمن (باقٍ يُسدد بطريقة أخرى) فلا يُحكم بالمجموع. */
+const INLINE_REMAINDER = /(?:الباقي|الباقى|المتبقي|المتبقى|الرصيد|ما تبقى|ما تبقي)/u;
+
+/**
+ * نسب الدفعات المسرودة فى جملة واحدة بلا ترقيم «الدفعة الأولى»: «يسدد على الآتى: 20% عند التوقيع و30% بعد ستة أشهر و40% عند التسليم».
+ * محافظ عمداً (الفحص إنذار لا حكم): جملة سداد واحدة فقط فى العقد، دفعتان فأكثر كل منها يتلوها موعد استحقاق، وبلا «الباقى/المتبقى».
+ * أكثر من جملة مؤهَّلة أو التباس = null (لا إنذار كاذب على جداول متعددة أو غرامات).
+ */
+function checkInlineInstallments(text: string): InstallmentRead | null {
+  const flat = (text ?? '')
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, '')
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/\s+/g, ' ');
+  const sentences = flat.split(/(?<=[؟!؛])\s+|\.(?=\s|$)/u);
+  const found: number[][] = [];
+  for (const sentence of sentences) {
+    if (!INLINE_PAY_INTRO.test(sentence) || INLINE_REMAINDER.test(sentence)) continue;
+    const values = [...sentence.matchAll(INLINE_PERCENT)].map((m) => Number(m[1]));
+    if (values.length >= 2) found.push(values);
+  }
+  if (found.length !== 1) return null;
+  const values = found[0];
+  return { percentages: values, reconstructed: false, sum: Math.round(values.reduce((a, b) => a + b, 0) * 100) / 100 };
 }
 
 // ===== التحذيرات للمستخدم =====

@@ -16,7 +16,8 @@ export interface PartyNames {
 
 const MAX_PREAMBLE = 4000;
 const MAX_NAME_WORDS = 5;
-const ENTITY = /(?<!ال)(?<!لل)(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|مجموعة|مجموعه|الأستاذ|الاستاذ|السيد|السيدة|السيده)\s+/gu;
+// ألقاب الأشخاص قد يلحقها «/» أو «:» بلا مسافة («السيد/ هشام عادل»)، وهى الصيغة الغالبة فى العقود المصرية؛ أما الجهات فتتبعها مسافة.
+const ENTITY = /(?<!ال)(?<!لل)(?:(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|مجموعة|مجموعه)\s+|(?:الأستاذ|الاستاذ|السيد|السيدة|السيده)(?:\s*[/:：]\s*|\s+))/gu;
 /** ألقاب الأشخاص: تُحسب اسم طرف فقط إن لم يرد فى المقطع اسم جهة (الشخص بعد اسم الشركة هو الممثل الموقّع لا الطرف). */
 const PERSON_TITLE = new Set(['الأستاذ', 'الاستاذ', 'السيد', 'السيدة', 'السيده'].map((w) => normalizeArabicForMatch(w)));
 /** كلمات تنهى الاسم (ما بعدها وصف لا اسم). */
@@ -27,6 +28,7 @@ const STOP = new Set(
     'ومركزها', 'ومركزه', 'وعنوانها', 'عنوانها', 'وعنوانه', 'عنوانه', 'والتي', 'التي', 'والتى', 'التى', 'الذي', 'الذى', 'والذي', 'والذى',
     'ش.م.م', 'ش.ذ.م.م', 'المحدودة', 'المحدوده', 'المساهمة', 'المساهمه', 'مساهمة', 'مساهمه', 'تأسست', 'تاسست', 'وفقا', 'وفقاً', 'طبقا', 'طبقاً', 'من', 'فى', 'في', 'ب', 'ومقيد',
     'مصرية', 'مصريه', 'منشأة', 'منشاه', 'ومنشأة', 'ومنشاه', 'شركة', 'شركه', 'مسجلة', 'مسجله', 'ذات', 'ثانيا', 'ثانياً', 'ثالثا', 'اولا', 'أولا', 'أولاً', 'تجارى', 'تجاري', 'سجلها', 'ومسجلة', 'ومسجله', 'ويقع', 'يقع', 'تحت', 'والموضحة', 'الموضحة', 'والموضحه', 'الموضحه', 'والمبينة', 'المبينة', 'والمبينه', 'المبينه',
+    'ومقيم', 'مقيم', 'ومقيمة', 'وتشار', 'تشار', 'المقيمة', 'والمقيمة', 'ومقيمة', 'وتقيم', 'تقيم', 'وتحمل', 'ويحمل', 'يحمل', 'تحمل', 'المولود', 'المولودة', 'الحاصل', 'الحاصلة', 'الجنسية',
   ].map((w) => normalizeArabicForMatch(w)),
 );
 const GENERIC = new Set(['شركه', 'مؤسسه', 'بنك', 'مكتب', 'مجموعه', 'السيد', 'السيده', 'الاستاذ'].map((w) => normalizeArabicForMatch(w)));
@@ -96,6 +98,8 @@ function pickEntityName(raw: string): string | null {
   for (const m of segment.matchAll(ENTITY)) {
     const at = m.index ?? 0;
     const start = at + m[0].length;
+    // لقب تتبعه شرطات فارغة («الأستاذ/ ------») نسخة غير مملوءة: لا اسم هنا (يُسجَّل blank لا اسماً)
+    if (/^[\s/:：]*(?:[-–—_.…]\s*){4,}/u.test(segment.slice(start, start + 40))) continue;
     const name = cleanName(segment.slice(start, start + 120));
     if (!name) continue;
     const isPerson = PERSON_TITLE.has(normalizeArabicForMatch(m[0].trim()));
@@ -313,7 +317,7 @@ export function clientRoleConflictWarning(
   if (!clientRole || !clientParty) return null;
   const role = normalizeArabicForMatch(clientRole);
   const broker = intermediarySide(preamble);
-  if (!broker) return null;
+  if (!broker) return roleLabelConflictWarning(clientRole, clientParty, preamble);
   const label = (s: 'first' | 'second') => (s === 'first' ? 'الطرف الأول' : 'الطرف الثانى');
   const other = broker === 'first' ? 'second' : 'first';
   if (BROKER_ROLE.test(role) && !PRINCIPAL_ROLE.test(role) && clientParty !== broker) {
@@ -323,6 +327,75 @@ export function clientRoleConflictWarning(
     return `تنبيه اتجاه: حدّدت صفتك «${clientRole}» وطرفك «${label(clientParty)}»، لكن ديباجة العقد تصف «${label(clientParty)}» بأنه الوسيط (السمسار) وتجعل «${label(other)}» هو الطرف المقابل. إن لم يكن اختيارك مقصوداً فأعد رفع العقد بطرفك الصحيح.`;
   }
   return null;
+}
+
+/**
+ * مجموعات الصفات المتقابلة فى العقود (على النص الموحَّد، بلا «ال» ولا حروف الجر). كل مجموعة تضم مرادفات الصفة الواحدة:
+ * «الممول» و«المستثمر» صفة واحدة فى الشراكة، و«العامل» و«الموظف» كذلك.
+ */
+const ROLE_GROUPS: Array<{ id: string; term: string }> = [
+  { id: 'financier', term: '(?:شريك )?(?:ممول|مستثمر)' },
+  { id: 'employee', term: '(?:عامل|موظف)' },
+  { id: 'employer', term: '(?:صاحب عمل|رب عمل|صاحب العمل|رب العمل)' },
+  { id: 'buyer', term: '(?:مشتري|مشتريه|مشتر)' },
+  { id: 'seller', term: '(?:بائع|بائعه)' },
+  { id: 'lessor', term: '(?:مؤجر|مؤجره|مؤجرة)' },
+  { id: 'lessee', term: '(?:مستاجر|مستاجره)' },
+  { id: 'lender', term: '(?:مقرض|مقرضه)' },
+  { id: 'borrower', term: '(?:مقترض|مقترضه)' },
+];
+/** بادئات التعريف والجر الملتصقة: «بالعامل» «للمشتري» «والبائع». */
+const LABEL_PREFIX = '(?:[وفبك]?ال|لل|[وفبكل])?';
+
+function roleGroupOf(roleNorm: string): { id: string; term: string } | null {
+  for (const g of ROLE_GROUPS) {
+    if (new RegExp(`(?<![ء-ي])${LABEL_PREFIX}${g.term}(?![ء-ي])`, 'u').test(roleNorm)) return g;
+  }
+  return null;
+}
+
+/**
+ * أى الطرفين تصفه ديباجة العقد بصفة هذه المجموعة؟ تُقرأ الصفة الملاصقة لوسم الطرف فقط:
+ * «(ويشار إليه بالعامل أو الطرف الثانى)» ⇒ الصفة قبل الوسم، و«الطرف الأول (البائع)» ⇒ الصفة بعده.
+ * الصفة البعيدة عن الوسم لا تُعتمد (كى لا تُنسب صفة طرف إلى الآخر)؛ التعادل أو الغياب = null (فشل مغلق).
+ */
+export function sideLabelledAs(preamble: string | null | undefined, group: { term: string }): { side: 'first' | 'second'; label: string } | null {
+  const text = normalizeArabicForMatch(stripBidi(preamble ?? '').slice(0, MAX_PREAMBLE));
+  const labelBefore = new RegExp(`((?<![ء-ي])${LABEL_PREFIX}${group.term})\\s*(?:او|و)?\\s*$`, 'u');
+  const labelAfter = new RegExp(`^\\s{0,2}(?:و|او)?\\s*(${LABEL_PREFIX}${group.term})(?![ء-ي])`, 'u');
+  const found = new Map<'first' | 'second', string>();
+  for (const m of text.matchAll(DESIGNATION_NORM)) {
+    const at = m.index ?? 0;
+    const side = m[1] === 'اول' ? ('first' as const) : ('second' as const);
+    const before = labelBefore.exec(text.slice(Math.max(0, at - 45), at));
+    const after = labelAfter.exec(text.slice(at + m[0].length, at + m[0].length + 40));
+    const label = before?.[1] ?? after?.[1];
+    if (label && !found.has(side)) found.set(side, label.trim());
+  }
+  if (found.size !== 1) return null;
+  const [side, label] = [...found.entries()][0];
+  return { side, label };
+}
+
+/**
+ * تنبيه اتجاه عام: صفة العميل التى أدخلها (العامل، المشترى، الشريك الممول…) توصف فى الديباجة للطرف الآخر من الذى اختاره.
+ * الأخطر من أى خطأ قراءة (يُقاس كل حق والتزام من جهة الطرف المختار)، لذا يُنبَّه ولا يُمنع: قد يكون الاختيار مقصوداً.
+ */
+export function roleLabelConflictWarning(
+  clientRole: string | null | undefined,
+  clientParty: 'first' | 'second' | null | undefined,
+  preamble: string | null | undefined,
+): string | null {
+  if (!clientRole || !clientParty || !preamble) return null;
+  const group = roleGroupOf(normalizeArabicForMatch(clientRole));
+  if (!group) return null;
+  const hit = sideLabelledAs(preamble, group);
+  if (!hit || hit.side === clientParty) return null;
+  const label = (s: 'first' | 'second') => (s === 'first' ? 'الطرف الأول' : 'الطرف الثانى');
+  return (
+    `تنبيه اتجاه: حدّدت صفتك «${clientRole}» وطرفك «${label(clientParty)}»، لكن ديباجة العقد تصف «${label(hit.side)}» بأنه «${hit.label}». ` +
+    `يُقاس كل حق والتزام ومخاطرة من جهة الطرف الذى اخترته؛ إن لم يكن اختيارك مقصوداً فأعد رفع العقد بطرفك الصحيح.`
+  );
 }
 
 function tokens(s: string): string[] {
