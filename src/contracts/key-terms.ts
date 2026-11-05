@@ -140,14 +140,14 @@ function wordsBefore(text: string, end: number): { value: number; start: number 
  * بعد رقم المبلغ: هل تتبعه كتابته بالحروف ثم العملة؟ (قوس اختيارى ثم كلمات كلها عددية أو ضجيج مسح ثم العملة).
  * يُرجَع موضع نهاية العملة، وإلا null؛ فلا نلتقط مبلغاً لمجرد وجود عملة بعيدة.
  */
-function amountWordsTail(text: string, from: number): { currency: string; end: number } | null {
+function amountWordsTail(text: string, from: number): { currency: string; end: number; words: number | null } | null {
   const tail = text.slice(from, from + 200);
   const m = tail.match(new RegExp(`^[\\s]*[)）(（]?[\\s]*((?:[ء-ي]+[\\s)）(（]*){1,14}?)(${CURRENCY})`, 'u'));
   if (!m) return null;
   const words = [...m[1].matchAll(/[ء-ي]+/g)].map((x) => x[0]);
   if (words.length === 0 || !words.some((w) => isNumberWord(w))) return null;
   if (!words.every((w) => isNumberWord(w) || isNoiseToken(w))) return null;
-  return { currency: m[2], end: from + m[0].length };
+  return { currency: m[2], end: from + m[0].length, words: parseArabicNumberWords(words.filter((w) => !isNoiseToken(w)).join(' ')) };
 }
 
 interface Hit {
@@ -175,23 +175,28 @@ function conflictNote(digits: number | null, words: number): string {
  * المتطابقان يُعرضان مرة واحدة؛ والمتعارضان (أو الرقم التالف) يُعرضان صفاً واحداً بقيمة الحروف مع تنبيه صريح، فلا يظهر رقم
  * مشوّه بلا تحذير. الاقتران لا يتم إلا إن فصلت بينهما قوسٌ أو «فقط» ولم تفصل بينهما رقم ولا علامة وقف (فشل مغلق: لا نقرن مبلغين متباعدين).
  */
-function reconcileAmounts(text: string, hits: Hit[], garbled: Array<{ pos: number; end: number }>): Hit[] {
+function reconcileAmounts(text: string, hits: Hit[], garbled: Array<{ pos: number; end: number; amount?: number }>): Hit[] {
   const drop = new Set<Hit>();
   const replaced = new Map<Hit, Hit>();
   const digitsEnd = (h: Hit) => h.pos + h.len;
   for (const wh of hits) {
     if (wh.kind !== 'amount' || !wh.fromWords || wh.amount === undefined) continue;
-    const cands: Array<{ hit?: Hit; pos: number; end: number }> = [
+    const cands: Array<{ hit?: Hit; pos: number; end: number; digitsOnly?: number }> = [
       ...hits.filter((h) => h.kind === 'amount' && !h.fromWords && h.amount !== undefined && !h.conflict && digitsEnd(h) <= wh.pos).map((h) => ({ hit: h, pos: h.pos, end: digitsEnd(h) })),
-      ...garbled.filter((g) => g.end <= wh.pos).map((g) => ({ pos: g.pos, end: g.end })),
+      ...garbled
+        .filter((g) => g.end <= wh.pos)
+        .map((g) => ({ pos: g.pos, end: g.end, ...(g.amount !== undefined ? { digitsOnly: g.amount } : {}) })),
     ].sort((a, b) => b.end - a.end);
     const d = cands[0];
     if (!d || wh.pos - d.end > 90) continue;
     const gap = text.slice(d.end, wh.pos);
-    if (/[\d.؛؟!]/.test(gap) || !/[(（]|فقط/.test(gap)) continue;
+    if (/[\d.؛؟!]/.test(gap) || !/[()（）]|فقط/.test(gap)) continue;
     if (hits.some((h) => h !== wh && h !== d.hit && h.kind === 'amount' && h.pos >= d.end && h.pos < wh.pos)) continue;
     if (!d.hit) {
-      replaced.set(wh, { ...wh, suspect: conflictNote(null, wh.amount), conflict: { digits: null, words: wh.amount } });
+      // رقم تالف (لا قيمة له) أو رقم بلا عملة قرئ قبل المبلغ بالحروف: لا يُعرض بصمت، والمعروض هو المكتوب بالحروف
+      if (d.digitsOnly !== undefined && d.digitsOnly === wh.amount) continue;
+      const digits = d.digitsOnly ?? null;
+      replaced.set(wh, { ...wh, suspect: conflictNote(digits, wh.amount), conflict: { digits, words: wh.amount } });
     } else if (d.hit.amount === wh.amount) {
       drop.add(wh);
     } else {
@@ -219,19 +224,54 @@ function scan(rawText: string): Hit[] {
   // الرقم ثم (اختيارياً) الحروف بين قوسين، ثم العملة؛ والعملة قد تقع داخل القوسين: 600000 ( ستمائة ألف جنيه مصرى فقط )
   const amountDigits = new RegExp(`(\\d[\\d,٬]*(?:\\.\\d+)?)\\s*(?:([(（][^()（）\\n]{0,100}[)）])\\s*)?(${CURRENCY})?`, 'gu');
   const amountSpans: Array<[number, number]> = [];
-  const garbledDigits: Array<{ pos: number; end: number }> = [];
+  const garbledDigits: Array<{ pos: number; end: number; amount?: number }> = [];
   for (const m of text.matchAll(amountDigits)) {
     let curMatch = m[3] ?? (m[2] ? m[2].match(new RegExp(CURRENCY, 'u'))?.[0] : undefined);
     let spanEnd = (m.index ?? 0) + m[0].length;
+    const n = Number(m[1].replace(/[,٬]/g, ''));
+    if (!Number.isFinite(n)) continue;
     if (!curMatch) {
       // الرقم ثم كتابته بالحروف (قد يضيع القوس الافتتاحى فى المسح): «1125000 ) مليون ومائة … ألف جنيه»
       const tail = amountWordsTail(text, spanEnd);
-      if (!tail) continue;
+      if (!tail) {
+        // «452500000 مصرى سنويا ( فقط خمسمائة الف جنيها )»: ضاعت كلمة «جنيه» فبقى الرقم بلا عملة. لا يُعرض مبلغاً وحده؛ يُسجَّل
+        // ليُقارَن بالمكتوب بالحروف إن وُجد بعده، وإلا يُتجاهل (فشل مغلق).
+        if (n > 0 && /^\s*مصر[يى](?![ء-ي])/u.test(text.slice(spanEnd, spanEnd + 12))) {
+          garbledDigits.push({ pos: m.index ?? 0, end: spanEnd, amount: n });
+        }
+        continue;
+      }
+      if (tail.words !== null && tail.words >= 100 && n < 100) {
+        // «( 1 خمسمائة الف جنيها )»: الرقم الصغير ضجيج مسح (بقايا «فقط» أو القوس) لا مبلغ؛ المبلغ هو المكتوب بالحروف وحده
+        hits.push({
+          kind: 'amount',
+          value: `${fmtNumber(tail.words)} ${/دولار/.test(tail.currency) ? 'دولار' : /يورو/.test(tail.currency) ? 'يورو' : /ريال/.test(tail.currency) ? 'ريال' : /درهم/.test(tail.currency) ? 'درهم' : 'جنيه'}`,
+          pos: m.index ?? 0,
+          len: tail.end - (m.index ?? 0),
+          fromWords: true,
+          amount: tail.words,
+        });
+        amountSpans.push([m.index ?? 0, tail.end]);
+        continue;
+      }
       curMatch = tail.currency;
       spanEnd = tail.end;
+      if (tail.words !== null && tail.words >= 100 && tail.words !== n) {
+        const cur0 = /دولار/.test(curMatch) ? 'دولار' : /يورو/.test(curMatch) ? 'يورو' : /ريال/.test(curMatch) ? 'ريال' : /درهم/.test(curMatch) ? 'درهم' : 'جنيه';
+        hits.push({
+          kind: 'amount',
+          value: `${fmtNumber(tail.words)} ${cur0}`,
+          pos: m.index ?? 0,
+          len: spanEnd - (m.index ?? 0),
+          fromWords: true,
+          amount: tail.words,
+          suspect: conflictNote(n, tail.words),
+          conflict: { digits: n, words: tail.words },
+        });
+        amountSpans.push([m.index ?? 0, spanEnd]);
+        continue;
+      }
     }
-    const n = Number(m[1].replace(/[,٬]/g, ''));
-    if (!Number.isFinite(n)) continue;
     if (n <= 0) {
       // «0 جنيه ( خمسمائة ألف جنيه )»: الرقم تالف فى القراءة؛ نسجّله ليُنبَّه على المبلغ المكتوب بالحروف الذى يليه
       garbledDigits.push({ pos: m.index ?? 0, end: spanEnd });
@@ -330,6 +370,23 @@ function scan(rawText: string): Hit[] {
   for (const m of text.matchAll(durGarbled)) {
     const pos = m.index ?? 0;
     if (durSpans.some(([a, b]) => pos < b && a < pos + m[0].length)) continue;
+    const n = m[1] ? Number(m[1]) : parseArabicNumberWords(m[2]);
+    if (n === null || !Number.isFinite(n) || n <= 0 || n > 1000) continue;
+    hits.push({
+      kind: 'duration',
+      value: `${n} (وحدة المدة غير مقروءة)`,
+      pos,
+      len: m[0].length,
+      fromWords: !m[1],
+      suspect: 'وحدة المدة (يوم / شهر / سنة) لم تُقرأ من الصورة؛ الثابت هو العدد فقط — طابق الأصل',
+    });
+  }
+
+  // مدة بلا وحدة أصلاً: «بمدة ثلاثين ».» — ضاعت كلمة الوحدة كلها فى المسح (قرأها الإنتاج رمز اقتباس). نفس المعاملة: العدد مع التنبيه.
+  const durNoUnit = /(?<![ء-ي])(?:[بل]?مدة|خلال)\s*(?:(\d{1,4})|((?:[ء-ي]+\s+){0,5}?[ء-ي]+))\s*[\u200e\u200f]*\s*(?=[»«"'‘’“”.،,؛:؟!)\]]|$)/gmu;
+  for (const m of text.matchAll(durNoUnit)) {
+    const pos = m.index ?? 0;
+    if (hits.some((h) => h.kind === 'duration' && pos < h.pos + h.len && h.pos < pos + m[0].length)) continue;
     const n = m[1] ? Number(m[1]) : parseArabicNumberWords(m[2]);
     if (n === null || !Number.isFinite(n) || n <= 0 || n > 1000) continue;
     hits.push({

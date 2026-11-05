@@ -219,3 +219,51 @@ describe('تعارض الرقم مع الحروف ووحدة المدة غير �
     expect(amountConflictWarnings(['يدفع 5000 جنيه.'])).toHaveLength(0);
   });
 });
+
+describe('قراءة الإنتاج لعقد السمسرة بعد الجولة 51 (الجولة 52)', () => {
+  const only = (text: string) => extractKeyTerms([clause(4, text)]);
+
+  it('a lost unit word (read as a quote mark) keeps the duration flagged', () => {
+    const d = only('بشرط اخطار الطرف الاخر قبل الالغاء بمدة ثلاثين ».').find((x) => x.kind === 'duration');
+    expect(d?.value).toBe('30 (وحدة المدة غير مقروءة)');
+    expect(d?.suspect).toBeTruthy();
+  });
+
+  it('a clean unit is not reported as unit-less, and ordinary words after the number are left alone', () => {
+    const t = only('بمدة ثلاثين يوماً.');
+    expect(t.filter((x) => x.kind === 'duration')).toHaveLength(1);
+    expect(t.find((x) => x.kind === 'duration')?.value).toBe('30 يوماً');
+    expect(only('خلال مدة سريان هذا العقد.').some((x) => x.kind === 'duration')).toBe(false);
+  });
+
+  it('never shows "1 جنيه" for "452500000 مصرى سنويا ) 1 خمسمائة الف جنيها": one flagged row with the words value', () => {
+    const t = only('الحد الادنى للاقساط 452500000 مصرى سنويا ) 1 خمسمائة الف جنيها مصريالاغير) عن العمليات الإنتاجية.');
+    const amounts = t.filter((x) => x.kind === 'amount');
+    expect(amounts).toHaveLength(1);
+    expect(amounts[0].value).toBe('500,000 جنيه');
+    expect(amounts[0].suspect).toContain('452,500,000');
+    expect(t.some((x) => x.value === '1 جنيه')).toBe(false);
+  });
+
+  it('a small stray digit before an amount in words is noise: the words amount alone, no invented digits', () => {
+    const t = only('يدفع ( 1 خمسمائة الف جنيها ) عند التسليم.');
+    const amounts = t.filter((x) => x.kind === 'amount');
+    expect(amounts).toHaveLength(1);
+    expect(amounts[0].value).toBe('500,000 جنيه');
+  });
+
+  it('a digit run followed by "مصرى" with no amount in words after it is ignored (fail closed)', () => {
+    expect(only('يستخدم 5000 مصرى فى العقد.').some((x) => x.kind === 'amount')).toBe(false);
+  });
+
+  it('digits matching the words after a lost currency word produce no flag', () => {
+    const t = only('الحد 500000 مصرى سنويا ( فقط خمسمائة الف جنيها مصريا) عن العمليات.');
+    expect(t.filter((x) => x.kind === 'amount' && x.suspect)).toHaveLength(0);
+  });
+
+  it('tail words that contradict real digits with a currency are flagged', () => {
+    const t = only('يدفع 7000 ) خمسة آلاف جنيه عند التسليم.');
+    expect(t.find((x) => x.kind === 'amount')?.suspect).toContain('تعارض');
+  });
+});
+
