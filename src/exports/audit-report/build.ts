@@ -234,11 +234,31 @@ const PRIORITY_NOTE: Record<Severity, string> = {
 };
 
 /** أثقل درجة بين بنود العقد وملاحظاته ككل (غير المؤكدة لا ترفع المستوى العام؛ تُعرض موسومة فقط). */
-function overallRisk(counts: Record<Severity, number>, findingCounts: { critical: number; high: number; medium: number }): { text: string; tone: Tone } {
-  if (counts['حرج'] > 0 || findingCounts.critical > 0) return { text: 'مخاطرة مرتفعة — يستوجب التفاوض الفوري', tone: 'critical' };
-  if (counts['عالٍ'] > 0 || findingCounts.high > 0) return { text: 'مخاطرة مرتفعة نسبياً — يستوجب المراجعة قبل التوقيع', tone: 'high' };
-  if (counts['متوسط'] + counts['غير مصنَّف'] > 0 || findingCounts.medium > 0) return { text: 'مخاطرة متوسطة — يستحق المراجعة', tone: 'medium' };
+function overallRisk(
+  counts: Record<Severity, number>,
+  findingCounts: { critical: number; high: number; medium: number },
+  incomplete: { readCount: number } | null,
+): { text: string; tone: Tone } {
+  // تقسيم غير مكتمل: غياب الملاحظات لا يدل على سلامة ما لم يُقرأ، فلا يُقدَّر مستوى «لا بنود تحتاج مراجعة» (وقع على عقد ممسوح قُرئ نصف بنوده)
+  const caveat = incomplete ? ' — التقسيم غير مكتمل: قد توجد بنود لم تُحلَّل' : '';
+  if (counts['حرج'] > 0 || findingCounts.critical > 0) return { text: `مخاطرة مرتفعة — يستوجب التفاوض الفوري${caveat}`, tone: 'critical' };
+  if (counts['عالٍ'] > 0 || findingCounts.high > 0) return { text: `مخاطرة مرتفعة نسبياً — يستوجب المراجعة قبل التوقيع${caveat}`, tone: 'high' };
+  if (counts['متوسط'] + counts['غير مصنَّف'] > 0 || findingCounts.medium > 0) return { text: `مخاطرة متوسطة — يستحق المراجعة${caveat}`, tone: 'medium' };
+  if (incomplete) {
+    return {
+      text: `غير مُقدَّر — قُرئ ${incomplete.readCount} بنداً فقط ويظهر من ترقيم العقد وإحالاته أن فيه بنوداً لم تُقرأ؛ غياب الملاحظات لا يدل على خلو العقد من المخاطر (قارن بالأصل قبل التوقيع)`,
+      tone: 'medium',
+    };
+  }
   return { text: 'لم تُرصد بنود تحتاج مراجعة وفق النصوص المفهرسة (لا يُغنى ذلك عن مراجعة محامٍ)', tone: 'info' };
+}
+
+/** تحذيرات التقسيم التى تعنى أن بنوداً لم تُقرأ (لا مجرد خطأ ترقيم فى الأصل): فجوة تسلسل، نص سابق غير مقسَّم، إحالة لبند أعلى مما قُسِّم. */
+const SEGMENTATION_INCOMPLETE_WARNING = /لم تُقرأ عناوين البنود السابقة|لم تُقرأ عناوينها فالتصق|يُحيل إلى "البند رقم|بند\(بنود\) بمتن شبه فارغ/;
+/** «متوقَّع 3, وُجد 5»: قفزة (بند لم يُقرأ) لا تكرار ولا رجوع (خطأ ترقيم فى الأصل نفسه) */
+function numberingGapWarning(w: string): boolean {
+  const m = /غير متسلسل[^()]*\(متوقَّع (\d+),\s*وُجد (\d+)\)/.exec(w);
+  return !!m && Number(m[2]) > Number(m[1]);
 }
 
 const FINDING_TONE = (sev: string): Tone => (sev === 'حرج' ? 'critical' : sev === 'عالٍ' ? 'high' : sev === 'متوسط' ? 'medium' : 'grey');
@@ -343,7 +363,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     high: confirmedFindings.filter((f) => f.severity === 'عالٍ').length,
     medium: confirmedFindings.filter((f) => f.severity === 'متوسط').length,
   };
-  const overall = overallRisk(counts, findingCounts);
+  const segWarnings = (input.extractionWarnings ?? []).filter((w) => SEGMENTATION_INCOMPLETE_WARNING.test(w) || numberingGapWarning(w));
+  const segIncomplete = unsegmentedBlocks.length > 0 || segWarnings.length > 0 ? { readCount: baseClauses.length } : null;
+  const overall = overallRisk(counts, findingCounts, segIncomplete);
   // ملاحظات العقد ككل المؤكدة غير المدمجة فى بند: تدخل العدّاد بدرجتها (ملاحظة المكتب بدرجة «عالٍ» تُعدّ عالية)
   const standalone = findings.map((f, i) => ({ f, i })).filter((x) => !isUnconfirmedFinding(x.f) && !absorbedInto.has(x.i));
   const standaloneBy = (sev: string): number => standalone.filter((x) => x.f.severity === sev).length;
@@ -483,7 +505,10 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     blocks.push({
       t: 'p',
       text:
-        `لم تُرصد فى هذا العقد بنود تحتاج مراجعة وفق النصوص القانونية المصرية المفهرسة لدى المنصة، من أصل ${bands(baseClauses.length)}.${position}${candidatesSentence}`,
+        `لم تُرصد فى هذا العقد بنود تحتاج مراجعة وفق النصوص القانونية المصرية المفهرسة لدى المنصة، من أصل ${bands(baseClauses.length)}.${position}${candidatesSentence}` +
+        (segIncomplete
+          ? ' غير أن تقسيم العقد غير مكتمل (راجع تنبيهات الاستخراج أعلاه): فهذا لا يدل على خلو العقد من بنود تحتاج مراجعة، لأن البنود التى لم تُقرأ لم تُحلَّل أصلاً.'
+          : ''),
     });
   }
   blocks.push({

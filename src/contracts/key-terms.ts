@@ -1,4 +1,5 @@
 import { parseArabicNumberWords } from './numeric-checks.util';
+import { normalizeArabicForMatch } from './reasoning.util';
 
 /**
  * جدول الشروط الرئيسية للعقد (الجولة 6): المبالغ والنسب والمدد والتواريخ المنصوص عليها فى البنود، مستخرجة حتمياً بأنماط
@@ -106,18 +107,24 @@ const NUMBER_GAP = /^[\s()（）\-–]*$/u;
  * (ضجيج مسح ضوئى مثل «وذ») يُتخطّيان ولا يقطعان العبارة، وأى كلمة أخرى توقف المشى. العبارة كلها تُقرأ دفعة واحدة، فلا يُخرَج
  * جزء من عدد أكبر (فشل مغلق): إن لم تُقرأ العبارة كاملة يُرجَع null.
  */
-function wordsBefore(text: string, end: number): { value: number; start: number } | null {
+function wordsBefore(text: string, end: number): { value: number; start: number; partial: boolean } | null {
   const winStart = Math.max(0, end - 160);
   const head = text.slice(winStart, end);
   const tokens = [...head.matchAll(/[ء-ي]+/g)];
   const kept: Array<{ word: string; idx: number }> = [];
   let prevStart = head.length;
   let sawNumber = false;
+  // العبارة قُطعت بفاصل غير مسموح (رقم/رموز لاتينية/سطر ضجيج) وما قبل الفاصل كلمة عددية أو ضجيج: يعنى أن العدد أكبر مما قُرئ
+  // وأن ما قرأناه جزؤه الأخير فقط («اربعة ألاف سم ال ل ل 3 وخمسمائة» ← «وخمسمائة» وحدها = 500 خطأ)
+  let partial = false;
   for (let i = tokens.length - 1; i >= 0; i -= 1) {
     const t = tokens[i];
     const idx = t.index ?? 0;
     const gap = head.slice(idx + t[0].length, prevStart);
-    if (!NUMBER_GAP.test(gap)) break;
+    if (!NUMBER_GAP.test(gap)) {
+      partial = sawNumber && (isNumberWord(t[0]) || isNoiseToken(t[0]));
+      break;
+    }
     if (isNumberWord(t[0])) {
       kept.unshift({ word: t[0], idx });
       sawNumber = true;
@@ -133,7 +140,7 @@ function wordsBefore(text: string, end: number): { value: number; start: number 
   if (kept.length === 0) return null;
   const v = parseArabicNumberWords(kept.map((k) => k.word).filter(Boolean).join(' '));
   if (v === null || v <= 0) return null;
-  return { value: v, start: winStart + kept[0].idx };
+  return { value: v, start: winStart + kept[0].idx, partial };
 }
 
 /**
@@ -150,6 +157,40 @@ function amountWordsTail(text: string, from: number): { currency: string; end: n
   return { currency: m[2], end: from + m[0].length, words: parseArabicNumberWords(words.filter((w) => !isNoiseToken(w)).join(' ')) };
 }
 
+
+const FUZZY_NUMBER_BASE: Array<[string, number]> = [
+  ['واحد', 1], ['واحدة', 1], ['اثنين', 2], ['اثنان', 2], ['ثلاث', 3], ['ثلاثة', 3], ['اربع', 4], ['اربعة', 4], ['اربعه', 4], ['خمس', 5], ['خمسة', 5], ['خمسه', 5],
+  ['ست', 6], ['ستة', 6], ['سته', 6], ['سبع', 7], ['سبعة', 7], ['سبعه', 7], ['ثمان', 8], ['ثمانية', 8], ['ثمانيه', 8], ['تسع', 9], ['تسعة', 9], ['تسعه', 9],
+  ['عشر', 10], ['عشرة', 10], ['عشره', 10], ['ستين', 60], ['ثلاثين', 30], ['اربعين', 40], ['خمسين', 50],
+];
+
+function editDistanceAtMostOne(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i += 1;
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1);
+  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : b.slice(i + 1) === a.slice(i);
+}
+
+/**
+ * الكلمة الملاصقة للوحدة قبل أن تُقرأ عدداً: «خم سنوات». تُقبل إن كانت على بعد حرف واحد من كلمة عددية معروفة وكل ما يطابقها يعطى القيمة نفسها
+ * (فلا لبس)، وبشرط ألا تكون كلمة عادية معروفة. الناتج يُعرض دائماً مع تنبيه ولا يُعتمد دون مطابقة الأصل.
+ */
+function fuzzyNumberBefore(text: string, unitPos: number): { value: number; start: number; token: string; canonical: string } | null {
+  const head = text.slice(Math.max(0, unitPos - 24), unitPos);
+  const m = /([ء-ي]{2,8})\s*$/u.exec(head);
+  if (!m) return null;
+  const token = m[1];
+  const nt = normalizeArabicForMatch(token);
+  if (isNumberWord(token) || FUNCTION_WORDS.has(nt)) return null;
+  const matches = FUZZY_NUMBER_BASE.filter(([w]) => editDistanceAtMostOne(nt, w));
+  if (matches.length === 0) return null;
+  const values = new Set(matches.map(([, v]) => v));
+  if (values.size !== 1) return null;
+  return { value: matches[0][1], start: unitPos - head.length + (m.index ?? 0), token, canonical: matches[0][0] };
+}
+
 interface Hit {
   kind: KeyTermKind;
   value: string;
@@ -161,6 +202,8 @@ interface Hit {
   amount?: number;
   /** تعارض بين رقم المبلغ وكتابته بالحروف (الرقم null إن كان تالفاً لا يُقرأ) */
   conflict?: { digits: number | null; words: number };
+  /** المقروء بالحروف جزء من عدد أكبر لم يُقرأ كله (بدايته مشوّهة أو فى صفحة سابقة): لا يُعرض مبلغاً مستقلاً ولا يُقدَّم على الرقم */
+  partial?: boolean;
 }
 
 /** وصف التعارض بين رقم المبلغ وكتابته بالحروف: يُعرض مع القيمة فى الجدول وفى تنبيهات العقد. */
@@ -168,6 +211,24 @@ function conflictNote(digits: number | null, words: number): string {
   return digits === null
     ? `الرقم المقروء قبل المبلغ المكتوب بالحروف تالف (لا يُقرأ رقماً)؛ المعروض هو المكتوب بالحروف (${fmtNumber(words)}) — طابق الأصل`
     : `تعارض فى المبلغ: الرقم المقروء ${fmtNumber(digits)} لا يطابق المكتوب بالحروف ${fmtNumber(words)}؛ المعروض هو المكتوب بالحروف — قد يكون خطأ قراءة آلية أو خطأ فى الأصل، فطابق الأصل`;
+}
+
+/** قبل الموضع (داخل الجملة نفسها، حتى 80 حرفاً، عبر الأسطر والضجيج) كلمة عددية تنتظر تكملة: «… ثلاث عشر». */
+function precededByIncompleteNumber(text: string, pos: number): boolean {
+  const head = text.slice(Math.max(0, pos - 80), pos);
+  const cut = Math.max(head.lastIndexOf('.'), head.lastIndexOf('؟'), head.lastIndexOf('!'), head.lastIndexOf('؛'));
+  const seg = cut >= 0 ? head.slice(cut + 1) : head;
+  const tokens = [...seg.matchAll(/[ء-ي]+/g)].map((t) => t[0]);
+  // آخر كلمة عربية قبل الموضع (يُتخطّى الضجيج القصير) كلمة عددية
+  for (let i = tokens.length - 1; i >= 0; i -= 1) {
+    if (isNoiseToken(tokens[i])) continue;
+    return isNumberWord(tokens[i]);
+  }
+  return false;
+}
+
+function partialWordsNote(digits: number, words: number): string {
+  return `كُتب المبلغ بالحروف أيضاً لكن قراءته الآلية مشوّهة (لم يُقرأ منه إلا ${fmtNumber(words)} فى آخره)؛ المعروض هو المقروء بالأرقام ${fmtNumber(digits)} — طابق الأصل`;
 }
 
 /**
@@ -192,6 +253,11 @@ function reconcileAmounts(text: string, hits: Hit[], garbled: Array<{ pos: numbe
     const gap = text.slice(d.end, wh.pos);
     if (/[\d.؛؟!]/.test(gap) || !/[()（）]|فقط/.test(gap)) continue;
     if (hits.some((h) => h !== wh && h !== d.hit && h.kind === 'amount' && h.pos >= d.end && h.pos < wh.pos)) continue;
+    if (wh.partial) {
+      // المكتوب بالحروف مشوّه ولم يُقرأ منه إلا جزؤه الأخير: لا يحلّ محل الرقم ولا يُعدّ تعارضاً؛ يبقى المقروء بالأرقام مع تنبيه
+      if (d.hit) replaced.set(d.hit, { ...d.hit, suspect: partialWordsNote(d.hit.amount ?? 0, wh.amount) });
+      continue;
+    }
     if (!d.hit) {
       // رقم تالف (لا قيمة له) أو رقم بلا عملة قرئ قبل المبلغ بالحروف: لا يُعرض بصمت، والمعروض هو المكتوب بالحروف
       if (d.digitsOnly !== undefined && d.digitsOnly === wh.amount) continue;
@@ -242,7 +308,22 @@ function scan(rawText: string): Hit[] {
         continue;
       }
       if (tail.words !== null && tail.words >= 100 && n < 100) {
-        // «( 1 خمسمائة الف جنيها )»: الرقم الصغير ضجيج مسح (بقايا «فقط» أو القوس) لا مبلغ؛ المبلغ هو المكتوب بالحروف وحده
+        // «( 1 خمسمائة الف جنيها )»: الرقم الصغير ضجيج مسح (بقايا «فقط» أو القوس) لا مبلغ؛ المبلغ هو المكتوب بالحروف وحده.
+        // استثناء: قبل الرقم الصغير كلمة عددية لم يكتمل عددها («اربعة آلاف سم ال ل ل 3 وخمسمائة جنيه» أو «ثلاث عشر ‹سطر ضجيج› 2 الف
+        // وخمسمائة جنيه» بعد حدّ صفحة): ما بعد الرقم ذيل مبلغ أكبر لا مبلغ مستقل (4,500 لا 500؛ 13,500 لا 1,500).
+        if (precededByIncompleteNumber(text, m.index ?? 0)) {
+          hits.push({
+            kind: 'amount',
+            value: `${fmtNumber(tail.words)} جنيه`,
+            pos: m.index ?? 0,
+            len: tail.end - (m.index ?? 0),
+            fromWords: true,
+            amount: tail.words,
+            partial: true,
+          });
+          amountSpans.push([m.index ?? 0, tail.end]);
+          continue;
+        }
         hits.push({
           kind: 'amount',
           value: `${fmtNumber(tail.words)} ${/دولار/.test(tail.currency) ? 'دولار' : /يورو/.test(tail.currency) ? 'يورو' : /ريال/.test(tail.currency) ? 'ريال' : /درهم/.test(tail.currency) ? 'درهم' : 'جنيه'}`,
@@ -298,7 +379,7 @@ function scan(rawText: string): Hit[] {
     const w = wordsBefore(text, pos);
     if (!w || w.value < 100) continue;
     const cur = /دولار/.test(m[0]) ? 'دولار' : /يورو/.test(m[0]) ? 'يورو' : /ريال/.test(m[0]) ? 'ريال' : /درهم/.test(m[0]) ? 'درهم' : 'جنيه';
-    hits.push({ kind: 'amount', value: `${fmtNumber(w.value)} ${cur}`, pos: w.start, len: pos + m[0].length - w.start, fromWords: true, amount: w.value });
+    hits.push({ kind: 'amount', value: `${fmtNumber(w.value)} ${cur}`, pos: w.start, len: pos + m[0].length - w.start, fromWords: true, amount: w.value, ...(w.partial ? { partial: true } : {}) });
   }
 
   // نسب
@@ -360,7 +441,21 @@ function scan(rawText: string): Hit[] {
     const pos = m.index ?? 0;
     if (durSpans.some(([a, b]) => pos >= a && pos <= b)) continue;
     const w = wordsBefore(text, pos);
-    if (!w || w.value > 1000) continue;
+    if (!w) {
+      // كلمة العدد مشوّهة فى المسح («خم سنوات» بدل «خمس سنوات»): تُقبل بتصحيح حرف واحد إن أعطت عدداً واحداً لا لبس فيه، مع تنبيه صريح
+      const fz = fuzzyNumberBefore(text, pos);
+      if (!fz) continue;
+      hits.push({
+        kind: 'duration',
+        value: `${fz.value} ${unitLabel(m[1], fz.value)}`,
+        pos: fz.start,
+        len: pos + m[0].length - fz.start,
+        fromWords: true,
+        suspect: `كلمة العدد قُرئت مشوّهة («${fz.token}») ورُجّح أنها «${fz.canonical}» — طابق الأصل`,
+      });
+      continue;
+    }
+    if (w.value > 1000 || w.partial) continue;
     hits.push({ kind: 'duration', value: `${w.value} ${unitLabel(m[1], w.value)}`, pos: w.start, len: pos + m[0].length - w.start, fromWords: true });
   }
 
@@ -400,7 +495,7 @@ function scan(rawText: string): Hit[] {
   }
 
   // تواريخ: 15/3/2026 أو 2026-03-15
-  const dateDmy = /(?<![\d/.\-])(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})(?![\d/])/gu;
+  const dateDmy = /(?<![\d/.\-])(\d{1,2})\s*[/\-.]\s*(\d{1,2})\s*[/\-.]\s*(\d{4})(?![\d/])/gu;
   for (const m of text.matchAll(dateDmy)) {
     const d = Number(m[1]);
     const mo = Number(m[2]);
@@ -425,6 +520,7 @@ export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
   const ordered = [...clauses].sort((a, b) => a.clauseIndex - b.clauseIndex);
   for (const c of ordered) {
     for (const h of scan(c.clauseText ?? '')) {
+      if (h.partial) continue;
       const quote = quoteAround(c.clauseText, h.pos, h.len);
       const key = `${c.clauseIndex}|${h.kind}|${h.value}|${quote}`;
       const prior = seen.get(key);
@@ -458,6 +554,11 @@ export function amountConflictWarnings(clauseTexts: string[], existing: string[]
   const out: string[] = [];
   for (const t of clauseTexts) {
     for (const h of scan(t ?? '')) {
+      if (h.partial) {
+        const msg = `جزء من مبلغ مكتوب بالحروف («${fmtNumber(h.amount ?? 0)}» فى آخره) لم يُعرض مبلغاً مستقلاً: بدايته مشوّهة أو فى صفحة سابقة؛ طابق المبالغ بالأصل قبل الاعتماد.`;
+        if (!out.includes(msg)) out.push(msg);
+        continue;
+      }
       if (!h.conflict) continue;
       const w = fmtNumber(h.conflict.words);
       const d = h.conflict.digits === null ? null : fmtNumber(h.conflict.digits);

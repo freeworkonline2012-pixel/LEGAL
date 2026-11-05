@@ -578,3 +578,43 @@ describe('الغلاف الكثيف الصفوف', () => {
     expect(renderAuditHtml(lean, 'ت')).toContain('<section class="cover">');
   });
 });
+
+describe('الجولة 55: تقسيم غير مكتمل لا يُقدَّر له «لا بنود تحتاج مراجعة»', () => {
+  const overallOf = (inp: AuditReportInput) => buildContractAuditReport(inp).report.cover.rows.find((r) => r.label === 'مستوى المخاطرة العام');
+  const sound = [clause({ clauseIndex: 1 }), clause({ clauseIndex: 2 }), clause({ clauseIndex: 3 })];
+
+  it('نصف العقد لم يُقرأ (قفزة فى الترقيم): المستوى «غير مُقدَّر» لا «لم تُرصد بنود»', () => {
+    const inp = { ...INPUT, clauses: sound, extractionWarnings: ['ترقيم البنود المُعلَن غير متسلسل بدءاً من الموضع 3 (متوقَّع 3, وُجد 5) — يلزم مراجعة بشرية.'] };
+    const o = overallOf(inp);
+    expect(o?.value).toContain('غير مُقدَّر');
+    expect(o?.value).not.toContain('لم تُرصد بنود');
+    expect(o?.tone).toBe('medium');
+  });
+
+  it('تحذير الفقرات الفرعية (عناوين لم تُقرأ فالتصق نصها) يُحجب به المستوى أيضاً', () => {
+    const inp = { ...INPUT, clauses: sound, extractionWarnings: ['ترقيم الفقرات الفرعية فى النص يصل إلى 10 (مثل «10-1») بينما قُسِّم العقد إلى 8 بنداً فقط — يظهر أن بنوداً حتى رقم 10 لم تُقرأ عناوينها فالتصق نصها بما قبلها؛ راجع نهاية العقد يدوياً.'] };
+    expect(overallOf(inp)?.value).toContain('غير مُقدَّر');
+  });
+
+  it('الملخص التنفيذى يبيّن أن غياب الملاحظات لا يدل على سلامة العقد', () => {
+    const inp = { ...INPUT, clauses: sound, extractionWarnings: ['لم تُقرأ عناوين البنود السابقة لـ"البند الثانى"؛ أُدرج النص الذى يسبقه كبند واحد غير مُقسَّم.'] };
+    const text = JSON.stringify(buildContractAuditReport(inp).report.blocks);
+    expect(text).toContain('تقسيم العقد غير مكتمل');
+  });
+
+  it('ترقيم مكرر أو راجع (خطأ فى الأصل نفسه) لا يحجب المستوى', () => {
+    const inp = { ...INPUT, clauses: sound, extractionWarnings: ['ترقيم البنود المُعلَن غير متسلسل بدءاً من الموضع 3 (متوقَّع 3, وُجد 2) — يلزم مراجعة بشرية.'] };
+    expect(overallOf(inp)?.value).toContain('لم تُرصد بنود');
+  });
+
+  it('مع ملاحظات مرصودة يبقى مستواها ويُضاف تنبيه التقسيم', () => {
+    const inp = { ...INPUT, clauses: CLAUSES, extractionWarnings: ['لم تُقرأ عناوين البنود السابقة لـ"البند الثانى"؛ أُدرج النص الذى يسبقه كبند واحد غير مُقسَّم.'] };
+    const v = overallOf(inp)?.value ?? '';
+    expect(v).toContain('مرتفعة');
+    expect(v).toContain('التقسيم غير مكتمل');
+  });
+
+  it('عقد سليم التقسيم بلا تحذيرات: النص القديم كما هو', () => {
+    expect(overallOf({ ...INPUT, clauses: sound })?.value).toContain('لم تُرصد بنود');
+  });
+});

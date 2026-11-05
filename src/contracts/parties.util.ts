@@ -51,6 +51,9 @@ const DESIGNATION = /(?:ال)?طرف\s*(?:ال)?\s*(أول|اول|الأول|ا�
 const CONTRACT_START = /(?:تم\s+التعاقد\s+بين|بين\s+كل\s+من|تم\s+الاتفاق\s+بين|تحرر\s+هذا\s+العقد\s+بين)/u;
 const ORDINAL = /(?:^|\s)(?:(?<first>[أا]ولا)|(?<second>ثانيا))[ًا]?\s*[:：\-–—]/gu;
 
+/** بداية بند أطراف مرقم: «1- شركة …» «2- شركه …» «(1) السيد …» (بعد عبارة التعاقد). */
+const NUMBERED_PARTY = /(?:^|\s)\(?([12١٢])\s*[-–.)]\s*(?=(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|السيد|السيدة|السيده|الاستاذ|الأستاذ))/gu;
+
 function cleanName(raw: string): string | null {
   const words = raw
     .replace(/[()（）\[\]«»"“”]/g, ' ')
@@ -68,6 +71,11 @@ function cleanName(raw: string): string | null {
     }
     // «بصفته/بصفتها» وما يشوّهه المسح منها («بصسفته»، «بصفتة») تنهى الاسم كذلك
     if (NOISE_CAPACITY.test(nw)) break;
+    // نقطة تنهى الجملة بعد الكلمة («…الإلكترونية. شركة مساهمة…»): الكلمة آخر الاسم بلا النقطة
+    if (/^[ء-ي]+\.$/u.test(w)) {
+      out.push(w.slice(0, -1));
+      break;
+    }
     out.push(w);
     if (out.length >= MAX_NAME_WORDS) break;
   }
@@ -181,6 +189,21 @@ export function extractPartyNames(preamble: string | null | undefined): PartyNam
       const name = pickEntityName(text.slice(mk.start, end));
       if (name) names[mk.side] = name;
     });
+  }
+  // احتياط ثالث: ديباجة مرقمة بأسماء تعريف بلا «طرف أول/ثان»: «بين كل من: 1- شركة X … (ويشار إليها بـ"مقدم الخدمة") 2- شركة Y … (ويشار إليها بـ"العميل")».
+  // الأول المرقم = الطرف الأول والثانى = الطرف الثانى (ترتيب الذكر فى الديباجة)، ويُقرأ الاسم بالقاعدة نفسها.
+  if (!names.first || !names.second) {
+    const st = CONTRACT_START.exec(text);
+    const scope = st ? text.slice(st.index ?? 0) : text;
+    const marks = [...scope.matchAll(NUMBERED_PARTY)].map((m) => ({ n: m[1], start: (m.index ?? 0) + m[0].length }));
+    const one = marks.find((m) => m.n === '1' || m.n === '١');
+    const two = marks.find((m) => (m.n === '2' || m.n === '٢') && one && m.start > one.start);
+    if (one && two) {
+      const firstName = pickEntityName(scope.slice(one.start, two.start));
+      const secondName = pickEntityName(scope.slice(two.start, Math.min(scope.length, two.start + 700)));
+      if (firstName && !names.first) names.first = firstName;
+      if (secondName && !names.second) names.second = secondName;
+    }
   }
   // اسم واحد لطرفين = التباس: لا نعتمد أيهما
   if (names.first && names.second && sameName(names.first, names.second)) return { first: null, second: null };

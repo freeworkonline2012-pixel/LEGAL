@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { findAlternativeHeads } from './clause-headings-alt';
 import { describeHeadingCandidates, findAlignedHeads } from './clause-headings-fuzzy';
-import { BARE_RE, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
+import { BARE_RE, canonicalHeading, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
 
 export interface SegmentedClause {
   index: number;
@@ -58,9 +58,83 @@ interface Head {
   /** طول نص العلامة كما ورد فى العقد فعلاً (قد يختلف عن marker المُركَّب لعنوان بلا كلمة "البند") */
   rawLength: number;
   declaredNumber: number | null;
+  /** عنوان استُرجع من ترقيم الفقرة الفرعية («4-1») لا من عنوان مقروء: لا نص عنوان فى العقد المقروء (rawLength = 0) */
+  synthetic?: boolean;
 }
 
 // ما يلى رقم البند فى إحالة خارجية: "من العقد الأصلي/السابق"، "من القانون"، "من اللائحة"... ("من هذا العقد" إحالة داخلية)
+/**
+ * أعلى رقم بند تدل عليه الفقرات الفرعية المرقمة فى أول السطر («10-1» «10-7» «8-3»…): العقود تُرقّم فقراتها «رقم البند-رقم الفقرة»، فإن وصل الرقم
+ * الأول إلى 10 والعقد قُسِّم إلى 8 فعناوين بنود لم تُقرأ. ولا يُعتدّ بالرقم إلا إن تكرر على سطرين على الأقل (لا تاريخ ولا رقم عابر).
+ * بعض العقود تكتب «1-N» لفقرات البنود الأولى (N = رقم البند)، فإن تتابعت قيم N (3 قيم متميزة فأكثر) حُسبت كذلك.
+ */
+export function subclauseMaxNumber(text: string): number {
+  const re = /(?:^|\n)[ \t\u200e\u200f]*(\d{1,2})[ \t]*[-–][ \t]*(\d{1,2})(?![\d/\-–.]\d)(?!\d)/g;
+  const firstCount = new Map<number, number>();
+  const afterOne = new Set<number>();
+  for (const m of text.matchAll(re)) {
+    const a = Number(m[1]);
+    const b = Number(m[2]);
+    if (a < 1 || a > 60) continue;
+    firstCount.set(a, (firstCount.get(a) ?? 0) + 1);
+    if (a === 1 && b >= 1 && b <= 60) afterOne.add(b);
+  }
+  let max = 0;
+  for (const [a, c] of firstCount) if (c >= 2 && a > max) max = a;
+  if (afterOne.size >= 3) max = Math.max(max, ...afterOne);
+  return max;
+}
+
+
+const SUBCLAUSE_LINE = /(?:^|\n)([ \t\u200e\u200f]*)(\d{1,2})[ \t]*[-–][ \t]*(\d{1,2})(?![\d/\-–.]\d)(?!\d)/g;
+
+/**
+ * استرجاع حدود بنود لم تُقرأ عناوينها من ترقيم فقراتها الفرعية: العقود تُرقّم فقرات البند N «N-1، N-2…»، فسطر يبدأ بـ«4-1» بين عنوانى البندين 3 و5
+ * هو أول فقرة فى البند 4 وعنوانه هو الذى أسقطته القراءة (العناوين المسطّرة تسقط كثيراً فى المسح). يُقبل فقط لرقم ناقص فعلاً ولسطر يقع بين عنوانى
+ * البندين المجاورين المقروءين (فلا يتحرك حدّ بند مقروء)، ولا يُقبل رقم بعد آخر بند مقروء إلا إن تكرر على سطرين (لا رقم عابر).
+ * عقد يكتب «1-N» لفقرات بنوده الأولى (N = رقم البند) يُقبل بشرط تتابع ثلاث قيم متميزة فأكثر.
+ */
+function recoverHeadsFromSubclauses(text: string, heads: Head[]): { heads: Head[]; recovered: number[] } {
+  const lines: Array<{ offset: number; a: number; b: number }> = [];
+  for (const m of text.matchAll(SUBCLAUSE_LINE)) {
+    const lead = m[0].startsWith('\n') ? 1 : 0;
+    lines.push({ offset: (m.index ?? 0) + lead, a: Number(m[2]), b: Number(m[3]) });
+  }
+  if (lines.length === 0) return { heads, recovered: [] };
+  const oneB = new Set(lines.filter((l) => l.a === 1).map((l) => l.b));
+  const schemeB = oneB.size >= 3;
+  const firstCount = new Map<number, number>();
+  for (const l of lines) firstCount.set(l.a, (firstCount.get(l.a) ?? 0) + 1);
+
+  const out = [...heads].sort((x, y) => x.lineStart - y.lineStart);
+  const recovered: number[] = [];
+  const known = (): number[] => out.map((h) => h.declaredNumber).filter((n): n is number => n !== null);
+  const maxCandidate = Math.max(0, ...[...firstCount].filter(([, c]) => c >= 2).map(([a]) => a), ...(schemeB ? [...oneB] : []));
+  for (let n = 1; n <= Math.min(maxCandidate, 60); n++) {
+    if (known().includes(n)) continue;
+    const before = [...out].filter((h) => h.declaredNumber !== null && h.declaredNumber < n).pop();
+    const after = out.find((h) => h.declaredNumber !== null && h.declaredNumber > n);
+    // لا يُسترجع بند بين عنوانين متجاورين فى النص غير متتاليين بترتيب ظهورهما (تشويش) ولا قبل أول عنوان مقروء إن لم يكن 1
+    const lo = before ? before.lineStart : 0;
+    const hi = after ? after.lineStart : text.length;
+    if (!after && known().length > 0 && n < Math.max(...known())) continue;
+    const trailing = !after;
+    // الصيغة «رقم البند-رقم الفقرة» (4-1) أقوى دليلاً من «1-N»: القراءة الآلية تقلب «10-1» إلى «1-10» فى الإحالات داخل المتن («البند الفرعى 10-1»)
+    const inA = lines.filter((l) => l.offset > lo && l.offset < hi && l.a === n);
+    const inWindow = inA.length > 0 ? inA : lines.filter((l) => l.offset > lo && l.offset < hi && schemeB && l.a === 1 && l.b === n && n <= 9);
+    if (inWindow.length === 0) continue;
+    if (trailing && n > 1 && (firstCount.get(n) ?? 0) < 2 && !(schemeB && oneB.has(n))) continue;
+    const at = inWindow[0].offset;
+    // العنوان المسترجع لا يُقبل إن كان أول فقرة فى البند 1 يسبق ديباجة طويلة بلا أى عنوان (تخمين)، إلا بدليل «1-1» نفسه
+    const label = canonicalHeading(n);
+    if (!label) continue;
+    out.push({ lineStart: at, markerStart: at, marker: label, rawLength: 0, declaredNumber: n, synthetic: true });
+    out.sort((x, y) => x.lineStart - y.lineStart);
+    recovered.push(n);
+  }
+  return { heads: out, recovered };
+}
+
 const EXTERNAL_REFERENCE_RE = /^[\s_\u0640]*من[\s_\u0640]+(?:ال)?(?:عقد|قانون|لائحة|لائحه|ملحق|اتفاق|اتفاقية|اتفاقيه|نظام|اللائحة)/u;
 
 @Injectable()
@@ -141,6 +215,18 @@ export class SegmentationService {
       if (fuzzy > 0) {
         warnings.push(
           `قُرئت عناوين ${fuzzy} بنداً من ${aligned.length} من قراءة آلية مشوَّهة بمطابقة تقريبية مقيَّدة بالتسلسل — تحقق من أن حدود البنود وأرقامها صحيحة قبل الاعتماد.`,
+        );
+      }
+    }
+
+    // عناوين بنود سقطت من القراءة الآلية (مسطّرة غالباً) وبقيت فقراتها مرقمة «4-1…»: تُسترجع حدودها من الترقيم الفرعى بتحذير صريح
+    if (heads.length >= 2) {
+      const rec = recoverHeadsFromSubclauses(text, heads);
+      if (rec.recovered.length > 0) {
+        heads = rec.heads;
+        const labels = rec.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ');
+        warnings.push(
+          `لم تُقرأ عناوين ${rec.recovered.length === 1 ? 'بند' : `${rec.recovered.length} بنود`} (${labels}) فاستُرجعت حدودها من ترقيم فقراتها الفرعية (مثل «${rec.recovered[0]}-1»)؛ حدودها وعناوينها تقريبية — تحقق منها بالأصل قبل الاعتماد.`,
         );
       }
     }
@@ -240,6 +326,14 @@ export class SegmentationService {
     if (maxDeclared > 0 && maxReferenced > maxDeclared) {
       warnings.push(
         `نص العقد يُحيل إلى "البند رقم ${maxReferenced}" بينما قُسِّم إلى ${maxDeclared} بنداً فقط — قد يكون عنوان بند أو أكثر قد سقط من القراءة فالتصق نصه بالبند السابق؛ راجع نهاية العقد يدوياً.`,
+      );
+    }
+
+    // الفقرات الفرعية المرقمة («10-1»…) تدل على بنود أكثر مما قُسِّم: عناوينها لم تُقرأ فالتصق نصها بما قبلها (لا تُحصى مرة ثانية إن نبّهت الإحالة النصية)
+    const subMax = subclauseMaxNumber(text);
+    if (maxDeclared > 0 && subMax > maxDeclared && !(maxReferenced > maxDeclared)) {
+      warnings.push(
+        `ترقيم الفقرات الفرعية فى النص يصل إلى ${subMax} (مثل «${subMax}-1») بينما قُسِّم العقد إلى ${maxDeclared} بنداً فقط — يظهر أن بنوداً حتى رقم ${subMax} لم تُقرأ عناوينها فالتصق نصها بما قبلها؛ راجع نهاية العقد يدوياً.`,
       );
     }
 

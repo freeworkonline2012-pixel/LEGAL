@@ -770,22 +770,48 @@ export const CHECKS: MissingCheck[] = [
 // ---------- تعريف المدة ----------
 
 const NUM_WORDS =
-  '(?:\\d+|واحد|واحده|اثنين|اثنتين|سنتين|شهرين|ثلاث\\w*|اربع\\w*|خمس\\w*|ست\\w*|سبع\\w*|ثمان\\w*|تسع\\w*|عشر\\w*|احدي عشر|اثني عشر)';
+  '(?:\\d+|واحد|واحده|اثنين|اثنتين|سنتين|شهرين|ثلاث\\w*|اربع\\w*|خمس\\w*|ست\\w*|سبع\\w*|ثمان\\w*|تسع\\w*|عشر\\w*|احدي عشر|اثني عشر' +
+  // تشوّهات المسح الشائعة لكلمة العدد: سقوط حرف («خم» بدل «خمس»، «ثلا» بدل «ثلاث»)؛ الوحدة بعدها هى التى تثبت أنها مدة
+  '|خم[سه]?|ثلا[ثت]?|ارب[عه]?|سب[عه]?|ثما[نم]\\w*|تس[عه]?|عش[رة]?)';
 const DURATION_UNITS = '(?:سنه|سنوات|سنتين|عام|اعوام|شهر|اشهر|شهور|شهرين|يوم|ايام|اسبوع|اسابيع)';
 const DURATION_TOPIC = /العقد|الايجار|الاتفاق|الترخيص|الوكاله|الشراكه|الخدمه|التعاقد|سريان|الاستخدام|الاستضافه/;
+/** «قبل انتهاء مدة هذا العقد بشهرين»: مهلة إخطار تحيل إلى المدة ولا تعرّفها */
+const NOT_AFTER_REF = '(?<!(?:قبل|بعد|انتهاء|نهايه|بحلول)\\s)';
 const DURATION_NUMBERED = new RegExp(
   [
-    `(?:مده|لمده|ينتهي|تنتهي|يستمر|تستمر)[^.\\n]{0,40}?${NUM_WORDS}[^.\\n]{0,15}?${DURATION_UNITS}`,
-    `(?:مده|لمده)[^.\\n]{0,40}?${DURATION_UNITS}\\s+(?:واحده|واحد|كامله|كامل)`,
-    `(?:مده|لمده)[^.\\n]{0,40}?(?:سنتين|شهرين|عامين)`,
+    `${NOT_AFTER_REF}(?:مده|لمده|ينتهي|تنتهي|يستمر|تستمر)[^.\\n]{0,40}?${NUM_WORDS}[^.\\n]{0,15}?${DURATION_UNITS}`,
+    `${NOT_AFTER_REF}(?:مده|لمده)[^.\\n]{0,40}?${DURATION_UNITS}\\s+(?:واحده|واحد|كامله|كامل)`,
+    `${NOT_AFTER_REF}(?:مده|لمده)[^.\\n]{0,40}?(?:سنتين|شهرين|عامين)`,
   ].join('|'),
 );
 const DURATION_DATED = /(?:يبدا|تبدا|يسري|تسري|بدايه)[^.\n]{0,60}(?:وينتهي|وتنتهي|حتي|الي|ينتهي|تنتهي)[^.\n]{0,40}\d/;
+/**
+ * «مدة هذا العقد خم سنوات…» بتشوّه كلمة العدد: العبارة «مدة <العقد> <حتى 20 حرفاً بلا أرقام> <وحدة>» تحدد مدة، بشرط ألا تسبقها كلمة تجعلها
+ * إحالة لا تعريفاً («قبل انتهاء مدة هذا العقد بشهرين» مهلة إخطار لا مدة العقد).
+ */
+const DURATION_TERM_UNIT = new RegExp(
+  `(?<!(?:قبل|بعد|خلال|طوال|طيله|انتهاء|نهايه|بحلول|حتي|عند)\\s)(?:ان تكون |تكون |لمده |مده )(?:هذا |هذه )?(?:ال)?(?:عقد|ايجار|اتفاق|اتفاقيه|ترخيص|وكاله|شراكه|تعاقد)[^.\\n\\d]{0,20}?(?<![ء-ي])${DURATION_UNITS}(?![ء-ي])`,
+);
+/**
+ * نطاق تاريخين صريحين فى الجملة («تبدأ من 1/6/2019 … 1/6/2024»): السنة الثانية بعد الأولى وقبلها عبارة بدء أو مدة؛ يثبت المدة ولو شُوّهت
+ * كلمات الوصل بينهما فى المسح (قرئت «وتنتهى» رموزاً فى مسح حقيقى).
+ */
+const DATE_RE = /(\d{1,2})\s*[/\-.]\s*(\d{1,2})\s*[/\-.]\s*(\d{4})/g;
+const DURATION_START_CUE = /(?:مده|تبدا|يبدا|تبداء|يبداء|بدايه|بداية|اعتبارا|يسري|تسري|من تاريخ)/;
+function hasDateRange(sentenceNorm: string): boolean {
+  const dates = [...sentenceNorm.matchAll(DATE_RE)];
+  if (dates.length < 2) return false;
+  const first = dates[0];
+  const rest = sentenceNorm.slice(0, first.index ?? 0);
+  if (!DURATION_START_CUE.test(rest) && !DURATION_START_CUE.test(sentenceNorm.slice(0, (dates[1].index ?? 0)))) return false;
+  const y1 = Number(first[3]);
+  return dates.slice(1).some((d) => Number(d[3]) > y1 && Number(d[3]) - y1 <= 99);
+}
 
 /** هل تعرّف هذه الجملة (الموحَّدة) مدة العقد فعلاً؟ */
 export function definesDuration(sentenceNorm: string): boolean {
   if (!DURATION_TOPIC.test(sentenceNorm)) return false;
-  return DURATION_NUMBERED.test(sentenceNorm) || DURATION_DATED.test(sentenceNorm);
+  return DURATION_NUMBERED.test(sentenceNorm) || DURATION_DATED.test(sentenceNorm) || DURATION_TERM_UNIT.test(sentenceNorm) || hasDateRange(sentenceNorm);
 }
 
 function textDefinesDuration(clauses: LevelClause[]): boolean {
@@ -966,12 +992,30 @@ export function checkOpenTerms(clauses: LevelClause[]): ContractFinding[] {
   return out;
 }
 
+/**
+ * ادعاء «غير مذكور» على نص ممسوح ضوئياً لا يُعدّ مؤكداً: قد تكون الجملة مشوّهة أو ضائعة فى القراءة (وقع فى مسح حقيقى: «مدة العقد خمس سنوات
+ * من 1/6/2019 إلى 1/6/2024» قُرئت «خم سنوات … ths» فقيل «لا مدة» بدرجة عالية فرفع مستوى المخاطرة). لذلك تُوسَم هذه النتيجة «غير مؤكدة»
+ * بسبب صريح (فتُعرض مرشَّحة للمراجعة البشرية ولا تدخل الأعداد ولا مستوى المخاطرة)، ولا تُحذف ولا يُخفى نصها.
+ */
+const ABSENCE_ON_SCAN_REASON =
+  'ادعاء غياب على عقد مقروء آلياً من صورة ممسوحة وبه تحذيرات قراءة؛ قد تكون الجملة التى تتناول هذا الموضوع مشوّهة أو ضائعة فى القراءة الآلية، ' +
+  'فلا يُعدّ الغياب مؤكداً حتى يطابَق الأصل. (وُسم آلياً: ليس اعتراضاً من المدقق المستقل.)';
+
+function markAbsenceUnconfirmed(f: ContractFinding): ContractFinding {
+  return {
+    ...f,
+    verification: { status: 'unconfirmed', basis: 'uncertain', reason: ABSENCE_ON_SCAN_REASON, quote: null, quoteSource: null, verifiedAt: new Date().toISOString() },
+  };
+}
+
 /** كل الفحوص الحتمية معاً. «مدة غير معرَّفة» ذات الاقتباسات تغنى عن «بند المدة غير مرصود» فلا يتكرر العيب نفسه مرتين. */
 export function deterministicFindings(clauses: LevelClause[], opts: MissingOptions): ContractFinding[] {
   const undef = checkUndefinedTerms(clauses);
   const hasDurationRef = undef.some((f) => f.id === 'undefined:duration');
   const missing = checkMissingClauses(clauses, opts).filter((f) => !(hasDurationRef && f.id === 'missing:duration'));
-  return sortFindings([...missing, ...undef, ...checkOpenTerms(clauses)]);
+  const absenceClaim = (f: ContractFinding): boolean => f.id === 'undefined:duration' || f.id.startsWith('missing:');
+  const all = [...missing, ...undef, ...checkOpenTerms(clauses)].map((f) => (opts.textMayBeIncomplete && absenceClaim(f) ? markAbsenceUnconfirmed(f) : f));
+  return sortFindings(all);
 }
 
 // ===================== تحقق مخرجات النموذج =====================
@@ -986,6 +1030,20 @@ function str(v: unknown, max: number): string | null {
   const t = v.replace(/\s+/g, ' ').trim();
   if (t.length < 3) return null;
   return t.length > max ? `${t.slice(0, max).trim()}…` : t;
+}
+
+/**
+ * «البند 4» فى نص النموذج: إن كان 4 موضع بند مستشهَد به فى أدلة الملاحظة نفسها وعنوانه مكتوب بكلمات مختلفة («البند الخامس») استُبدل بعنوانه،
+ * فلا يتناقض الشرح مع الاقتباس المعروض بجانبه. ما لا يطابق موضع دليل يُترك كما كتبه النموذج.
+ */
+function relabelPositions(text: string, evidence: FindingEvidence[], byIndex: Map<number, LevelClause>): string {
+  const cited = new Set(evidence.map((e) => e.clauseIndex));
+  return text.replace(/(?<![ء-ي])البند\s+(\d{1,3})(?![\d\-/.])/gu, (whole, d: string) => {
+    const idx = Number(d);
+    if (!cited.has(idx)) return whole;
+    const label = byIndex.get(idx)?.clauseLabel;
+    return label && !/\d/.test(label) && label !== whole ? label : whole;
+  });
 }
 
 /**
@@ -1020,13 +1078,15 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
     }
     const distinctClauses = new Set(evidence.map((x) => x.clauseIndex)).size;
     if (NEEDS_TWO.has(kind) ? distinctClauses < 2 : evidence.length < 1) continue;
+    // النموذج يكتب «البند 4» بموضع البند لا بعنوانه حين يختلف الاثنان (عقد ممسوح سقطت عناوين بعض بنوده: الموضع 4 = «البند الخامس»)
+    const relabel = (t: string | null): string | null => (t === null ? null : relabelPositions(t, evidence, byIndex));
     out.push({
       id: `model:${kind}:${out.length + 1}`,
       kind,
       severity,
-      title,
-      explanation,
-      suggestion: str(f.suggestion, 400),
+      title: relabel(title) ?? title,
+      explanation: relabel(explanation) ?? explanation,
+      suggestion: relabel(str(f.suggestion, 400)),
       evidence: evidence.slice(0, 4),
       source: 'model',
     });

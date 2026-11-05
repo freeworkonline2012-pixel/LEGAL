@@ -20,8 +20,9 @@ const SYSTEM =
   '3) open_term: التزام مالى أو زمنى يُترك مفتوحاً أو يناقض بنداً آخر (مثال: رسم يُحدَّد لاحقاً بينما بند آخر ينفى أى رسوم إضافية).\n' +
   '4) undefined_term: مصطلح أو مرجع يعتمد عليه التزام ولا يعرّفه العقد فى أى بند (مثال: «المرحلة الأولى» أو «المواصفات المعتمدة» دون تعريف).\n\n' +
   'القواعد الصارمة:\n' +
-  '- لكل نتيجة قائمة evidence، وكل عنصر فيها: clause_index (رقم البند كما ورد فى العنوان) وquote عبارة حرفية متصلة منسوخة من ذلك البند بالضبط. ' +
+  '- لكل نتيجة قائمة evidence، وكل عنصر فيها: clause_index (الرقم بعد كلمة «موضع» فى عنوان البند) وquote عبارة حرفية متصلة منسوخة من ذلك البند بالضبط. ' +
   'conflict وscope_mismatch يلزمهما دليلان على الأقل من بندين مختلفين؛ والباقى دليل واحد على الأقل.\n' +
+  '- فى title وexplanation وsuggestion سمِّ البند بعنوانه كما هو مكتوب (مثل «البند الخامس»)، لا برقم الموضع.\n' +
   '- لا تذكر نتيجة لا تستطيع إسنادها باقتباسين حرفيين. لا تخمّن ولا تفترض ما لم يُكتب. إن لم تجد شيئاً أعد findings فارغة.\n' +
   '- لا تكرر ما هو مجرد نقص بند (كغياب السرية أو القانون الواجب التطبيق)؛ ذلك يُفحص بوسيلة أخرى.\n' +
   '- severity من: "عالٍ" أو "متوسط" أو "منخفض". explanation جملتان على الأكثر بلغة احتمالية («يبدو أن»، «قد»). suggestion اختيارى: صياغة معالجة موجزة.\n' +
@@ -60,7 +61,7 @@ export class ContractConsistencyService {
     if (clauses.length < 2) return { status: 'skipped', detail: 'single_clause' };
     const blocks = clauses.map((c) => {
       const body = c.clauseText.length > MAX_CLAUSE_CHARS ? `${c.clauseText.slice(0, MAX_CLAUSE_CHARS)}\n[…اقتُطع…]` : c.clauseText;
-      return `### بند رقم ${c.clauseIndex} (${c.clauseLabel}${c.clauseTitle ? ` — ${c.clauseTitle}` : ''})\n${body}`;
+      return `### [موضع ${c.clauseIndex}] ${c.clauseLabel}${c.clauseTitle ? ` — ${c.clauseTitle}` : ''}\n${body}`;
     });
     const payload = blocks.join('\n\n');
     if (payload.length > MAX_TOTAL_CHARS) return { status: 'skipped', detail: 'too_long' };
