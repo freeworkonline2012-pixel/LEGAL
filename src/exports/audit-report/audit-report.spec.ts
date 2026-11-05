@@ -614,6 +614,29 @@ describe('الجولة 55: تقسيم غير مكتمل لا يُقدَّر له
     expect(v).toContain('التقسيم غير مكتمل');
   });
 
+  it('الجولة 56: قفزة الترقيم وحدها لا تُجزم بأن بنوداً لم تُقرأ (قد تكون كلمة ترتيبية مشوَّهة)', () => {
+    const inp = { ...INPUT, clauses: sound, extractionWarnings: ['ترقيم البنود المُعلَن غير متسلسل بدءاً من الموضع 3 (متوقَّع 3, وُجد 5) — يلزم مراجعة بشرية.'] };
+    const v = overallOf(inp)?.value ?? '';
+    expect(v).toContain('غير مُقدَّر');
+    expect(v).toContain('أرقام العناوين شوّهتها القراءة الآلية');
+    expect(v).not.toContain('فيه بنوداً لم تُقرأ');
+  });
+
+  it('الجولة 56: قفزة الترقيم مع ملاحظة مرصودة تُضاف إليها عبارة الترقيم المتقطع لا «لم تُحلَّل»', () => {
+    const inp = { ...INPUT, clauses: CLAUSES, extractionWarnings: ['ترقيم البنود المُعلَن غير متسلسل بدءاً من الموضع 14 (متوقَّع 14, وُجد 18) — يلزم مراجعة بشرية.'] };
+    const v = overallOf(inp)?.value ?? '';
+    expect(v).toContain('مرتفعة');
+    expect(v).toContain('ترقيم البنود المقروء متقطع');
+    expect(v).not.toContain('قد توجد بنود لم تُحلَّل');
+  });
+
+  it('الجولة 56: بند بمتن شبه فارغ وحده ليس دليلاً على نقص البنود (عقد قُرئت بنوده العشرة)', () => {
+    const inp = { ...INPUT, clauses: sound, extractionWarnings: ['1 بند(بنود) بمتن شبه فارغ بعد التقسيم — مؤشر خطأ تقسيم محتمل: البند الأول.'] };
+    const v = overallOf(inp)?.value ?? '';
+    expect(v).toContain('لم تُرصد بنود');
+    expect(v).not.toContain('غير مُقدَّر');
+  });
+
   it('عقد سليم التقسيم بلا تحذيرات: النص القديم كما هو', () => {
     expect(overallOf({ ...INPUT, clauses: sound })?.value).toContain('لم تُرصد بنود');
   });

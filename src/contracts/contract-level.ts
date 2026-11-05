@@ -1080,6 +1080,8 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
     if (NEEDS_TWO.has(kind) ? distinctClauses < 2 : evidence.length < 1) continue;
     // النموذج يكتب «البند 4» بموضع البند لا بعنوانه حين يختلف الاثنان (عقد ممسوح سقطت عناوين بعض بنوده: الموضع 4 = «البند الخامس»)
     const relabel = (t: string | null): string | null => (t === null ? null : relabelPositions(t, evidence, byIndex));
+    // النموذج يُخرج أحياناً الملاحظة نفسها مرتين (تعارض البند 3 والبند 4 بعنوان واحد وشرح متقارب): تُحفظ مرة واحدة
+    if (out.some((o) => isSameModelFinding(o, { kind, evidence, explanation: explanation }))) continue;
     out.push({
       id: `model:${kind}:${out.length + 1}`,
       kind,
@@ -1092,6 +1094,27 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
     });
   }
   return out;
+}
+
+const wordSet = (t: string): Set<string> => new Set(t.replace(/[^ء-ي\d\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2));
+
+/**
+ * ملاحظتان للنموذج هما نفسها: من النوع نفسه وعلى مجموعة البنود نفسها، ويتشاركان اقتباساً حرفياً أو يتقارب شرحاهما (تقاطع الكلمات ≥ 55% من الأصغر).
+ * وجود خلافين مختلفين بين البندين نفسيهما ممكن، فلا يكفى اتحاد العنوان وحده.
+ */
+function isSameModelFinding(a: Pick<ContractFinding, 'kind' | 'evidence' | 'explanation'>, b: Pick<ContractFinding, 'kind' | 'evidence' | 'explanation'>): boolean {
+  if (a.kind !== b.kind) return false;
+  const ca = [...new Set(a.evidence.map((e) => e.clauseIndex))].sort().join(',');
+  const cb = [...new Set(b.evidence.map((e) => e.clauseIndex))].sort().join(',');
+  if (ca !== cb) return false;
+  if (a.evidence.some((x) => b.evidence.some((y) => x.clauseIndex === y.clauseIndex && x.quote.trim() === y.quote.trim()))) return true;
+  const wa = wordSet(a.explanation);
+  const wb = wordSet(b.explanation);
+  const min = Math.min(wa.size, wb.size);
+  if (min === 0) return false;
+  let shared = 0;
+  for (const w of wa) if (wb.has(w)) shared++;
+  return shared / min >= 0.55;
 }
 
 /** يزيل نتائج النموذج المكررة لنتيجة حتمية من النوع نفسه تستند إلى البند نفسه. */

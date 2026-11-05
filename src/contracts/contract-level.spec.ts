@@ -163,6 +163,32 @@ describe('validateModelFindings', () => {
     expect(validateModelFindings(same, clauses)).toHaveLength(0);
   });
 
+  it('الجولة 56: الملاحظة نفسها مرتين (اقتباس مشترك أو شرح متقارب على البندين نفسيهما) تُحفظ مرة واحدة', () => {
+    const f0 = good.findings[0];
+    const dupQuote = { findings: [f0, { ...f0, title: 'تعارض آخر بعنوان مختلف', explanation: 'صياغة مختلفة تماماً للشرح ولكن الدليل هو نفسه' }] };
+    expect(validateModelFindings(dupQuote, clauses)).toHaveLength(1);
+    const dupText = {
+      findings: [
+        f0,
+        { ...f0, evidence: [ev(5, 'يظل النظام وشفرته المصدرية'), ev(13, 'وتنتقل ملكية ما نُفذ')], explanation: 'قد ينقل البند 13 ما يمنحه البند 5 للطرف الأول تقريباً.' },
+      ],
+    };
+    expect(validateModelFindings(dupText, clauses)).toHaveLength(1);
+  });
+
+  it('الجولة 56: خلافان مختلفان بين البندين نفسيهما يبقيان معاً', () => {
+    const f0 = good.findings[0];
+    const other = {
+      ...f0,
+      explanation: 'مواعيد السداد تختلف بين الفقرتين: أسبوعية هنا وشهرية هناك فيتعذر تحديد موعد الاستحقاق.',
+      evidence: [ev(5, 'يظل النظام وشفرته المصدرية ملكاً للطرف الأول'), ev(13, 'إذا أخل الطرف الأول بالتزام جوهرى')],
+    };
+    // اقتباسان مختلفان لا يشتركان فى اقتباس حرفى مع الأولى
+    const a = { ...f0, evidence: [ev(5, 'يظل النظام وشفرته المصدرية'), ev(13, 'وتنتقل ملكية ما نُفذ إلى الطرف الثانى')] };
+    const b = { ...other, evidence: [ev(5, 'ملكاً للطرف الأول'), ev(13, 'إذا أخل الطرف الأول بالتزام جوهرى')] };
+    expect(validateModelFindings({ findings: [a, b] }, clauses)).toHaveLength(2);
+  });
+
   it('يرفض رقم بند غير موجود ونوعاً خارج القائمة ويخفّض الدرجة «حرج»', () => {
     const odd = {
       findings: [

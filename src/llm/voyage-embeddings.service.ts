@@ -112,6 +112,8 @@ export class VoyageEmbeddingsService {
   }
 
   /** يُستخدم عند فهرسة نص مادة قانونية أثناء الاستيراد (ingestion). */
+  private rerankDataFieldWarned = false;
+
   async embedDocuments(texts: string[]): Promise<(number[] | null)[] | null> {
     return this.embed(texts, 'document');
   }
@@ -204,9 +206,11 @@ export class VoyageEmbeddingsService {
         );
         return null;
       }
-      if (data.data && !data.results) {
+      if (data.data && !data.results && !this.rerankDataFieldWarned) {
+        // مرة واحدة لكل عملية: Voyage يُرجع «data» فعلاً، والتحذير فى كل استدعاء كان يغطى على الأخطاء الحقيقية فى السجل
+        this.rerankDataFieldWarned = true;
         this.logger.warn(
-          'Voyage rerank: الاستجابة استخدمت حقل "data" بدل "results" الموثَّق — راجع تغييرات API لدى Voyage.',
+          'Voyage rerank: الاستجابة استخدمت حقل "data" بدل "results" الموثَّق — يُقبل ويُسجَّل هذا التحذير مرة واحدة؛ راجع تغييرات API لدى Voyage.',
         );
       }
       return results.map((r) => ({ index: r.index, relevanceScore: r.relevance_score }));
@@ -224,10 +228,17 @@ export class VoyageEmbeddingsService {
     if (!this.isConfigured || texts.length === 0) {
       return null;
     }
+    // Voyage يرفض الطلب كله بـ400 («Input cannot contain empty strings») إن وُجد فيه نص فارغ؛ وقع على مسح عقد بند منه بلا متن (فقد هذا الطلب كل متجهاته).
+    // يُرسل ما فيه نص فقط، ويبقى موضع كل نص فارغ null فى النتيجة بترتيب الإدخال نفسه.
+    const sendIdx: number[] = [];
+    texts.forEach((t, i) => {
+      if (typeof t === 'string' && t.trim().length > 0) sendIdx.push(i);
+    });
+    if (sendIdx.length === 0) return texts.map(() => null);
 
     try {
       const res = await this.fetchWithRetry429('https://api.voyageai.com/v1/embeddings', {
-        input: texts,
+        input: sendIdx.map((i) => texts[i]),
         model: this.model,
         input_type: inputType,
         output_dimension: this.outputDimension,
@@ -254,7 +265,13 @@ export class VoyageEmbeddingsService {
         this.embedFailureCount += 1;
         return null;
       }
-      return data.data.map((d) => d.embedding ?? null);
+      const vectors = data.data.map((d) => d.embedding ?? null);
+      if (sendIdx.length === texts.length) return vectors;
+      const out: (number[] | null)[] = texts.map(() => null);
+      sendIdx.forEach((origIdx, k) => {
+        out[origIdx] = vectors[k] ?? null;
+      });
+      return out;
     } catch (err) {
       this.embedFailureCount += 1;
       this.logger.error(`Voyage embeddings call failed: ${(err as Error).message}`);

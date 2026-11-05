@@ -237,24 +237,34 @@ const PRIORITY_NOTE: Record<Severity, string> = {
 function overallRisk(
   counts: Record<Severity, number>,
   findingCounts: { critical: number; high: number; medium: number },
-  incomplete: { readCount: number } | null,
+  incomplete: { readCount: number; gapOnly: boolean } | null,
 ): { text: string; tone: Tone } {
-  // تقسيم غير مكتمل: غياب الملاحظات لا يدل على سلامة ما لم يُقرأ، فلا يُقدَّر مستوى «لا بنود تحتاج مراجعة» (وقع على عقد ممسوح قُرئ نصف بنوده)
-  const caveat = incomplete ? ' — التقسيم غير مكتمل: قد توجد بنود لم تُحلَّل' : '';
+  // تقسيم غير مكتمل: غياب الملاحظات لا يدل على سلامة ما لم يُقرأ، فلا يُقدَّر مستوى «لا بنود تحتاج مراجعة» (وقع على عقد ممسوح قُرئ نصف بنوده).
+  // قفزة الترقيم وحدها لا تُثبت نقص بنود: قد تكون كلمة ترتيبية مشوَّهة («الرابعة عشر» قُرئت «الثامنة عشر») والبنود كلها مقروءة، فلا يُجزم بأن بنوداً لم تُقرأ.
+  const caveat = incomplete
+    ? incomplete.gapOnly
+      ? ' — ترقيم البنود المقروء متقطع (بنود لم تُقرأ أو أرقام مشوَّهة): راجع حدود البنود'
+      : ' — التقسيم غير مكتمل: قد توجد بنود لم تُحلَّل'
+    : '';
   if (counts['حرج'] > 0 || findingCounts.critical > 0) return { text: `مخاطرة مرتفعة — يستوجب التفاوض الفوري${caveat}`, tone: 'critical' };
   if (counts['عالٍ'] > 0 || findingCounts.high > 0) return { text: `مخاطرة مرتفعة نسبياً — يستوجب المراجعة قبل التوقيع${caveat}`, tone: 'high' };
   if (counts['متوسط'] + counts['غير مصنَّف'] > 0 || findingCounts.medium > 0) return { text: `مخاطرة متوسطة — يستحق المراجعة${caveat}`, tone: 'medium' };
   if (incomplete) {
     return {
-      text: `غير مُقدَّر — قُرئ ${incomplete.readCount} بنداً فقط ويظهر من ترقيم العقد وإحالاته أن فيه بنوداً لم تُقرأ؛ غياب الملاحظات لا يدل على خلو العقد من المخاطر (قارن بالأصل قبل التوقيع)`,
+      text: incomplete.gapOnly
+        ? `غير مُقدَّر — قُرئ ${incomplete.readCount} بنداً وترقيمها متقطع: إما أن بنوداً لم تُقرأ أو أن أرقام العناوين شوّهتها القراءة الآلية؛ غياب الملاحظات لا يدل على خلو العقد من المخاطر (قارن بالأصل قبل التوقيع)`
+        : `غير مُقدَّر — قُرئ ${incomplete.readCount} بنداً فقط ويظهر من ترقيم العقد وإحالاته أن فيه بنوداً لم تُقرأ؛ غياب الملاحظات لا يدل على خلو العقد من المخاطر (قارن بالأصل قبل التوقيع)`,
       tone: 'medium',
     };
   }
   return { text: 'لم تُرصد بنود تحتاج مراجعة وفق النصوص المفهرسة (لا يُغنى ذلك عن مراجعة محامٍ)', tone: 'info' };
 }
 
-/** تحذيرات التقسيم التى تعنى أن بنوداً لم تُقرأ (لا مجرد خطأ ترقيم فى الأصل): فجوة تسلسل، نص سابق غير مقسَّم، إحالة لبند أعلى مما قُسِّم. */
-const SEGMENTATION_INCOMPLETE_WARNING = /لم تُقرأ عناوين البنود السابقة|لم تُقرأ عناوينها فالتصق|يُحيل إلى "البند رقم|بند\(بنود\) بمتن شبه فارغ/;
+/**
+ * تحذيرات التقسيم التى تعنى أن بنوداً لم تُقرأ (لا مجرد خطأ ترقيم فى الأصل): نص سابق غير مقسَّم، فقرات فرعية تتجاوز عدد البنود، إحالة لبند أعلى مما قُسِّم.
+ * «متن شبه فارغ» ليس منها: بند من سطر واحد («يعتبر التمهيد السابق جزءاً لا يتجزأ من هذا العقد») سليم، وكان يُنتج إنذاراً كاذباً على عقد قُرئت بنوده العشرة كلها.
+ */
+const SEGMENTATION_INCOMPLETE_WARNING = /لم تُقرأ عناوين البنود السابقة|لم تُقرأ عناوينها فالتصق|يُحيل إلى "البند رقم/;
 /** «متوقَّع 3, وُجد 5»: قفزة (بند لم يُقرأ) لا تكرار ولا رجوع (خطأ ترقيم فى الأصل نفسه) */
 function numberingGapWarning(w: string): boolean {
   const m = /غير متسلسل[^()]*\(متوقَّع (\d+),\s*وُجد (\d+)\)/.exec(w);
@@ -363,8 +373,12 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     high: confirmedFindings.filter((f) => f.severity === 'عالٍ').length,
     medium: confirmedFindings.filter((f) => f.severity === 'متوسط').length,
   };
-  const segWarnings = (input.extractionWarnings ?? []).filter((w) => SEGMENTATION_INCOMPLETE_WARNING.test(w) || numberingGapWarning(w));
-  const segIncomplete = unsegmentedBlocks.length > 0 || segWarnings.length > 0 ? { readCount: baseClauses.length } : null;
+  const hardSegWarnings = (input.extractionWarnings ?? []).filter((w) => SEGMENTATION_INCOMPLETE_WARNING.test(w));
+  const gapWarnings = (input.extractionWarnings ?? []).filter((w) => numberingGapWarning(w));
+  const segIncomplete =
+    unsegmentedBlocks.length > 0 || hardSegWarnings.length > 0 || gapWarnings.length > 0
+      ? { readCount: baseClauses.length, gapOnly: unsegmentedBlocks.length === 0 && hardSegWarnings.length === 0 }
+      : null;
   const overall = overallRisk(counts, findingCounts, segIncomplete);
   // ملاحظات العقد ككل المؤكدة غير المدمجة فى بند: تدخل العدّاد بدرجتها (ملاحظة المكتب بدرجة «عالٍ» تُعدّ عالية)
   const standalone = findings.map((f, i) => ({ f, i })).filter((x) => !isUnconfirmedFinding(x.f) && !absorbedInto.has(x.i));

@@ -227,6 +227,18 @@ function precededByIncompleteNumber(text: string, pos: number): boolean {
   return false;
 }
 
+/**
+ * شظية «ألف وخمسمائة جنيه … )» عبر حدّ صفحة: العدد كله «ثلاث عشر ألف وخمسمائة» ورقمه 13500 مذكور قبلها، والصفحة التالية بدأت بـ«ألف …» دون مضاعفها،
+ * وبينهما عادة رأس صفحة وختم وضجيج مسح أطول من نافذة الكلمات. عبارة تبدأ بـ«ألف» مجردة وأقرب مبلغ قبلها رقمى أكبر منها وفرقهما من مضاعفات الألف
+ * ولا مبلغ آخر بينهما: جزء من ذلك المبلغ لا مبلغ مستقل.
+ */
+function continuesEarlierDigits(text: string, hits: Hit[], wordsStart: number, wordsValue: number): boolean {
+  // مركّبة («ألف وخمسمائة») لا «ألف جنيه» وحدها: ألف مجردة مبلغ مشروع كثيراً ما يرد بعد مبلغ رقمى أكبر
+  if (wordsValue % 1000 === 0 || !/^[اأ]لف(?![ء-ي])/u.test(text.slice(wordsStart, wordsStart + 6))) return false;
+  const prev = hits.filter((h) => h.kind === 'amount' && h.pos < wordsStart).sort((a, b) => b.pos - a.pos)[0];
+  return !!prev && prev.fromWords === false && prev.amount !== undefined && wordsStart - prev.pos <= 3000 && prev.amount > wordsValue && (prev.amount - wordsValue) % 1000 === 0;
+}
+
 function partialWordsNote(digits: number, words: number): string {
   return `كُتب المبلغ بالحروف أيضاً لكن قراءته الآلية مشوّهة (لم يُقرأ منه إلا ${fmtNumber(words)} فى آخره)؛ المعروض هو المقروء بالأرقام ${fmtNumber(digits)} — طابق الأصل`;
 }
@@ -311,7 +323,8 @@ function scan(rawText: string): Hit[] {
         // «( 1 خمسمائة الف جنيها )»: الرقم الصغير ضجيج مسح (بقايا «فقط» أو القوس) لا مبلغ؛ المبلغ هو المكتوب بالحروف وحده.
         // استثناء: قبل الرقم الصغير كلمة عددية لم يكتمل عددها («اربعة آلاف سم ال ل ل 3 وخمسمائة جنيه» أو «ثلاث عشر ‹سطر ضجيج› 2 الف
         // وخمسمائة جنيه» بعد حدّ صفحة): ما بعد الرقم ذيل مبلغ أكبر لا مبلغ مستقل (4,500 لا 500؛ 13,500 لا 1,500).
-        if (precededByIncompleteNumber(text, m.index ?? 0)) {
+        const wordsStart = (m.index ?? 0) + m[0].length + (text.slice((m.index ?? 0) + m[0].length).match(/^\s*/)?.[0].length ?? 0);
+        if (precededByIncompleteNumber(text, m.index ?? 0) || continuesEarlierDigits(text, hits, wordsStart, tail.words)) {
           hits.push({
             kind: 'amount',
             value: `${fmtNumber(tail.words)} جنيه`,
@@ -379,7 +392,8 @@ function scan(rawText: string): Hit[] {
     const w = wordsBefore(text, pos);
     if (!w || w.value < 100) continue;
     const cur = /دولار/.test(m[0]) ? 'دولار' : /يورو/.test(m[0]) ? 'يورو' : /ريال/.test(m[0]) ? 'ريال' : /درهم/.test(m[0]) ? 'درهم' : 'جنيه';
-    hits.push({ kind: 'amount', value: `${fmtNumber(w.value)} ${cur}`, pos: w.start, len: pos + m[0].length - w.start, fromWords: true, amount: w.value, ...(w.partial ? { partial: true } : {}) });
+    const splitFromDigits = continuesEarlierDigits(text, hits, w.start, w.value);
+    hits.push({ kind: 'amount', value: `${fmtNumber(w.value)} ${cur}`, pos: w.start, len: pos + m[0].length - w.start, fromWords: true, amount: w.value, ...(w.partial || splitFromDigits ? { partial: true } : {}) });
   }
 
   // نسب

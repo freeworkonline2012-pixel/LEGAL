@@ -130,6 +130,38 @@ describe('VoyageEmbeddingsService', () => {
     });
   });
 
+  describe('الجولة 56: النصوص الفارغة لا تُرسل (Voyage يرفض الطلب كله بـ400)', () => {
+    it('لا يُرسل النص الفارغ ويُبقى موضعه null بترتيب الإدخال نفسه', async () => {
+      const service = new VoyageEmbeddingsService();
+      const fetchMock = jest.fn().mockResolvedValueOnce(jsonResponse(200, { data: [{ embedding: [1, 2] }, { embedding: [3, 4] }] }));
+      global.fetch = fetchMock as unknown as typeof fetch;
+      const out = await service.embedDocuments(['نص أول', '', '   ', 'نص ثان']);
+      const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+      expect(body.input).toEqual(['نص أول', 'نص ثان']);
+      expect(out).toEqual([[1, 2], null, null, [3, 4]]);
+    });
+
+    it('كل النصوص فارغة: لا طلب شبكة ونتيجة null لكل موضع', async () => {
+      const service = new VoyageEmbeddingsService();
+      const fetchMock = jest.fn();
+      global.fetch = fetchMock as unknown as typeof fetch;
+      expect(await service.embedDocuments(['', ' '])).toEqual([null, null]);
+      expect(await service.embedQuery('')).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('تحذير «data بدل results» مرة واحدة لا فى كل استدعاء', async () => {
+      const service = new VoyageEmbeddingsService();
+      const warn = jest.spyOn((service as unknown as { logger: { warn: (m: string) => void } }).logger, 'warn').mockImplementation(() => undefined);
+      global.fetch = jest.fn().mockImplementation(async () => jsonResponse(200, { data: [{ index: 0, relevance_score: 0.9 }] })) as unknown as typeof fetch;
+      const a = await service.rerank('سؤال', ['مادة']);
+      await service.rerank('سؤال', ['مادة']);
+      await service.rerank('سؤال', ['مادة']);
+      expect(a).toEqual([{ index: 0, relevanceScore: 0.9 }]);
+      expect(warn.mock.calls.filter((c) => String(c[0]).includes('"data" بدل "results"'))).toHaveLength(1);
+    });
+  });
+
   describe('التدهور الآمن بلا مفتاح API', () => {
     it('يُرجع null فوراً بلا أى طلب شبكة عند غياب VOYAGE_API_KEY', async () => {
       delete process.env.VOYAGE_API_KEY;

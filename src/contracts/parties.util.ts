@@ -172,7 +172,8 @@ export function extractPartyNames(preamble: string | null | undefined): PartyNam
   for (const m of text.matchAll(DESIGNATION)) {
     const idx = m.index ?? 0;
     const side = /ثان/.test(m[1]) ? 'second' : 'first';
-    const name = pickEntityName(text.slice(prevEnd, idx));
+    const seg = text.slice(prevEnd, idx);
+    const name = resolveName(seg, side);
     prevEnd = idx + m[0].length;
     if (name && !names[side]) names[side] = name;
   }
@@ -186,7 +187,8 @@ export function extractPartyNames(preamble: string | null | undefined): PartyNam
       DESIGNATION.lastIndex = 0;
       const d = DESIGNATION.exec(text.slice(mk.start, end));
       if (d) end = mk.start + d.index;
-      const name = pickEntityName(text.slice(mk.start, end));
+      const seg = text.slice(mk.start, end);
+      const name = resolveName(`${mk.side === 'second' ? 'ثانيا' : 'اولا'}: ${seg}`, mk.side);
       if (name) names[mk.side] = name;
     });
   }
@@ -210,6 +212,51 @@ export function extractPartyNames(preamble: string | null | undefined): PartyNam
   const blank = blankPartySides(text).filter((side) => !names[side]);
   if (blank.length > 0) names.blank = blank;
   return names;
+}
+
+/**
+ * اسم الطرف حين يلى ترقيمَ الطرف مباشرة («أولاً: شركة X …» «ثانياً: الشركة الدولية للخدمات البريدية - إيجى سيرف (ش.م.م) سجل …»).
+ * أول ما يلى الترقيم هو اسم الطرف نفسه، فلا يُبحث بعده عن «شركة» أو لقب؛ فالبحث اللاحق كان يلتقط لقب الممثل («السيد الأستاذ / فلان») اسماً للطرف
+ * حين تشوّه المسح كلمة «ويمثلها» فلم يُعرف أن اللقب للممثل (عقد ممسوح: الطرف الثانى «الأستاذ»). الشرطة المحاطة بمسافات داخل الاسم تُعامل فاصلاً لا نهاية
+ * («الدولية للخدمات البريدية - إيجى سيرف»). لقب شخص بعد الترقيم لا يُقرأ هنا (طرف شخص طبيعى: يعالجه المسار العام).
+ */
+function leadNameAfterOrdinal(segment: string, side: 'first' | 'second'): string | null {
+  const marks = [...stripBidi(segment).matchAll(ORDINAL)];
+  const mk = [...marks].reverse().find((m) => (side === 'second' ? !!m.groups?.second : !!m.groups?.first));
+  if (!mk) return null;
+  const from = (mk.index ?? 0) + mk[0].length;
+  const next = marks.find((m) => (m.index ?? 0) > (mk.index ?? 0));
+  let rest = stripBidi(segment).slice(from, next ? (next.index ?? undefined) : undefined).replace(/^[^\u0621-\u064A]+/u, '');
+  if (!rest) return null;
+  // لقب شخص أول الكلام: المسار العام (طرف شخص طبيعى أو ممثل)
+  const firstWord = normalizeArabicForMatch(rest.split(/\s+/)[0] ?? '');
+  if (PERSON_TITLE.has(firstWord)) return null;
+  // لا يُخمَّن اسم بلا كلمة جهة («ثانياً: ورثة المرحوم» لا اسم جهة فيه): المسار العام وحده يقرر
+  const entityLead = /^(?:ال)?(?:شركة|شركه|مؤسسة|مؤسسه|بنك|مكتب|مجموعة|مجموعه)\s+/u;
+  if (!entityLead.test(rest)) return null;
+  rest = rest.replace(entityLead, '');
+  // الشرطة بين مسافتين داخل الاسم فاصل («... البريدية - إيجى سيرف»): تُستبدل بمسافة كى لا يُقطع عندها
+  rest = rest.replace(/\s[-–—]\s(?=[ء-ي])/gu, ' ');
+  const name = cleanName(rest.slice(0, 160));
+  // حروف مفككة من مسح رديء («ش ر ك ة») ليست اسماً
+  return name && name.split(' ').length >= 2 && name.split(' ').every((w) => w.length >= 2) ? name : null;
+}
+
+/**
+ * الاسم الذى يلى الترقيم هو المُقدَّم حين يخالف ما وجده البحث العام فى موضعه: البحث العام لا يجد شيئاً، أو وجد اسماً يقع بعد بداية الاسم
+ * التالى للترقيم (كالممثل «السيد الأستاذ / فلان» حين شوّه المسح «ويمثلها»). إن تطابق موضعاهما بقى ناتج البحث العام كما كان.
+ */
+function resolveName(seg: string, side: 'first' | 'second'): string | null {
+  const general = pickEntityName(seg);
+  const lead = leadNameAfterOrdinal(seg, side);
+  if (!lead) return general;
+  if (!general) return lead;
+  const clean = stripBidi(seg);
+  const at = (n: string): number => {
+    const i = clean.indexOf(n.split(' ')[0]);
+    return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  return at(general) > at(lead) ? lead : general;
 }
 
 /** لقب أو «شركة» ثم شرطات/نقاط فارغة بدل الاسم: «ثانياً: الأستاذ/ ----------- ومقيم ------». */
