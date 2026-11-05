@@ -593,12 +593,14 @@ export class ContractsService implements OnModuleInit {
       let outcome = await this.generationService.proposeClauseRedraft(request);
       let verdict: ReturnType<typeof validateRedraft> | null = null;
       let weakensClient = false;
+      let clientCheckUnavailable = false;
       // محاولة ثانية واحدة فقط عند رفض فحوص الأمان أو فحص حماية مركز العميل، بإبلاغ النموذج بالسبب؛
       // والناتج الجديد يمر بالفحوص نفسها بلا تخفيف.
       for (let attempt = 0; attempt < 2; attempt++) {
         if (outcome.status !== 'ok' || !outcome.canResolve || outcome.needsChange === false) break;
         verdict = gate(outcome);
         weakensClient = false;
+        clientCheckUnavailable = false;
         let feedback: string | null = null;
         if (!verdict.ok) {
           this.logger.warn(`redraft rejected clauseId=${clauseId} attempt=${attempt + 1} reason=${verdict.reason}`);
@@ -630,6 +632,8 @@ export class ContractsService implements OnModuleInit {
           } else if (check.status === 'error') {
             // المدقق استشارى: فشله لا يمنع صياغة اجتازت فحوص الأمان الحتمية، لكنه يُسجَّل
             this.logger.warn(`redraft client check unavailable clauseId=${clauseId} detail=${check.detail}`);
+            clientCheckUnavailable = true;
+            await this.audit(context, 'contracts.redraft_client_check_unavailable', contractId, { clauseIndex: clause.clauseIndex, detail: check.detail });
           }
         }
         if (feedback === null || attempt === 1) break;
@@ -680,6 +684,13 @@ export class ContractsService implements OnModuleInit {
             ],
           };
         }
+      }
+      if (clientCheckUnavailable) {
+        // الفحص اللغوى لحماية مركز العميل تعذّر بعد المحاولتين: لا تُحجب الصياغة (اجتازت الفحوص الحتمية) لكن لا تُعرض كأنها فُحصت
+        proposal = {
+          text: proposal.text,
+          changes: [...proposal.changes, 'تعذّر الفحص الآلى لحماية مركزك فى هذه الصياغة؛ قارنها بالبند الأصلى حقاً بحق والتزاماً بالتزام قبل اعتمادها.'],
+        };
       }
       clause.suggestedWording = JSON.stringify(proposal);
       await this.clauseRepository.save(clause);

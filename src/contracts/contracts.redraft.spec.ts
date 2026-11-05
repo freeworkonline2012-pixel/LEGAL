@@ -262,6 +262,14 @@ describe('parseRedraftJson', () => {
     const dto = await service.proposeRedraft('c1', 'cl1', ctx);
     expect(dto.suggested_redraft).toBeTruthy();
     expect(generation.proposeClauseRedraft).toHaveBeenCalledTimes(1);
+    // ولا تُعرض كأنها فُحصت: ملاحظة صريحة ضمن التغييرات
+    expect(dto.suggested_redraft?.changes.join(' ')).toContain('تعذّر الفحص الآلى لحماية مركزك');
+  });
+
+  it('إن نجح المدقق لا تُضاف ملاحظة تعذّر الفحص', async () => {
+    const { service } = build({}, GOOD);
+    const dto = await service.proposeRedraft('c1', 'cl1', ctx);
+    expect(dto.suggested_redraft?.changes.join(' ')).not.toContain('تعذّر الفحص');
   });
 
   it('بلا مركز عميل لا يُستدعى المدقق (الصياغة محايدة)', async () => {

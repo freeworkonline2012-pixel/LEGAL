@@ -3301,39 +3301,53 @@ export class DeepseekGenerationService {
     const userMsg =
       `مركز العميل: """${input.clientPosition}"""\n\nالبند الأصلى: """${input.clauseText}"""\n\n` +
       `الخطر المبيَّن: """${input.reviewNote}"""\n\nالبند المقترح: """${input.proposedText}"""`;
-    try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
-        body: JSON.stringify({
-          model: this.model,
-          max_tokens: 300,
-          temperature: 0,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: userMsg },
-          ],
-        }),
-      });
-      if (!res.ok) {
-        return { status: 'error', detail: `http_${res.status}` };
-      }
-      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const text = data.choices?.[0]?.message?.content ?? '';
-      for (const attempt of jsonAttempts(text)) {
-        try {
-          const parsed = JSON.parse(attempt) as { weakens?: unknown; reason?: unknown };
-          if (typeof parsed.weakens === 'boolean') {
-            return { status: 'ok', weakens: parsed.weakens, reason: typeof parsed.reason === 'string' ? parsed.reason : '' };
-          }
-        } catch {
-          // جرّب المحاولة التالية
+    // تشخيص الإنتاج (تحذيرات «redraft client check unavailable … unparseable_json» فى عقد حقيقى): هذا الاستدعاء كان ينقص ما فى باقى
+    // استدعاءات الملف — لا thinking:disabled (نموذج يستهلك الحد 300 فى التفكير فيخرج المحتوى فارغاً أو مبتوراً)، ولا response_format
+    // JSON، ولا إعادة محاولة (الموثَّق فى الملف أن unparseable_json عدم-حتمية فى خدمة DeepSeek تُعالج بمحاولة ثانية)، ولا تسجيل لسبب
+    // الفشل. الآن: نفس القواعد، وسجل بلا نص العقد (سرى) يبيّن finish_reason وطول المحتوى.
+    const maxAttempts = 2;
+    let lastDetail = 'unparseable_json';
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const res = await fetch('https://api.deepseek.com/chat/completions', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
+          body: JSON.stringify({
+            model: this.model,
+            max_tokens: 600,
+            temperature: 0,
+            thinking: { type: 'disabled' },
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: userMsg },
+            ],
+          }),
+        });
+        if (!res.ok) {
+          return { status: 'error', detail: `http_${res.status}` };
         }
+        const data = (await res.json()) as { choices?: Array<{ message?: { content?: string }; finish_reason?: string }> };
+        const text = data.choices?.[0]?.message?.content ?? '';
+        for (const candidate of jsonAttempts(text)) {
+          try {
+            const parsed = JSON.parse(candidate) as { weakens?: unknown; reason?: unknown };
+            if (typeof parsed.weakens === 'boolean') {
+              return { status: 'ok', weakens: parsed.weakens, reason: typeof parsed.reason === 'string' ? parsed.reason : '' };
+            }
+          } catch {
+            // جرّب المحاولة التالية
+          }
+        }
+        lastDetail = text.trim() ? 'unparseable_json' : 'empty_response';
+        this.logger.warn(
+          `DeepSeek verifyRedraftProtectsClient: unusable response attempt=${attempt}/${maxAttempts} finish_reason=${data.choices?.[0]?.finish_reason ?? 'unknown'} contentLen=${text.length}`,
+        );
+      } catch (err) {
+        return { status: 'error', detail: (err as Error).message };
       }
-      return { status: 'error', detail: 'unparseable_json' };
-    } catch (err) {
-      return { status: 'error', detail: (err as Error).message };
     }
+    return { status: 'error', detail: lastDetail };
   }
 
   /**

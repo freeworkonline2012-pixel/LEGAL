@@ -867,7 +867,49 @@ describe('DeepseekGenerationService.verifyRedraftProtectsClient', () => {
       .fn()
       .mockResolvedValueOnce(jsonResponse(200, chatCompletion('{"weakens": false، "reason": ""}', 'stop'))) as unknown as typeof fetch;
     expect(await service.verifyRedraftProtectsClient(input)).toEqual({ status: 'ok', weakens: false, reason: '' });
-    global.fetch = jest.fn().mockResolvedValueOnce(jsonResponse(200, chatCompletion('لا أدرى', 'stop'))) as unknown as typeof fetch;
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse(200, chatCompletion('لا أدرى', 'stop'))) as unknown as typeof fetch;
     expect((await service.verifyRedraftProtectsClient(input)).status).toBe('error');
+  });
+
+  it('الجولة 54: يطلب JSON صريحاً بلا تفكير وبحد مخرجات كافٍ (بقية استدعاءات الملف كذلك)', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(jsonResponse(200, chatCompletion('{"weakens": false, "reason": ""}', 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await new DeepseekGenerationService().verifyRedraftProtectsClient(input);
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body) as Record<string, unknown>;
+    expect(body.thinking).toEqual({ type: 'disabled' });
+    expect(body.response_format).toEqual({ type: 'json_object' });
+    expect(body.max_tokens).toBe(600);
+  });
+
+  it('الجولة 54: رد غير مقروء فى المحاولة الأولى يُعاد مرة، فينجح إن صحّ الثانى', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, chatCompletion('{"weakens": tr', 'length')))
+      .mockResolvedValueOnce(jsonResponse(200, chatCompletion('{"weakens": true, "reason": "قيّدت حقاً"}', 'stop')));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const r = await new DeepseekGenerationService().verifyRedraftProtectsClient(input);
+    expect(r).toEqual({ status: 'ok', weakens: true, reason: 'قيّدت حقاً' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('الجولة 54: محتوى فارغ مرتين = error بسبب empty_response بمحاولتين فقط، وخطأ HTTP لا يُعاد', async () => {
+    const empty = jest.fn().mockResolvedValue(jsonResponse(200, chatCompletion('', 'length')));
+    global.fetch = empty as unknown as typeof fetch;
+    expect(await new DeepseekGenerationService().verifyRedraftProtectsClient(input)).toEqual({ status: 'error', detail: 'empty_response' });
+    expect(empty).toHaveBeenCalledTimes(2);
+    const http = jest.fn().mockResolvedValue(jsonResponse(500, {}));
+    global.fetch = http as unknown as typeof fetch;
+    expect(await new DeepseekGenerationService().verifyRedraftProtectsClient(input)).toEqual({ status: 'error', detail: 'http_500' });
+    expect(http).toHaveBeenCalledTimes(1);
+  });
+
+  it('الجولة 54: سجل الفشل لا يحوى نص العقد (سرى)', async () => {
+    const service = new DeepseekGenerationService();
+    const warn = jest.spyOn((service as unknown as { logger: { warn: (m: string) => void } }).logger, 'warn').mockImplementation(() => undefined);
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse(200, chatCompletion('نص سرى من العقد', 'stop'))) as unknown as typeof fetch;
+    await service.verifyRedraftProtectsClient(input);
+    const logged = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(logged).toContain('finish_reason=stop');
+    expect(logged).not.toContain('نص سرى');
   });
 });
