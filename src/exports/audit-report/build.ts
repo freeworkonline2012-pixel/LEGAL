@@ -43,6 +43,12 @@ export interface AuditVerification {
 }
 
 /** صياغة التحقق المستقل فى التقرير: «مؤكدة» أو «غير مؤكدة — تحتاج مراجعة بشرية» مع السبب والاقتباس الموثَّق. */
+/** اسم الطرف فى الغلاف: المقروء كما هو، أو «فارغ فى النسخة» إن كان مكانه شرطات، وإلا «لم يُقرأ» مع أن سببه قد يكون سطراً فارغاً فى الأصل. */
+function partyLabel(name: string | null, blank: boolean | undefined): string {
+  if (name) return name;
+  return blank ? 'الاسم غير مكتوب فى النسخة (سطر فارغ)' : 'لم يُقرأ (قد يكون فارغاً فى الأصل أو غير مقروء من الصورة؛ راجع الأصل)';
+}
+
 function verificationText(v: AuditVerification): string {
   const head = v.status === 'confirmed' ? 'اجتازت التحقق المستقل (مدقق ثانٍ بتعليمات معاكسة)' : 'غير مؤكدة — تحتاج مراجعة بشرية: اعترض المدقق المستقل المعاكس أو لم يستطع الجزم';
   const quote = v.quote ? ` الاقتباس: «${oneLine(v.quote)}».` : '';
@@ -67,7 +73,7 @@ export interface AuditReportInput {
   /** حالة تمرير النموذج على العقد كاملاً؛ تظهر ملاحظة إن لم يكتمل. */
   contractFindingsModel?: 'ok' | 'not_configured' | 'skipped' | 'error' | null;
   /** اسما الطرفين المقروءان من الديباجة (قد يكون أحدهما أو كلاهما null)؛ يظهران فى الغلاف كما قُرئا ولا يُستنتج ما لم يُقرأ. */
-  partyNames?: { first: string | null; second: string | null } | null;
+  partyNames?: { first: string | null; second: string | null; blank?: Array<'first' | 'second'> } | null;
   /** lawyer (الافتراضى) = التقرير الكامل؛ client = نسخة العميل المبسطة (مشتقة من البيانات نفسها) */
   audience?: 'lawyer' | 'client';
   generatedAt: Date;
@@ -368,7 +374,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   if (pn && (pn.first || pn.second)) {
     coverRows.push({
       label: 'أطراف العقد (كما قُرئت من الديباجة)',
-      value: `الطرف الأول: ${pn.first ?? 'لم يُقرأ'} — الطرف الثانى: ${pn.second ?? 'لم يُقرأ'}`,
+      value: `الطرف الأول: ${partyLabel(pn.first, pn.blank?.includes('first'))} — الطرف الثانى: ${partyLabel(pn.second, pn.blank?.includes('second'))}`,
       ...(pn.first && pn.second ? {} : { tone: 'medium' as Tone }),
     });
   }

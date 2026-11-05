@@ -286,11 +286,14 @@ export class ExportsService {
   }
 
   /** اسما الطرفين المخزَّنان وقت الرفع (contractFindings.parties)؛ null إن لم يُخزَّنا (عقد قديم). */
-  private reportParties(stored: Record<string, unknown> | null | undefined): { first: string | null; second: string | null } | null {
-    const p = (stored as { parties?: { first?: unknown; second?: unknown } } | null | undefined)?.parties;
+  private reportParties(
+    stored: Record<string, unknown> | null | undefined,
+  ): { first: string | null; second: string | null; blank?: Array<'first' | 'second'> } | null {
+    const p = (stored as { parties?: { first?: unknown; second?: unknown; blank?: unknown } } | null | undefined)?.parties;
     if (!p || typeof p !== 'object') return null;
     const n = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null);
-    return { first: n(p.first), second: n(p.second) };
+    const blank = Array.isArray(p.blank) ? (p.blank.filter((x) => x === 'first' || x === 'second') as Array<'first' | 'second'>) : [];
+    return { first: n(p.first), second: n(p.second), ...(blank.length > 0 ? { blank } : {}) };
   }
 
   /** ملاحظات العقد ككل المخزَّنة (migrations/237) بصيغة التقرير؛ لا شىء للعقود التى لم تُحلَّل. */

@@ -10,6 +10,8 @@ import { normalizeArabicForMatch } from './reasoning.util';
 export interface PartyNames {
   first: string | null;
   second: string | null;
+  /** الأطراف التى كُتب مكان اسمها شرطات أو نقاط فارغة (النسخة غير مملوءة): الاسم غير موجود أصلاً لا أنه لم يُقرأ؛ يغيب الحقل إن لم يوجد */
+  blank?: Array<'first' | 'second'>;
 }
 
 const MAX_PREAMBLE = 4000;
@@ -24,7 +26,7 @@ const STOP = new Set(
     'رقم', 'ورقم', 'سجل', 'والمسجلة', 'المسجلة', 'المقيدة', 'بطاقة', 'ويقيم', 'المقيم', 'والمقيم', 'بصفته', 'بصفتها', 'ويشار', 'والمشار', 'المشار',
     'ومركزها', 'ومركزه', 'وعنوانها', 'عنوانها', 'وعنوانه', 'عنوانه', 'والتي', 'التي', 'والتى', 'التى', 'الذي', 'الذى', 'والذي', 'والذى',
     'ش.م.م', 'ش.ذ.م.م', 'المحدودة', 'المحدوده', 'المساهمة', 'المساهمه', 'مساهمة', 'مساهمه', 'تأسست', 'تاسست', 'وفقا', 'وفقاً', 'طبقا', 'طبقاً', 'من', 'فى', 'في', 'ب', 'ومقيد',
-    'مصرية', 'مصريه', 'منشأة', 'منشاه', 'ومنشأة', 'ومنشاه', 'شركة', 'شركه', 'مسجلة', 'مسجله', 'ذات', 'ثانيا', 'ثانياً', 'ثالثا', 'اولا', 'أولا', 'أولاً', 'تجارى', 'تجاري', 'سجلها', 'ومسجلة', 'ومسجله', 'ويقع', 'يقع', 'تحت',
+    'مصرية', 'مصريه', 'منشأة', 'منشاه', 'ومنشأة', 'ومنشاه', 'شركة', 'شركه', 'مسجلة', 'مسجله', 'ذات', 'ثانيا', 'ثانياً', 'ثالثا', 'اولا', 'أولا', 'أولاً', 'تجارى', 'تجاري', 'سجلها', 'ومسجلة', 'ومسجله', 'ويقع', 'يقع', 'تحت', 'والموضحة', 'الموضحة', 'والموضحه', 'الموضحه', 'والمبينة', 'المبينة', 'والمبينه', 'المبينه',
   ].map((w) => normalizeArabicForMatch(w)),
 );
 const GENERIC = new Set(['شركه', 'مؤسسه', 'بنك', 'مكتب', 'مجموعه', 'السيد', 'السيده', 'الاستاذ'].map((w) => normalizeArabicForMatch(w)));
@@ -46,6 +48,7 @@ const NOISE_CAPACITY = /^[وف]?ب?ص[سص]?ف[تط]?[هةها]*$/u;
 // «طرف ثان» بلا ياء تُقرأ أيضاً (المسح يُسقط الياء/الألف المقصورة الأخيرة كثيراً)
 const DESIGNATION = /(?:ال)?طرف\s*(?:ال)?\s*(أول|اول|الأول|الاول|ثان[يى]?|الثان[يى]?)(?![ء-ي])/gu;
 /** ترقيم الأطراف فى الصدر: «أولاً: شركة …» «ثانياً: شركة …» — احتياط حين تضيع عبارة «(طرف ثان)» من المسح. */
+const CONTRACT_START = /(?:تم\s+التعاقد\s+بين|بين\s+كل\s+من|تم\s+الاتفاق\s+بين|تحرر\s+هذا\s+العقد\s+بين)/u;
 const ORDINAL = /(?:^|\s)(?:(?<first>[أا]ولا)|(?<second>ثانيا))[ًا]?\s*[:：\-–—]/gu;
 
 function cleanName(raw: string): string | null {
@@ -128,9 +131,20 @@ function stripBidi(s: string): string {
 }
 
 export function extractPartyNames(preamble: string | null | undefined): PartyNames {
-  const text = stripBidi(preamble ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_PREAMBLE);
+  let text = stripBidi(preamble ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_PREAMBLE);
   const names: PartyNames = { first: null, second: null };
   if (!text) return names;
+  // ملف يسبق عقدَه نموذجٌ آخر (إقرار تسلّم مثلاً يذكر «شركة أروب للتأمين والموضحة تفصيلاً»): تُقرأ الأسماء من بعد عبارة التعاقد
+  // «تم التعاقد بين كل من» لا من أول اسم شركة فى الملف. لا يُقتطع النص إلا إن بقيت فيه عبارة طرف أو ترقيم أطراف.
+  const start = CONTRACT_START.exec(text);
+  if (start && start.index > 0) {
+    const rest = text.slice(start.index);
+    DESIGNATION.lastIndex = 0;
+    ORDINAL.lastIndex = 0;
+    if (DESIGNATION.test(rest) || ORDINAL.test(rest)) text = rest;
+    DESIGNATION.lastIndex = 0;
+    ORDINAL.lastIndex = 0;
+  }
   // الصيغة الشائعة الأخرى: العبارة أولاً ثم الاسم («الطرف الأول: شركة …» أو «طرف أول (العميل): شركة …»). تُقرأ أولاً لأن الاسم
   // يتبعها لا يسبقها؛ ولو قُرئ بصيغة الاسم-قبل-العبارة لأُخذ اسم الطرف السابق وانقلب الطرفان (اتجاه كل حق والتزام).
   const all = [...text.matchAll(DESIGNATION)];
@@ -170,7 +184,75 @@ export function extractPartyNames(preamble: string | null | undefined): PartyNam
   }
   // اسم واحد لطرفين = التباس: لا نعتمد أيهما
   if (names.first && names.second && sameName(names.first, names.second)) return { first: null, second: null };
+  const blank = blankPartySides(text).filter((side) => !names[side]);
+  if (blank.length > 0) names.blank = blank;
   return names;
+}
+
+/** لقب أو «شركة» ثم شرطات/نقاط فارغة بدل الاسم: «ثانياً: الأستاذ/ ----------- ومقيم ------». */
+const BLANK_NAME = /(?:الأستاذ|الاستاذ|السيد|السيدة|السيده|شركة|شركه)\s*[\/:：]?\s*(?:[-–—_.…]\s*){4,}/u;
+
+function blankPartySides(text: string): Array<'first' | 'second'> {
+  const out: Array<'first' | 'second'> = [];
+  let prevEnd = 0;
+  DESIGNATION.lastIndex = 0;
+  for (const m of text.matchAll(DESIGNATION)) {
+    const idx = m.index ?? 0;
+    const side = /ثان/.test(m[1]) ? 'second' : 'first';
+    if (BLANK_NAME.test(text.slice(prevEnd, idx)) && !out.includes(side)) out.push(side);
+    prevEnd = idx + m[0].length;
+  }
+  return out;
+}
+
+const INTERMEDIARY_WORD = /(?<![ء-ي])(?:وسطاء|الوسطاء|وسيط|الوسيط|سمسار|السمسار|سماسره|السماسره)(?![ء-ي])/gu;
+const DESIGNATION_NORM = /(?:ال)?طرف\s*(?:ال)?(اول|ثاني|ثان)(?![ء-ي])/gu;
+const BROKER_ROLE = /(?<![ء-ي])(?:[وبل]?ال)?(?:وكيل|سمسار|وسيط|وساطه|مسوق|تسويق)/u;
+const PRINCIPAL_ROLE = /(?<![ء-ي])(?:[وبل]?ال)?موكل(?![ء-ي])/u;
+
+/**
+ * أى الطرفين تصفه الديباجة بأنه الوسيط/السمسار (مثل «لما كان الطرف الثانى مقيد بسجل وسطاء التأمين» أو «الطرف الثانى (الوسيط)»)؟
+ * الوسيط والسمسار فى هذا المجال بمعنى واحد. أقرب عبارة «طرف أول/ثان» تسبق الكلمة (80 حرفاً) وإلا التى تليها (120 حرفاً: المسح
+ * يعكس ترتيب الأسطر أحياناً)؛ يتعادل الطرفان أو لا يوجد = null (فشل مغلق). كلمة «الوساطة» وحدها لا تُعتمد (تقع قبل «لصالح الطرف الأول»).
+ */
+export function intermediarySide(preamble: string | null | undefined): 'first' | 'second' | null {
+  const text = normalizeArabicForMatch(stripBidi(preamble ?? '').slice(0, MAX_PREAMBLE));
+  const marks = [...text.matchAll(DESIGNATION_NORM)].map((m) => ({ at: m.index ?? 0, end: (m.index ?? 0) + m[0].length, side: m[1] === 'اول' ? ('first' as const) : ('second' as const) }));
+  const votes = { first: 0, second: 0 };
+  for (const w of text.matchAll(INTERMEDIARY_WORD)) {
+    const at = w.index ?? 0;
+    const before = marks.filter((k) => k.end <= at && at - k.end <= 80).sort((a, b) => b.end - a.end)[0];
+    const after = marks.filter((k) => k.at >= at && k.at - at <= 120).sort((a, b) => a.at - b.at)[0];
+    const hit = before ?? after;
+    if (hit) votes[hit.side] += 1;
+  }
+  if (votes.first === votes.second) return null;
+  return votes.first > votes.second ? 'first' : 'second';
+}
+
+/**
+ * تنبيه إن عاكس الطرف الذى اختاره المستخدم صفتَه كما تصفها الديباجة: صفة «الوكيل/السمسار/الوسيط» مع طرفٍ تصفه الديباجة بأنه غير
+ * الوسيط (أو «الموكل» مع طرف الوسيط). اتجاه كل حق والتزام وكل درجة مخاطرة يُبنى على هذا الاختيار، فالالتباس فيه أخطر من أى خطأ قراءة.
+ * لا يمنع شيئاً: قد يكون الاختيار مقصوداً. null إن لم يوجد تعارض أو لم تحسم الديباجة.
+ */
+export function clientRoleConflictWarning(
+  clientRole: string | null | undefined,
+  clientParty: 'first' | 'second' | null | undefined,
+  preamble: string | null | undefined,
+): string | null {
+  if (!clientRole || !clientParty) return null;
+  const role = normalizeArabicForMatch(clientRole);
+  const broker = intermediarySide(preamble);
+  if (!broker) return null;
+  const label = (s: 'first' | 'second') => (s === 'first' ? 'الطرف الأول' : 'الطرف الثانى');
+  const other = broker === 'first' ? 'second' : 'first';
+  if (BROKER_ROLE.test(role) && !PRINCIPAL_ROLE.test(role) && clientParty !== broker) {
+    return `تنبيه اتجاه: حدّدت صفتك «${clientRole}» وطرفك «${label(clientParty)}»، لكن ديباجة العقد تصف «${label(broker)}» بأنه الوسيط (السمسار). يُقاس كل حق والتزام ومخاطرة من جهة الطرف الذى اخترته؛ إن لم يكن اختيارك مقصوداً فأعد رفع العقد بطرفك الصحيح.`;
+  }
+  if (PRINCIPAL_ROLE.test(role) && clientParty === broker) {
+    return `تنبيه اتجاه: حدّدت صفتك «${clientRole}» وطرفك «${label(clientParty)}»، لكن ديباجة العقد تصف «${label(clientParty)}» بأنه الوسيط (السمسار) وتجعل «${label(other)}» هو الطرف المقابل. إن لم يكن اختيارك مقصوداً فأعد رفع العقد بطرفك الصحيح.`;
+  }
+  return null;
 }
 
 function tokens(s: string): string[] {

@@ -43,7 +43,7 @@ import {
   tidyNoTextReasoning,
 } from './reasoning.util';
 import { ClientPosition, describePosition } from './position.util';
-import { directionResolvable, extractPartyNames } from './parties.util';
+import { clientRoleConflictWarning, directionResolvable, extractPartyNames } from './parties.util';
 import { playbookFamily } from './playbook';
 import { riskLevelFor } from './risk-level.util';
 import { neutralizeOcrNoise } from './ocr-noise.util';
@@ -324,9 +324,11 @@ export class ContractsService implements OnModuleInit {
     contract.status = 'processing';
     contract.clauseCount = segmentation.clauses.length;
     const numeric = numericWarnings(extraction.text);
+    const roleWarning = clientRoleConflictWarning(position.clientRole, position.clientParty, segmentation.preamble);
     const contractWarnings = [
       ...uploadWarnings,
       ...segmentation.warnings,
+      ...(roleWarning ? [roleWarning] : []),
       ...numeric,
       ...amountConflictWarnings(segmentation.clauses.map((c) => c.text), numeric),
     ];

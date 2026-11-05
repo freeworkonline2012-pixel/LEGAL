@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { aliasTokens, directionResolvable, extractPartyNames, partiesNamedIn } from './parties.util';
+import { aliasTokens, clientRoleConflictWarning, directionResolvable, extractPartyNames, intermediarySide, partiesNamedIn } from './parties.util';
 
 const PREAMBLE =
   'إنه فى يوم الثلاثاء الموافق 10/3/2026 تم الاتفاق بين كل من: 1- شركة بلاك بيلتس لتكنولوجيا المعلومات ، سجل تجارى رقم 12345 ويمثلها السيد/ أحمد ويشار إليها فيما بعد بـ (الطرف الأول). ' +
@@ -147,3 +147,64 @@ describe('صيغة «الطرف الأول: الاسم» (العبارة قبل 
     expect(p).toEqual({ first: 'ألفا للتجارة', second: 'بيتا للمقاولات' });
   });
 });
+
+describe('اسم فارغ فى النسخة وتعارض صفة العميل مع الديباجة (الجولة 53)', () => {
+  const CLEAN =
+    'عقد وساطة فى الإنتاج. تم التعاقد بين كل من: أولاً : شركة آروب لتأمينات الممتلكات و المسئوليات - مصر ش.م.م ومقرها الرئيسى فى الدقى ويمثلها السيد / مدحت صابر بصفته العضو المنتدب ويشار اليه فيما بعد بالطرف الاول ( طرف اول). ' +
+    'ثانياً : الاستاذ/ ------------------------------ ومقيم ------------------------------------ ويشار اليها فيما بعد بالطرف الثانى (طرف ثان ويرمز له بالمتعاقد). ' +
+    'لما كان الطرف الثانى مقيد بسجل وسطاء التأمين ( شخص طبيعى) بالهيئة العامة للرقابة المالية تحت رقم (-----) وامام رغبته فى جلب عمليات تأمينية عن طريق الوساطة لصالح الطرف الاول.';
+
+  it('الاسم الفارغ (شرطات) يُسجَّل blank لا اسماً ولا يُخمَّن', () => {
+    const n = extractPartyNames(CLEAN);
+    expect(n.first).toContain('آروب');
+    expect(n.second).toBeNull();
+    expect(n.blank).toEqual(['second']);
+  });
+
+  it('لا يظهر الحقل blank حين تُقرأ الأسماء كلها', () => {
+    expect(extractPartyNames(PREAMBLE).blank).toBeUndefined();
+  });
+
+  it('intermediarySide: الطرف الذى تصفه الديباجة بأنه مقيد بسجل الوسطاء (والوساطة وحدها لا تحسم)', () => {
+    expect(intermediarySide(CLEAN)).toBe('second');
+    expect(intermediarySide('عن طريق الوساطة لصالح الطرف الاول ولصالحه مقابل العمولات')).toBeNull();
+    expect(intermediarySide('الطرف الأول (الوسيط) والطرف الثانى (الموكل)')).toBe('first');
+    expect(intermediarySide('')).toBeNull();
+  });
+
+  it('يتحمل قلب ترتيب الأسطر فى المسح (الكلمة قبل عبارة الطرف)', () => {
+    const garbled = 'بسجل وسطاء التأمين ) شخص طبيعى) بالهيئة العامة للرقابة المالية ade لما كان الطرف الثانى';
+    expect(intermediarySide(garbled)).toBe('second');
+  });
+
+  it('تحذير إن اختار «الوكيل أو السمسار» الطرف الأول والديباجة تجعل الثانى هو الوسيط', () => {
+    const w = clientRoleConflictWarning('الوكيل أو السمسار', 'first', CLEAN);
+    expect(w).toContain('تنبيه اتجاه');
+    expect(w).toContain('الطرف الأول');
+    expect(w).toContain('الطرف الثانى');
+  });
+
+  it('«الوسيط» تُعامل كالسمسار، ولا تحذير إن طابق الاختيار الديباجة أو لم تحسم', () => {
+    expect(clientRoleConflictWarning('الوسيط', 'first', CLEAN)).toContain('تنبيه اتجاه');
+    expect(clientRoleConflictWarning('الوكيل أو السمسار', 'second', CLEAN)).toBeNull();
+    expect(clientRoleConflictWarning('الوكيل أو السمسار', 'first', 'تم الاتفاق بين شركة أ وشركة ب')).toBeNull();
+    expect(clientRoleConflictWarning(null, 'first', CLEAN)).toBeNull();
+    expect(clientRoleConflictWarning('الوكيل أو السمسار', null, CLEAN)).toBeNull();
+  });
+
+  it('صفة «الموكل» مع طرف الوسيط تُنبَّه كذلك', () => {
+    expect(clientRoleConflictWarning('الموكل', 'second', CLEAN)).toContain('تنبيه اتجاه');
+    expect(clientRoleConflictWarning('الموكل', 'first', CLEAN)).toBeNull();
+  });
+
+  it('إقرار يسبق العقد فى الملف لا يُؤخذ اسم الشركة منه، بل من بعد «تم التعاقد بين كل من»', () => {
+    const withForm =
+      'أقر انا الموقع ادناه بصفتى وسيط تامين باننى قد تسلمت وثائق التامين المصدرة من شركة اروب للتامين والموضحة تفصيلا فى البيان الملحق. ' + CLEAN;
+    const n = extractPartyNames(withForm);
+    expect(n.first).toContain('آروب لتأمينات');
+    expect(n.first).not.toContain('الموضحة');
+    expect(n.blank).toEqual(['second']);
+    expect(clientRoleConflictWarning('الوكيل أو السمسار', 'first', withForm)).toContain('تنبيه اتجاه');
+  });
+});
+
