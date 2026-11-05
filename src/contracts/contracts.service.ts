@@ -56,6 +56,7 @@ import { ContractResponseDto } from './dto/contract-response.dto';
 import { canonicalHeading, looseHeadingLineNumber, ordinalWords } from './clause-headings';
 import { fuzzyHeadingLineNumber, headingLikeScore, missingHeadingNumbersFuzzy, presentHeadingNumbersFuzzy } from './clause-headings-fuzzy';
 import { numericWarnings } from './numeric-checks.util';
+import { amountConflictWarnings } from './key-terms';
 import { ClauseFactsService } from './clause-facts.service';
 import { hasAnyFact, neutralizeDirections } from './clause-facts';
 import { evaluateRules, summarizeFindings } from './clause-rules';
@@ -322,7 +323,13 @@ export class ContractsService implements OnModuleInit {
 
     contract.status = 'processing';
     contract.clauseCount = segmentation.clauses.length;
-    const contractWarnings = [...uploadWarnings, ...segmentation.warnings, ...numericWarnings(extraction.text)];
+    const numeric = numericWarnings(extraction.text);
+    const contractWarnings = [
+      ...uploadWarnings,
+      ...segmentation.warnings,
+      ...numeric,
+      ...amountConflictWarnings(segmentation.clauses.map((c) => c.text), numeric),
+    ];
     contract.extractionWarnings = contractWarnings.length > 0 ? contractWarnings : null;
     contract = await this.contractRepository.save(contract);
 

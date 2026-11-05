@@ -50,7 +50,7 @@ function latinDigitsSameLength(t: string): string {
 }
 
 const UNIT = '(?:يوم|يوما|يوماً|ايام|أيام|اسبوع|أسبوع|اسابيع|أسابيع|شهر|شهرا|شهراً|اشهر|أشهر|شهور|سنة|سنه|سنوات|سنين|عام|اعوام|أعوام)';
-const CURRENCY = '(?:جنيه|جنيها|جنيهاً|ج\\.م|دولار|دولارا|دولاراً|يورو|ريال|درهم)';
+const CURRENCY = '(?:جنيه|جنيها|جنيهاً|جنية|ج\\.م|جم(?![ء-ي])|دولار|دولارا|دولاراً|يورو|ريال|درهم)';
 
 function unitLabel(unit: string, n: number): string {
   const u = unit.replace(/[أإآ]/g, 'ا');
@@ -157,6 +157,58 @@ interface Hit {
   len: number;
   fromWords: boolean;
   suspect?: string;
+  /** القيمة العددية للمبلغ (للمطابقة بين ما كُتب بالأرقام وما كُتب بالحروف) */
+  amount?: number;
+  /** تعارض بين رقم المبلغ وكتابته بالحروف (الرقم null إن كان تالفاً لا يُقرأ) */
+  conflict?: { digits: number | null; words: number };
+}
+
+/** وصف التعارض بين رقم المبلغ وكتابته بالحروف: يُعرض مع القيمة فى الجدول وفى تنبيهات العقد. */
+function conflictNote(digits: number | null, words: number): string {
+  return digits === null
+    ? `الرقم المقروء قبل المبلغ المكتوب بالحروف تالف (لا يُقرأ رقماً)؛ المعروض هو المكتوب بالحروف (${fmtNumber(words)}) — طابق الأصل`
+    : `تعارض فى المبلغ: الرقم المقروء ${fmtNumber(digits)} لا يطابق المكتوب بالحروف ${fmtNumber(words)}؛ المعروض هو المكتوب بالحروف — قد يكون خطأ قراءة آلية أو خطأ فى الأصل، فطابق الأصل`;
+}
+
+/**
+ * يطابق المبلغ المقروء بالأرقام مع كتابته بالحروف التى تليه فى الجملة نفسها («452,500,000 جنيه مصرى سنويا ( فقط خمسمائة الف جنيه )»).
+ * المتطابقان يُعرضان مرة واحدة؛ والمتعارضان (أو الرقم التالف) يُعرضان صفاً واحداً بقيمة الحروف مع تنبيه صريح، فلا يظهر رقم
+ * مشوّه بلا تحذير. الاقتران لا يتم إلا إن فصلت بينهما قوسٌ أو «فقط» ولم تفصل بينهما رقم ولا علامة وقف (فشل مغلق: لا نقرن مبلغين متباعدين).
+ */
+function reconcileAmounts(text: string, hits: Hit[], garbled: Array<{ pos: number; end: number }>): Hit[] {
+  const drop = new Set<Hit>();
+  const replaced = new Map<Hit, Hit>();
+  const digitsEnd = (h: Hit) => h.pos + h.len;
+  for (const wh of hits) {
+    if (wh.kind !== 'amount' || !wh.fromWords || wh.amount === undefined) continue;
+    const cands: Array<{ hit?: Hit; pos: number; end: number }> = [
+      ...hits.filter((h) => h.kind === 'amount' && !h.fromWords && h.amount !== undefined && !h.conflict && digitsEnd(h) <= wh.pos).map((h) => ({ hit: h, pos: h.pos, end: digitsEnd(h) })),
+      ...garbled.filter((g) => g.end <= wh.pos).map((g) => ({ pos: g.pos, end: g.end })),
+    ].sort((a, b) => b.end - a.end);
+    const d = cands[0];
+    if (!d || wh.pos - d.end > 90) continue;
+    const gap = text.slice(d.end, wh.pos);
+    if (/[\d.؛؟!]/.test(gap) || !/[(（]|فقط/.test(gap)) continue;
+    if (hits.some((h) => h !== wh && h !== d.hit && h.kind === 'amount' && h.pos >= d.end && h.pos < wh.pos)) continue;
+    if (!d.hit) {
+      replaced.set(wh, { ...wh, suspect: conflictNote(null, wh.amount), conflict: { digits: null, words: wh.amount } });
+    } else if (d.hit.amount === wh.amount) {
+      drop.add(wh);
+    } else {
+      drop.add(wh);
+      replaced.set(d.hit, {
+        kind: 'amount',
+        value: wh.value,
+        pos: d.pos,
+        len: wh.pos + wh.len - d.pos,
+        fromWords: true,
+        amount: wh.amount,
+        suspect: conflictNote(d.hit.amount ?? null, wh.amount),
+        conflict: { digits: d.hit.amount ?? null, words: wh.amount },
+      });
+    }
+  }
+  return hits.filter((h) => !drop.has(h)).map((h) => replaced.get(h) ?? h);
 }
 
 function scan(rawText: string): Hit[] {
@@ -167,6 +219,7 @@ function scan(rawText: string): Hit[] {
   // الرقم ثم (اختيارياً) الحروف بين قوسين، ثم العملة؛ والعملة قد تقع داخل القوسين: 600000 ( ستمائة ألف جنيه مصرى فقط )
   const amountDigits = new RegExp(`(\\d[\\d,٬]*(?:\\.\\d+)?)\\s*(?:([(（][^()（）\\n]{0,100}[)）])\\s*)?(${CURRENCY})?`, 'gu');
   const amountSpans: Array<[number, number]> = [];
+  const garbledDigits: Array<{ pos: number; end: number }> = [];
   for (const m of text.matchAll(amountDigits)) {
     let curMatch = m[3] ?? (m[2] ? m[2].match(new RegExp(CURRENCY, 'u'))?.[0] : undefined);
     let spanEnd = (m.index ?? 0) + m[0].length;
@@ -178,9 +231,23 @@ function scan(rawText: string): Hit[] {
       spanEnd = tail.end;
     }
     const n = Number(m[1].replace(/[,٬]/g, ''));
-    if (!Number.isFinite(n) || n <= 0) continue;
+    if (!Number.isFinite(n)) continue;
+    if (n <= 0) {
+      // «0 جنيه ( خمسمائة ألف جنيه )»: الرقم تالف فى القراءة؛ نسجّله ليُنبَّه على المبلغ المكتوب بالحروف الذى يليه
+      garbledDigits.push({ pos: m.index ?? 0, end: spanEnd });
+      continue;
+    }
     const cur = /دولار/.test(curMatch) ? 'دولار' : /يورو/.test(curMatch) ? 'يورو' : /ريال/.test(curMatch) ? 'ريال' : /درهم/.test(curMatch) ? 'درهم' : 'جنيه';
-    hits.push({ kind: 'amount', value: `${fmtNumber(n)} ${cur}`, pos: m.index ?? 0, len: spanEnd - (m.index ?? 0), fromWords: false });
+    const hit: Hit = { kind: 'amount', value: `${fmtNumber(n)} ${cur}`, pos: m.index ?? 0, len: spanEnd - (m.index ?? 0), fromWords: false, amount: n };
+    if (m[2]) {
+      // الحروف بين قوسين بعد الرقم مباشرة: إن فهمناها كلها وخالفت الرقم نُنبّه (وإلا نتجاهل: فشل مغلق)
+      const w = parseArabicNumberWords(m[2].replace(/[()（）]/g, ' '));
+      if (w !== null && w >= 100 && w !== n) {
+        hit.suspect = conflictNote(n, w);
+        hit.conflict = { digits: n, words: w };
+      }
+    }
+    hits.push(hit);
     amountSpans.push([m.index ?? 0, spanEnd]);
   }
   // مبالغ بالحروف فقط: "مبلغ ... خمسون ألف جنيه"
@@ -191,7 +258,7 @@ function scan(rawText: string): Hit[] {
     const w = wordsBefore(text, pos);
     if (!w || w.value < 100) continue;
     const cur = /دولار/.test(m[0]) ? 'دولار' : /يورو/.test(m[0]) ? 'يورو' : /ريال/.test(m[0]) ? 'ريال' : /درهم/.test(m[0]) ? 'درهم' : 'جنيه';
-    hits.push({ kind: 'amount', value: `${fmtNumber(w.value)} ${cur}`, pos: w.start, len: pos + m[0].length - w.start, fromWords: true });
+    hits.push({ kind: 'amount', value: `${fmtNumber(w.value)} ${cur}`, pos: w.start, len: pos + m[0].length - w.start, fromWords: true, amount: w.value });
   }
 
   // نسب
@@ -217,18 +284,25 @@ function scan(rawText: string): Hit[] {
       suspect: `النص المقروء «${m[1]} 96»؛ يُرجَّح أن الرمز % قُرئ آلياً «96» — طابق الأصل`,
     });
   }
-  const ocrPct2 = /(?<![\d.,/])(?:قيمتها|قيمتهما|نسبتها|بنسبة|وقدرها|وقدره|بواقع|نسبة)\s*96(\d{2})(?![\d%٪])(?!\s*(?:ج\.?م|جنيه|دولار|يورو|ريال|درهم))/gu;
-  for (const m of text.matchAll(ocrPct2)) {
-    const n = Number(m[1]);
-    if (n < 1 || n > 99) continue;
-    hits.push({
-      kind: 'percent',
-      value: `${fmtNumber(n)}%`,
-      pos: m.index ?? 0,
-      len: m[0].length,
-      fromWords: false,
-      suspect: `النص المقروء «96${m[1]}»؛ يُرجَّح أن الرمز % قُرئ آلياً «96» — طابق الأصل`,
-    });
+  // «بواقع 965» / «قيمتها 9640»: الرمز % يُقرأ «90» أو «96» ملتصقاً بالرقم. النسبة لا تبلغ تسعمائة، فالبادئة هى الرمز.
+  const ocrPct2 = /(?<![\d.,/])(?:قيمتها|قيمتهما|نسبتها|بنسبة|وقدرها|وقدره|بواقع|نسبة)\s*(9[06])(\d{1,2})(?![\d%٪])(?!\s*(?:ج\.?م|جنيه|جنية|دولار|يورو|ريال|درهم))/gu;
+  // «حصة ... 9030 من اجمالى المحفظة» / «عن 9030 بحد اقصى»: الرقم الملتصق بالرمز ثم «من إجمالى» أو «بحد أقصى» نسبة بلا شك.
+  const ocrPct3 = /(?<![\d.,/])(9[06])(\d{2})(?![\d%٪])(?=\s+(?:من\s+)?[اإأ]جمالى|\s+بحد\s+[اأ]قصى)/gu;
+  for (const re of [ocrPct2, ocrPct3]) {
+    for (const m of text.matchAll(re)) {
+      const n = Number(m[2]);
+      const pos = m.index ?? 0;
+      if (n < 1 || n > 99) continue;
+      if (hits.some((h) => h.kind === 'percent' && h.pos < pos + m[0].length && pos < h.pos + h.len)) continue;
+      hits.push({
+        kind: 'percent',
+        value: `${fmtNumber(n)}%`,
+        pos,
+        len: m[0].length,
+        fromWords: false,
+        suspect: `النص المقروء «${m[1]}${m[2]}»؛ يُرجَّح أن الرمز % قُرئ آلياً «${m[1]}» — طابق الأصل`,
+      });
+    }
   }
 
   // مدد بالأرقام: 30 يوماً / 12 (اثنا عشر) شهراً
@@ -250,6 +324,24 @@ function scan(rawText: string): Hit[] {
     hits.push({ kind: 'duration', value: `${w.value} ${unitLabel(m[1], w.value)}`, pos: w.start, len: pos + m[0].length - w.start, fromWords: true });
   }
 
+  // مدة وحدتها غير مقروءة: «بمدة ثلاثين ‎lags‏ .» — الصورة قُرئت لاتينية («يوماً» ← lags). لا نُسقط الشرط بصمت: يُعرض العدد
+  // مع تنبيه أن الوحدة (يوم/شهر/سنة) لم تُقرأ، ولا نخمّنها.
+  const durGarbled = /(?<![ء-ي])(?:[بل]?مدة|خلال)\s*(?:(\d{1,4})|((?:[ء-ي]+\s+){0,5}?[ء-ي]+))\s*[\u200e\u200f]*\s*[A-Za-z]{2,12}(?![A-Za-z])/gu;
+  for (const m of text.matchAll(durGarbled)) {
+    const pos = m.index ?? 0;
+    if (durSpans.some(([a, b]) => pos < b && a < pos + m[0].length)) continue;
+    const n = m[1] ? Number(m[1]) : parseArabicNumberWords(m[2]);
+    if (n === null || !Number.isFinite(n) || n <= 0 || n > 1000) continue;
+    hits.push({
+      kind: 'duration',
+      value: `${n} (وحدة المدة غير مقروءة)`,
+      pos,
+      len: m[0].length,
+      fromWords: !m[1],
+      suspect: 'وحدة المدة (يوم / شهر / سنة) لم تُقرأ من الصورة؛ الثابت هو العدد فقط — طابق الأصل',
+    });
+  }
+
   // تواريخ: 15/3/2026 أو 2026-03-15
   const dateDmy = /(?<![\d/.\-])(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})(?![\d/])/gu;
   for (const m of text.matchAll(dateDmy)) {
@@ -266,7 +358,7 @@ function scan(rawText: string): Hit[] {
     hits.push({ kind: 'date', value: `${m[3]}/${m[2]}/${m[1]}`, pos: m.index ?? 0, len: m[0].length, fromWords: false });
   }
 
-  return hits.sort((a, b) => a.pos - b.pos);
+  return reconcileAmounts(text, hits, garbledDigits).sort((a, b) => a.pos - b.pos);
 }
 
 /** الشروط الرئيسية لكل البنود بترتيب ورودها، بلا تكرار، بحد أقصى. */
@@ -296,6 +388,29 @@ export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
       seen.set(key, term);
       out.push(term);
       if (out.length >= MAX_TERMS) return out;
+    }
+  }
+  return out;
+}
+
+/**
+ * تنبيهات على مستوى العقد للمبالغ التى تعارض فيها الرقم المقروء مع المكتوب بالحروف (أو تلف الرقم). تتخطى ما سبق أن نبّه عليه
+ * `numericWarnings` بالقيمتين نفسيهما، فلا يتكرر التنبيه.
+ */
+export function amountConflictWarnings(clauseTexts: string[], existing: string[] = []): string[] {
+  const out: string[] = [];
+  for (const t of clauseTexts) {
+    for (const h of scan(t ?? '')) {
+      if (!h.conflict) continue;
+      const w = fmtNumber(h.conflict.words);
+      const d = h.conflict.digits === null ? null : fmtNumber(h.conflict.digits);
+      const msg =
+        d === null
+          ? `مبلغ مكتوب بالحروف (${w}) سبقه رقم تالف فى القراءة الآلية؛ طابق المبلغ بالأصل قبل الاعتماد.`
+          : `تناقض فى مبلغ: الرقم ${d} لا يطابق المكتوب بالحروف (${w}) — قد يكون خطأ قراءة آلية أو خطأ فى العقد الأصلى؛ قارن بالأصل قبل الاعتماد.`;
+      if (out.includes(msg)) continue;
+      if (d !== null && existing.some((e) => e.includes(d) && e.includes(w))) continue;
+      out.push(msg);
     }
   }
   return out;

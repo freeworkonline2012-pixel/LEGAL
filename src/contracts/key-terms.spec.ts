@@ -1,4 +1,4 @@
-import { extractKeyTerms, type KeyTermClause } from './key-terms';
+import { amountConflictWarnings, extractKeyTerms, type KeyTermClause } from './key-terms';
 import { normalizeArabicForMatch } from './reasoning.util';
 
 const clause = (clauseIndex: number, clauseText: string, clauseLabel = `البند ${clauseIndex}`): KeyTermClause => ({
@@ -131,5 +131,91 @@ describe('extractKeyTerms (الجولة 6)', () => {
       const t = extractKeyTerms([clause(1, 'تسدد 40 % عند التسليم.')]);
       expect(t[0].suspect).toBeUndefined();
     });
+  });
+});
+
+describe('تعارض الرقم مع الحروف ووحدة المدة غير المقروءة (الجولة 51)', () => {
+  const only = (text: string) => extractKeyTerms([clause(4, text)]);
+
+  it('keeps the duration when the unit word was read as Latin noise, flagged', () => {
+    const t = only('هذا العقد فى اى وقت بشرط اخطار الطرف الاخر قبل الالغاء بمدة ثلاثين \u200elags\u200f .');
+    const d = t.find((x) => x.kind === 'duration');
+    expect(d).toBeDefined();
+    expect(d?.value).toBe('30 (وحدة المدة غير مقروءة)');
+    expect(d?.suspect).toContain('وحدة المدة');
+    expect(d?.fromWords).toBe(true);
+  });
+
+  it('the same for digits followed by Latin noise, and never invents a unit', () => {
+    const d = only('يخطر الطرف الآخر بمدة 60 days كاملة.').find((x) => x.kind === 'duration');
+    expect(d?.value).toBe('60 (وحدة المدة غير مقروءة)');
+    expect(d?.value).not.toMatch(/يوم|شهر|سنة/);
+  });
+
+  it('a clean unit still wins and is not flagged', () => {
+    const d = only('بمدة ثلاثين يوماً من تاريخه.').find((x) => x.kind === 'duration');
+    expect(d?.value).toBe('30 يوماً');
+    expect(d?.suspect).toBeUndefined();
+  });
+
+  it('unreadable words before a Latin token are not turned into a duration', () => {
+    expect(only('خلال مدة سريان هذا العقد lags وما بعده.').some((x) => x.kind === 'duration')).toBe(false);
+  });
+
+  it('flags a digits-vs-words contradiction as one row with the words value', () => {
+    const t = only('الحد الأدنى للأقساط 452,500,000 جنيه مصرى سنويا ( فقط خمسمائة الف جنيها مصريالاغير) عن العمليات.');
+    const amounts = t.filter((x) => x.kind === 'amount');
+    expect(amounts).toHaveLength(1);
+    expect(amounts[0].value).toBe('500,000 جنيه');
+    expect(amounts[0].fromWords).toBe(true);
+    expect(amounts[0].suspect).toContain('452,500,000');
+    expect(amounts[0].suspect).toContain('500,000');
+  });
+
+  it('matching digits and words appear once, unflagged', () => {
+    const t = only('حد أدنى 500,000 جم ( خمسمائة الف جنيها مصريا) صافى الرسوم.');
+    const amounts = t.filter((x) => x.kind === 'amount');
+    expect(amounts).toHaveLength(1);
+    expect(amounts[0].suspect).toBeUndefined();
+    expect(amounts[0].value).toBe('500,000 جنيه');
+  });
+
+  it('flags a garbled digit ("0") that precedes an amount written in words', () => {
+    const t = only('الاقساط\n0 جنيه مصرى سنويا ( فقط خمسمائة الف جنيها مصريالاغير) عن العمليات.');
+    const amounts = t.filter((x) => x.kind === 'amount');
+    expect(amounts).toHaveLength(1);
+    expect(amounts[0].value).toBe('500,000 جنيه');
+    expect(amounts[0].suspect).toContain('تالف');
+  });
+
+  it('parenthesised words that contradict the digits are flagged too', () => {
+    const t = only('يدفع 5000 ( ستة آلاف ) جنيه عند التسليم.');
+    expect(t.find((x) => x.kind === 'amount')?.suspect).toContain('تعارض');
+  });
+
+  it('does not pair two separate amounts in different sentences', () => {
+    const t = only('يدفع 5,000 جنيه شهرياً. ثم يدفع ( خمسون ألف جنيه ) عند الإنهاء.');
+    expect(t.filter((x) => x.kind === 'amount' && x.suspect)).toHaveLength(0);
+  });
+
+  it('reads the OCR 90/96-prefixed percentages in rate tables, flagged', () => {
+    const t = only('فى حالة تحقيق 1,000,000 جنيه مصرى تصرف مصروفات ادارية بواقع 967 وحصة 9030 من اجمالى المحفظة.');
+    const pcts = t.filter((x) => x.kind === 'percent');
+    expect(pcts.map((x) => x.value)).toEqual(['7%', '30%']);
+    expect(pcts.every((x) => !!x.suspect)).toBe(true);
+  });
+
+  it('a plain amount near "بواقع" is not mistaken for a percentage', () => {
+    const t = only('تصرف مصروفات بواقع 9640 جنيه شهرياً.');
+    expect(t.some((x) => x.kind === 'percent')).toBe(false);
+  });
+
+  it('builds one contract-level warning per contradiction and skips ones already reported', () => {
+    const text = 'الحد الأدنى 452,500,000 جنيه مصرى سنويا ( فقط خمسمائة الف جنيها مصريالاغير) عن العمليات.';
+    const w = amountConflictWarnings([text, text]);
+    expect(w).toHaveLength(1);
+    expect(w[0]).toContain('452,500,000');
+    expect(amountConflictWarnings([text], w.map(() => 'تناقض 452,500,000 مقابل 500,000'))).toHaveLength(0);
+    expect(amountConflictWarnings(['يدفع 5000 جنيه.'])).toHaveLength(0);
   });
 });
