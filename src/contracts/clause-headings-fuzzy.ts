@@ -343,9 +343,18 @@ export function fuzzyHeadingLineNumber(line: string): number | null {
  * عقد قُرئ منه العنوانان 1 و2 فقط وتُحيل جملة إلى «البند الخامس» ناقصه 3 و4 و5. تُستعمل لتشغيل مرحلة الاسترجاع على خادم قرأ
  * العناوين أسوأ من المتوقع فلم يظهر فيه فرق ترقيم حرفى.
  */
+export function presentHeadingNumbersFuzzy(text: string): number[] {
+  const clean = (text ?? '').replace(INVISIBLE, '');
+  const strict = headingNumbers(clean);
+  const aligned = findAlignedHeads(clean).map((h) => h.declaredNumber);
+  // نفس قاعدة التقسيم: حين تغلب المحاذاة على الحرفى (≥3 وأكثر منه) فالمعتمد تسلسل المحاذاة وحده. وإلا فعناوين ملحق العقد
+  // التى يعاد ترقيمها («البند الأول:»، «البند الثانى:» بعد آخر بند) كانت تُخفى بندين ضائعين من المتن (تحقق حى على عقد ممسوح).
+  return [...new Set<number>(aligned.length >= 3 && aligned.length > strict.length ? aligned : [...strict, ...aligned])].sort((a, b) => a - b);
+}
+
 export function missingHeadingNumbersFuzzy(text: string): number[] {
   const clean = (text ?? '').replace(INVISIBLE, '');
-  const have = new Set<number>([...headingNumbers(clean), ...findAlignedHeads(clean).map((h) => h.declaredNumber)]);
+  const have = new Set<number>(presentHeadingNumbersFuzzy(clean));
   let upper = have.size > 0 ? Math.max(...have) : 0;
   for (const m of clean.matchAll(REFERENCE_RE)) {
     const n = ordinalToNumber(m.groups?.ord ?? '');

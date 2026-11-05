@@ -49,6 +49,8 @@ export interface OcrRecognizeOptions {
    */
   recoverMissing?: {
     missingNumbers: (fullText: string) => number[];
+    /** أرقام العناوين الموجودة فى النص؛ إن وُجدت فلا يُقبل تغيير صفحة إلا إن أضاف رقماً ولم يُسقط أى رقم موجود */
+    presentNumbers?: (fullText: string) => number[];
     /** رقم العنوان إن كان السطر عنواناً مقبولاً، وإلا null */
     headingNumber: (line: string) => number | null;
     /** نص قياسى يُدرج بدل السطر الملتقط (يُصلح عنواناً شوّهته رموز مجاورة) */
@@ -205,8 +207,13 @@ export class OcrService {
     this.logger.log(`OCR alternate model: pages=${images.length} adopted=${adopted}`);
   }
 
-  private async tsvLines(imagePath: string, psm: number): Promise<OcrLine[]> {
-    const { stdout } = await execFileAsync(this.tesseract, [imagePath, 'stdout', '-l', this.lang, '--psm', String(psm), 'tsv'], {
+  /**
+   * يقرأ الصورة بصيغة TSV. نستعمل `-c tessedit_create_tsv=1` بدل إعداد `tsv` لأن مجلد النموذج الثانى لا يحوى مجلد configs،
+   * والمخرجات مطابقة بايتاً ببايت للصيغتين (تحقق محلى).
+   */
+  private async tsvLines(imagePath: string, psm: number, tessdataDir?: string): Promise<OcrLine[]> {
+    const args = [imagePath, 'stdout', '-l', this.lang, '--psm', String(psm), ...(tessdataDir ? ['--tessdata-dir', tessdataDir] : []), '-c', 'tessedit_create_tsv=1'];
+    const { stdout } = await execFileAsync(this.tesseract, args, {
       timeout: PAGE_TIMEOUT_MS,
       maxBuffer: 16 * 1024 * 1024,
     });
@@ -231,6 +238,7 @@ export class OcrService {
     cfg: NonNullable<OcrRecognizeOptions['recoverMissing']>,
     report?: (done: number, total: number) => void,
     deadline?: number,
+    alternateImages?: string[],
   ): Promise<void> {
     let missing = new Set(cfg.missingNumbers(texts.join('\n\n')));
     if (missing.size === 0) {
@@ -238,27 +246,48 @@ export class OcrService {
       return;
     }
     this.logger.log(`OCR heading gap: missing=${[...missing].join(',')} pages=${texts.length}`);
-    for (const images of imageSets) {
+    // القراءات المتاحة: الصور بالنموذج العادى، ثم (إن وُجد) صور 200 بالنموذج الثانى — كل نموذج يلتقط عناوين لا يلتقطها الآخر
+    const passes: Array<{ images: string[]; dir?: string }> = imageSets.map((images) => ({ images }));
+    if (alternateImages && this.altTessdata) passes.push({ images: alternateImages, dir: this.altTessdata });
+    for (const { images, dir } of passes) {
       for (let i = 0; i < texts.length && missing.size > 0; i++) {
         if (deadline !== undefined && Date.now() > deadline) return; // الاسترجاع تحسين اختيارى: نكتفى بما قُرئ
         report?.(i + 1, texts.length);
         const image = images[i];
         if (!image) continue;
         try {
-          const sparse = await this.tsvLines(image, 11);
+          const sparse = await this.tsvLines(image, 11, dir);
           this.diagnose(cfg, [...missing], sparse, `page=${i + 1} image=${path.basename(image)}`);
           const found = sparse
             .map((l) => ({ l, n: cfg.headingNumber(l.text) }))
             .filter((x): x is { l: OcrLine; n: number } => x.n !== null && missing.has(x.n))
             .map(({ l, n }) => ({ ...l, text: cfg.canonical?.(n) ?? l.text }));
           if (found.length === 0) continue;
-          const base = await this.tsvLines(image, 3);
+          const base = await this.tsvLines(image, 3, dir);
           const present = new Set(base.map((l) => cfg.headingNumber(l.text)).filter((n): n is number => n !== null));
           const toInsert = found.filter((l) => !present.has(cfg.headingNumber(l.text) as number));
           this.logger.log(`OCR heading recovered: page=${i + 1} wanted=${found.map((l) => cfg.headingNumber(l.text)).join(',')} inserted=${toInsert.length} presentInBase=${[...present].join(',')}`);
           // الأداة نفسها وجدت العنوان فى القراءة العادية بصيغة TSV (لا فى نص هذه الصفحة المختار): نستعمل نص TSV كما هو
+          const previous = texts[i];
+          const presentBefore = cfg.presentNumbers ? new Set(cfg.presentNumbers(texts.join('\n\n'))) : null;
           texts[i] = toInsert.length === 0 ? linesToText(base) : insertLinesByPosition(base, toInsert);
-          missing = new Set(cfg.missingNumbers(texts.join('\n\n')));
+          const joined = texts.join('\n\n');
+          const after = new Set(cfg.missingNumbers(joined));
+          // لا يُقبل تغيير الصفحة إلا إن أضاف رقماً ولم يُسقط أى رقم كان موجوداً (وبلا مقياس للأرقام الموجودة: إن قلّت الناقصة)؛
+          // وإلا استبدلنا قراءة أفضل بأسوأ (تراجع محتمل: فقدان أعلى عنوان يُنقص «الأعلى» فيبدو الناقص أقل)
+          let accepted: boolean;
+          if (presentBefore && cfg.presentNumbers) {
+            const presentAfter = new Set(cfg.presentNumbers(joined));
+            accepted = presentAfter.size > presentBefore.size && [...presentBefore].every((n) => presentAfter.has(n));
+          } else {
+            accepted = after.size < missing.size;
+          }
+          if (!accepted) {
+            texts[i] = previous;
+            this.logger.log(`OCR heading recovery reverted: page=${i + 1} missingBefore=${missing.size} missingAfter=${after.size}`);
+          } else {
+            missing = after;
+          }
         } catch (err) {
           this.logger.warn(`OCR heading recovery skipped: ${(err as Error).message.slice(0, 120)}`);
         }
@@ -328,6 +357,7 @@ export class OcrService {
             options.recoverMissing,
             (done, total) => report({ stage: 'recover', done, total }),
             deadline,
+            (await this.isAltAvailable()) ? lows : undefined,
           );
         }
         return {

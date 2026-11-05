@@ -54,7 +54,7 @@ import { ContractJobs, JOB_STAGE_LABEL, jobLimitsFromEnv, stageFromOcr, type Job
 import { backgroundOcrMaxPages } from '../documents/ocr.service';
 import { ContractResponseDto } from './dto/contract-response.dto';
 import { canonicalHeading, looseHeadingLineNumber, ordinalWords } from './clause-headings';
-import { fuzzyHeadingLineNumber, headingLikeScore, missingHeadingNumbersFuzzy } from './clause-headings-fuzzy';
+import { fuzzyHeadingLineNumber, headingLikeScore, missingHeadingNumbersFuzzy, presentHeadingNumbersFuzzy } from './clause-headings-fuzzy';
 import { numericWarnings } from './numeric-checks.util';
 import { ClauseFactsService } from './clause-facts.service';
 import { hasAnyFact, neutralizeDirections } from './clause-facts';
@@ -268,6 +268,7 @@ export class ContractsService implements OnModuleInit {
           ocrPageScore: headingLikeScore,
           ocrRecoverMissing: {
             missingNumbers: missingHeadingNumbersFuzzy,
+            presentNumbers: presentHeadingNumbersFuzzy,
             headingNumber: (line: string) => looseHeadingLineNumber(line) ?? fuzzyHeadingLineNumber(line),
             canonical: canonicalHeading,
             diagnosticWords: ordinalWords,
