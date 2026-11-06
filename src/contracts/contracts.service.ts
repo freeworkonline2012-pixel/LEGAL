@@ -70,8 +70,10 @@ import {
   type ContractFinding,
   type ContractLevelResult,
   type LevelClause,
+  FAMILY_NAME,
   FINDING_KIND_LABEL,
   deterministicFindings,
+  inferContractFamily,
   mergeFindings,
   sortFindings,
 } from './contract-level';
@@ -362,7 +364,13 @@ export class ContractsService implements OnModuleInit {
     // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
     progress({ stage: 'contract_level', done: 0, total: 0 });
     const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings, segmentation.preamble);
-    contract.contractFindings = { ...level, parties: partyNames } as unknown as Record<string, unknown>;
+    // لم يحدد المستخدم نوعاً: يُستنتج من عنوان العقد ويُخزَّن للدليل التفاوضى (بلا النوع يسقط الدليل كله بصمت — وقع فى إنتاج عقد عمل)
+    const inferredType = contract.contractType ? null : FAMILY_NAME[inferContractFamily(segmentation.preamble)];
+    contract.contractFindings = {
+      ...level,
+      parties: partyNames,
+      ...(inferredType && playbookFamily(inferredType) ? { inferredContractType: inferredType } : {}),
+    } as unknown as Record<string, unknown>;
 
     await this.verifyContractFindings(contract.contractFindings as unknown as ContractLevelResult | null, clauseRows);
 

@@ -60,6 +60,8 @@ export interface AuditReportInput {
   originalFilename: string;
   uploadedAt: Date;
   contractType: string | null;
+  /** نوع العقد المستنتج من عنوانه وقت الرفع حين لم يحدده المستخدم (يُستعمل للدليل التفاوضى فقط، ولا يستبدل contractType). */
+  inferredContractType?: string | null;
   clientRole: string | null;
   /** أى الطرفين فى نص العقد هو العميل (إن حُدِّد). */
   clientParty?: 'first' | 'second' | null;
@@ -401,6 +403,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   // ---------- الغلاف ----------
   const coverRows: AuditReport['cover']['rows'] = [];
   if (input.contractType) coverRows.push({ label: 'موضوع العقد', value: input.contractType });
+  else if (input.inferredContractType) coverRows.push({ label: 'موضوع العقد (مستنتج من عنوان العقد)', value: input.inferredContractType, tone: 'medium' as Tone });
   coverRows.push({ label: 'ملف العقد', value: input.originalFilename });
   if (input.clientRole) {
     const party = input.clientParty === 'first' ? 'الطرف الأول' : input.clientParty === 'second' ? 'الطرف الثانى' : null;
@@ -883,10 +886,14 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   }
 
   // ---------- الدليل التفاوضى (الجولة 7) ----------
-  const playbook: PlaybookResult | null = buildPlaybook({ contractType: input.contractType, clientRole: input.clientRole, clientParty: input.clientParty ?? null, clauses: baseClauses });
+  const playbook: PlaybookResult | null = buildPlaybook({ contractType: input.contractType ?? input.inferredContractType ?? null, clientRole: input.clientRole, clientParty: input.clientParty ?? null, clauses: baseClauses });
   {
     if (playbook) {
       banner(`الدليل التفاوضى — ${playbook.familyLabel}${playbook.sideLabel ? ` من منظور ${playbook.sideLabel}` : ''}`);
+      const playbookNotes: string[] = [];
+      if (!input.contractType) playbookNotes.push('لم يُحدَّد نوع العقد عند الرفع، فاستُنتج من عنوانه؛ حدّد النوع عند الرفع إن كان الاستنتاج غير صحيح.');
+      if (!playbook.side) playbookNotes.push('لم يُحدَّد طرفك فى العقد، فالدليل محايد: يعرض اختلال الطرفين كليهما دون ترجيح لمصلحة أحدهما؛ حدّد طرفك عند الرفع ليُرتَّب الدليل من منظورك.');
+      if (playbookNotes.length > 0) blocks.push({ t: 'note', label: 'تنبيه:', text: playbookNotes.join(' ') });
       blocks.push(...playbookBlocks(playbook, coveredTopicRefs(findings)));
     }
   }

@@ -189,4 +189,32 @@ describe('الإحالة من محور الدليل إلى «ملاحظات ال
     const { report } = buildContractAuditReport(svc([{ id: 'open:x', title: 'شرط مفتوح' }, { id: 'missing:acceptance', title: 'لم يُرصد بند يتناول: القبول' }]));
     expect(cellOf(report.blocks, 'التسليم والقبول')).toContain('(ع2)');
   });
+
+  it('بلا نوع ولا طرف عند الرفع: يُبنى الدليل بالنوع المستنتج من العنوان محايداً مع تنبيه صريح (R58)', () => {
+    const { report } = buildContractAuditReport(
+      base({
+        contractType: null,
+        clientRole: null,
+        inferredContractType: 'عقد عمل',
+        clauses: [clause(1, 'الأجر: الأجر الشهرى 12000 جنيه شاملاً جميع البدلات والعمل الإضافى، ولصاحب العمل خفضه إذا اقتضت ظروف الشركة.')],
+      }),
+    );
+    const banners = bannerTexts(report.blocks);
+    expect(banners.some((b) => b.endsWith('الدليل التفاوضى — عقد عمل'))).toBe(true);
+    const notes = of(report.blocks, 'note').map((n) => n.text).join(' ');
+    expect(notes).toContain('استُنتج من عنوانه');
+    expect(notes).toContain('الدليل محايد');
+  });
+
+  it('بلا نوع وبلا نوع مستنتج: لا دليل (السلوك السابق)', () => {
+    const { report } = buildContractAuditReport(base({ contractType: null, clientRole: null }));
+    expect(bannerTexts(report.blocks).some((b) => b.includes('الدليل التفاوضى'))).toBe(false);
+  });
+
+  it('نوع محدد وطرف محدد: لا تنبيه استنتاج ولا حياد', () => {
+    const { report } = buildContractAuditReport(base());
+    const notes = of(report.blocks, 'note').map((n) => n.text).join(' ');
+    expect(notes).not.toContain('استُنتج من عنوانه');
+    expect(notes).not.toContain('الدليل محايد');
+  });
 });
