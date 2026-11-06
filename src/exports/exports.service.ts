@@ -281,9 +281,14 @@ export class ExportsService {
     };
   }
 
-  private reportVerification(v: Record<string, unknown> | null | undefined): { status: 'confirmed' | 'unconfirmed'; reason: string; quote: string | null } | null {
+  private reportVerification(v: Record<string, unknown> | null | undefined): { status: 'confirmed' | 'unconfirmed'; reason: string; quote: string | null; reclassified?: 'deviation' } | null {
     if (!v || (v.status !== 'confirmed' && v.status !== 'unconfirmed') || typeof v.reason !== 'string' || !v.reason) return null;
-    return { status: v.status, reason: v.reason, quote: typeof v.quote === 'string' && v.quote ? v.quote : null };
+    return {
+      status: v.status,
+      reason: v.reason,
+      quote: typeof v.quote === 'string' && v.quote ? v.quote : null,
+      ...(v.reclassified === 'deviation' ? { reclassified: 'deviation' as const } : {}),
+    };
   }
 
   /** اسما الطرفين المخزَّنان وقت الرفع (contractFindings.parties)؛ null إن لم يُخزَّنا (عقد قديم). */

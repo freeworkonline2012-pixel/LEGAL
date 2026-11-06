@@ -182,7 +182,7 @@ describe('buildContractAuditReport', () => {
 
   it('المصفوفة مرتبة بالخطورة ثم رقم البند، والبند غير المصنَّف يظهر بدرجة محايدة', () => {
     const grid = of(report.blocks, 'grid').find((g) => g.columns[1] === 'وصف المخاطرة')!;
-    expect(grid.columns).toEqual(['#', 'وصف المخاطرة', 'الدرجة', 'البند', 'الحالة']);
+    expect(grid.columns).toEqual(['#', 'وصف المخاطرة', 'الدرجة', 'البند', 'الحالة', 'النوع']);
     expect(grid.rows.map((r) => [r[2].text, r[3].text])).toEqual([
       ['حرج', 'البند 4'],
       ['عالٍ', 'البند 2'],
@@ -190,6 +190,11 @@ describe('buildContractAuditReport', () => {
       ['غير مصنَّف', 'البند 6'],
     ]);
     expect(grid.rows[3][2].tone).toBe('grey');
+  });
+
+  it('عمود النوع: حرج/عالٍ مخالفة قانونية، ومتوسط اختلال تجارى، وغير المصنَّف بلا نوع', () => {
+    const grid = of(report.blocks, 'grid').find((g) => g.columns[1] === 'وصف المخاطرة')!;
+    expect(grid.rows.map((r) => r[5].text)).toEqual(['مخالفة قانونية', 'مخالفة قانونية', 'اختلال تجارى', '—']);
   });
 
   it('شريط الإحصاءات بصرف عددى صحيح', () => {

@@ -1,4 +1,4 @@
-import { claimKindFromRisk, needsVerification, pickForVerification, validateVerdict } from './verification';
+import { claimKindFromRisk, needsVerification, pickContributionContext, pickForVerification, validateVerdict } from './verification';
 
 const CLAUSE = 'يجوز للطرف الثانى فسخ العقد دون حاجة إلى إنذار أو تنبيه إذا أخل الطرف الأول بالتزام جوهرى.';
 const ART = 'يجوز الاتفاق على أن يعتبر العقد مفسوخاً من تلقاء نفسه دون حكم قضائى عند عدم الوفاء بالالتزامات.';
@@ -57,5 +57,56 @@ describe('claimKindFromRisk (الجولة 57)', () => {
     expect(claimKindFromRisk('عالٍ')).toBe('mandatory');
     expect(claimKindFromRisk('متوسط')).toBe('deviation');
     expect(claimKindFromRisk(null)).toBe('deviation');
+  });
+});
+
+describe('إعادة التصنيف (الجولة 58)', () => {
+  const ok = {
+    verdict: 'refuted',
+    refutation_kind: 'not_mandatory',
+    deviates_against_client: true,
+    deviation_quote: 'دون حاجة إلى إنذار أو تنبيه',
+    article_quote: 'يجوز الاتفاق على أن يعتبر العقد مفسوخاً من تلقاء نفسه',
+    reason: 'المادة مكملة.',
+  };
+  it('مادة مكملة + خروج عن الأصل ضد العميل + اقتباسان حرفيان ⇒ مؤكد كاختلال (reclassified)', () => {
+    const v = validateVerdict(ok, CLAUSE, [ART]);
+    expect(v).toMatchObject({ status: 'confirmed', basis: 'reclassified', reclassified: 'deviation', quoteSource: 'clause', quote: 'دون حاجة إلى إنذار أو تنبيه' });
+  });
+  it('بلا اقتباس البند أو باقتباس مخترع ⇒ تبقى غير مؤكدة', () => {
+    expect(validateVerdict({ ...ok, deviation_quote: undefined }, CLAUSE, [ART])).toMatchObject({ status: 'unconfirmed' });
+    expect(validateVerdict({ ...ok, deviation_quote: 'عبارة لا وجود لها فى البند' }, CLAUSE, [ART])).toMatchObject({ status: 'unconfirmed' });
+  });
+  it('اقتباس المادة غير حرفى أو deviates=false أو نوع الاعتراض غير not_mandatory ⇒ لا إعادة تصنيف', () => {
+    expect(validateVerdict({ ...ok, article_quote: 'نص غير موجود فى المادة' }, CLAUSE, [ART])?.status).toBe('unconfirmed');
+    expect(validateVerdict({ ...ok, deviates_against_client: false }, CLAUSE, [ART])?.status).toBe('unconfirmed');
+    expect(validateVerdict({ ...ok, refutation_kind: 'clause_addresses' }, CLAUSE, [ART])?.status).toBe('unconfirmed');
+  });
+  it('يُسجَّل نوع الاعتراض ويُطبَّع المجهول إلى other', () => {
+    const v = validateVerdict({ verdict: 'refuted', refutation_kind: 'xx', counter_quote: 'دون حاجة إلى إنذار أو تنبيه', reason: 'سبب.' }, CLAUSE, [ART]);
+    expect(v).toMatchObject({ basis: 'refuted', refutationKind: 'other' });
+  });
+});
+
+describe('سياق الحصص لبند الأرباح (الجولة 58)', () => {
+  const clauses = [
+    { clauseIndex: 1, clauseLabel: 'البند 1', clauseText: 'يقدم الشريك الأول حصة نقدية قدرها مائة ألف جنيه تمثل رأس المال، ويقدم الشريك الثانى عمله فقط.', matchedArticles: [] },
+    { clauseIndex: 2, clauseLabel: 'البند 2', clauseText: 'يستحق الشريك الثانى كامل الأرباح ويتحمل الشريك الأول وحده الخسائر.', matchedArticles: [{ article_no: 515 }] },
+    { clauseIndex: 3, clauseLabel: 'البند 3', clauseText: 'مدة الشركة خمس سنوات.', matchedArticles: [] },
+  ];
+  it('بند أرباح/خسائر ⇒ يُعرض بند رأس المال والحصص سياقاً', () => {
+    const ctx = pickContributionContext(clauses[1], clauses);
+    expect(ctx).toHaveLength(1);
+    expect(ctx[0].clauseLabel).toBe('البند 1');
+  });
+  it('بند آخر غير الأرباح ⇒ لا سياق', () => {
+    expect(pickContributionContext(clauses[2], clauses)).toEqual([]);
+  });
+  it('الدحض باقتباس حرفى من بند السياق مقبول، ومن خارجه لا', () => {
+    const own = clauses[1].clauseText;
+    const rel = [clauses[0].clauseText];
+    const q = 'ويقدم الشريك الثانى عمله فقط';
+    expect(validateVerdict({ verdict: 'refuted', counter_quote: q, reason: 'الشريك الثانى بالعمل فقط.' }, own, [], new Date(), rel)).toMatchObject({ basis: 'refuted', quoteSource: 'clause' });
+    expect(validateVerdict({ verdict: 'refuted', counter_quote: q, reason: 'الشريك الثانى بالعمل فقط.' }, own, [])?.basis).toBe('uncertain');
   });
 });

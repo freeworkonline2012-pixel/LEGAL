@@ -72,12 +72,19 @@ export function findingAction(f: ActionFinding): ExtraAction {
   return make(text, FROM_SEVERITY[f.severity] ?? 'متوسطة', f.suggestion ? clip(f.suggestion, 130) : '—');
 }
 
+/** ملاحظة تستند إلى المادة 515 أو 530 مع نص صريح على البطلان */
+const NULLITY_NOTE = /(?:المادة\s*(?:515|530)|\(المادة\s*(?:515|530)\))/;
+const NULLITY_WORD = /(?:يبطل|تبطل|باطل|بطلان)/;
+export const isNullityConcern = (x: { note: string }): boolean => NULLITY_NOTE.test(x.note) && NULLITY_WORD.test(x.note);
+
 /** محور فيه ما يميل ضد العميل (أو يستلزم الانتباه) ⇒ إجراء تفاوضى؛ المحاور المرصودة بلا ملاحظة أو غير المرصودة لا تُكرَّر هنا (الأخيرة تغطيها ملاحظات «بند غير مرصود»). */
 export function playbookAction(row: PlaybookRow, sideKnown: boolean): ExtraAction | null {
   if (row.status !== 'concern' || row.concerns.length === 0) return null;
   const directional = row.concerns.some((c) => c.against !== 'both');
-  const priority: ActionPriority = sideKnown && directional ? 'عالية' : 'متوسطة';
-  const c = row.concerns[0];
+  // ما يقوم على بطلان صريح بنص آمر (515 و530) لا يُترك للتقدير ولا يتوقف على معرفة الطرف: عالية دائماً (الجولة 58)
+  const nullity = row.concerns.some(isNullityConcern);
+  const priority: ActionPriority = nullity || (sideKnown && directional) ? 'عالية' : 'متوسطة';
+  const c = nullity ? (row.concerns.find(isNullityConcern) ?? row.concerns[0]) : row.concerns[0];
   const text = `التفاوض على محور «${row.label}» (${c.clauseLabel}): ${clip(c.note, 150)}`;
   const note = row.stance ? `الأفضل: ${clip(row.stance.prefer, 120)}` : 'يُحدَّد الموقف بحسب صفتك فى العقد';
   return make(text, priority, note);

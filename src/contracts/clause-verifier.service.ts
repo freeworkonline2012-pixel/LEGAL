@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { type ClaimKind, type Verification, validateVerdict } from './verification';
+import { type ClaimKind, type ContextClause, type Verification, validateVerdict } from './verification';
 
 export type VerifierOutcome =
   | { status: 'ok'; verification: Verification }
@@ -18,7 +18,10 @@ const SYSTEM_ASSESSMENT =
   'أنت محامٍ مصرى مدقق مستقل يراجع ملاحظة صدرت على بند عقد. أمامك نص البند، والملاحظة الصادرة عنه، ونصوص المواد التى بُنيت عليها. ' +
   'تحقق خصوصاً من: (أ) هل يتضمن نص البند فعلاً ما يعالج الأمر الذى تدّعى الملاحظة غيابه (مثل إعفاء صريح من الإنذار أو حد أقصى أو تحديد للمدة)؟ ' +
   '(ب) هل المادة المعروضة قاعدة مكملة يجوز الاتفاق على خلافها وقد عوملت كأنها آمرة؟ (ج) هل تحكم المادة فعلاً هذه العلاقة؟ ' +
-  SHARED;
+  'عند refuted صنّف السبب فى refutation_kind: "not_mandatory" إن كان سببك الوحيد أن المادة مكملة (لا آمرة)؛ "clause_addresses" إن كان البند يعالج الأمر صراحة؛ "not_applicable" إن كانت المادة لا تحكم المسألة؛ وإلا "other". ' +
+  'وفى حالة not_mandatory فقط: إن كان البند نفسه يخرج عن القاعدة الواردة فى المادة بما يضر مركز العميل أو يحابى الطرف الآخر بلا مقابل، فضع deviates_against_client=true واقتبس حرفياً من البند العبارة التى تخرج عن الأصل فى deviation_quote، واقتبس من المادة نص إجازة الاتفاق على الخلاف فى article_quote؛ وإلا فاجعل deviates_against_client=false ولا تخمّن. ' +
+  SHARED +
+  ' (فى هذا النوع أضف إلى JSON الحقول: "refutation_kind":"" و"deviates_against_client":false و"deviation_quote":"")';
 
 const SYSTEM_DEVIATION =
   'أنت محامٍ مصرى مدقق مستقل يراجع ملاحظة صدرت على بند عقد. الملاحظة هنا ليست ادعاء بطلان ولا مخالفة لنص آمر؛ هى تنبّه إلى أن البند يختلف عن قاعدة عامة أو يحمّل أحد الطرفين ما لا يحمّله الأصل. ' +
@@ -70,13 +73,23 @@ export class ClauseVerifierService {
     articles: Array<{ lawTitle: string; articleNo: number; articleText: string }>;
     /** غائب = mandatory (السلوك السابق) */
     claimKind?: ClaimKind;
+    /** بنود أخرى للسياق فقط (مثل رأس المال والحصص لبند الأرباح والخسائر) */
+    contextClauses?: ContextClause[];
   }): Promise<VerifierOutcome> {
     const arts = input.articles.map((a, i) => `${i + 1}) المادة ${a.articleNo} من ${a.lawTitle}:\n"""${a.articleText}"""`).join('\n\n');
+    const context = input.contextClauses ?? [];
+    const ctx =
+      context.length > 0
+        ? `\n\nبنود أخرى من العقد للسياق (المرجع فى معرفة ما يقدمه كل شريك؛ مثلاً قد يقدم الشريك عملاً فقط فتنطبق الاستثناءات التى تنص عليها المادة): ` +
+          context.map((c) => `\n${c.clauseLabel}: """${c.clauseText}"""`).join('')
+        : '';
     const user =
       `نص البند: """${input.clauseText}"""\n\n` +
       (input.clientPosition ? `مركز العميل: """${input.clientPosition}"""\n\n` : '') +
-      `الملاحظة الصادرة: """${input.claim}"""\n\nالمواد:\n${arts}\n\nأعد JSON فقط.`;
-    return this.run(input.claimKind === 'deviation' ? SYSTEM_DEVIATION : SYSTEM_ASSESSMENT, user, input.clauseText, input.articles.map((a) => a.articleText));
+      `الملاحظة الصادرة: """${input.claim}"""\n\nالمواد:\n${arts}` +
+      ctx +
+      `\n\nأعد JSON فقط.`;
+    return this.run(input.claimKind === 'deviation' ? SYSTEM_DEVIATION : SYSTEM_ASSESSMENT, user, input.clauseText, input.articles.map((a) => a.articleText), context.map((c) => c.clauseText));
   }
 
   /** تحقق مستقل من ملاحظة على العقد ككل بالنموذج (تعارض/عدم اتساق...). */
@@ -106,7 +119,7 @@ export class ClauseVerifierService {
     return this.run(SYSTEM_FINDING, user, [...input.clauseTexts, ...(input.contractClauses ?? []).map((c) => c.text)].join('\n'), []);
   }
 
-  private async run(system: string, user: string, clauseText: string, articleTexts: string[]): Promise<VerifierOutcome> {
+  private async run(system: string, user: string, clauseText: string, articleTexts: string[], relatedTexts: string[] = []): Promise<VerifierOutcome> {
     if (!this.isConfigured) return { status: 'not_configured' };
     try {
       const res = await fetch('https://api.deepseek.com/chat/completions', {
@@ -114,7 +127,7 @@ export class ClauseVerifierService {
         headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
         body: JSON.stringify({
           model: this.model,
-          max_tokens: 500,
+          max_tokens: 700,
           temperature: 0,
           thinking: { type: 'disabled' },
           response_format: { type: 'json_object' },
@@ -132,7 +145,7 @@ export class ClauseVerifierService {
       const text = data.choices?.[0]?.message?.content?.trim();
       if (!text) return { status: 'error', detail: 'empty_response' };
       const raw = parse(text);
-      const verification = validateVerdict(raw, clauseText, articleTexts);
+      const verification = validateVerdict(raw, clauseText, articleTexts, new Date(), relatedTexts);
       if (!verification) return { status: 'error', detail: 'invalid_verdict' };
       return { status: 'ok', verification };
     } catch (err) {

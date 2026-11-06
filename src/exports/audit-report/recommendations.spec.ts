@@ -33,6 +33,15 @@ describe('توصيات التنفيذ من ملاحظات العقد ككل', ()
     expect(a.note.startsWith('الأفضل:')).toBe(true);
   });
 
+  it('محور يقوم على بطلان صريح (515/530) ⇒ أولوية عالية حتى لو الطرف غير معروف', () => {
+    const base = { topicId: 't', label: 'الأرباح والخسائر', status: 'concern', stance: null };
+    const mk = (note: string) => ({ ...base, concerns: [{ flagId: 'f', note, against: 'both', againstLabel: 'الطرفين', clauseLabel: 'البند 7', clauseIndex: 7, quote: 'ق' }] }) as unknown as Parameters<typeof playbookAction>[0];
+    expect(playbookAction(mk('تحميل الخسائر على شريك واحد: المادة 515 تبطل عقد الشركة إذا اتُّفق على إعفاء شريك.'), false)!.priority).toBe('عالية');
+    expect(playbookAction(mk('حظر طلب الحل: يبطل كل اتفاق على غير ذلك (المادة 530).'), false)!.priority).toBe('عالية');
+    expect(playbookAction(mk('ملاحظة عامة لا تستند إلى بطلان.'), false)!.priority).toBe('متوسطة');
+    expect(playbookAction(mk('المادة 515 تنظم الأمر دون أثر على الصحة.'), false)!.priority).toBe('متوسطة');
+  });
+
   it('محور غير مرصود أو مرصود بلا ملاحظة لا يُكرَّر إجراءً', () => {
     const pb = buildPlaybook({
       contractType: 'عقد خدمات أو مقاولة أو توريد',

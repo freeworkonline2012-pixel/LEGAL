@@ -30,7 +30,7 @@ export class RuleFindingDto {
 
 export class VerificationDto {
   @ApiProperty({ enum: ['confirmed', 'unconfirmed'] }) status: 'confirmed' | 'unconfirmed';
-  @ApiProperty({ enum: ['confirmed', 'refuted', 'uncertain'] }) basis: 'confirmed' | 'refuted' | 'uncertain';
+  @ApiProperty({ enum: ['confirmed', 'refuted', 'uncertain', 'reclassified'] }) basis: 'confirmed' | 'refuted' | 'uncertain' | 'reclassified';
   @ApiProperty() reason: string;
   @ApiPropertyOptional({ nullable: true }) quote: string | null;
 }

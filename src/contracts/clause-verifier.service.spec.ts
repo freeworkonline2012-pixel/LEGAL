@@ -126,4 +126,27 @@ describe('ClauseVerifierService: مسار «اختلاف عن قاعدة مكم�
     await new ClauseVerifierService().verifyAssessment(input);
     expect(sysOf(g)).toContain('قاعدة مكملة يجوز الاتفاق على خلافها وقد عوملت كأنها آمرة');
   });
+
+  it('الجولة 58: إعادة تصنيف باقتباسين حرفيين تصير مؤكدة (اختلال)، وبند السياق يُرسل بيانات فى رسالة المستخدم ويصلح مصدر دحض', async () => {
+    const f = reply({
+      verdict: 'refuted',
+      refutation_kind: 'not_mandatory',
+      deviates_against_client: true,
+      deviation_quote: 'دون حاجة إلى إنذار أو تنبيه',
+      article_quote: 'يجوز الاتفاق على أن يعتبر العقد مفسوخاً من تلقاء نفسه',
+      reason: 'المادة مكملة.',
+    });
+    global.fetch = f as never;
+    const out = await new ClauseVerifierService().verifyAssessment({ ...input, contextClauses: [{ clauseLabel: 'البند 1', clauseText: 'يقدم الشريك الثانى عمله فقط.' }] });
+    if (out.status !== 'ok') throw new Error('expected ok');
+    expect(out.verification).toMatchObject({ status: 'confirmed', basis: 'reclassified', reclassified: 'deviation' });
+    const body = JSON.parse((f.mock.calls[0][1] as { body: string }).body);
+    expect(body.messages[1].content).toContain('يقدم الشريك الثانى عمله فقط.');
+    expect(body.messages[0].content).not.toContain('يقدم الشريك الثانى عمله فقط.');
+
+    global.fetch = reply({ verdict: 'refuted', counter_quote: 'يقدم الشريك الثانى عمله فقط', reason: 'عمل فقط.' }) as never;
+    const out2 = await new ClauseVerifierService().verifyAssessment({ ...input, contextClauses: [{ clauseLabel: 'البند 1', clauseText: 'يقدم الشريك الثانى عمله فقط.' }] });
+    if (out2.status === 'ok') expect(out2.verification).toMatchObject({ status: 'unconfirmed', basis: 'refuted' });
+    else throw new Error('expected ok');
+  });
 });

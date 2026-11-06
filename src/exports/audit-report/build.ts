@@ -4,7 +4,7 @@ import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.ut
 import { extractKeyTerms, KEY_TERM_KIND_LABEL, type KeyTerm } from '../../contracts/key-terms';
 import { groupKeyTerms } from './key-terms-display';
 import { buildPlaybook, type PlaybookResult } from '../../contracts/playbook';
-import { ACTION_TIMELINE, candidateAction, extraActions, findingAction, playbookAction, PRIORITY_RANK, type ActionPriority } from './recommendations';
+import { ACTION_TIMELINE, candidateAction, extraActions, findingAction, isNullityConcern, playbookAction, PRIORITY_RANK, type ActionPriority } from './recommendations';
 import { buildPaymentSchedules, formatMoney, formatPercent } from '../../contracts/payment-schedule';
 import { coveredTopicRefs } from '../../contracts/missing-topic-map';
 import { playbookBlocks } from './playbook-section';
@@ -40,6 +40,8 @@ export interface AuditVerification {
   status: 'confirmed' | 'unconfirmed';
   reason: string;
   quote?: string | null;
+  /** 'deviation': دُحضت صفة «آمرة» وثبت الانحراف عن قاعدة مكملة ضد العميل (اختلال تجارى لا بطلان). */
+  reclassified?: 'deviation' | null;
 }
 
 /** صياغة التحقق المستقل فى التقرير: «مؤكدة» أو «غير مؤكدة — تحتاج مراجعة بشرية» مع السبب والاقتباس الموثَّق. */
@@ -50,7 +52,7 @@ function partyLabel(name: string | null, blank: boolean | undefined): string {
 }
 
 function verificationText(v: AuditVerification): string {
-  const head = v.status === 'confirmed' ? 'اجتازت التحقق المستقل (مدقق ثانٍ بتعليمات معاكسة)' : 'غير مؤكدة — تحتاج مراجعة بشرية: اعترض المدقق المستقل المعاكس أو لم يستطع الجزم';
+  const head = v.reclassified === 'deviation' ? 'أُعيد تصنيفها بعد التحقق المستقل: لا بطلان (المادة مكملة) لكن البند يخرج عن الأصل ضد العميل' : v.status === 'confirmed' ? 'اجتازت التحقق المستقل (مدقق ثانٍ بتعليمات معاكسة)' : 'غير مؤكدة — تحتاج مراجعة بشرية: اعترض المدقق المستقل المعاكس أو لم يستطع الجزم';
   const quote = v.quote ? ` الاقتباس: «${oneLine(v.quote)}».` : '';
   return `${head}. ${oneLine(v.reason)}${quote}`;
 }
@@ -700,6 +702,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     }
   }
 
+  // الدليل التفاوضى يُحسب قبل المصفوفة لأن اختلالاته التجارية تُعرض فيها منفصلة عن المخالفات القانونية (الجولة 58)
+  const playbook: PlaybookResult | null = buildPlaybook({ contractType: input.contractType ?? input.inferredContractType ?? null, clientRole: input.clientRole, clientParty: input.clientParty ?? null, clauses: baseClauses });
+
   // ---------- 2. مصفوفة تحليل المخاطر ----------
   banner('مصفوفة تحليل المخاطر');
   if (totalRisky === 0 && findings.length === 0 && candidateTotal === 0) {
@@ -711,6 +716,8 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
       if (r.redraft?.noChange) return { text: `لا يلزم تعديل بحسب الفحص الآلى — بانتظار مراجعة محامٍ${verdict}`, tone: 'medium', bold: false };
       return { text: `بانتظار الصياغة المقترحة${verdict}`, tone: 'high', bold: false };
     };
+    // النوع: حرج/عالٍ ⇒ مخالفة قانونية (نص آمر أو مخالفة صريحة)، ومتوسط ⇒ اختلال تجارى (خروج عن قاعدة مكملة أو إخلال بالتوازن) لا بطلان
+    const typeCell = (sev: string): Cell => (sev === 'حرج' || sev === 'عالٍ' ? { text: 'مخالفة قانونية', tone: SEVERITY_TONE[sev], center: true } : { text: sev === 'متوسط' ? 'اختلال تجارى' : '—', center: true });
     const rows: Cell[][] = confirmedRisky.map((r) => [
       { text: String(r.n), center: true },
       {
@@ -723,6 +730,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
       { text: r.sev, tone: SEVERITY_TONE[r.sev], center: true },
       { text: r.c.clauseLabel, center: true },
       statusOf(r),
+      typeCell(r.baseSev),
     ]);
     // ملاحظات العقد ككل المؤكدة (ع1، ع2…) فى السجل نفسه؛ الترقيم ثابت (موضع الملاحظة بين كل الملاحظات) ليتّسق مع قسمها
     findings.forEach((f, i) => {
@@ -734,10 +742,11 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         { text: f.severity, tone: FINDING_TONE(f.severity), center: true },
         { text: where, center: true },
         { text: f.suggestion ? 'معالجة مقترحة — بانتظار مراجعة محامٍ' : 'بانتظار مراجعة محامٍ', tone: 'medium' as Tone, bold: false },
+        { text: f.kind === 'office_rule' ? 'قاعدة المكتب' : 'ملاحظة على العقد ككل', center: true },
       ]);
     });
     if (rows.length > 0) {
-      blocks.push({ t: 'grid', columns: ['#', 'وصف المخاطرة', 'الدرجة', 'البند', 'الحالة'], rows, widths: [8, 36, 12, 16, 28] });
+      blocks.push({ t: 'grid', columns: ['#', 'وصف المخاطرة', 'الدرجة', 'البند', 'الحالة', 'النوع'], rows, widths: [7, 32, 10, 13, 24, 14] });
     } else {
       blocks.push({ t: 'p', text: 'لا توجد بنود أو ملاحظات مؤكدة تحتاج مراجعة؛ وما يلى مرشّحات للمراجعة البشرية فقط.' });
     }
@@ -774,6 +783,38 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         columns: ['#', 'المرشّحة', 'الدرجة المرشّحة', 'البند', 'سبب عدم التأكيد'],
         rows: candRows,
         widths: [8, 30, 14, 14, 34],
+      });
+    }
+  }
+
+  // اختلالات الدليل التفاوضى ذات الأولوية العالية التى لا يغطيها بند مقيَّم مؤكد: تُعرض منفصلة ولا تدخل فى الأعداد ولا مستوى المخاطرة العام
+  {
+    const assessedLabels = new Set(confirmedRisky.map((r) => r.c.clauseLabel));
+    const commercial = (playbook?.rows ?? [])
+      .map((row) => ({ row, a: playbookAction(row, playbook?.side != null) }))
+      .filter(({ row, a }) => a?.priority === 'عالية' && row.concerns.length > 0 && !assessedLabels.has(row.concerns[0].clauseLabel))
+      .slice(0, 8);
+    if (commercial.length > 0) {
+      blocks.push({ t: 'sub', text: 'اختلالات تجارية من الدليل التفاوضى — لا تدخل فى أعداد المخاطر', tone: 'navy' });
+      blocks.push({
+        t: 'note',
+        label: 'كيف تُقرأ:',
+        text: 'رصدتها قواعد الدليل التفاوضى فى نص البند ولم يقيّمها النموذج مخالفةً قانونية. هى اختلال فى توازن العقد أو شرط يستلزم تحققاً من محامٍ، ولا ترفع المستوى العام للمخاطر ولا تُحتسب مخالفة قانونية ما لم يؤكدها المراجع.',
+      });
+      blocks.push({
+        t: 'grid',
+        columns: ['#', 'الاختلال', 'المحور', 'البند', 'النوع'],
+        rows: commercial.map(({ row }, i): Cell[] => {
+          const c = row.concerns.find(isNullityConcern) ?? row.concerns[0];
+          return [
+            { text: `م${i + 1}`, center: true },
+            { text: clip(c.note, 170) },
+            { text: row.label, center: true },
+            { text: c.clauseLabel, center: true },
+            { text: isNullityConcern(c) ? 'يستند إلى نص آمر — يلزم التحقق' : 'اختلال تجارى', tone: isNullityConcern(c) ? 'high' : 'medium', center: true },
+          ];
+        }),
+        widths: [7, 42, 16, 13, 22],
       });
     }
   }
@@ -886,7 +927,6 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   }
 
   // ---------- الدليل التفاوضى (الجولة 7) ----------
-  const playbook: PlaybookResult | null = buildPlaybook({ contractType: input.contractType ?? input.inferredContractType ?? null, clientRole: input.clientRole, clientParty: input.clientParty ?? null, clauses: baseClauses });
   {
     if (playbook) {
       banner(`الدليل التفاوضى — ${playbook.familyLabel}${playbook.sideLabel ? ` من منظور ${playbook.sideLabel}` : ''}`);

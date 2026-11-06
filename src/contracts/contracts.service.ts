@@ -62,7 +62,8 @@ import { hasAnyFact, neutralizeDirections } from './clause-facts';
 import { evaluateRules, summarizeFindings } from './clause-rules';
 import { ContractConsistencyService } from './contract-consistency.service';
 import { ClauseVerifierService } from './clause-verifier.service';
-import { type Verification, claimKindFromRisk, needsVerification, pickForVerification } from './verification';
+import { articleInScopeForFamily } from './article-scope';
+import { type Verification, claimKindFromRisk, needsVerification, pickContributionContext, pickForVerification } from './verification';
 import { compareFactsForClient, describeWeakenings } from './redraft-guard';
 import type { ClauseFacts } from './clause-facts';
 import type { Weakening } from './redraft-guard';
@@ -445,9 +446,12 @@ export class ContractsService implements OnModuleInit {
           clientPosition,
           articles: (row.matchedArticles ?? []).map((m) => ({ lawTitle: m.law, articleNo: m.article_no, articleText: m.snippet })),
           claimKind: claimKindFromRisk(row.riskLevel),
+          contextClauses: pickContributionContext(row, rows),
         });
         if (out.status !== 'ok') continue;
         row.verification = out.verification as unknown as Record<string, unknown>;
+        // دُحض وصف «آمرة» وثبت الانحراف عن قاعدة مكملة ضد العميل: تُعاد الدرجة إلى «متوسط» (اختلال لا بطلان) وتُحتسب مؤكَّدة
+        if (out.verification.reclassified === 'deviation' && (row.riskLevel === 'حرج' || row.riskLevel === 'عالٍ')) row.riskLevel = 'متوسط';
         await this.clauseRepository.save(row);
       } catch (err) {
         this.logger.warn(`clause verification failed clauseIndex=${row.clauseIndex} (non-fatal): ${(err as Error).message}`);
@@ -845,9 +849,13 @@ export class ContractsService implements OnModuleInit {
         this.ftsCandidates(row.clauseText, 8),
         this.semanticCandidates(row.clauseText, 8),
       ]);
-      const merged = this.mergeCandidates(ftsCandidates, semanticCandidates);
+      // بوابة النطاق: مواد علاقة العمل لا تُعرض على عقد شراكة/بيع/إيجار... (نوعه معلوم)؛ انظر article-scope.ts
+      const scopeFamily = playbookFamily(position.contractType);
+      const inScope = (c: ClauseCandidate): boolean =>
+        articleInScopeForFamily(scopeFamily, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo });
+      const merged = this.mergeCandidates(ftsCandidates, semanticCandidates).filter(inScope);
 
-      const anchors = await this.anchorCandidates(criteria, row.clauseText, row.clauseTitle, playbookFamily(position.contractType) === 'services');
+      const anchors = (await this.anchorCandidates(criteria, row.clauseText, row.clauseTitle, scopeFamily === 'services')).filter(inScope);
 
       if (merged.length === 0 && anchors.length === 0) {
         row.assessmentStatus = 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';

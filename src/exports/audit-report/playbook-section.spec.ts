@@ -218,3 +218,25 @@ describe('الإحالة من محور الدليل إلى «ملاحظات ال
     expect(notes).not.toContain('الدليل محايد');
   });
 });
+
+describe('اختلالات الدليل التفاوضى فى مصفوفة المخاطر (الجولة 58)', () => {
+  const PRT = [
+    clause(1, 'رأس المال: يقدم الشريك الأول مبلغ مائة ألف جنيه ويقدم الشريك الثانى عمله فقط.'),
+    clause(2, 'الخسائر: تقع الخسائر كلها على الشريك الأول وحده ولا يتحمل الشريك الثانى منها شيئاً.'),
+  ];
+  it('محور بطلان صريح يظهر فى جدول مستقل بنوع «يستند إلى نص آمر» ولا يغيّر الأعداد ولا المستوى العام', () => {
+    const plain = buildContractAuditReport(base({ contractType: 'عقد شركة', clientRole: null, clauses: PRT })).report;
+    const grids = of(plain.blocks, 'grid');
+    const g = grids.find((x) => x.columns[1] === 'الاختلال');
+    expect(g).toBeDefined();
+    expect(g!.rows[0][4].text).toBe('يستند إلى نص آمر — يلزم التحقق');
+    expect(g!.rows[0][3].text).toBe('البند 2');
+    expect(JSON.stringify(plain.blocks)).toContain('لا تدخل فى أعداد المخاطر');
+    // لا بند مقيَّم ⇒ لا صف فى مصفوفة المخاطر الأساسية
+    expect(grids.find((x) => x.columns[1] === 'وصف المخاطرة')).toBeUndefined();
+  });
+  it('عقد بلا اختلال أولويته عالية ⇒ لا جدول', () => {
+    const { report } = buildContractAuditReport(base({ clauses: [clause(1, 'موضوع العقد تأجير الوحدة السكنية الكائنة بالقاهرة للسكنى.')] }));
+    expect(of(report.blocks, 'grid').some((x) => x.columns[1] === 'الاختلال')).toBe(false);
+  });
+});
