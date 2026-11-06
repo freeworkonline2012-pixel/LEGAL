@@ -240,7 +240,7 @@ const PRIORITY_NOTE: Record<Severity, string> = {
 /** أثقل درجة بين بنود العقد وملاحظاته ككل (غير المؤكدة لا ترفع المستوى العام؛ تُعرض موسومة فقط). */
 function overallRisk(
   counts: Record<Severity, number>,
-  findingCounts: { critical: number; high: number; medium: number },
+  findingCounts: { critical: number; high: number; medium: number; officeHigh?: number },
   incomplete: { readCount: number; gapOnly: boolean } | null,
 ): { text: string; tone: Tone } {
   // تقسيم غير مكتمل: غياب الملاحظات لا يدل على سلامة ما لم يُقرأ، فلا يُقدَّر مستوى «لا بنود تحتاج مراجعة» (وقع على عقد ممسوح قُرئ نصف بنوده).
@@ -251,6 +251,12 @@ function overallRisk(
       : ' — التقسيم غير مكتمل: قد توجد بنود لم تُحلَّل'
     : '';
   if (counts['حرج'] > 0 || findingCounts.critical > 0) return { text: `مخاطرة مرتفعة — يستوجب التفاوض الفوري${caveat}`, tone: 'critical' };
+  // الجولة 59: ما ارتفع إلى «عالٍ» بقاعدة مكتب وحدها (لا بند مقيَّم عالٍ ولا ملاحظة عالية أخرى) لا يُرفع به العقد إلى «مرتفعة نسبياً»:
+  // قاعدة المكتب ممارسة تعاقدية لا مخالفة قانونية مؤكدة، فيظهر أثرها صريحاً ويبقى المستوى العام متوسطاً. هكذا يتميز عقد سليم عليه ملاحظة مكتب عن عقد فيه مخالفة مؤكدة.
+  const officeOnlyHigh = counts['عالٍ'] === 0 && findingCounts.high > 0 && findingCounts.high === (findingCounts.officeHigh ?? 0);
+  if (officeOnlyHigh) {
+    return { text: `مخاطرة متوسطة — يستحق المراجعة؛ وفيها ${findingCounts.high === 1 ? 'ملاحظة مكتب واحدة' : `${findingCounts.high} ملاحظات مكتب`} بدرجة عالية (قاعدة مكتب لا مخالفة قانونية مؤكدة)${caveat}`, tone: 'medium' };
+  }
   if (counts['عالٍ'] > 0 || findingCounts.high > 0) return { text: `مخاطرة مرتفعة نسبياً — يستوجب المراجعة قبل التوقيع${caveat}`, tone: 'high' };
   if (counts['متوسط'] + counts['غير مصنَّف'] > 0 || findingCounts.medium > 0) return { text: `مخاطرة متوسطة — يستحق المراجعة${caveat}`, tone: 'medium' };
   if (incomplete) {
@@ -376,6 +382,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     critical: confirmedFindings.filter((f) => f.severity === 'حرج').length,
     high: confirmedFindings.filter((f) => f.severity === 'عالٍ').length,
     medium: confirmedFindings.filter((f) => f.severity === 'متوسط').length,
+    officeHigh: confirmedFindings.filter((f) => f.severity === 'عالٍ' && f.kind === 'office_rule').length,
   };
   const hardSegWarnings = (input.extractionWarnings ?? []).filter((w) => SEGMENTATION_INCOMPLETE_WARNING.test(w));
   const gapWarnings = (input.extractionWarnings ?? []).filter((w) => numberingGapWarning(w));

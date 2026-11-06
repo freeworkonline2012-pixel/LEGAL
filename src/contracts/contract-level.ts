@@ -1063,7 +1063,9 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
     const f = item && typeof item === 'object' ? (item as Record<string, unknown>) : null;
     if (!f) continue;
     const kind = MODEL_KINDS.find((k) => k === f.kind);
-    const severity = MODEL_SEVERITIES.find((s) => s === f.severity) ?? 'متوسط';
+    // «مصطلح غير معرَّف» من النموذج لا يتجاوز «منخفض» (الجولة 59): المواد الجوهرية منه (مدة العقد، المرفقات) تُفحص حتمياً بقواعد مستقلة،
+    // وما يقترحه النموذج غالباً عبارة عادية مفهومة من السياق («بالسعر نفسه»، «اتحاد الشاغلين») وكانت تُؤكَّد متوسطة على عقد سليم.
+    const severity = kind === 'undefined_term' ? 'منخفض' : (MODEL_SEVERITIES.find((s) => s === f.severity) ?? 'متوسط');
     const title = str(f.title, 140);
     const explanation = str(f.explanation, 700);
     if (!kind || !title || !explanation) continue;

@@ -118,6 +118,14 @@ function looksLikeWord(sk: string, word: string): boolean {
 }
 
 /**
+ * «البند» شُوِّهت فى القراءة الآلية بحرفين («اليند» «ايند» «لبند») لكن بقى فيها «ند» فى الحرف الرابع أو الخامس: نصيّة عنوان لا «الباب» ولا «الفصل».
+ * لا يُقبل إلا للعائلة «البند»، ويلزم بعدها ترتيبى مطابق بمسافة التحرير المعتادة (numberOptions) فلا يُفتح الباب لسطور عادية.
+ */
+function looksLikeBandStem(sk: string, family: Family): boolean {
+  return family.label === 'البند' && /^[ءاإأآل][ء-ي]{0,3}ند[ء-ي]{3,}/.test(sk);
+}
+
+/**
  * كل الأرقام التى يقاربها الهيكل، بعد حذف ما كان أبعد من أقرب رقم بأكثر من درجة واحدة (سطر «البند الأول» فى ملحق قريب من
  * «الأول» فلا يُحسب «الرابع» مشوَّهاً). ترتيب النتيجة بالأفضلية.
  */
@@ -185,11 +193,27 @@ function collectCandidates(lines: string[], family: Family): Candidate[] {
     const skip = noise ? noise[0].length : 0;
     body = body.slice(skip);
     if (body.length === 0 || body.length > 80) continue;
-    const punct = /[:：.\-–—]/.exec(body);
-    const markerPart = punct ? body.slice(0, punct.index) : body;
-    if (markerPart.length > MAX_MARKER_CHARS) continue;
-    const sk = skeleton(markerPart);
-    if (sk.length < MIN_SKELETON || sk.length > MAX_SKELETON) continue;
+    const punct = /[:：.\-–—؛;،]/.exec(body);
+    const baseMarker = punct ? body.slice(0, punct.index) : body;
+    // بلا علامة وقف (أسقطتها القراءة الآلية): قد يلتصق العنوان بعنوانه الفرعى فى سطر واحد، فتُجرَّب أيضاً بدايات من كلمتين إلى أربع (الأفضل يفوز)
+    const variants = [baseMarker];
+    if (!punct) {
+      const toks = body.split(/[ \t]+/).filter(Boolean);
+      for (let k = 2; k <= Math.min(4, toks.length - 1); k++) variants.push(toks.slice(0, k).join(' '));
+    }
+    let chosen: { markerPart: string; sk: string; options: NumberOption[] } | null = null;
+    for (const markerPart of variants) {
+      if (markerPart.length > MAX_MARKER_CHARS) continue;
+      const sk = skeleton(markerPart);
+      if (sk.length < MIN_SKELETON || sk.length > MAX_SKELETON) continue;
+      const options = looksLikeWord(sk, family.word) || looksLikeBandStem(sk, family) ? numberOptions(sk, family) : [];
+      const w = options.length > 0 ? Math.max(...options.map((o) => o.weight)) : -1;
+      const cw = chosen && chosen.options.length > 0 ? Math.max(...chosen.options.map((o) => o.weight)) : -1;
+      // الصيغة الكاملة أولاً؛ تُجرَّب البدايات الأقصر فقط إن لم تقارب الكاملة أى رقم (حتى لا تُنتزع من عنوان مشوّه كلمة أقصر تطابق رقماً آخر)
+      if (!chosen || (chosen.options.length === 0 && w > cw)) chosen = { markerPart, sk, options };
+    }
+    if (!chosen) continue;
+    const { markerPart, sk, options } = chosen;
     const isolated = (li === 0 || lines[li - 1].trim() === '') && (li === lines.length - 1 || lines[li + 1].trim() === '');
     const colon = punct && (punct[0] === ':' || punct[0] === '：') ? ':' : punct && punct[0] === '.' ? '.' : '';
     out.push({
@@ -199,7 +223,7 @@ function collectCandidates(lines: string[], family: Family): Candidate[] {
       markerEnd: lineStart + lead + skip + markerPart.trimEnd().length + (colon ? 1 : 0),
       rawLength: markerPart.trimEnd().length + (colon ? 1 : 0),
       colon,
-      options: looksLikeWord(sk, family.word) ? numberOptions(sk, family) : [],
+      options,
       sk,
       isolated,
     });

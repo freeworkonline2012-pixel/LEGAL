@@ -197,6 +197,19 @@ describe('buildContractAuditReport', () => {
     expect(grid.rows.map((r) => r[5].text)).toEqual(['مخالفة قانونية', 'مخالفة قانونية', 'اختلال تجارى', '—']);
   });
 
+  it('الجولة 59: ملاحظة مكتب عالية وحدها لا ترفع المستوى العام إلى «مرتفعة نسبياً»، ومعها بند عالٍ أو ملاحظة عالية أخرى يرتفع', () => {
+    const office = { kind: 'office_rule', kindLabel: 'قاعدة المكتب', severity: 'عالٍ', title: 'السرية بلا أثر منصوص عند الإخلال بها', explanation: 'ش', suggestion: null, evidence: [{ clauseLabel: 'البند التاسع', quote: 'يلتزم الطرفان بالمحافظة على السرية' }] };
+    const quiet = INPUT.clauses.filter((c) => c.riskLevel === null || c.riskLevel === 'متوسط');
+    const base = { ...INPUT, clauses: quiet };
+    const lvl = (inp: AuditReportInput) => buildContractAuditReport(inp).report.cover.rows.find((r) => r.label === 'مستوى المخاطرة العام')!;
+    const onlyOffice = lvl({ ...base, contractFindings: [office], contractFindingsModel: 'ok' });
+    expect(onlyOffice.value).toContain('مخاطرة متوسطة');
+    expect(onlyOffice.value).toContain('قاعدة مكتب لا مخالفة قانونية مؤكدة');
+    expect(onlyOffice.tone).toBe('medium');
+    expect(lvl({ ...base, contractFindings: [office, { ...office, kind: 'open_term', title: 'شرط مفتوح' }], contractFindingsModel: 'ok' }).value).toContain('مرتفعة نسبياً');
+    expect(lvl({ ...INPUT, contractFindings: [office], contractFindingsModel: 'ok' }).value).toContain('مرتفعة');
+  });
+
   it('شريط الإحصاءات بصرف عددى صحيح', () => {
     const strip = of(report.blocks, 'strip')[0];
     expect(strip.cells.map((c) => c.text)).toEqual(['1 بند متوسط', '1 بند عالٍ', '1 بند حرج', '4 بنود مراجعة']);
