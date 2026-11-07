@@ -62,6 +62,15 @@ describe('الجولة 60: المرشحات المدحوضة بدحض موثَّ
     expect(dismissed.rows[0][0].text).toBe('د1');
   });
 
+  it('الجولة 61: ملاحظة تعارض على مستوى العقد دُحضت بسبب «التوفيق» (reconciled) باقتباس موثَّق تنتقل إلى الملحق', () => {
+    const { report } = buildContractAuditReport({ ...INPUT, contractFindings: [finding({ verification: refuted('reconciled') })], contractFindingsModel: 'ok' });
+    expect(report.cover.rows.map((r) => r.label)).not.toContain('مرشحات عالية لم تُحسم');
+    const json = all(report);
+    expect(json).toContain('ملاحظات فُحصت واستُبعدت بدحض موثَّق');
+    expect(json).not.toContain('(مرشّحة)');
+    expect(gridBy(report, 'الملاحظة المستبعدة')!.rows).toHaveLength(1);
+  });
+
   it('اعتراض بلا اقتباس (uncertain) أو بسبب غامض (other) يبقى مرشّحاً على الغلاف والمستوى مؤقت', () => {
     for (const v of [
       { status: 'unconfirmed' as const, basis: 'uncertain', reason: 'اعترض المدقق دون اقتباس موثَّق.', quote: null },

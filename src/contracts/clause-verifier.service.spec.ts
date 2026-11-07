@@ -1,4 +1,5 @@
 import { ClauseVerifierService } from './clause-verifier.service';
+import { isDismissedVerification } from './verification';
 
 const CLAUSE = 'يجوز للطرف الثانى فسخ العقد دون حاجة إلى إنذار أو تنبيه إذا أخل الطرف الأول بالتزام جوهرى.';
 const reply = (content: unknown, ok = true, status = 200) =>
@@ -72,6 +73,35 @@ describe('ClauseVerifierService', () => {
     });
     if (out.status === 'ok') expect(out.verification.basis).toBe('refuted');
     else throw new Error('expected ok');
+  });
+
+  it('الجولة 61: مدقق ملاحظة العقد ككل يطلب سبب الدحض، والتوفيق الموثَّق بين المقتطفين يصير دحضاً قابلاً للاستبعاد', async () => {
+    const f = reply({ verdict: 'refuted', refutation_kind: 'reconciled', counter_quote: 'إلا إذا اتفق الطرفان كتابة', reason: 'يمكن التوفيق بين البندين.' });
+    global.fetch = f as never;
+    const out = await new ClauseVerifierService().verifyFinding({
+      kindLabel: 'تعارض محتمل بين بندين',
+      title: 't',
+      explanation: 'e',
+      evidence: [{ clauseLabel: 'البند الخامس', quote: 'يظل النظام ملكاً للطرف الأول إلا إذا اتفق الطرفان كتابة' }],
+      clauseTexts: ['يظل النظام ملكاً للطرف الأول إلا إذا اتفق الطرفان كتابة على غير ذلك.'],
+    });
+    if (out.status !== 'ok') throw new Error('expected ok');
+    expect(out.verification).toMatchObject({ status: 'unconfirmed', basis: 'refuted', refutationKind: 'reconciled' });
+    expect(isDismissedVerification(out.verification)).toBe(true);
+    const body = JSON.parse((f.mock.calls[0][1] as { body: string }).body);
+    expect(body.messages[0].content).toContain('"reconciled"');
+    expect(body.messages[0].content).toContain('refutation_kind');
+    // السبب «other» الغامض أو غياب الحقل لا يستبعد
+    global.fetch = reply({ verdict: 'refuted', counter_quote: 'إلا إذا اتفق الطرفان كتابة', reason: 'لا تعارض.' }) as never;
+    const out2 = await new ClauseVerifierService().verifyFinding({
+      kindLabel: 'تعارض محتمل بين بندين',
+      title: 't',
+      explanation: 'e',
+      evidence: [{ clauseLabel: 'البند الخامس', quote: 'يظل النظام ملكاً للطرف الأول إلا إذا اتفق الطرفان كتابة' }],
+      clauseTexts: ['يظل النظام ملكاً للطرف الأول إلا إذا اتفق الطرفان كتابة على غير ذلك.'],
+    });
+    if (out2.status !== 'ok') throw new Error('expected ok');
+    expect(isDismissedVerification(out2.verification)).toBe(false);
   });
 
   it('الجولة 31: يُعرض على مدقق الملاحظة نص العقد كاملاً (بند آخر لم يُنقل مقتطفه)، مع سقف للحجم', async () => {

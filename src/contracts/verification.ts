@@ -17,7 +17,7 @@ export interface Verification {
    */
   reclassified?: 'deviation';
   /** سبب الدحض كما صنّفه المدقق (للتدقيق والقياس) */
-  refutationKind?: 'not_mandatory' | 'clause_addresses' | 'not_applicable' | 'other';
+  refutationKind?: 'not_mandatory' | 'clause_addresses' | 'not_applicable' | 'reconciled' | 'other';
   reason: string;
   quote: string | null;
   quoteSource: 'clause' | 'article' | null;
@@ -26,10 +26,10 @@ export interface Verification {
 
 /**
  * دحض موثَّق (الجولة 60): اعتراض المدقق المستقل مسنَد باقتباس حرفى تحقق منه الكود، وسببه محدد (ليس «other» الغامض):
- * المادة ليست آمرة، أو البند نفسه يعالج الموضوع، أو الملاحظة لا تنطبق. مثل هذه الملاحظة تُعرض فى ملحق مختصر «فُحصت واستُبعدت» لا مرشّحةً
+ * المادة ليست آمرة، أو البند نفسه يعالج الموضوع، أو الملاحظة لا تنطبق، أو يمكن التوفيق بين المقتطفين المدّعى تعارضهما (reconciled، لملاحظات العقد ككل). مثل هذه الملاحظة تُعرض فى ملحق مختصر «فُحصت واستُبعدت» لا مرشّحةً
  * (لا تُحذف: يبقى نصها وسبب استبعادها وقتباس الدحض ظاهرة للمراجع)، ولا ترفع المستوى ولا تجعله «مؤقتاً» على الغلاف.
  */
-export const DISMISSIBLE_REFUTATION_KINDS: ReadonlySet<string> = new Set(['not_mandatory', 'clause_addresses', 'not_applicable']);
+export const DISMISSIBLE_REFUTATION_KINDS: ReadonlySet<string> = new Set(['not_mandatory', 'clause_addresses', 'not_applicable', 'reconciled']);
 
 export function isDismissedVerification(v: { status?: string; basis?: string | null; refutationKind?: string | null; quote?: string | null } | null | undefined): boolean {
   return !!v && v.status === 'unconfirmed' && v.basis === 'refuted' && !!v.quote && !!v.refutationKind && DISMISSIBLE_REFUTATION_KINDS.has(v.refutationKind);
@@ -63,7 +63,7 @@ export function validateVerdict(raw: unknown, clauseText: string, articleTexts: 
   }
   if (verdict === 'refuted') {
     const kind: Verification['refutationKind'] =
-      o.refutation_kind === 'not_mandatory' || o.refutation_kind === 'clause_addresses' || o.refutation_kind === 'not_applicable' ? o.refutation_kind : 'other';
+      o.refutation_kind === 'not_mandatory' || o.refutation_kind === 'clause_addresses' || o.refutation_kind === 'not_applicable' || o.refutation_kind === 'reconciled' ? o.refutation_kind : 'other';
     // دُحض وصف «آمرة» وحده؛ والبند ذاته يخرج عن الأصل ضد العميل: اقتباسان حرفيان (من البند ومن المادة) وإلا تبقى «غير مؤكدة» كما كانت
     const dq = typeof o.deviation_quote === 'string' ? o.deviation_quote : '';
     const aqd = typeof o.article_quote === 'string' ? o.article_quote : '';
