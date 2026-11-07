@@ -20,9 +20,19 @@ interface SectorLaw {
   signals: RegExp[];
   /** أسر عقود يُقبل لها القانون دون مؤشر نصى لأن نوعها نفسه قد يكون نشاطه. */
   allowFamilies?: ReadonlyArray<PlaybookFamily>;
+  /** تُحذف أسماء شركات التأمين من النص قبل مطابقة المؤشرات (قوانين قطاع التأمين). */
+  stripInsurerNames?: boolean;
 }
 
-const INSURANCE_SIGNALS: RegExp[] = [/تامين/, /وثيقه تامين|وثائق تامين/, /اعاده التامين/, /وساطه (?:في )?التامين|وسيط تامين|وسطاء التامين/];
+/**
+ * مؤشرات قطاع التأمين (الجولة 62): عبارات موضوع لا مجرد لفظ «تأمين»؛ فلفظ «تأمين» وحده يرد فى اسم الطرف («شركة … للتأمين») ولا يجعل العقد عقد تأمين
+ * (وقع فى 0174: عقد تحصيل إلكترونى مع شركة تأمين مرّ عليه قرارات هيئة الرقابة المالية على الوساطة وإصدار الوثائق). تُحذف أسماء الشركات قبل المطابقة.
+ */
+const INSURANCE_SIGNALS: RegExp[] = [/وثيقه تامين|وثائق تامين|اصدار (?:ال)?وثائق|اعاده التامين|عقد (?:ال)?تامين|وساطه (?:في )?(?:ال)?تامين|وسيط تامين|وسطاء التامين|اقساط (?:ال)?تامين|اكتتاب/];
+
+/** اسم شركة تأمين على صيغة «شركة … للتأمين …»: لا يُحسب مؤشراً. لا يُحذف إن تضمن «وساطة/وسيط» لأنه حينئذ نشاط لا اسم فقط. */
+const INSURER_NAME = /(?<![ء-ي])(?:ال)?(?:شركه|شركات|مجموعه|هيئه|اتحاد)\s+(?:(?!وساط|وسيط|وسطاء)[ء-ي]+\s+){0,5}?للتامين(?:\s+(?:ال)?(?:تكافلي|تعاوني|عامه|حياه|ممتلكات|والمعاشات))?/g;
+const withoutInsurerNames = (t: string): string => t.replace(INSURER_NAME, ' ');
 
 const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
   {
@@ -33,15 +43,16 @@ const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
     allowFamilies: ['finance'],
   },
   // قطاع التأمين: قرارات الهيئة (وساطة التأمين 69/2025 و5/2023 وإصدار الوثائق رقمياً 199/2025 وشكاوى القطاع 77/2025)
-  { lawNo: 69, lawYear: 2025, sector: 'وساطة التأمين', signals: INSURANCE_SIGNALS },
-  { lawNo: 5, lawYear: 2023, sector: 'وسطاء التأمين', signals: INSURANCE_SIGNALS },
-  { lawNo: 199, lawYear: 2025, sector: 'إصدار وثائق التأمين رقمياً', signals: INSURANCE_SIGNALS },
-  { lawNo: 77, lawYear: 2025, sector: 'شكاوى قطاع التأمين', signals: INSURANCE_SIGNALS },
+  { lawNo: 69, lawYear: 2025, sector: 'وساطة التأمين', signals: INSURANCE_SIGNALS, stripInsurerNames: true },
+  { lawNo: 5, lawYear: 2023, sector: 'وسطاء التأمين', signals: INSURANCE_SIGNALS, stripInsurerNames: true },
+  { lawNo: 199, lawYear: 2025, sector: 'إصدار وثائق التأمين رقمياً', signals: INSURANCE_SIGNALS, stripInsurerNames: true },
+  { lawNo: 77, lawYear: 2025, sector: 'شكاوى قطاع التأمين', signals: INSURANCE_SIGNALS, stripInsurerNames: true },
 ];
 
 /** هل يحوى نص العقد مؤشراً على نشاط القانون القطاعى؟ */
 function hasSignal(law: SectorLaw, normalizedText: string): boolean {
-  return law.signals.some((re) => matchesLoose(re, normalizedText));
+  const text = law.stripInsurerNames ? withoutInsurerNames(normalizedText) : normalizedText;
+  return law.signals.some((re) => matchesLoose(re, text));
 }
 
 export interface LawScopeContext {

@@ -79,6 +79,7 @@ import {
   mergeFindings,
   sortFindings,
 } from './contract-level';
+import { internalConsistencyFindings } from './internal-checks';
 import { officeRuleFindings } from './office-rules';
 
 // معايير الموضوعات التى لها قواعد حتمية (clause-rules.ts)
@@ -412,6 +413,7 @@ export class ContractsService implements OnModuleInit {
       rules = sortFindings([
         ...deterministicFindings(clauses, { contractType, textMayBeIncomplete, titleText }),
         ...officeRuleFindings(clauses, { contractType, textMayBeIncomplete, titleText }),
+        ...internalConsistencyFindings(clauses, { textMayBeIncomplete }),
       ]);
     } catch (err) {
       this.logger.warn(`contract-level rules failed (non-fatal): ${(err as Error).message}`);

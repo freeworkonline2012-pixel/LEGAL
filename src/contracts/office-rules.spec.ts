@@ -32,7 +32,7 @@ describe('قواعد المكتب — المدة بلا تجديد تلقائى'
 
   it('لا تُرصد حين لا ذكر للتجديد', () => {
     const c = clause(1, 'المدة', 'مدة هذا العقد سنة ميلادية تبدأ فى أول يناير وتنتهى فى آخر ديسمبر.');
-    expect(ids([c], 'خدمات')).toEqual([]);
+    expect(ids([c], 'خدمات')).not.toContain('office:term_no_auto_renewal');
   });
 
   it('لا تنطبق على عقد إيجار (نظامه القانونى الخاص)', () => {
@@ -66,7 +66,7 @@ describe('قواعد المكتب — أثر الإخلال بالسرية', () 
 
   it('لا تُرصد إن لم يكن فى العقد التزام بالسرية أصلاً (يتولاه فحص البنود الناقصة)', () => {
     const c = clause(1, 'المقابل', 'يسدد العميل المقابل الشهرى فى أول كل شهر.');
-    expect(ids([c], 'خدمات')).toEqual([]);
+    expect(ids([c], 'خدمات')).not.toContain('office:confidentiality_breach_consequence');
   });
 
   it('تجمع المواضع المتعددة فى ملاحظة واحدة بأدلتها', () => {
@@ -105,25 +105,27 @@ describe('قواعد المكتب — الإخطار ومهلة التصحيح',
 
   it('لا يُرصد بند لا فسخ فيه ولا تعويض عن إخلال', () => {
     const c = clause(3, 'السداد', 'يسدد العميل المقابل خلال ثلاثين يوماً من استلام الفاتورة، ولا يحق لمقدم الخدمة وقف الخدمة بسبب نزاع على فاتورة.');
-    expect(ids([c], 'خدمات')).toEqual([]);
+    expect(ids([c], 'خدمات')).not.toContain('office:breach_notice_and_cure');
   });
 });
 
-describe('قواعد المكتب — الاختصاص للمحاكم الاقتصادية (معطلة افتراضياً)', () => {
+describe('قواعد المكتب — الاختصاص للمحاكم الاقتصادية (اقتراح منخفض مفعَّل منذ الجولة 62)', () => {
   const arb = clause(16, 'المنازعات', 'يُحال أى نزاع ينشأ عن هذا العقد إلى التحكيم وفقاً لقانون التحكيم، ومكان التحكيم القاهرة.');
 
-  it('لا تعمل فى الملف الافتراضى', () => {
-    expect(ids([arb], 'خدمات')).not.toContain('office:economic_courts_forum');
+  it('تعمل فى الملف الافتراضى كاقتراح منخفض، ولا تعمل إن ورد ذكر المحاكم الاقتصادية', () => {
+    const f = officeRuleFindings([arb], opts('خدمات')).find((x) => x.id === 'office:economic_courts_forum');
+    expect(f).toBeDefined();
+    expect(f!.severity).toBe('منخفض');
+    const econ = clause(17, 'الاختصاص', 'ينعقد الاختصاص بنظر أى نزاع للمحاكم الاقتصادية.');
+    expect(ids([arb, econ], 'خدمات')).not.toContain('office:economic_courts_forum');
   });
 
-  it('تعمل إذا فُعّلت فى ملف المكتب، ولا تعمل إن ورد ذكر المحاكم الاقتصادية', () => {
+  it('تُعطَّل بتعطيلها فى ملف المكتب (بيانات لا كود)', () => {
     const profile: OfficeProfile = {
       ...DEFAULT_OFFICE_PROFILE,
-      rules: DEFAULT_OFFICE_PROFILE.rules.map((r) => (r.id === 'economic_courts_forum' ? { ...r, enabled: true } : r)),
+      rules: DEFAULT_OFFICE_PROFILE.rules.map((r) => (r.id === 'economic_courts_forum' ? { ...r, enabled: false } : r)),
     };
-    expect(officeRuleFindings([arb], opts('خدمات'), profile).map((f) => f.id)).toContain('office:economic_courts_forum');
-    const econ = clause(17, 'الاختصاص', 'ينعقد الاختصاص بنظر أى نزاع للمحاكم الاقتصادية.');
-    expect(officeRuleFindings([arb, econ], opts('خدمات'), profile).map((f) => f.id)).not.toContain('office:economic_courts_forum');
+    expect(officeRuleFindings([arb], opts('خدمات'), profile).map((f) => f.id)).not.toContain('office:economic_courts_forum');
   });
 });
 

@@ -9,7 +9,7 @@ import { buildPaymentSchedules, formatMoney, formatPercent } from '../../contrac
 import { coveredTopicRefs } from '../../contracts/missing-topic-map';
 import { playbookBlocks } from './playbook-section';
 import { buildClientAuditReport } from './client-version';
-import { isDismissedVerification } from '../../contracts/verification';
+import { isDismissedFindingVerification, isDismissedVerification } from '../../contracts/verification';
 import { type AuditReport, type Cell, type RBlock, type Tone } from './model';
 
 export type Severity = 'حرج' | 'عالٍ' | 'متوسط' | 'غير مصنَّف';
@@ -307,7 +307,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   const isUnconfirmedFinding = (f: AuditContractFinding): boolean => f.verification?.status === 'unconfirmed';
   const confirmedFindings = findings.filter((f) => !isUnconfirmedFinding(f));
   // غير المؤكدة نوعان (الجولة 60): مرشّحة (اعتراض بلا اقتباس موثَّق أو سبب غامض) تبقى على الغلاف والمستوى المؤقت، ومستبعدة بدحض موثَّق تُعرض فى ملحق مختصر
-  const isDismissedFinding = (f: AuditContractFinding): boolean => isDismissedVerification(f.verification);
+  const isDismissedFinding = (f: AuditContractFinding): boolean => isDismissedFindingVerification(f.kind, f.verification);
   const candidateFindings = findings.map((f, i) => ({ f, i })).filter((x) => isUnconfirmedFinding(x.f) && !isDismissedFinding(x.f));
   const dismissedFindings = findings.map((f, i) => ({ f, i })).filter((x) => isDismissedFinding(x.f));
   const confirmedClauseLabels = new Set(clauses.filter((c) => severityOf(c) !== null && !isUnconfirmed(c)).map((c) => c.clauseLabel));

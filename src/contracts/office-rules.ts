@@ -2,6 +2,7 @@ import { quoteInText } from './clause-facts';
 import {
   contractFamily,
   inferContractFamily,
+  markAbsenceUnconfirmed,
   sentencesOf,
   sortFindings,
   type ContractFamily,
@@ -10,7 +11,10 @@ import {
   type FindingSeverity,
   type LevelClause,
 } from './contract-level';
-import { normalizeArabicForMatch } from './reasoning.util';
+import { eachSentence, firstPerClause, norm, type OfficeRule, type OfficeRuleHit } from './office-rules-kit';
+import { SERVICES_OFFICE_RULES } from './office-rules-services';
+
+export type { OfficeRule, OfficeRuleContext, OfficeRuleHit } from './office-rules-kit';
 
 /**
  * قواعد المكتب (Playbook المكتب): مواقف تعاقدية يضعها محامى المكتب ويريد أن تُفحص فى كل عقد، بقواعد حتمية موثَّقة بالاقتباس الحرفى
@@ -24,62 +28,11 @@ import { normalizeArabicForMatch } from './reasoning.util';
  *  - الملف الشخصى (OfficeProfile) بيانات لا كود: تغيير القواعد أو تعطيلها لا يمس بقية المحرك (أساس Playbook لكل مكتب).
  */
 
-export interface OfficeRuleContext {
-  family: ContractFamily;
-}
-
-export interface OfficeRuleHit {
-  clause: LevelClause;
-  sentence: string;
-}
-
-export interface OfficeRule {
-  id: string;
-  /** null = كل الأنواع */
-  families: ContractFamily[] | null;
-  /** أنواع تُستثنى حتى مع families = null (مثل العمل الخاضع لنظام قانونى خاص) */
-  excludeFamilies?: ContractFamily[];
-  /** معطَّلة = لا تعمل (قاعدة مقترحة تنتظر تأكيد المكتب) */
-  enabled: boolean;
-  severity: FindingSeverity;
-  title: string;
-  explanation: string;
-  suggestion: string;
-  /** مصدر القاعدة وحدود تعميمها، يظهر فى الشرح */
-  provenance: string;
-  /** المواضع المخالفة؛ فارغ = لا تنطبق أو مستوفاة */
-  evaluate: (clauses: LevelClause[], ctx: OfficeRuleContext) => OfficeRuleHit[];
-}
-
 export interface OfficeProfile {
   id: string;
   name: string;
   version: number;
   rules: OfficeRule[];
-}
-
-// ===================== أدوات =====================
-
-const norm = (t: string): string => normalizeArabicForMatch(t);
-
-function* eachSentence(clauses: LevelClause[]): Generator<{ clause: LevelClause; sentence: string; n: string }> {
-  for (const clause of clauses) {
-    for (const sentence of sentencesOf(clause.clauseText)) yield { clause, sentence, n: norm(sentence) };
-  }
-}
-
-/** أول جملة مطابقة فى كل بند (بند واحد = موضع واحد). */
-function firstPerClause(clauses: LevelClause[], test: (n: string, clauseNorm: string) => boolean): OfficeRuleHit[] {
-  const hits: OfficeRuleHit[] = [];
-  const done = new Set<number>();
-  for (const { clause, sentence, n } of eachSentence(clauses)) {
-    if (done.has(clause.clauseIndex)) continue;
-    if (test(n, norm(`${clause.clauseTitle ?? ''} ${clause.clauseText}`))) {
-      hits.push({ clause, sentence });
-      done.add(clause.clauseIndex);
-    }
-  }
-  return hits;
 }
 
 // ===================== القاعدة 1: المدة محددة بلا تجديد تلقائى =====================
@@ -234,36 +187,40 @@ const RULE_GENERIC_LIABILITY_LIMIT: OfficeRule = {
     firstPerClause(clauses, (n, clauseNorm) => LIABILITY_LIMIT.test(n) && LIABILITY_TOPIC.test(clauseNorm) && !LIABILITY_CARVEOUT.test(clauseNorm)),
 };
 
-// ===================== القاعدة 4 (معطَّلة): الاختصاص للمحاكم الاقتصادية =====================
+// ===================== القاعدة 4: الاختصاص للمحاكم الاقتصادية (اقتراح للأطراف) =====================
 
 const ARBITRATION = /(?:يحال|تحال|يحل|يفصل|يسوي|تسوي|يتم تسويه)[^.]{0,80}(?:التحكيم|محكم|هيئه تحكيم)|(?:شرط|اتفاق) (?:ال)?تحكيم|وفقا (?:ل)?قانون (?:ال)?تحكيم/;
+/** اختصاص محكمة بعينها غير اقتصادية (ابتدائية/جزئية/محكمة مدينة…): بند اختصاص قضائى قائم. «المحاكم المختصة» العامة تتناولها قاعدة ق12 (court_not_specified) وتقترح المحاكم الاقتصادية خياراً فلا تتكرر هنا. */
+const COURT_FORUM = /(?:تختص|يختص|اختصاص|ينعقد الاختصاص|ترفع)[^.]{0,80}(?:محكمه|محاكم)\s+(?:ال)?(?:ابتدائيه|جزئيه|قاهره|اسكندريه|جيزه|منصوره|طنطا)|(?:محاكم|محكمه)\s+(?:ال)?(?:ابتدائيه|جزئيه|قاهره|اسكندريه|جيزه|منصوره|طنطا)/;
 /** «المحاكم/للمحاكم/بالمحاكم الاقتصادية» وصيغ المفرد؛ المطابقة على النص الموحَّد، وسابقة اللام لا تمنع المطابقة. */
-const ECON_COURTS = /(?:محاكم|محكمه)\s+(?:ال)?اقتصاديه/;
+const ECON_COURTS = /(?:محاكم|محكمه)\s+(?:[ء-ي]+\s+){0,3}?(?:ال)?اقتصاديه/;
 
 const RULE_ECONOMIC_COURTS: OfficeRule = {
   id: 'economic_courts_forum',
-  families: ['services', 'agency', 'licence', 'partnership', 'sale', 'finance'],
-  enabled: false,
-  severity: 'متوسط',
-  title: 'فض المنازعات بالتحكيم بدل الاختصاص للمحاكم الاقتصادية',
+  // العقود التجارية فقط: العمل والإيجار والهبة والصلح لها جهات اختصاص أخرى، فلا يُقترح لها ما لا ينطبق
+  families: ['services', 'agency', 'licence', 'partnership', 'sale', 'finance', 'nda', 'security', 'insurance'],
+  enabled: true,
+  severity: 'منخفض',
+  title: 'اقتراح: النص على اختصاص المحاكم الاقتصادية بمنازعات العقد',
   explanation:
-    'قاعدة مقترحة (معطلة حتى يؤكدها المكتب): يُفضَّل أن ينعقد الاختصاص بمنازعات العقد للمحاكم الاقتصادية. ورد فى العقد إحالة المنازعات إلى التحكيم دون ذكر المحاكم الاقتصادية. ' +
-    'الاختيار بين التحكيم والقضاء قرار استراتيجى لكل عميل، ولا يُعد التحكيم خطأ فى ذاته.',
-  suggestion: 'نص ينعقد بموجبه الاختصاص بنظر أى نزاع ينشأ عن تنفيذ العقد أو تفسير بنوده للمحاكم الاقتصادية.',
+    'اقتراح للأطراف لا التزام عليهم: يمكن للأطراف النص على اختصاص المحاكم الاقتصادية بنظر منازعات هذا العقد. ' +
+    'ورد فى العقد بند للفصل فى المنازعات (تحكيم أو محكمة بعينها أو محاكم مختصة) دون ذكر المحاكم الاقتصادية. ' +
+    'الاختيار بين التحكيم والقضاء العادى والمحاكم الاقتصادية قرار استراتيجى لكل عميل وكل عقد، ولا يُعد ما ورد خطأ فى ذاته.',
+  suggestion: 'يمكن النص على أن الاختصاص بنظر أى نزاع ينشأ عن تنفيذ العقد أو تفسير بنوده ينعقد للمحاكم الاقتصادية، إن رأى الأطراف ذلك مناسباً.',
   provenance:
-    'مصدر القاعدة: ملاحظتان على عقد واحد فقط (الدفعة 1)، وتعارضتا مع بند آخر قبله المحامى (اختصاص محكمة ابتدائية عادية)؛ فلا تكفى لتعميمها. معطلة افتراضياً.',
+    'مصدر القاعدة: قرار المستشار (الدفعة 2، نوفمبر 2026) بتفعيلها على كل العقود كاختيار للأطراف وليس التزاماً عليهم، بدرجة منخفضة، ولا تُعرض إلا مع وجود بند اختصاص أو تحكيم قائم. استُثنى منها العمل والإيجار لاختلاف جهة الاختصاص.',
   evaluate: (clauses) => {
     if (clauses.some((c) => ECON_COURTS.test(norm(c.clauseText)))) return [];
-    return firstPerClause(clauses, (n) => ARBITRATION.test(n));
+    return firstPerClause(clauses, (n) => ARBITRATION.test(n) || COURT_FORUM.test(n)).slice(0, 1);
   },
 };
 
 // ===================== الملف الشخصى الافتراضى =====================
 
 export const DEFAULT_OFFICE_PROFILE: OfficeProfile = {
-  id: 'office-default-v1',
-  name: 'ممارسة المكتب — الدفعة الأولى (نوفمبر 2026)',
-  version: 1,
+  id: 'office-default-v2',
+  name: 'ممارسة المكتب — الدفعتان الأولى والثانية (نوفمبر 2026)',
+  version: 2,
   rules: [
     RULE_TERM_NO_AUTO_RENEWAL,
     RULE_CONFIDENTIALITY_BREACH,
@@ -271,6 +228,7 @@ export const DEFAULT_OFFICE_PROFILE: OfficeProfile = {
     RULE_GENERIC_NON_WAIVER,
     RULE_GENERIC_LIABILITY_LIMIT,
     RULE_ECONOMIC_COURTS,
+    ...SERVICES_OFFICE_RULES,
   ],
 };
 
@@ -316,8 +274,8 @@ export function officeRuleFindings(
       continue;
     }
     const evidence = hits.map(evidenceOf).filter((e): e is FindingEvidence => e !== null);
-    if (evidence.length === 0) continue;
-    out.push({
+    if (evidence.length === 0 && !(rule.absence && hits.length > 0)) continue;
+    const finding: ContractFinding = {
       id: `office:${rule.id}`,
       kind: 'office_rule',
       severity: rule.severity,
@@ -327,7 +285,9 @@ export function officeRuleFindings(
       suggestion: rule.suggestion,
       evidence: evidence.slice(0, 4),
       source: 'rule',
-    });
+    };
+    // ادعاء غياب على نص ممسوح ذى تحذيرات: يبقى مرشحاً غير مؤكد كسائر ادعاءات الغياب
+    out.push(rule.absence && opts.textMayBeIncomplete ? markAbsenceUnconfirmed(finding) : finding);
   }
   return sortFindings(out);
 }

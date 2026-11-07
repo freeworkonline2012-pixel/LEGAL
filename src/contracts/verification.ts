@@ -35,6 +35,27 @@ export function isDismissedVerification(v: { status?: string; basis?: string | n
   return !!v && v.status === 'unconfirmed' && v.basis === 'refuted' && !!v.quote && !!v.refutationKind && DISMISSIBLE_REFUTATION_KINDS.has(v.refutationKind);
 }
 
+type DismissalVerification = { status?: string; basis?: string | null; refutationKind?: string | null; quote?: string | null } | null | undefined;
+
+/** أنواع ملاحظات العقد ككل التى يصح فيها «التوفيق بين المقتطفين» (reconciled): ما يقوم على تعارض أو عدم اتساق بين بندين فقط. */
+const RECONCILABLE_KINDS: ReadonlySet<string> = new Set(['conflict', 'scope_mismatch']);
+/** الشرط المفتوح والمصطلح/الإحالة غير المعرَّفة لا تُستبعد إلا بدحض يثبت أن بنداً يعالجها صراحة أو أنها لا تنطبق. */
+const GAP_KINDS: ReadonlySet<string> = new Set(['open_term', 'undefined_term']);
+const GAP_DISMISSAL_KINDS: ReadonlySet<string> = new Set(['clause_addresses', 'not_applicable']);
+
+/**
+ * الجولة 61.1: الاستبعاد بحسب نوع الملاحظة. وقع فى الإنتاج أن «reconciled» استُعمل لاستبعاد ملاحظة شرط مفتوح أو إحالة معيبة (ليست تعارضاً)
+ * فاختفى عيب حقيقى فى ملحق الاستبعاد. فالتوفيق بين مقتطفين لا يُسقط إلا ملاحظة تعارض/عدم اتساق، وملاحظة الشرط المفتوح أو الإحالة لا تسقط إلا
+ * باعتراف بند صريح يعالجها أو بعدم الانطباق. وما لا يستوفى ذلك يبقى مرشحاً للمراجعة (لا يُحذف ولا يُخفى).
+ */
+export function isDismissedFindingVerification(kind: string | null | undefined, v: DismissalVerification): boolean {
+  if (!isDismissedVerification(v)) return false;
+  const rk = v!.refutationKind as string;
+  if (rk === 'reconciled') return !!kind && RECONCILABLE_KINDS.has(kind);
+  if (kind && GAP_KINDS.has(kind)) return GAP_DISMISSAL_KINDS.has(rk);
+  return true;
+}
+
 function str(v: unknown, max: number): string | null {
   if (typeof v !== 'string') return null;
   const t = v.replace(/\s+/g, ' ').trim();

@@ -107,3 +107,32 @@ describe('الجولة 60: المرشحات المدحوضة بدحض موثَّ
     expect(overall.value).not.toContain('ملاحظة');
   });
 });
+
+describe('الجولة 61.1: «reconciled» لا يخفى عيباً حقيقياً من غير نوع التعارض', () => {
+  const openTerm = (verification: unknown) =>
+    finding({
+      kind: 'open_term',
+      kindLabel: 'شرط مفتوح',
+      title: 'مدة التحويل بلا رقم',
+      verification,
+    });
+  it('شرط مفتوح دُحض بسبب «reconciled» يبقى مرشحاً على الغلاف ولا ينتقل إلى ملحق الاستبعاد', () => {
+    const { report } = buildContractAuditReport({ ...INPUT, contractFindings: [openTerm(refuted('reconciled'))], contractFindingsModel: 'ok' });
+    expect(gridBy(report, 'الملاحظة المستبعدة')).toBeUndefined();
+    expect(all(report)).toContain('مرشّحات للمراجعة البشرية — غير مؤكدة');
+  });
+  it('شرط مفتوح دُحض بسبب «clause_addresses» باقتباس موثَّق ينتقل إلى الملحق كما كان', () => {
+    const { report } = buildContractAuditReport({ ...INPUT, contractFindings: [openTerm(refuted('clause_addresses'))], contractFindingsModel: 'ok' });
+    expect(gridBy(report, 'الملاحظة المستبعدة')).toBeDefined();
+  });
+  it('إحالة غير معرَّفة دُحضت بسبب «reconciled» تبقى مرشحة', () => {
+    const f = finding({ kind: 'undefined_term', kindLabel: 'مصطلح أو إحالة غير معرَّفة', title: 'إحالة إلى «هذا البند السابع»', verification: refuted('reconciled') });
+    const { report } = buildContractAuditReport({ ...INPUT, contractFindings: [f], contractFindingsModel: 'ok' });
+    expect(gridBy(report, 'الملاحظة المستبعدة')).toBeUndefined();
+  });
+  it('التعارض المدحوض بـ «reconciled» ينتقل إلى الملحق كما كان فى الجولة 61', () => {
+    const { report } = buildContractAuditReport({ ...INPUT, contractFindings: [finding({ verification: refuted('reconciled') })], contractFindingsModel: 'ok' });
+    expect(gridBy(report, 'الملاحظة المستبعدة')).toBeDefined();
+  });
+});
+

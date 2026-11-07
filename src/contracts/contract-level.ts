@@ -85,12 +85,12 @@ export function sentencesOf(text: string): string[] {
     .filter((s) => s.length >= 6);
 }
 
-function clipQuote(s: string, max = 300): string {
+export function clipQuote(s: string, max = 300): string {
   const t = s.replace(/\s+/g, ' ').trim();
   return t.length <= max ? t : `${t.slice(0, max).trim()}…`;
 }
 
-function evidenceOf(c: LevelClause, sentence: string): FindingEvidence | null {
+export function evidenceOf(c: LevelClause, sentence: string): FindingEvidence | null {
   const q = clipQuote(sentence);
   // الاقتباس المقتطع بنقاط لا يطابق الأصل؛ نقتطع قبل النقاط عند التحقق
   const probe = q.endsWith('…') ? q.slice(0, -1) : q;
@@ -1004,7 +1004,7 @@ const ABSENCE_ON_SCAN_REASON =
   'ادعاء غياب على عقد مقروء آلياً من صورة ممسوحة وبه تحذيرات قراءة؛ قد تكون الجملة التى تتناول هذا الموضوع مشوّهة أو ضائعة فى القراءة الآلية، ' +
   'فلا يُعدّ الغياب مؤكداً حتى يطابَق الأصل. (وُسم آلياً: ليس اعتراضاً من المدقق المستقل.)';
 
-function markAbsenceUnconfirmed(f: ContractFinding): ContractFinding {
+export function markAbsenceUnconfirmed(f: ContractFinding): ContractFinding {
   return {
     ...f,
     verification: { status: 'unconfirmed', basis: 'uncertain', reason: ABSENCE_ON_SCAN_REASON, quote: null, quoteSource: null, verifiedAt: new Date().toISOString() },

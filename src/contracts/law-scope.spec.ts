@@ -29,7 +29,8 @@ describe('بوابة نطاق القانون القطاعى (الجولة 60)', 
   it('قرارات قطاع التأمين تُحجب عن عقد لا يرد فيه التأمين وتمر على عقد وساطة تأمين وعلى عقد يذكر التأمينات', () => {
     expect(articleInLawScope(lawScopeContext('عقد إيجار مخزن بالجيزة', null), brokerage)).toBe(false);
     expect(articleInLawScope(lawScopeContext('عقد وساطة فى التأمين بين شركة تأمين ووسيط', null), brokerage)).toBe(true);
-    expect(articleInLawScope(lawScopeContext('يلتزم صاحب العمل بسداد التأمينات الاجتماعية', null), brokerage)).toBe(true);
+    // الجولة 62: التأمينات الاجتماعية لا تجعل العقد عقد وساطة تأمين (كان يمر بلفظ «تأمين» وحده)
+    expect(articleInLawScope(lawScopeContext('يلتزم صاحب العمل بسداد التأمينات الاجتماعية', null), brokerage)).toBe(false);
   });
   it('السجل يضم القوانين القطاعية المتفق عليها', () => {
     expect(SECTOR_LAW_KEYS).toEqual(expect.arrayContaining(['176/2018', '69/2025', '5/2023', '199/2025', '77/2025']));
