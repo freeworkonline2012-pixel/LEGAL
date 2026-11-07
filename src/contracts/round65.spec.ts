@@ -1,4 +1,4 @@
-import { openTermIsCore, validateModelFindings, type LevelClause } from './contract-level';
+import { OPEN_TERM_CAP_NOTE, openTermIsCore, validateModelFindings, type LevelClause } from './contract-level';
 
 const cl = (i: number, text: string, label = `البند ${i}`): LevelClause => ({ clauseIndex: i, clauseLabel: label, clauseTitle: null, clauseText: text });
 
@@ -50,5 +50,18 @@ describe('الجولة 65: سقف درجة الشرط المفتوح من الن
       [C5, C6],
     );
     expect(out[0].severity).toBe('عالٍ');
+  });
+});
+
+describe('الجولة 66: سبب خفض الدرجة (نسخة المحامى فقط)', () => {
+  it('الملاحظة المخفضة تحمل severityNote، وغير المخفضة لا تحمله', () => {
+    const lowered = validateModelFindings(raw('تحديد مستوى الخدمة وخطة المشروع بعد التوصل لاتفاق لاحق', 5), [C5]);
+    expect(lowered[0].severity).toBe('متوسط');
+    expect(lowered[0].severityNote).toBe(OPEN_TERM_CAP_NOTE);
+    const kept = validateModelFindings(raw('تحدد رسوم الاستضافة بعد انتهاء التنفيذ', 6), [C6]);
+    expect(kept[0].severity).toBe('عالٍ');
+    expect(kept[0].severityNote).toBeUndefined();
+    const medium = validateModelFindings(raw('تحديد مستوى الخدمة وخطة المشروع بعد التوصل لاتفاق لاحق', 5, 'متوسط'), [C5]);
+    expect(medium[0].severityNote).toBeUndefined();
   });
 });

@@ -101,6 +101,8 @@ export interface AuditContractFinding {
   suggestion: string | null;
   evidence: Array<{ clauseLabel: string; quote: string }>;
   verification?: AuditVerification | null;
+  /** سبب تعديل الدرجة آلياً؛ يُعرض فى نسخة المحامى فقط. */
+  severityNote?: string | null;
 }
 
 const NEEDS_REVIEW = 'يحتاج مراجعة';
@@ -979,6 +981,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
           t: 'kv',
           rows: [
             { label: 'التفصيل', tone: 'high', value: f.explanation },
+            ...(f.severityNote ? [{ label: 'سبب الدرجة', tone: 'info' as Tone, value: f.severityNote }] : []),
             ...(f.evidence.length > 0
               ? [{ label: 'من نص العقد', tone: 'info' as Tone, value: f.evidence.map((e) => `${e.clauseLabel}: «${clip(e.quote, 400)}»`).join('\n') }]
               : []),

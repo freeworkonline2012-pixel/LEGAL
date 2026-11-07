@@ -42,6 +42,8 @@ export interface ContractFinding {
   source: 'rule' | 'model';
   /** نتيجة المدقق المستقل (لنتائج النموذج فقط)؛ غائبة = لم يُجرَ التحقق */
   verification?: Verification | null;
+  /** سبب تعديل الدرجة آلياً (الجولة 66): يظهر فى نسخة المحامى فقط. غائب = الدرجة كما اقترحها المصدر. */
+  severityNote?: string;
 }
 
 export interface LevelClause {
@@ -1176,6 +1178,9 @@ const MODEL_SEVERITIES: ReadonlyArray<FindingSeverity> = ['عالٍ', 'متوس�
 const OPEN_TERM_CORE =
   /(?<![ء-ي])[وفبلك]?(?:ال)?(?:ثمن|اجر|اجور|اتعاب|عمول|عمولات|رسوم|رسم|مبلغ|مبالغ|سعر|اسعار|قيم|غرام|تعويض|فوائد|فايد|مقابل|سداد|دفع|دفعات|تحويل|تحصيل|قسط|اقساط|جزاء|مده|مدد|مدت|ميعاد|مواعيد|موعد|تاريخ|يوم|ايام|شهر|اشهر|سنه|سنوات|سنين|سنت|انهاء|فسخ|تجديد|مهل|خلال)(?:ه|ها|هم|ات|ون|ين)?(?![ء-ي])/u;
 
+export const OPEN_TERM_CAP_NOTE =
+  'خُفضت الدرجة من «عالٍ» إلى «متوسط» آلياً: الاقتباس الذى تستند إليه الملاحظة لا يمس مبلغاً أو مدة أو إنهاءً، والشرط المفتوح لا يبلغ «عالٍ» إلا فى هذه المواد.';
+
 export function openTermIsCore(evidence: ReadonlyArray<{ quote: string }>): boolean {
   return evidence.some((e) => OPEN_TERM_CORE.test(norm(e.quote)));
 }
@@ -1235,7 +1240,11 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
       evidence.push({ clauseIndex: clause.clauseIndex, clauseLabel: clause.clauseLabel, quote: o.quote.trim() });
     }
     const distinctClauses = new Set(evidence.map((x) => x.clauseIndex)).size;
-    if (kind === 'open_term' && severity === 'عالٍ' && !openTermIsCore(evidence)) severity = 'متوسط';
+    let severityNote: string | undefined;
+    if (kind === 'open_term' && severity === 'عالٍ' && !openTermIsCore(evidence)) {
+      severity = 'متوسط';
+      severityNote = OPEN_TERM_CAP_NOTE;
+    }
     if (NEEDS_TWO.has(kind) ? distinctClauses < 2 : evidence.length < 1) continue;
     // النموذج يكتب «البند 4» بموضع البند لا بعنوانه حين يختلف الاثنان (عقد ممسوح سقطت عناوين بعض بنوده: الموضع 4 = «البند الخامس»)
     const relabel = (t: string | null): string | null => (t === null ? null : relabelPositions(t, evidence, byIndex));
@@ -1250,6 +1259,7 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
       suggestion: relabel(str(f.suggestion, 400)),
       evidence: evidence.slice(0, 4),
       source: 'model',
+      ...(severityNote ? { severityNote } : {}),
     });
   }
   return out;

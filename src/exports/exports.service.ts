@@ -341,6 +341,7 @@ export class ExportsService {
         title: str(f.title),
         explanation: str(f.explanation),
         suggestion: str(f.suggestion) || null,
+        severityNote: str(f.severityNote) || null,
         verification: this.reportVerification(f.verification as Record<string, unknown> | null | undefined),
         evidence: (Array.isArray(f.evidence) ? (f.evidence as Array<Record<string, unknown>>) : [])
           .filter((e) => e && str(e.quote))
