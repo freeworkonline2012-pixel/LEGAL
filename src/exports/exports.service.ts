@@ -223,6 +223,7 @@ export class ExportsService {
         ...this.reportFindings(contract.contractFindings),
         partyNames: this.reportParties(contract.contractFindings),
         inferredContractType: this.reportInferredType(contract.contractFindings),
+        inferredContractTypeSource: this.reportInferredSource(contract.contractFindings),
         audience,
         generatedAt: new Date(),
         brand: this.brand,
@@ -308,6 +309,12 @@ export class ExportsService {
   private reportInferredType(stored: Record<string, unknown> | null | undefined): string | null {
     const v = (stored as { inferredContractType?: unknown } | null | undefined)?.inferredContractType;
     return typeof v === 'string' && v.trim() ? v.trim() : null;
+  }
+
+  /** مصدر استنتاج النوع (title | body | filename)؛ null للعقود القديمة (كان العنوان وحده). */
+  private reportInferredSource(stored: Record<string, unknown> | null | undefined): 'title' | 'body' | 'filename' | null {
+    const v = (stored as { inferredContractTypeSource?: unknown } | null | undefined)?.inferredContractTypeSource;
+    return v === 'title' || v === 'body' || v === 'filename' ? v : null;
   }
 
   /** ملاحظات العقد ككل المخزَّنة (migrations/237) بصيغة التقرير؛ لا شىء للعقود التى لم تُحلَّل. */

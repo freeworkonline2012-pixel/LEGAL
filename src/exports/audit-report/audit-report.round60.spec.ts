@@ -136,3 +136,15 @@ describe('الجولة 61.1: «reconciled» لا يخفى عيباً حقيقي�
   });
 });
 
+describe('الجولة 62.1: مصدر استنتاج النوع يُعلَن على الغلاف', () => {
+  const noType = { ...INPUT, contractType: null };
+  const coverLabels = (src: 'title' | 'body' | 'filename' | null) =>
+    buildContractAuditReport({ ...noType, inferredContractType: 'عقد خدمات أو مقاولة أو توريد', inferredContractTypeSource: src }).report.cover.rows.map((r) => r.label);
+  it('من المتن أو اسم الملف أو العنوان (الافتراضى للعقود القديمة)', () => {
+    expect(coverLabels('body')).toContain('موضوع العقد (مستنتج من متن العقد)');
+    expect(coverLabels('filename')).toContain('موضوع العقد (مستنتج من اسم الملف مع تأييد المتن)');
+    expect(coverLabels('title')).toContain('موضوع العقد (مستنتج من عنوان العقد)');
+    expect(coverLabels(null)).toContain('موضوع العقد (مستنتج من عنوان العقد)');
+  });
+});
+

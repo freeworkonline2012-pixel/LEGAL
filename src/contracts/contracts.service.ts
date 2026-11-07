@@ -75,7 +75,7 @@ import {
   FAMILY_NAME,
   FINDING_KIND_LABEL,
   deterministicFindings,
-  inferContractFamily,
+  resolveContractFamily,
   mergeFindings,
   sortFindings,
 } from './contract-level';
@@ -368,13 +368,22 @@ export class ContractsService implements OnModuleInit {
 
     // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
     progress({ stage: 'contract_level', done: 0, total: 0 });
-    const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings, segmentation.preamble);
+    const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings, segmentation.preamble, contract.originalFilename);
     // لم يحدد المستخدم نوعاً: يُستنتج من عنوان العقد ويُخزَّن للدليل التفاوضى (بلا النوع يسقط الدليل كله بصمت — وقع فى إنتاج عقد عمل)
-    const inferredType = contract.contractType ? null : FAMILY_NAME[inferContractFamily(segmentation.preamble)];
+    // الجولة 62.1: العنوان ثم متن العقد ثم اسم الملف (بتأييد المتن)؛ ويُخزَّن مصدر الاستنتاج ليُعلَن فى التقرير
+    const resolved = contract.contractType
+      ? null
+      : resolveContractFamily({
+          contractType: null,
+          titleText: segmentation.preamble,
+          clauses: clauseRows.map((c) => ({ clauseTitle: c.clauseTitle, clauseText: c.clauseText })),
+          fileName: contract.originalFilename,
+        });
+    const inferredType = resolved && resolved.family !== 'unknown' ? FAMILY_NAME[resolved.family] : null;
     contract.contractFindings = {
       ...level,
       parties: partyNames,
-      ...(inferredType && playbookFamily(inferredType) ? { inferredContractType: inferredType } : {}),
+      ...(inferredType && playbookFamily(inferredType) ? { inferredContractType: inferredType, inferredContractTypeSource: resolved!.source } : {}),
     } as unknown as Record<string, unknown>;
 
     await this.verifyContractFindings(contract.contractFindings as unknown as ContractLevelResult | null, clauseRows);
@@ -400,6 +409,7 @@ export class ContractsService implements OnModuleInit {
     contractType: string | null,
     extractionWarnings: string[],
     titleText: string | null = null,
+    fileName: string | null = null,
   ): Promise<ContractLevelResult> {
     const clauses: LevelClause[] = clauseRows.map((c) => ({
       clauseIndex: c.clauseIndex,
@@ -411,8 +421,8 @@ export class ContractsService implements OnModuleInit {
     let rules: ContractFinding[] = [];
     try {
       rules = sortFindings([
-        ...deterministicFindings(clauses, { contractType, textMayBeIncomplete, titleText }),
-        ...officeRuleFindings(clauses, { contractType, textMayBeIncomplete, titleText }),
+        ...deterministicFindings(clauses, { contractType, textMayBeIncomplete, titleText, fileName }),
+        ...officeRuleFindings(clauses, { contractType, textMayBeIncomplete, titleText, fileName }),
         ...internalConsistencyFindings(clauses, { textMayBeIncomplete }),
       ]);
     } catch (err) {

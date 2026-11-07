@@ -68,6 +68,8 @@ export interface AuditReportInput {
   contractType: string | null;
   /** نوع العقد المستنتج من عنوانه وقت الرفع حين لم يحدده المستخدم (يُستعمل للدليل التفاوضى فقط، ولا يستبدل contractType). */
   inferredContractType?: string | null;
+  /** مصدر استنتاج النوع: العنوان (الافتراضى للعقود القديمة) أو متن العقد أو اسم الملف */
+  inferredContractTypeSource?: 'title' | 'body' | 'filename' | null;
   clientRole: string | null;
   /** أى الطرفين فى نص العقد هو العميل (إن حُدِّد). */
   clientParty?: 'first' | 'second' | null;
@@ -425,7 +427,10 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   // ---------- الغلاف ----------
   const coverRows: AuditReport['cover']['rows'] = [];
   if (input.contractType) coverRows.push({ label: 'موضوع العقد', value: input.contractType });
-  else if (input.inferredContractType) coverRows.push({ label: 'موضوع العقد (مستنتج من عنوان العقد)', value: input.inferredContractType, tone: 'medium' as Tone });
+  else if (input.inferredContractType) {
+    const from = input.inferredContractTypeSource === 'body' ? 'متن العقد' : input.inferredContractTypeSource === 'filename' ? 'اسم الملف مع تأييد المتن' : 'عنوان العقد';
+    coverRows.push({ label: `موضوع العقد (مستنتج من ${from})`, value: input.inferredContractType, tone: 'medium' as Tone });
+  }
   coverRows.push({ label: 'ملف العقد', value: input.originalFilename });
   if (input.clientRole) {
     const party = input.clientParty === 'first' ? 'الطرف الأول' : input.clientParty === 'second' ? 'الطرف الثانى' : null;
@@ -992,7 +997,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     if (playbook) {
       banner(`الدليل التفاوضى — ${playbook.familyLabel}${playbook.sideLabel ? ` من منظور ${playbook.sideLabel}` : ''}`);
       const playbookNotes: string[] = [];
-      if (!input.contractType) playbookNotes.push('لم يُحدَّد نوع العقد عند الرفع، فاستُنتج من عنوانه؛ حدّد النوع عند الرفع إن كان الاستنتاج غير صحيح.');
+      if (!input.contractType) playbookNotes.push(`لم يُحدَّد نوع العقد عند الرفع، فاستُنتج من ${input.inferredContractTypeSource === 'body' ? 'متن العقد' : input.inferredContractTypeSource === 'filename' ? 'اسم الملف مع تأييد المتن' : 'عنوانه'}؛ حدّد النوع عند الرفع إن كان الاستنتاج غير صحيح.`);
       if (!playbook.side) playbookNotes.push('لم يُحدَّد طرفك فى العقد، فالدليل محايد: يعرض اختلال الطرفين كليهما دون ترجيح لمصلحة أحدهما؛ حدّد طرفك عند الرفع ليُرتَّب الدليل من منظورك.');
       if (playbookNotes.length > 0) blocks.push({ t: 'note', label: 'تنبيه:', text: playbookNotes.join(' ') });
       blocks.push(...playbookBlocks(playbook, coveredTopicRefs(findings)));

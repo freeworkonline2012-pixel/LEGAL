@@ -2,6 +2,7 @@ import { articleInLawScope, lawScopeContext } from './law-scope';
 import { checkBlankNumbers, checkInternalReferences, clauseNumberOf, internalConsistencyFindings } from './internal-checks';
 import type { LevelClause } from './contract-level';
 import { officeRuleFindings } from './office-rules';
+import { inferContractFamilyFromBody, resolveContractFamily } from './contract-level';
 import { isDismissedFindingVerification } from './verification';
 
 const clause = (i: number, title: string, text: string, label = `البند ${i}`): LevelClause => ({ clauseIndex: i, clauseLabel: label, clauseTitle: title, clauseText: text });
@@ -301,5 +302,56 @@ describe('الجولة 62: عقد تحصيل بصيغ العقد الحقيقى 
     ];
     expect(officeRuleFindings(clean, opts('خدمات')).map((x) => x.id)).toEqual([]);
     expect(internalConsistencyFindings(clean, { textMayBeIncomplete: false })).toEqual([]);
+  });
+});
+
+describe('الجولة 62.1: استنتاج النوع من المتن حين تسقط قراءة العنوان (عقد ممسوح رُفع بلا نوع)', () => {
+  const collectionBody = [
+    { clauseTitle: 'موضوع العقد', clauseText: 'يلتزم مقدم الخدمة بتقديم خدمات التحصيل الإلكترونى لأقساط الوثائق من عملاء الطرف الثانى.' },
+    { clauseTitle: 'العمولات', clauseText: 'يحصل مقدم الخدمة على عمولة عن كل عملية تحصيل. وتحدد الخدمات المقدمة للعميل بالملحق.' },
+    { clauseTitle: 'الخدمات', clauseText: 'تتضمن الخدمات التى سيوفرها مقدم الخدمة للعميل من خلال الشبكة قنوات التحصيل.' },
+  ];
+  const brokerageBody = [
+    { clauseTitle: 'موضوع العقد', clauseText: 'يتولى الوسيط الوساطة فى إبرام وثائق التأمين لحساب الشركة مقابل عمولة.' },
+    { clauseTitle: 'العمولة', clauseText: 'يستحق الوسيط عمولة عن الوساطة فى كل وثيقة. ويلتزم الوسيط بالتسويق لخدمات الشركة.' },
+    { clauseTitle: 'الوكالة', clauseText: 'لا ينشئ هذا العقد وكالة، والوسيط ليس وكيلاً عن الشركة فى قبول المخاطر.' },
+  ];
+  const licenceBody = [
+    { clauseTitle: 'الترخيص', clauseText: 'يرخص الطرف الأول للطرف الثانى باستغلال المساحة المحددة، ولا يمنح هذا الترخيص أى حق ملكية.' },
+    { clauseTitle: 'مقابل الاستغلال', clauseText: 'يدفع المرخص له مقابل استغلال شهرى، وينتهى الترخيص بانتهاء مدته.' },
+    { clauseTitle: 'الالتزامات', clauseText: 'يلتزم المرخص له بعدم التنازل عن الترخيص أو استغلال المساحة فى غير الغرض.' },
+  ];
+  it('عقد تحصيل ووساطة وترخيص بلا عنوان مقروء يُستنتج نوعها من المتن', () => {
+    expect(resolveContractFamily({ contractType: null, titleText: '', clauses: collectionBody })).toEqual({ family: 'services', source: 'body' });
+    expect(resolveContractFamily({ contractType: null, titleText: 'ش ط خ', clauses: brokerageBody })).toEqual({ family: 'agency', source: 'body' });
+    expect(resolveContractFamily({ contractType: null, titleText: null, clauses: licenceBody })).toEqual({ family: 'licence', source: 'body' });
+  });
+  it('النوع المحدد وعنوان الديباجة يسبقان المتن', () => {
+    expect(resolveContractFamily({ contractType: 'عقد إيجار', titleText: '', clauses: collectionBody })).toEqual({ family: 'lease', source: 'stated' });
+    expect(resolveContractFamily({ contractType: null, titleText: 'عقد شراكة بين الطرفين', clauses: collectionBody })).toEqual({ family: 'partnership', source: 'title' });
+  });
+  it('لا فائز واضح أو متن قليل: unknown (فشل آمن)، ولا يُخمَّن من كلمة واحدة', () => {
+    expect(inferContractFamilyFromBody([{ clauseTitle: 'x', clauseText: 'يلتزم الطرفان بما ورد فى هذا العقد.' }])).toBe('unknown');
+    expect(resolveContractFamily({ contractType: null, titleText: '', clauses: [] })).toEqual({ family: 'unknown', source: 'none' });
+    const mixed = [...licenceBody, ...brokerageBody];
+    expect(inferContractFamilyFromBody(mixed)).toBe('unknown');
+  });
+  it('«صاحب العمل» بمعنى المالك فى المقاولة لا يجعل العقد عقد عمل', () => {
+    const works = [{ clauseTitle: 'المقابل', clauseText: 'يسدد صاحب العمل للمقاول كل مستخلص خلال 90 يوماً. ويحتجز صاحب العمل 10 % من كل مستخلص. وينفذ المقاول أعمال التشطيب.' }];
+    expect(resolveContractFamily({ contractType: null, titleText: '', clauses: works }).family).not.toBe('employment');
+  });
+  it('اسم الملف قرينة أخيرة لا تُقبل إلا بتأييد المتن', () => {
+    const weak = [{ clauseTitle: 'x', clauseText: 'يتولى الوسيط الوساطة لحساب الشركة مقابل عمولة.' }];
+    expect(resolveContractFamily({ contractType: null, titleText: '', clauses: weak, fileName: 'عقد وساطة.pdf' })).toEqual({ family: 'agency', source: 'filename' });
+    expect(resolveContractFamily({ contractType: null, titleText: '', clauses: weak, fileName: 'عقد إيجار.pdf' })).toEqual({ family: 'unknown', source: 'none' });
+    expect(resolveContractFamily({ contractType: null, titleText: '', clauses: weak, fileName: 'contract-683fbaad-draft.pdf' })).toEqual({ family: 'unknown', source: 'none' });
+  });
+  it('قواعد المكتب تعمل الآن على عقد ممسوح بلا نوع ولا عنوان مقروء (كانت تتعطل بصمت)', () => {
+    const cs: LevelClause[] = collectionBody.map((c, i) => clause(i + 1, c.clauseTitle, c.clauseText));
+    cs.push(clause(4, 'العمولات', 'جميع هذه العمولات غير متضمنة ضريبة القيمة المضافة.'));
+    const f = officeRuleFindings(cs, { contractType: null, titleText: '', textMayBeIncomplete: true });
+    expect(f.map((x) => x.id)).toContain('office:fees_exclusive_of_vat');
+    // وعند الغياب على ممسوح: مرشح غير مؤكد
+    expect(f.find((x) => x.id === 'office:no_liability_and_indemnity_terms')?.verification?.status).toBe('unconfirmed');
   });
 });

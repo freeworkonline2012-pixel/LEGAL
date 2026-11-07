@@ -183,6 +183,113 @@ export function inferContractFamily(titleText: string | null | undefined): Contr
   return 'unknown';
 }
 
+// ===================== استنتاج النوع من متن العقد (الجولة 62.1) =====================
+
+/**
+ * عقود ممسوحة كثيرة لا تُقرأ ديباجتها قراءة سليمة، فيسقط استنتاج النوع من العنوان (unknown)، وحينئذ تتعطل كل القواعد المقيّدة بالنوع
+ * (قواعد المكتب والبنود الناقصة بحسب النوع والدليل التفاوضى) بصمت. وقع فى الإنتاج على ثلاثة عقود ممسوحة (تحصيل، وساطة، ترخيص) رُفعت بلا نوع.
+ * لذلك يُستنتج النوع بترتيب: ما حدده المستخدم، ثم عنوان الديباجة، ثم متن العقد (مؤشرات موزونة بفارق واضح عن أقرب نوع)، ثم اسم الملف
+ * مشروطاً بأن يؤيده المتن. وفشل الأمان قائم: لا فوز واضح ⇒ unknown (لا قاعدة تعمل على نوع مخمَّن).
+ */
+export type FamilySource = 'stated' | 'title' | 'body' | 'filename' | 'none';
+
+const BODY_SIGNALS: Partial<Record<ContractFamily, Array<[RegExp, number]>>> = {
+  services: [
+    [/خدمات (?:ال)?تحصيل|تحصيل (?:ال)?الكتروني|تحصيل (?:ال)?اقساط/, 4],
+    [/مقدم (?:ال)?خدمه/, 3],
+    [/تقديم (?:ال)?خدمات|الخدمات محل (?:هذا )?العقد|نطاق (?:ال)?خدمات/, 2],
+    [/برمج|صيانه|دعم فني|استضافه|تطوير (?:ال)?(?:موقع|نظام|تطبيق)/, 2],
+    [/(?:ال)?عميل/, 1],
+    [/اتعاب|مستخلص|مقاول/, 1],
+  ],
+  agency: [
+    [/وساطه|وسيط|سمسار|سمسره/, 4],
+    [/وكيل|موكل|وكاله/, 3],
+    [/عموله|عمولات/, 1],
+    [/تسويق|توزيع|مندوب/, 2],
+  ],
+  licence: [
+    [/ترخيص|مرخص/, 4],
+    [/امتياز|فرنشايز/, 4],
+    [/استغلال|انتفاع/, 2],
+    [/علامه تجاريه|حقوق ملكيه فكريه/, 2],
+  ],
+  lease: [
+    [/مؤجر|مستاجر|المؤجره|العين المؤجره/, 3],
+    [/ايجار|اجره (?:شهريه|سنويه)/, 2],
+  ],
+  partnership: [
+    [/شريك|شركاء|شراكه|محاصه/, 3],
+    [/راس (?:ال)?مال|حصص|توزيع (?:ال)?ارباح/, 2],
+  ],
+  employment: [
+    [/صاحب (?:ال)?عمل|(?:ال)?عامل/, 3],
+    [/اجازه (?:سنويه|مرضيه)|ساعات (?:ال)?عمل|فتره (?:ال)?اختبار/, 2],
+  ],
+  sale: [
+    [/بائع|مشتري|(?:ال)?مبيع/, 3],
+    [/ثمن (?:ال)?بيع|نقل (?:ال)?ملكيه|تسليم (?:ال)?مبيع/, 2],
+  ],
+  finance: [
+    [/مقرض|مقترض|قرض/, 3],
+    [/فائده|تسهيلات|تمويل/, 2],
+  ],
+};
+
+function bodyScores(text: string): Array<[ContractFamily, number]> {
+  const n = norm(text);
+  const out: Array<[ContractFamily, number]> = [];
+  for (const [fam, signals] of Object.entries(BODY_SIGNALS) as Array<[ContractFamily, Array<[RegExp, number]>]>) {
+    let score = 0;
+    for (const [re, w] of signals) {
+      const g = new RegExp(re.source, 'g');
+      const hits = Math.min((n.match(g) ?? []).length, 3);
+      score += hits * w;
+    }
+    out.push([fam, score]);
+  }
+  return out.sort((a, b) => b[1] - a[1]);
+}
+
+const BODY_MIN_SCORE = 10;
+const BODY_MIN_RATIO = 1.8;
+
+/** النوع من متن العقد؛ unknown إن لم يكن هناك فائز واضح. */
+export function inferContractFamilyFromBody(clauses: ReadonlyArray<{ clauseTitle?: string | null; clauseText: string }>): ContractFamily {
+  const text = clauses.map((c) => `${c.clauseTitle ?? ''}\n${c.clauseText}`).join('\n');
+  const ranked = bodyScores(text);
+  const [top, second] = ranked;
+  if (!top || top[1] < BODY_MIN_SCORE) return 'unknown';
+  if (second && second[1] > 0 && top[1] < second[1] * BODY_MIN_RATIO) return 'unknown';
+  return top[0];
+}
+
+export function resolveContractFamily(o: {
+  contractType: string | null | undefined;
+  titleText?: string | null;
+  clauses?: ReadonlyArray<{ clauseTitle?: string | null; clauseText: string }>;
+  fileName?: string | null;
+}): { family: ContractFamily; source: FamilySource } {
+  const stated = contractFamily(o.contractType);
+  if (stated !== 'unknown') return { family: stated, source: 'stated' };
+  const byTitle = inferContractFamily(o.titleText);
+  if (byTitle !== 'unknown') return { family: byTitle, source: 'title' };
+  const clauses = o.clauses ?? [];
+  if (clauses.length === 0) return { family: 'unknown', source: 'none' };
+  const byBody = inferContractFamilyFromBody(clauses);
+  if (byBody !== 'unknown') return { family: byBody, source: 'body' };
+  // اسم الملف قرينة أضعف: لا يُقبل إلا إن أيده المتن بإشارات كافية لنفس النوع
+  const stem = (o.fileName ?? '').replace(/\.[A-Za-z0-9]{2,5}$/, '').replace(/[_\-.]+/g, ' ');
+  let byName: ContractFamily = stem ? contractFamily(stem) : 'unknown';
+  // «عقد وساطة» اسم ملف شائع لعقد وساطة تجارية؛ والمتن هو الذى يميزها عن الوساطة القضائية (يُشترط تأييده أدناه)
+  if (byName === 'unknown' && /وساط|وسيط|سمسر/.test(norm(stem))) byName = 'agency';
+  if (byName !== 'unknown') {
+    const own = bodyScores(clauses.map((c) => `${c.clauseTitle ?? ''}\n${c.clauseText}`).join('\n')).find(([f]) => f === byName)?.[1] ?? 0;
+    if (own >= 5) return { family: byName, source: 'filename' };
+  }
+  return { family: 'unknown', source: 'none' };
+}
+
 // ===================== البنود غير المرصودة =====================
 
 interface MissingCheck {
@@ -831,6 +938,8 @@ export interface MissingOptions {
   contractType: string | null;
   /** عنوان العقد/ديباجته (للاستنتاج حين لا نوع محدد) */
   titleText?: string | null;
+  /** اسم الملف المرفوع: قرينة أخيرة لاستنتاج النوع (لا تُقبل إلا بتأييد المتن) */
+  fileName?: string | null;
   /** تحذير قراءة آلية/ترقيم: قد يكون البند ضمن نص لم يُقرأ */
   textMayBeIncomplete: boolean;
 }
@@ -863,8 +972,7 @@ function indefiniteDurationFinding(clauses: LevelClause[], caveat: string): Cont
 }
 
 export function checkMissingClauses(clauses: LevelClause[], opts: MissingOptions): ContractFinding[] {
-  const stated = contractFamily(opts.contractType);
-  const family = stated === 'unknown' ? inferContractFamily(opts.titleText) : stated;
+  const { family } = resolveContractFamily({ contractType: opts.contractType, titleText: opts.titleText, clauses, fileName: opts.fileName });
   const fullNorm = norm(clauses.map((c) => `${c.clauseTitle ?? ''}\n${c.clauseText}`).join('\n'));
   if (fullNorm.length < 40) return [];
   const out: ContractFinding[] = [];

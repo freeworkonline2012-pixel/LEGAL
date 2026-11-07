@@ -1,8 +1,7 @@
 import { quoteInText } from './clause-facts';
 import {
-  contractFamily,
-  inferContractFamily,
   markAbsenceUnconfirmed,
+  resolveContractFamily,
   sentencesOf,
   sortFindings,
   type ContractFamily,
@@ -237,6 +236,7 @@ export const DEFAULT_OFFICE_PROFILE: OfficeProfile = {
 export interface OfficeRuleOptions {
   contractType: string | null;
   titleText?: string | null;
+  fileName?: string | null;
   textMayBeIncomplete: boolean;
 }
 
@@ -257,8 +257,7 @@ export function officeRuleFindings(
   profile: OfficeProfile = DEFAULT_OFFICE_PROFILE,
 ): ContractFinding[] {
   if (clauses.length === 0) return [];
-  const stated = contractFamily(opts.contractType);
-  const family = stated === 'unknown' ? inferContractFamily(opts.titleText) : stated;
+  const { family } = resolveContractFamily({ contractType: opts.contractType, titleText: opts.titleText, clauses, fileName: opts.fileName });
   const caveat = opts.textMayBeIncomplete
     ? ' تنبيه: توجد تحذيرات قراءة أو ترقيم لهذا الملف، فقد يكون النص المطلوب ضمن جزء لم يُقرأ؛ قارن بالأصل قبل الاعتماد.'
     : '';
