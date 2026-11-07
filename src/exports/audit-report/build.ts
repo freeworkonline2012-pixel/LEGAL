@@ -9,6 +9,7 @@ import { buildPaymentSchedules, formatMoney, formatPercent } from '../../contrac
 import { coveredTopicRefs } from '../../contracts/missing-topic-map';
 import { playbookBlocks } from './playbook-section';
 import { buildClientAuditReport } from './client-version';
+import { isDismissedVerification } from '../../contracts/verification';
 import { type AuditReport, type Cell, type RBlock, type Tone } from './model';
 
 export type Severity = 'حرج' | 'عالٍ' | 'متوسط' | 'غير مصنَّف';
@@ -42,6 +43,9 @@ export interface AuditVerification {
   quote?: string | null;
   /** 'deviation': دُحضت صفة «آمرة» وثبت الانحراف عن قاعدة مكملة ضد العميل (اختلال تجارى لا بطلان). */
   reclassified?: 'deviation' | null;
+  /** أساس الحالة (refuted/uncertain/...) وسبب الدحض: يحددان إن كانت غير المؤكدة «مستبعدة بدحض موثَّق» (الجولة 60). */
+  basis?: string | null;
+  refutationKind?: string | null;
 }
 
 /** صياغة التحقق المستقل فى التقرير: «مؤكدة» أو «غير مؤكدة — تحتاج مراجعة بشرية» مع السبب والاقتباس الموثَّق. */
@@ -302,7 +306,10 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   const findings = input.contractFindings ?? [];
   const isUnconfirmedFinding = (f: AuditContractFinding): boolean => f.verification?.status === 'unconfirmed';
   const confirmedFindings = findings.filter((f) => !isUnconfirmedFinding(f));
-  const candidateFindings = findings.map((f, i) => ({ f, i })).filter((x) => isUnconfirmedFinding(x.f));
+  // غير المؤكدة نوعان (الجولة 60): مرشّحة (اعتراض بلا اقتباس موثَّق أو سبب غامض) تبقى على الغلاف والمستوى المؤقت، ومستبعدة بدحض موثَّق تُعرض فى ملحق مختصر
+  const isDismissedFinding = (f: AuditContractFinding): boolean => isDismissedVerification(f.verification);
+  const candidateFindings = findings.map((f, i) => ({ f, i })).filter((x) => isUnconfirmedFinding(x.f) && !isDismissedFinding(x.f));
+  const dismissedFindings = findings.map((f, i) => ({ f, i })).filter((x) => isDismissedFinding(x.f));
   const confirmedClauseLabels = new Set(clauses.filter((c) => severityOf(c) !== null && !isUnconfirmed(c)).map((c) => c.clauseLabel));
   const absorbedBy = new Map<string, number[]>();
   const absorbedInto = new Map<number, string>();
@@ -337,14 +344,17 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
       const base = severityOf(c);
       return { c, baseSev: base, sev: base !== null && !isUnconfirmed(c) ? unitSeverity(c.clauseLabel, base) : base };
     })
-    .filter((x): x is { c: AuditClause; sev: Severity; baseSev: Severity } => x.sev !== null && x.baseSev !== null)
+    .filter((x): x is { c: AuditClause; sev: Severity; baseSev: Severity } => x.sev !== null && x.baseSev !== null);
+  const dismissedClauses = ordered.filter((x) => isDismissedVerification(x.c.verification));
+  const orderedLive = ordered
+    .filter((x) => !isDismissedVerification(x.c.verification))
     .sort(
       (a, b) =>
         Number(isUnconfirmed(a.c)) - Number(isUnconfirmed(b.c)) ||
         SEVERITY_ORDER.indexOf(a.sev) - SEVERITY_ORDER.indexOf(b.sev) ||
         a.c.clauseIndex - b.c.clauseIndex,
     );
-  ordered.forEach((x, i) => {
+  orderedLive.forEach((x, i) => {
     const unconfirmed = isUnconfirmed(x.c);
     if (!unconfirmed) counts[x.sev] += 1;
     risky.push({ ...x, n: i + 1, redraft: parseRedraft(x.c.suggestedWording), unconfirmed });
@@ -378,6 +388,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   const lawList = [...laws.values()];
 
   const candidateTotal = candidateRisky.length + candidateFindings.length;
+  const dismissedTotal = dismissedClauses.length + dismissedFindings.length;
+  /** ملاحظات العقد ككل التى تُعرض فى الأقسام (بلا المستبعدة بدحض موثَّق). */
+  const liveFindingsCount = findings.length - dismissedFindings.length;
   const findingCounts = {
     critical: confirmedFindings.filter((f) => f.severity === 'حرج').length,
     high: confirmedFindings.filter((f) => f.severity === 'عالٍ').length,
@@ -625,7 +638,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         ? 'التوصية الآلية: لا يُوصى بالتوقيع قبل معالجة الملاحظات الحرجة وعرضها على محامٍ مختص.'
         : counts['عالٍ'] > 0 || findingCounts.high > 0
           ? 'التوصية الآلية: يُوصى بمعالجة الملاحظات عالية الخطورة قبل التوقيع، وعرضها على محامٍ مختص.'
-          : totalRisky > 0 || findings.length > 0 || candidateTotal > 0
+          : totalRisky > 0 || liveFindingsCount > 0 || candidateTotal > 0
             ? 'التوصية الآلية: يُوصى بمراجعة بشرية للملاحظات المرصودة قبل التوقيع.'
             : 'التوصية الآلية: لم تُرصد ملاحظات فى النطاق المقيَّس آلياً؛ وتبقى مراجعة المحامى شرطاً قبل التوقيع.';
     const hasUnconfirmed = candidateTotal > 0;
@@ -714,7 +727,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
 
   // ---------- 2. مصفوفة تحليل المخاطر ----------
   banner('مصفوفة تحليل المخاطر');
-  if (totalRisky === 0 && findings.length === 0 && candidateTotal === 0) {
+  if (totalRisky === 0 && liveFindingsCount === 0 && candidateTotal === 0 && dismissedTotal === 0) {
     blocks.push({ t: 'p', text: 'لا توجد بنود تحتاج مراجعة فى هذا العقد وفق النصوص المفهرسة.' });
   } else {
     const statusOf = (r: (typeof risky)[number]): Cell => {
@@ -755,7 +768,13 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     if (rows.length > 0) {
       blocks.push({ t: 'grid', columns: ['#', 'وصف المخاطرة', 'الدرجة', 'البند', 'الحالة', 'النوع'], rows, widths: [7, 32, 10, 13, 24, 14] });
     } else {
-      blocks.push({ t: 'p', text: 'لا توجد بنود أو ملاحظات مؤكدة تحتاج مراجعة؛ وما يلى مرشّحات للمراجعة البشرية فقط.' });
+      blocks.push({
+        t: 'p',
+        text:
+          candidateTotal > 0
+            ? 'لا توجد بنود أو ملاحظات مؤكدة تحتاج مراجعة؛ وما يلى مرشّحات للمراجعة البشرية فقط.'
+            : 'لا توجد بنود أو ملاحظات مؤكدة تحتاج مراجعة؛ وما يلى ملاحظات فُحصت واستُبعدت بدحض موثَّق من نص العقد.',
+      });
     }
     if (candidateTotal > 0) {
       blocks.push({ t: 'sub', text: 'مرشّحات للمراجعة البشرية — غير مؤكدة', tone: 'navy' });
@@ -791,6 +810,34 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         rows: candRows,
         widths: [8, 30, 14, 14, 34],
       });
+    }
+    if (dismissedTotal > 0) {
+      blocks.push({ t: 'sub', text: 'ملاحظات فُحصت واستُبعدت بدحض موثَّق', tone: 'navy' });
+      blocks.push({
+        t: 'note',
+        label: 'لماذا استُبعدت:',
+        text:
+          'رصدها التحليل الآلى ثم دحضها المدقق المستقل باقتباس حرفى من نص العقد أو المادة تحقق منه النظام آلياً (المادة غير آمرة، أو البند نفسه يعالج الموضوع، أو الملاحظة لا تنطبق). ' +
+          'لذلك لم تُعدّ مرشّحات ولا تدخل فى الأعداد ولا فى مستوى المخاطرة العام ولا فى الغلاف. تُعرض هنا للشفافية فقط، ويرجع إليها المحامى عند الشك.',
+      });
+      const dReason = (v: AuditVerification | null | undefined): Cell => ({
+        text: v ? `${clip(v.reason, 220)}${v.quote ? `\nالاقتباس الموثَّق: «${clip(v.quote, 160)}»` : ''}` : '—',
+      });
+      const dRows: Cell[][] = [
+        ...dismissedClauses.map((x, k): Cell[] => [
+          { text: `د${k + 1}`, center: true },
+          { text: clip(firstSentence(x.c.assessmentReasoning ?? ''), 110) || '—' },
+          { text: x.c.clauseLabel, center: true },
+          dReason(x.c.verification),
+        ]),
+        ...dismissedFindings.map(({ f }, k): Cell[] => [
+          { text: `د${dismissedClauses.length + k + 1}`, center: true },
+          { text: `${f.kindLabel}: ${clip(f.title, 110)}` },
+          { text: f.evidence.length > 0 ? [...new Set(f.evidence.map((e) => e.clauseLabel))].join('، ') : 'العقد ككل', center: true },
+          dReason(f.verification),
+        ]),
+      ];
+      blocks.push({ t: 'grid', columns: ['#', 'الملاحظة المستبعدة', 'البند', 'سبب الاستبعاد'], rows: dRows, widths: [8, 32, 14, 46] });
     }
   }
 
@@ -893,13 +940,20 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
             : 'تعذّر إتمام فحص التعارض بين البنود آلياً وقت المعالجة؛ وما يلى نتائج الفحوص الحتمية فقط.',
       });
     }
-    if (findings.length === 0) {
-      blocks.push({ t: 'p', text: 'لم تُرصد ملاحظات على مستوى العقد ككل بالفحوص المطبَّقة.' });
+    const sec5 = findings.map((f, i) => ({ f, i })).filter((x) => !isDismissedFinding(x.f));
+    if (sec5.length === 0) {
+      blocks.push({
+        t: 'p',
+        text:
+          dismissedFindings.length > 0
+            ? 'لم تُرصد ملاحظات مؤكدة أو مرشّحة على مستوى العقد ككل بالفحوص المطبَّقة؛ وما استُبعد بدحض موثَّق مذكور فى ملحق مصفوفة المخاطر.'
+            : 'لم تُرصد ملاحظات على مستوى العقد ككل بالفحوص المطبَّقة.',
+      });
     } else {
       blocks.push({
         t: 'grid',
         columns: ['#', 'النوع', 'الملاحظة', 'الدرجة'],
-        rows: findings.map((f, i) => [
+        rows: sec5.map(({ f, i }) => [
           { text: `ع${i + 1}`, center: true },
           { text: f.kindLabel },
           {
@@ -914,7 +968,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         ]),
         widths: [8, 22, 52, 18],
       });
-      findings.forEach((f, i) => {
+      sec5.forEach(({ f, i }) => {
         blocks.push({ t: 'h3', text: `ع${i + 1}. ${f.title}` });
         blocks.push({
           t: 'kv',
@@ -1172,7 +1226,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         ? 'لا نوصى بالتوقيع قبل معالجة النقاط الحرجة أدناه وعرضها على محامٍ مختص.'
         : counts['عالٍ'] > 0 || findingCounts.high > 0
           ? 'نوصى بمعالجة النقاط عالية الخطورة قبل التوقيع وعرضها على محامٍ مختص.'
-          : totalRisky > 0 || findings.length > 0 || candidateTotal > 0
+          : totalRisky > 0 || liveFindingsCount > 0 || candidateTotal > 0
             ? 'نوصى بمراجعة النقاط المذكورة مع محامٍ قبل التوقيع.'
             : 'لم تُرصد نقاط فى النطاق المقيَّس آلياً؛ وتبقى مراجعة المحامى شرطاً قبل التوقيع.';
     const clientReport = buildClientAuditReport({

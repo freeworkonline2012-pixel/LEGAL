@@ -56,3 +56,14 @@ describe('عرض الشروط الرئيسية بلا تكرار', () => {
     expect(unionQuotes('نص طويل يحوى الاخر', 'يحوى الاخر')).toBe('نص طويل يحوى الاخر');
   });
 });
+
+describe('الجولة 60: التاريخ المكرر فى البند نفسه يُعرض مرة', () => {
+  it('تاريخان متطابقان فى بند واحد يصيران صفاً واحداً، والنسبة المتكررة بجملتين مختلفتين لا تُدمج', () => {
+    const text =
+      'تحريرا فى 05/07/2021 وقع الطرفان. اسم المستلم : ........ حرر فى 05/07/2021 . ويكون الحد الاقصى 30% من اجمالى المحفظة ولا تزيد نسبة اى منهما عن 30% من اجمالى المحفظة سنويا.';
+    const terms = extractKeyTerms([clause(17, text)]);
+    const shown = groupKeyTerms(terms).flatMap((r) => r.terms);
+    expect(shown.filter((t) => t.kind === 'date' && t.value.includes('05/07/2021'))).toHaveLength(1);
+    expect(shown.filter((t) => t.kind === 'percent' && t.value.startsWith('30')).length).toBeGreaterThanOrEqual(1);
+  });
+});

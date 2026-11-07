@@ -170,6 +170,18 @@ function checkInlineInstallments(text: string): InstallmentRead | null {
 
 // ===== التحذيرات للمستخدم =====
 
+/** الرقم المقروء = أرقام دخيلة + المبلغ المكتوب بالحروف نفسه («452,500,000» والحروف «خمسمائة ألف»): دليل على ضجيج قراءة لا على تعارض فى العقد. */
+export function strayPrefix(digits: number, words: number): boolean {
+  const d = String(Math.round(digits));
+  const w = String(Math.round(words));
+  return w.length >= 4 && d.length > w.length && d.length - w.length <= 4 && d.endsWith(w);
+}
+
+/** صياغة موحدة لتنبيه المبلغ المسبوق بأرقام زائدة: تُستعمل فى تنبيهات الغلاف وجدول الشروط الرئيسية معاً. */
+export function strayPrefixWarning(digitsText: string, wordsText: string): string {
+  return `تناقض فى مبلغ: الرقم المقروء ${digitsText} يحوى المبلغ المكتوب بالحروف (${wordsText}) مسبوقاً بأرقام زائدة، والأرجح أنها رموز دخيلة من القراءة الآلية؛ طابق المبلغ بالأصل قبل الاعتماد.`;
+}
+
 function fmt(n: number): string {
   return n.toLocaleString('en-US');
 }
@@ -178,6 +190,10 @@ function fmt(n: number): string {
 export function numericWarnings(text: string): string[] {
   const out: string[] = [];
   for (const m of findAmountMismatches(text)) {
+    if (strayPrefix(m.digits, m.words)) {
+      out.push(strayPrefixWarning(fmt(m.digits), fmt(m.words)));
+      continue;
+    }
     out.push(
       `تناقض فى مبلغ: الرقم ${fmt(m.digits)} لا يطابق المكتوب بالحروف («${m.wordsText}» = ${fmt(m.words)}) — قد يكون خطأ قراءة آلية أو خطأ فى العقد الأصلى؛ قارن بالأصل قبل الاعتماد.`,
     );

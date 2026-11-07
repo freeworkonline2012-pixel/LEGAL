@@ -110,3 +110,21 @@ describe('سياق الحصص لبند الأرباح (الجولة 58)', () => 
     expect(validateVerdict({ verdict: 'refuted', counter_quote: q, reason: 'الشريك الثانى بالعمل فقط.' }, own, [])?.basis).toBe('uncertain');
   });
 });
+
+describe('الجولة 60: isDismissedVerification', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { isDismissedVerification, validateVerdict } = require('./verification') as typeof import('./verification');
+  const clauseText = 'يتم تحويل اجمالى المبالغ المحصلة اسبوعيا الى الحساب البنكى للطرف الثانى';
+  it('دحض باقتباس موثَّق وسبب محدد = مستبعدة؛ بلا اقتباس أو بسبب «other» أو متأكدة = لا', () => {
+    const ok = validateVerdict({ verdict: 'refuted', reason: 'لا تعارض بين البندين', refutation_kind: 'clause_addresses', counter_quote: 'اجمالى المبالغ المحصلة اسبوعيا' }, clauseText, []);
+    expect(isDismissedVerification(ok)).toBe(true);
+    const other = validateVerdict({ verdict: 'refuted', reason: 'لا تعارض بين البندين', refutation_kind: 'other', counter_quote: 'اجمالى المبالغ المحصلة اسبوعيا' }, clauseText, []);
+    expect(isDismissedVerification(other)).toBe(false);
+    const noQuote = validateVerdict({ verdict: 'refuted', reason: 'لا تعارض بين البندين', refutation_kind: 'clause_addresses', counter_quote: 'عبارة غير موجودة فى النص إطلاقاً' }, clauseText, []);
+    expect(noQuote?.basis).toBe('uncertain');
+    expect(isDismissedVerification(noQuote)).toBe(false);
+    const confirmed = validateVerdict({ verdict: 'confirmed', reason: 'صحيحة' }, clauseText, []);
+    expect(isDismissedVerification(confirmed)).toBe(false);
+    expect(isDismissedVerification(null)).toBe(false);
+  });
+});

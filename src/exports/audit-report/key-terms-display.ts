@@ -37,9 +37,24 @@ function dropWordsDuplicates(terms: KeyTerm[]): KeyTerm[] {
   return terms.filter((t) => !(t.fromWords && digitKeys.has(`${t.clauseIndex}|${t.kind}|${t.value}`)));
 }
 
+/**
+ * التاريخ نفسه فى البند نفسه يُعرض مرة واحدة (الجولة 60): ظهر «05/07/2021» صفين متتاليين فى ذيل نموذج عقد سمسرة ممسوح (سطر «تحريراً فى» ثم سطر الاستلام).
+ * التاريخ وحده يُدمج هكذا؛ أما النسبة نفسها فقد ترد فى جملتين مختلفتين بمعنيين (سقف المحفظة وسقف الفردة) فلا تُدمج.
+ */
+function dropDuplicateDates(terms: KeyTerm[]): KeyTerm[] {
+  const seen = new Set<string>();
+  return terms.filter((t) => {
+    if (t.kind !== 'date') return true;
+    const k = `${t.clauseIndex}|${t.value}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
 export function groupKeyTerms(all: KeyTerm[]): KeyTermRow[] {
   const rows: Array<KeyTermRow & { clauseIndex: number }> = [];
-  for (const t of dropWordsDuplicates(all)) {
+  for (const t of dropDuplicateDates(dropWordsDuplicates(all))) {
     const last = rows[rows.length - 1];
     if (last && last.clauseIndex === t.clauseIndex) {
       const u = unionQuotes(last.quote, t.quote);

@@ -45,6 +45,7 @@ import {
 import { ClientPosition, describePosition } from './position.util';
 import { clientRoleConflictWarning, directionResolvable, extractPartyNames } from './parties.util';
 import { playbookFamily } from './playbook';
+import { articleInLawScope, lawScopeContext, type LawScopeContext } from './law-scope';
 import { riskLevelFor } from './risk-level.util';
 import { neutralizeOcrNoise } from './ocr-noise.util';
 import { describeRedraftRejection, describeWeakeningFeedback, REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
@@ -347,9 +348,11 @@ export class ContractsService implements OnModuleInit {
     // فى هذا المشروع (راجع تقارير Voyage السابقة) — التوازى الكامل هنا كان
     // سيخاطر بإطلاقها من أول استخدام حقيقى لخدمة جديدة، مقابل فارق زمن استجابة
     // مقبول لمستخدم يرفع عقداً (عملية غير تفاعلية آنية أصلاً).
+    // بوابة نطاق القانون: إشارات النشاط تُقرأ من نص العقد كله مرة واحدة (لا من البند وحده)
+    const lawScope = lawScopeContext(extraction.text, playbookFamily(position.contractType));
     for (let i = 0; i < clauseRows.length; i++) {
       progress({ stage: 'assessing', done: i, total: clauseRows.length });
-      await this.assessAndPersistClause(clauseRows[i], context, position);
+      await this.assessAndPersistClause(clauseRows[i], context, position, lawScope);
     }
     progress({ stage: 'assessing', done: clauseRows.length, total: clauseRows.length });
 
@@ -832,6 +835,7 @@ export class ContractsService implements OnModuleInit {
     row: ContractClause,
     context: { userId: string; ipAddress: string | null; userAgent: string | null },
     position: ClientPosition,
+    lawScope?: LawScopeContext,
   ): Promise<void> {
     try {
       // تصنيف البند إلى معايير المراجعة العشرة (حتمى، بكلمات مفتاحية) + جلب المواد
@@ -852,7 +856,8 @@ export class ContractsService implements OnModuleInit {
       // بوابة النطاق: مواد علاقة العمل لا تُعرض على عقد شراكة/بيع/إيجار... (نوعه معلوم)؛ انظر article-scope.ts
       const scopeFamily = playbookFamily(position.contractType);
       const inScope = (c: ClauseCandidate): boolean =>
-        articleInScopeForFamily(scopeFamily, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo });
+        articleInScopeForFamily(scopeFamily, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo }) &&
+        (!lawScope || articleInLawScope(lawScope, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear }));
       const merged = this.mergeCandidates(ftsCandidates, semanticCandidates).filter(inScope);
 
       const anchors = (await this.anchorCandidates(criteria, row.clauseText, row.clauseTitle, scopeFamily === 'services')).filter(inScope);

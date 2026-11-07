@@ -1,4 +1,4 @@
-import { parseArabicNumberWords } from './numeric-checks.util';
+import { parseArabicNumberWords, strayPrefix, strayPrefixWarning } from './numeric-checks.util';
 import { normalizeArabicForMatch } from './reasoning.util';
 
 /**
@@ -204,13 +204,6 @@ interface Hit {
   conflict?: { digits: number | null; words: number };
   /** المقروء بالحروف جزء من عدد أكبر لم يُقرأ كله (بدايته مشوّهة أو فى صفحة سابقة): لا يُعرض مبلغاً مستقلاً ولا يُقدَّم على الرقم */
   partial?: boolean;
-}
-
-/** الرقم المقروء = أرقام دخيلة + المبلغ المكتوب بالحروف نفسه («452,500,000» والحروف «خمسمائة ألف»): دليل على ضجيج قراءة لا على تعارض فى العقد. */
-function strayPrefix(digits: number, words: number): boolean {
-  const d = String(Math.round(digits));
-  const w = String(Math.round(words));
-  return w.length >= 4 && d.length > w.length && d.length - w.length <= 4 && d.endsWith(w);
 }
 
 /** وصف التعارض بين رقم المبلغ وكتابته بالحروف: يُعرض مع القيمة فى الجدول وفى تنبيهات العقد. */
@@ -588,7 +581,9 @@ export function amountConflictWarnings(clauseTexts: string[], existing: string[]
       const msg =
         d === null
           ? `مبلغ مكتوب بالحروف (${w}) سبقه رقم تالف فى القراءة الآلية؛ طابق المبلغ بالأصل قبل الاعتماد.`
-          : `تناقض فى مبلغ: الرقم ${d} لا يطابق المكتوب بالحروف (${w}) — قد يكون خطأ قراءة آلية أو خطأ فى العقد الأصلى؛ قارن بالأصل قبل الاعتماد.`;
+          : h.conflict.digits !== null && strayPrefix(h.conflict.digits, h.conflict.words)
+            ? strayPrefixWarning(d, w)
+            : `تناقض فى مبلغ: الرقم ${d} لا يطابق المكتوب بالحروف (${w}) — قد يكون خطأ قراءة آلية أو خطأ فى العقد الأصلى؛ قارن بالأصل قبل الاعتماد.`;
       if (out.includes(msg)) continue;
       if (d !== null && existing.some((e) => e.includes(d) && e.includes(w))) continue;
       out.push(msg);

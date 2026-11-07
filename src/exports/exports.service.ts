@@ -281,13 +281,15 @@ export class ExportsService {
     };
   }
 
-  private reportVerification(v: Record<string, unknown> | null | undefined): { status: 'confirmed' | 'unconfirmed'; reason: string; quote: string | null; reclassified?: 'deviation' } | null {
+  private reportVerification(v: Record<string, unknown> | null | undefined): { status: 'confirmed' | 'unconfirmed'; reason: string; quote: string | null; reclassified?: 'deviation'; basis?: string; refutationKind?: string } | null {
     if (!v || (v.status !== 'confirmed' && v.status !== 'unconfirmed') || typeof v.reason !== 'string' || !v.reason) return null;
     return {
       status: v.status,
       reason: v.reason,
       quote: typeof v.quote === 'string' && v.quote ? v.quote : null,
       ...(v.reclassified === 'deviation' ? { reclassified: 'deviation' as const } : {}),
+      ...(typeof v.basis === 'string' ? { basis: v.basis } : {}),
+      ...(typeof v.refutationKind === 'string' ? { refutationKind: v.refutationKind } : {}),
     };
   }
 

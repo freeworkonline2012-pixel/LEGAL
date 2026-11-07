@@ -24,6 +24,17 @@ export interface Verification {
   verifiedAt: string;
 }
 
+/**
+ * دحض موثَّق (الجولة 60): اعتراض المدقق المستقل مسنَد باقتباس حرفى تحقق منه الكود، وسببه محدد (ليس «other» الغامض):
+ * المادة ليست آمرة، أو البند نفسه يعالج الموضوع، أو الملاحظة لا تنطبق. مثل هذه الملاحظة تُعرض فى ملحق مختصر «فُحصت واستُبعدت» لا مرشّحةً
+ * (لا تُحذف: يبقى نصها وسبب استبعادها وقتباس الدحض ظاهرة للمراجع)، ولا ترفع المستوى ولا تجعله «مؤقتاً» على الغلاف.
+ */
+export const DISMISSIBLE_REFUTATION_KINDS: ReadonlySet<string> = new Set(['not_mandatory', 'clause_addresses', 'not_applicable']);
+
+export function isDismissedVerification(v: { status?: string; basis?: string | null; refutationKind?: string | null; quote?: string | null } | null | undefined): boolean {
+  return !!v && v.status === 'unconfirmed' && v.basis === 'refuted' && !!v.quote && !!v.refutationKind && DISMISSIBLE_REFUTATION_KINDS.has(v.refutationKind);
+}
+
 function str(v: unknown, max: number): string | null {
   if (typeof v !== 'string') return null;
   const t = v.replace(/\s+/g, ' ').trim();

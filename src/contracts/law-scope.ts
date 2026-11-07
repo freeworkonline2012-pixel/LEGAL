@@ -1,0 +1,67 @@
+import type { PlaybookFamily } from './playbook';
+import { norm } from './playbook-util';
+import { matchesLoose } from './reasoning.util';
+
+/**
+ * بوابة نطاق القانون (الجولة 60): قوانين قطاعية لا تحكم إلا نشاطاً بعينه، فلا تُعرض مواده على عقد لا يشير نصه إلى ذلك النشاط.
+ * وقع فى إنتاج عقد خدمات تحصيل إلكترونى (0174): ظهر القانون 176 لسنة 2018 (التأجير التمويلى والتخصيم) «قانوناً حاكماً» فى الغلاف،
+ * واستُشهد بمادته 65 فى تقييم بند العمولات، فبدا البند مراجَعاً قانونياً وهو لم يُراجَع على قانونه الصحيح. بوابة نوع العقد وحدها (article-scope)
+ * لا تكفى لأن النوع كثيراً ما لا يُختار عند الرفع؛ لذا تُقرأ الإشارات من نص العقد كله.
+ *
+ * القاعدة: القانون القطاعى يُقبل إذا ورد فى نص العقد أى مؤشر لنشاطه (أو كانت أسرة العقد المعلومة مما يحتمله)؛ لا مؤشر ⇒ يُحجب حتماً قبل التقييم.
+ * الأسرة المجهولة لا تُعفى القانون من اشتراط المؤشر (عكس بوابة المادة)، لأن الحجب هنا مبنى على غياب الدليل فى النص نفسه لا على النوع.
+ */
+interface SectorLaw {
+  lawNo: number;
+  lawYear: number;
+  /** نشاط القانون، للتقارير والاختبارات. */
+  sector: string;
+  /** مؤشرات النشاط على النص الموحَّد (norm) — تُجرَّب بلا «ال» التعريف أيضاً. */
+  signals: RegExp[];
+  /** أسر عقود يُقبل لها القانون دون مؤشر نصى لأن نوعها نفسه قد يكون نشاطه. */
+  allowFamilies?: ReadonlyArray<PlaybookFamily>;
+}
+
+const INSURANCE_SIGNALS: RegExp[] = [/تامين/, /وثيقه تامين|وثائق تامين/, /اعاده التامين/, /وساطه (?:في )?التامين|وسيط تامين|وسطاء التامين/];
+
+const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
+  {
+    lawNo: 176,
+    lawYear: 2018,
+    sector: 'التأجير التمويلى والتخصيم',
+    signals: [/تاجير تمويل/, /ايجار تمويل/, /تخصيم/, /فاكتورينج|factoring/i, /مؤجر تمويل|مستاجر تمويل/, /شراء (?:ال)?حقوق (?:ال)?مالي/, /شركه (?:ال)?تخصيم|شركه (?:ال)?تاجير تمويل/],
+    allowFamilies: ['finance'],
+  },
+  // قطاع التأمين: قرارات الهيئة (وساطة التأمين 69/2025 و5/2023 وإصدار الوثائق رقمياً 199/2025 وشكاوى القطاع 77/2025)
+  { lawNo: 69, lawYear: 2025, sector: 'وساطة التأمين', signals: INSURANCE_SIGNALS },
+  { lawNo: 5, lawYear: 2023, sector: 'وسطاء التأمين', signals: INSURANCE_SIGNALS },
+  { lawNo: 199, lawYear: 2025, sector: 'إصدار وثائق التأمين رقمياً', signals: INSURANCE_SIGNALS },
+  { lawNo: 77, lawYear: 2025, sector: 'شكاوى قطاع التأمين', signals: INSURANCE_SIGNALS },
+];
+
+/** هل يحوى نص العقد مؤشراً على نشاط القانون القطاعى؟ */
+function hasSignal(law: SectorLaw, normalizedText: string): boolean {
+  return law.signals.some((re) => matchesLoose(re, normalizedText));
+}
+
+export interface LawScopeContext {
+  /** نص العقد كله موحَّداً (norm) — يُحسب مرة واحدة لكل عقد. */
+  normalizedText: string;
+  family: PlaybookFamily | null;
+}
+
+export function lawScopeContext(contractText: string, family: PlaybookFamily | null): LawScopeContext {
+  return { normalizedText: norm(contractText), family };
+}
+
+/** true = المادة تصلح مرشّحة لهذا العقد. قانون غير قطاعى ⇒ true دائماً. */
+export function articleInLawScope(ctx: LawScopeContext, a: { lawNo: number | null; lawYear: number | null }): boolean {
+  if (a.lawNo == null || a.lawYear == null) return true;
+  const law = SECTOR_LAWS.find((l) => l.lawNo === a.lawNo && l.lawYear === a.lawYear);
+  if (!law) return true;
+  if (ctx.family && law.allowFamilies?.includes(ctx.family)) return true;
+  return hasSignal(law, ctx.normalizedText);
+}
+
+/** للاختبارات والتقارير: القوانين القطاعية المسجَّلة. */
+export const SECTOR_LAW_KEYS: ReadonlyArray<string> = SECTOR_LAWS.map((l) => `${l.lawNo}/${l.lawYear}`);
