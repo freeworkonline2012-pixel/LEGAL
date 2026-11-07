@@ -1166,6 +1166,19 @@ export function deterministicFindings(clauses: LevelClause[], opts: MissingOptio
 const MODEL_KINDS: ReadonlyArray<ContractFindingKind> = ['conflict', 'scope_mismatch', 'open_term', 'undefined_term'];
 const NEEDS_TWO: ReadonlySet<ContractFindingKind> = new Set(['conflict', 'scope_mismatch']);
 const MODEL_SEVERITIES: ReadonlyArray<FindingSeverity> = ['عالٍ', 'متوسط', 'منخفض'];
+
+/**
+ * الجولة 65: سقف درجة «الشرط المفتوح» من النموذج. من الإنتاج (عقد التحصيل 0174 رُفع مرتين بالإعدادات نفسها): ملاحظة «البند الخامس يعلّق مستوى
+ * الخدمة وخطة المشروع على اتفاق لاحق» خرجت متوسطة غير مؤكدة فى تشغيل وعالية مؤكدة فى الآخر؛ الدرجة يحددها النموذج منفرداً فتتفاوت.
+ * تعريف النموذج نفسه لهذا النوع «التزام مالى أو زمنى يُترك مفتوحاً»، فلا تبلغ الملاحظة «عالٍ» إلا إن حمل اقتباس دليلها ذاته مادة مالية أو زمنية أو
+ * إنهائية (ثمن/أتعاب/رسم/مبلغ/غرامة/سداد/تحويل، مدة/ميعاد/تاريخ، إنهاء/فسخ/تجديد). غير ذلك تُخفض إلى «متوسط». حتمى: الاقتباس هو ما يُفحص لا شرح النموذج.
+ */
+const OPEN_TERM_CORE =
+  /(?<![ء-ي])[وفبلك]?(?:ال)?(?:ثمن|اجر|اجور|اتعاب|عمول|عمولات|رسوم|رسم|مبلغ|مبالغ|سعر|اسعار|قيم|غرام|تعويض|فوائد|فايد|مقابل|سداد|دفع|دفعات|تحويل|تحصيل|قسط|اقساط|جزاء|مده|مدد|مدت|ميعاد|مواعيد|موعد|تاريخ|يوم|ايام|شهر|اشهر|سنه|سنوات|سنين|سنت|انهاء|فسخ|تجديد|مهل|خلال)(?:ه|ها|هم|ات|ون|ين)?(?![ء-ي])/u;
+
+export function openTermIsCore(evidence: ReadonlyArray<{ quote: string }>): boolean {
+  return evidence.some((e) => OPEN_TERM_CORE.test(norm(e.quote)));
+}
 const MAX_MODEL_FINDINGS = 8;
 
 function str(v: unknown, max: number): string | null {
@@ -1205,7 +1218,7 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
     const kind = MODEL_KINDS.find((k) => k === f.kind);
     // «مصطلح غير معرَّف» من النموذج لا يتجاوز «منخفض» (الجولة 59): المواد الجوهرية منه (مدة العقد، المرفقات) تُفحص حتمياً بقواعد مستقلة،
     // وما يقترحه النموذج غالباً عبارة عادية مفهومة من السياق («بالسعر نفسه»، «اتحاد الشاغلين») وكانت تُؤكَّد متوسطة على عقد سليم.
-    const severity = kind === 'undefined_term' ? 'منخفض' : (MODEL_SEVERITIES.find((s) => s === f.severity) ?? 'متوسط');
+    let severity: FindingSeverity = kind === 'undefined_term' ? 'منخفض' : (MODEL_SEVERITIES.find((s) => s === f.severity) ?? 'متوسط');
     const title = str(f.title, 140);
     const explanation = str(f.explanation, 700);
     if (!kind || !title || !explanation) continue;
@@ -1222,6 +1235,7 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
       evidence.push({ clauseIndex: clause.clauseIndex, clauseLabel: clause.clauseLabel, quote: o.quote.trim() });
     }
     const distinctClauses = new Set(evidence.map((x) => x.clauseIndex)).size;
+    if (kind === 'open_term' && severity === 'عالٍ' && !openTermIsCore(evidence)) severity = 'متوسط';
     if (NEEDS_TWO.has(kind) ? distinctClauses < 2 : evidence.length < 1) continue;
     // النموذج يكتب «البند 4» بموضع البند لا بعنوانه حين يختلف الاثنان (عقد ممسوح سقطت عناوين بعض بنوده: الموضع 4 = «البند الخامس»)
     const relabel = (t: string | null): string | null => (t === null ? null : relabelPositions(t, evidence, byIndex));
