@@ -1,4 +1,4 @@
-import { normalizeArabicForMatch } from './reasoning.util';
+import { matchesLoose, normalizeArabicForMatch } from './reasoning.util';
 
 /**
  * وقائع البند المستخرجة بالنموذج، بمخطط مغلق: كل واقعة قيمها من قائمة ثابتة وتحمل اقتباساً حرفياً من نص البند يتحقق الكود
@@ -60,6 +60,33 @@ export function quoteInText(quote: unknown, clauseText: string): boolean {
   return normalizeArabicForMatch(clauseText).includes(q);
 }
 
+/**
+ * بوابة دلالية على اقتباس «الإعفاء من المسئولية» (الجولة 64). من الإنتاج (عقد السمسرة 0178، البند 8): استخرج النموذج واقعة
+ * «إعفاء» من بند يحمّل الوسيط وحده المسئولية عن تابعيه («بحيث يكون مسئولاً وحده عنهم أمام الطرف الأول أو الغير»)، فخرجت ملاحظة
+ * عالية بأن البند «يعفى من المسئولية» بينما هو يوزّع المسئولية على الوسيط ولا يعفيه، وهو فى صالح العميل. توزيع المسئولية أو تحميلها
+ * ليس إعفاءً ولا تحديداً لها فلا ينطبق عليه حكم المادة 217(2). فلا تُقبل واقعة exclusion/cap إلا إن حمل اقتباسها ذاته لفظ إعفاء أو نفى
+ * مسئولية أو حد أقصى؛ وإلا سقطت (fail-closed) ورجع البند إلى التقييم العادى.
+ */
+const LIABILITY_REDUCTION_CUE = new RegExp(
+  [
+    '(?:^| )(?:يعفي|تعفي|يعفيان|يعفون|اعفاء|معفي|معفاه|معفيه|معفون|اعفاءه|ابراء|يبرا|تبرا|بري[ءئ]|بريئه|اخلاء)(?: |$)',
+    '(?:^| )[وف]?لا (?:[ء-ي]+ ){0,4}?(?:مس[ؤئ]ول|يسال|تسال|يسالان|يتحمل|تتحمل|يلتزم|تلتزم|يضمن|تضمن|تقع|يقع|تترتب|يترتب|يكون ملتزم|تكون ملتزم)',
+    '(?:^| )غير (?:مس[ؤئ]ول|ملتزم|متحمل|ضامن)',
+    '(?:^| )(?:دون|بدون|عدم) (?:[ء-ي]+ ){0,2}?(?:مس[ؤئ]ول|تحمل|التزام|ضمان)',
+    '(?:^| )(?:حد|الحد) (?:ا|ال)?اقصي',
+    '(?:^| )(?:بحد|سقف|الحد الاعلي)(?: |$)',
+    '(?:^| )[وف]?(?:لا|الا) (?:[ء-ي]+ ){0,2}?(?:يزيد|تزيد|يتجاوز|تتجاوز|يجاوز|تجاوز|يتعدي|تتعدي|يزيدان)',
+    '(?:^| )بما لا يزيد',
+    '(?:^| )(?:في حدود|فقط في حدود|يقتصر|تقتصر|مقصور)',
+    '(?:^| )(?:يتنازل|تتنازل|تنازل)(?: [ء-ي]+){0,3} عن (?:[ء-ي]+ ){0,2}?(?:مس[ؤئ]ول|مطالب|تعويض)',
+  ].join('|'),
+  'u',
+);
+
+export function quoteReducesLiability(quote: string): boolean {
+  return matchesLoose(LIABILITY_REDUCTION_CUE, normalizeArabicForMatch(quote));
+}
+
 function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T | null {
   return typeof value === 'string' && (allowed as readonly string[]).includes(value) ? (value as T) : null;
 }
@@ -98,7 +125,7 @@ export function validateClauseFacts(raw: unknown, clauseText: string): ClauseFac
     const kind = oneOf(l.kind, ['exclusion', 'cap', 'none'] as const);
     const grossFault = oneOf(l.gross_fault, ['reserved', 'covered', 'unspecified'] as const);
     const beneficiary = oneOf(l.beneficiary, PARTIES);
-    if (kind && grossFault && beneficiary && quoteInText(l.quote, clauseText)) {
+    if (kind && grossFault && beneficiary && quoteInText(l.quote, clauseText) && (kind === 'none' || quoteReducesLiability(String(l.quote)))) {
       out.liability = { kind, grossFault, beneficiary, quote: String(l.quote).trim() };
     }
   }

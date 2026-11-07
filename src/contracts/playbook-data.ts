@@ -89,6 +89,11 @@ export interface PlaybookTopic {
    * على عقد تسويق/وكالة تواصل لا يعالج بيانات أشخاص ولا يسلّم منتجاً تقنياً). المحور المرصود نصه يُعرض دائماً.
    */
   appliesWhen?: RegExp;
+  /**
+   * الجولة 64 (امتداد لإجابات المستشار فى الجولة 63): أنواع عقد الخدمات الفرعية التى لا ينطبق عليها المحور؛ إن لم يُرصد نصه لم يُعرض
+   * «لم يُرصد» (مثال الإنتاج: صف الملكية الفكرية يظهر فى عقد تحصيل بنص قانون 82/2002). المحور المرصود نصه يُعرض دائماً.
+   */
+  notForSubtypes?: ReadonlyArray<'collection' | 'payment_gateway' | 'works' | 'supply'>;
 }
 
 const AUTO_RESCISSION: PlaybookFlag = {
@@ -887,6 +892,7 @@ const CORE_TOPICS: PlaybookTopic[] = [
     id: 'svc_ip',
     label: 'الملكية الفكرية والمخرجات وحقوق الاستخدام',
     families: ['services'],
+    notForSubtypes: ['collection', 'supply'],
     detect: /ملكيه فكريه|حقوق الملكيه|حقوق المؤلف|المصنفات|الشفره المصدريه|الكود المصدري|ملكيه (?:المخرجات|النظام|البرنامج|الكود)|ترخيص استخدام/,
     flags: [
       {
@@ -994,6 +1000,7 @@ const CORE_TOPICS: PlaybookTopic[] = [
     id: 'svc_warranty',
     label: 'الضمان والدعم بعد التسليم',
     families: ['services'],
+    notForSubtypes: ['collection'],
     detect: /ضمان|فتره الصيانه|الدعم|الصيانه|اصلاح مجاني|عيوب|اصلاح الاخطاء/,
     flags: [
       {

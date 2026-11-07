@@ -1,5 +1,5 @@
 import { quoteInText } from './clause-facts';
-import { contractFamily, sentencesOf, stripDefiniteArticle, type LevelClause } from './contract-level';
+import { contractFamily, sentencesOf, servicesSubtype, stripDefiniteArticle, type LevelClause } from './contract-level';
 import {
   LAW_NAME,
   PLAYBOOK_TOPICS,
@@ -271,10 +271,13 @@ export function buildPlaybook(input: PlaybookInput): PlaybookResult | null {
   const prepared = prepare(input.clauses);
   const fullNorm = prepared.map((p) => p.clauseNorm).join(' ');
   const ctx = playbookCtx(family, side, input.clientParty ?? null);
+  const subtype = family === 'services' ? servicesSubtype(fullNorm) : null;
   const rows = PLAYBOOK_TOPICS.filter((t) => t.families.includes(family))
     .map((t) => ({ t, row: buildRow(t, family, side, prepared, fullNorm, ctx) }))
     // محور لم يُرصد نصه ولا ينطبق على هذا العقد لا يُعرض «غير مرصود» (appliesWhen)
     .filter(({ t, row }) => row.status !== 'missing' || !t.appliesWhen || reHit(t.appliesWhen, fullNorm))
+    // الجولة 64: محور لا ينطبق على النوع الفرعى (تحصيل/توريد…) ولم يُرصد نصه لا يُعرض «غير مرصود»
+    .filter(({ t, row }) => row.status !== 'missing' || !subtype || !t.notForSubtypes?.includes(subtype))
     .map(({ row }) => row);
   return {
     version: 1,
