@@ -12,6 +12,7 @@ import {
 } from './contract-level';
 import { eachSentence, firstPerClause, norm, type OfficeRule, type OfficeRuleHit } from './office-rules-kit';
 import { SERVICES_OFFICE_RULES } from './office-rules-services';
+import { clientSideOf } from './client-side';
 
 export type { OfficeRule, OfficeRuleContext, OfficeRuleHit } from './office-rules-kit';
 
@@ -237,6 +238,8 @@ export interface OfficeRuleOptions {
   contractType: string | null;
   titleText?: string | null;
   fileName?: string | null;
+  /** صفة العميل كما أدخلها المستخدم (null = لم تُحدَّد): تُحجب بها القواعد المصاغة لحماية الطرف المقابل */
+  clientRole?: string | null;
   textMayBeIncomplete: boolean;
 }
 
@@ -261,9 +264,12 @@ export function officeRuleFindings(
   const caveat = opts.textMayBeIncomplete
     ? ' تنبيه: توجد تحذيرات قراءة أو ترقيم لهذا الملف، فقد يكون النص المطلوب ضمن جزء لم يُقرأ؛ قارن بالأصل قبل الاعتماد.'
     : '';
+  const clientSide = clientSideOf(opts.clientRole);
   const out: ContractFinding[] = [];
   for (const rule of profile.rules) {
     if (!rule.enabled) continue;
+    // الجولة 63: قاعدة تحمى طالب الخدمة لا تُعرض كمخاطرة على عميل هو مقدّم الخدمة (البند فى صالحه)؛ الصفة المجهولة لا تحجب شيئاً
+    if (rule.protects === 'requester' && clientSide === 'provider') continue;
     if (rule.families && !rule.families.includes(family)) continue;
     if (rule.excludeFamilies?.includes(family)) continue;
     let hits: OfficeRuleHit[];

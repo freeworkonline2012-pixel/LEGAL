@@ -43,6 +43,7 @@ const BIND_PROVIDER = /(?:لا يجوز|لا يحق|يحظر|يمتنع|يتعه
 const RULE_EXCLUSIVITY_ON_CLIENT: OfficeRule = {
   id: 'exclusivity_binds_client',
   families: ['services', 'agency', 'licence'],
+  protects: 'requester',
   enabled: true,
   severity: 'متوسط',
   title: 'حصرية مفروضة على العميل وحده: منعه من التعامل مع المنافسين طوال مدة العقد',
@@ -68,6 +69,7 @@ const TRANSFER_TOPIC = /تحويل|المبالغ المحصله|التحصيل|
 const RULE_TRANSFER_TERMS: OfficeRule = {
   id: 'collected_funds_transfer_terms',
   families: ['services', 'agency'],
+  protects: 'requester',
   enabled: true,
   severity: 'عالٍ',
   title: 'تحويل المبالغ المحصلة بدورية عامة دون يوم محدد أو مهلة قصوى أو جزاء تأخير',
@@ -97,6 +99,7 @@ const COLLECTED_ANCHOR = /المبالغ المحصله|(?:تقرير|تقاري
 const RULE_NO_AUDIT_RIGHT: OfficeRule = {
   id: 'collected_funds_no_audit_right',
   families: ['services', 'agency'],
+  protects: 'requester',
   enabled: true,
   severity: 'عالٍ',
   absence: true,
@@ -121,6 +124,7 @@ const SEGREGATION =
 const RULE_NO_SEGREGATION: OfficeRule = {
   id: 'collected_funds_no_segregation',
   families: ['services', 'agency'],
+  protects: 'requester',
   enabled: true,
   severity: 'متوسط',
   absence: true,
@@ -152,6 +156,7 @@ function pctValues(raw: string): string[] {
 const RULE_TIERS_AMBIGUOUS: OfficeRule = {
   id: 'commission_tiers_ambiguous',
   families: ['services', 'agency'],
+  protects: 'requester',
   enabled: true,
   severity: 'عالٍ',
   title: 'شرائح العمولة دون بيان هل تسرى على كامل الحجم أم على الشريحة وحدها',
@@ -185,6 +190,7 @@ const PER_TRANSACTION = /لكل (?:عمليه|معامله|عمليات|قسط|�
 const RULE_FIXED_PLUS_PERCENT: OfficeRule = {
   id: 'fixed_fee_plus_percent_unspecified',
   families: ['services', 'agency'],
+  protects: 'requester',
   enabled: true,
   severity: 'عالٍ',
   title: 'عمولة بمبلغ ثابت مع نسبة دون بيان أن الثابت يُحتسب عن كل عملية أم عن الفترة',
@@ -322,6 +328,7 @@ const VAT_EXCLUSIVE =
 const RULE_VAT_EXCLUSIVE: OfficeRule = {
   id: 'fees_exclusive_of_vat',
   families: ['services', 'agency'],
+  protects: 'requester',
   enabled: true,
   severity: 'عالٍ',
   title: 'العمولات غير شاملة ضريبة القيمة المضافة: كلفة إضافية على العميل فوق المعلن',

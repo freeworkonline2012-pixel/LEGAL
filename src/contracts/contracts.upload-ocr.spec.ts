@@ -163,6 +163,38 @@ describe('ContractsService — الطبقة 4 (المدقق المستقل) وح
     expect((level.findings[1] as { verification?: unknown }).verification).toBeUndefined();
   });
 
+  it('الجولة 63: ملاحظة عالية لا تُستبعد بدحض واحد؛ يلزم دحض ثان مستقل يوافق الأول', async () => {
+    const dismissed = { status: 'unconfirmed', basis: 'refuted', refutationKind: 'clause_addresses', reason: 'r', quote: 'ن', quoteSource: 'clause', verifiedAt: 't' };
+    const notRefuted = { status: 'confirmed', basis: 'confirmed', reason: 'r', quote: null, quoteSource: null, verifiedAt: 't' };
+    const mk = (severity: string) => ({ findings: [{ id: 'a', kind: 'open_term', severity, source: 'model', title: 't', explanation: 'e', evidence: [] }] });
+    // دحضان متفقان: يبقى الاستبعاد
+    let vf = jest.fn().mockResolvedValue({ status: 'ok', verification: dismissed });
+    let level = mk('عالٍ');
+    await mkService({ isConfigured: true, verifyFinding: vf }).verifyContractFindings(level, [row()]);
+    expect(vf).toHaveBeenCalledTimes(2);
+    expect((vf.mock.calls[1][0] as { secondOpinion?: boolean }).secondOpinion).toBe(true);
+    expect((level.findings[0] as { verification?: { basis: string } }).verification?.basis).toBe('refuted');
+    // الثانى لم يدحض: تعود مرشحة
+    vf = jest.fn().mockResolvedValueOnce({ status: 'ok', verification: dismissed }).mockResolvedValueOnce({ status: 'ok', verification: notRefuted });
+    level = mk('عالٍ');
+    await mkService({ isConfigured: true, verifyFinding: vf }).verifyContractFindings(level, [row()]);
+    const v = (level.findings[0] as { verification?: { basis: string; status: string; refutationKind?: string } }).verification;
+    expect(v?.basis).toBe('uncertain');
+    expect(v?.status).toBe('unconfirmed');
+    expect(v?.refutationKind).toBeUndefined();
+    // عطل فى الثانية: تعود مرشحة (فشل مغلق)
+    vf = jest.fn().mockResolvedValueOnce({ status: 'ok', verification: dismissed }).mockRejectedValueOnce(new Error('x'));
+    level = mk('حرج');
+    await mkService({ isConfigured: true, verifyFinding: vf }).verifyContractFindings(level, [row()]);
+    expect((level.findings[0] as { verification?: { basis: string } }).verification?.basis).toBe('uncertain');
+    // خطورة متوسطة/منخفضة: دحض واحد يكفى (نداء واحد)
+    vf = jest.fn().mockResolvedValue({ status: 'ok', verification: dismissed });
+    level = mk('منخفض');
+    await mkService({ isConfigured: true, verifyFinding: vf }).verifyContractFindings(level, [row()]);
+    expect(vf).toHaveBeenCalledTimes(1);
+    expect((level.findings[0] as { verification?: { basis: string } }).verification?.basis).toBe('refuted');
+  });
+
   it('G12: الحارس يكشف صياغة تضيف الإنذار على عميل يملك حق الفسخ، ولا يحكم بلا استخراج ناجح', async () => {
     const orig = { termination: { mechanism: 'automatic_without_court', holder: 'second', quote: 'يجوز للطرف الثانى فسخ العقد' }, notice: { state: 'waived_explicitly', quote: 'دون حاجة إلى إنذار' } };
     const prop = { termination: { mechanism: 'automatic_without_court', holder: 'second', quote: 'يجوز للطرف الثانى فسخ العقد' }, notice: { state: 'required', quote: 'بعد إنذار مدته ثلاثون يوماً' } };

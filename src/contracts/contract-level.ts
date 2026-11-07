@@ -304,8 +304,35 @@ interface MissingCheck {
   /** شرط انطباق إضافى على النص الموحَّد */
   when?: RegExp;
   severity: FindingSeverity;
+  /**
+   * الجولة 63 (إجابات المستشار): لزوم البند بحسب النوع الفرعى لعقد الخدمات؛ 'na' = لا يُفحص، 'optional' = يُرصد بدرجة «منخفض».
+   * غياب النوع الفرعى أو غياب مفتاحه = لازم بالدرجة المعتادة.
+   */
+  bySubtype?: Partial<Record<ServicesSubtype, 'required' | 'optional' | 'na'>>;
   why: string;
   suggestion: string;
+}
+
+/** النوع الفرعى لعقد الخدمات (يُستنتج من متن العقد): تحصيل أموال، بوابة دفع/خدمات إلكترونية، مقاولة، توريد. */
+export type ServicesSubtype = 'collection' | 'payment_gateway' | 'works' | 'supply';
+
+const SUBTYPE_SIGNALS: Array<{ subtype: ServicesSubtype; re: RegExp; min: number }> = [
+  { subtype: 'collection', re: /تحصيل|متحصلات|الحصيله|المبالغ المحصله/g, min: 3 },
+  { subtype: 'payment_gateway', re: /بوابه (?:ال)?دفع|خدمات (?:ال)?دفع|محفظه الكترونيه|نقاط (?:ال)?دفع|ماكينات (?:ال)?دفع|الدفع الالكتروني/g, min: 2 },
+  { subtype: 'works', re: /مقاول|اعمال (?:ال)?مقاوله|تنفيذ (?:ال)?اعمال|اعمال (?:ال)?انشاء|اعمال (?:ال)?تشطيب|مستخلص/g, min: 3 },
+  { subtype: 'supply', re: /(?<![ء-ي])(?:ال)?مورد(?![ء-ي])|بضاعه|بضائع|اصناف|توريد (?:ال)?(?:بضاعه|بضائع|اصناف|سلع|مواد)/g, min: 3 },
+];
+
+/**
+ * النوع الفرعى لعقد الخدمات من النص الموحَّد: الأسبق ذو المؤشرات الكافية (تحصيل ثم دفع ثم مقاولة ثم توريد)؛ لا مؤشرات كافية ⇒ null
+ * ولا تُعدَّل لزوم البنود (فشل مغلق). «توريد المبالغ المحصلة» فى عقد تحصيل لا يجعله عقد توريد لأن التحصيل يسبقه.
+ */
+export function servicesSubtype(fullNormText: string): ServicesSubtype | null {
+  for (const s of SUBTYPE_SIGNALS) {
+    const n = (fullNormText.match(s.re) ?? []).length;
+    if (n >= s.min) return s.subtype;
+  }
+  return null;
 }
 
 export const CHECKS: MissingCheck[] = [
@@ -418,6 +445,7 @@ export const CHECKS: MissingCheck[] = [
     families: ['sale', 'services'],
     patterns: [/ضمان|عيوب|عيب|كفاله|فتره الصيانه|الصيانه/],
     severity: 'متوسط',
+    bySubtype: { collection: 'na', payment_gateway: 'optional' },
     why: 'مدة الضمان ونطاقه وإجراءات الإصلاح ما يُبنى عليه رجوع المشترى أو العميل عند ظهور العيوب.',
     suggestion: 'نص يحدد مدة الضمان ونطاقه وإجراءات الإبلاغ والإصلاح.',
   },
@@ -427,6 +455,7 @@ export const CHECKS: MissingCheck[] = [
     families: ['services', 'licence'],
     patterns: [/ملكيه فكريه|حقوق الملكيه|حقوق المؤلف|المصنفات|الشفره المصدريه|ملكا لل|يظل.{0,40}ملكا|ملكيه (?:النظام|البرنامج|المخرجات)/],
     severity: 'عالٍ',
+    bySubtype: { collection: 'na', payment_gateway: 'optional', supply: 'na' },
     why: 'بلا نص صريح قد يُنازَع فى ملكية المخرجات وحق استعمالها وتعديلها بعد انتهاء العقد.',
     suggestion: 'نص يحدد مالك المخرجات ونطاق الترخيص المتاح للطرف الآخر ومدته.',
   },
@@ -976,8 +1005,11 @@ export function checkMissingClauses(clauses: LevelClause[], opts: MissingOptions
   const fullNorm = norm(clauses.map((c) => `${c.clauseTitle ?? ''}\n${c.clauseText}`).join('\n'));
   if (fullNorm.length < 40) return [];
   const out: ContractFinding[] = [];
+  const subtype = family === 'services' ? servicesSubtype(fullNorm) : null;
   for (const check of CHECKS) {
     if (check.families && !check.families.includes(family)) continue;
+    const need = subtype ? check.bySubtype?.[subtype] : undefined;
+    if (need === 'na') continue;
     if (check.when && !check.when.test(fullNorm) && !check.when.test(stripDefiniteArticle(fullNorm))) continue;
     if (checkMatches(check, fullNorm, clauses)) continue;
     const caveat = opts.textMayBeIncomplete
@@ -993,7 +1025,7 @@ export function checkMissingClauses(clauses: LevelClause[], opts: MissingOptions
     out.push({
       id: `missing:${check.id}`,
       kind: 'missing_clause',
-      severity: check.severity,
+      severity: need === 'optional' ? 'منخفض' : check.severity,
       title: `لم يُرصد بند يتناول: ${check.labelByFamily?.[family] ?? check.label}`,
       explanation: `لم يُرصد فى نص العقد المرفوع ما يتناول ${check.labelByFamily?.[family] ?? check.label}. ${check.why}${caveat}`,
       suggestion: check.suggestion,

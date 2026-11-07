@@ -104,13 +104,19 @@ export class ClauseVerifierService {
     clauseTexts: string[];
     /** نص كل بنود العقد (للتحقق من بند آخر تقوم عليه الملاحظة ولم يُنقل مقتطفه) */
     contractClauses?: Array<{ clauseLabel: string; text: string }>;
+    /**
+     * الجولة 63: مراجعة ثانية مستقلة قبل إسقاط ملاحظة عالية. درجة الحرارة صفر تعطى النتيجة نفسها لنفس الصياغة، فتُغيَّر الصياغة وترتيب بنود العقد
+     * (النص نفسه) ويُطلب من المدقق عدم الاعتماد على أى رأى سابق، فيكون الاتفاق على الدحض اتفاقاً لا تكراراً.
+     */
+    secondOpinion?: boolean;
   }): Promise<VerifierOutcome> {
     const ev = input.evidence.map((e, i) => `${i + 1}) ${e.clauseLabel}: """${e.quote}"""`).join('\n');
     let whole = '';
     if (input.contractClauses && input.contractClauses.length > 0) {
       let used = 0;
       const parts: string[] = [];
-      for (const c of input.contractClauses) {
+      const ordered = input.secondOpinion ? [...input.contractClauses].reverse() : input.contractClauses;
+      for (const c of ordered) {
         const t = c.text.replace(/\s+/g, ' ').trim();
         if (used + t.length > MAX_WHOLE_CONTRACT_CHARS) break;
         used += t.length;
@@ -118,7 +124,10 @@ export class ClauseVerifierService {
       }
       whole = `\n\nنص العقد كاملاً (للقراءة فقط):\n${parts.join('\n')}`;
     }
-    const user = `نوع الملاحظة: ${input.kindLabel}\nالعنوان: ${input.title}\nالشرح: ${input.explanation}\n\nالمقتطفات المستند إليها:\n${ev}${whole}\n\nأعد JSON فقط.`;
+    const second = input.secondOpinion
+      ? 'مراجعة ثانية مستقلة: لا تعتمد على أى رأى سابق. اعتبر الملاحظة صحيحة ما لم تجد فى النص اقتباساً حرفياً يثبت خلافها؛ فإن لم تجده فأجب بأنك لا تستطيع دحضها.\n\n'
+      : '';
+    const user = `${second}نوع الملاحظة: ${input.kindLabel}\nالعنوان: ${input.title}\nالشرح: ${input.explanation}\n\nالمقتطفات المستند إليها:\n${ev}${whole}\n\nأعد JSON فقط.`;
     return this.run(SYSTEM_FINDING, user, [...input.clauseTexts, ...(input.contractClauses ?? []).map((c) => c.text)].join('\n'), []);
   }
 

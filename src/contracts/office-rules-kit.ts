@@ -18,6 +18,11 @@ export interface OfficeRule {
   families: ContractFamily[] | null;
   /** أنواع تُستثنى حتى مع families = null (مثل العمل الخاضع لنظام قانونى خاص) */
   excludeFamilies?: ContractFamily[];
+  /**
+   * من تحميه القاعدة (الجولة 63، إجابات المستشار). 'requester' = طالب الخدمة/الموكل/الدافع: لا تُعرض على عميل هو مقدّم الخدمة/الوكيل
+   * (البند فى صالحه). غياب الحقل = الطرفان: تُعرض بصرف النظر عن جهة العميل.
+   */
+  protects?: 'requester';
   /** معطَّلة = لا تعمل (قاعدة مقترحة تنتظر تأكيد المكتب) */
   enabled: boolean;
   severity: FindingSeverity;

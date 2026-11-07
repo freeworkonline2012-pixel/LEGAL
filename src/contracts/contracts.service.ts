@@ -44,6 +44,7 @@ import {
 } from './reasoning.util';
 import { ClientPosition, describePosition } from './position.util';
 import { clientRoleConflictWarning, directionResolvable, extractPartyNames } from './parties.util';
+import { bodyDirectionWarning } from './client-side';
 import { playbookFamily } from './playbook';
 import { articleInLawScope, lawScopeContext, type LawScopeContext } from './law-scope';
 import { riskLevelFor } from './risk-level.util';
@@ -64,7 +65,7 @@ import { evaluateRules, summarizeFindings } from './clause-rules';
 import { ContractConsistencyService } from './contract-consistency.service';
 import { ClauseVerifierService } from './clause-verifier.service';
 import { articleInScopeForFamily } from './article-scope';
-import { type Verification, claimKindFromRisk, needsVerification, pickContributionContext, pickForVerification } from './verification';
+import { type Verification, claimKindFromRisk, isDismissedFindingVerification, needsVerification, pickContributionContext, pickForVerification } from './verification';
 import { compareFactsForClient, describeWeakenings } from './redraft-guard';
 import type { ClauseFacts } from './clause-facts';
 import type { Weakening } from './redraft-guard';
@@ -329,7 +330,10 @@ export class ContractsService implements OnModuleInit {
     contract.status = 'processing';
     contract.clauseCount = segmentation.clauses.length;
     const numeric = numericWarnings(extraction.text);
-    const roleWarning = clientRoleConflictWarning(position.clientRole, position.clientParty, segmentation.preamble);
+    // الجولة 63: الديباجة الممسوحة قد لا تُقرأ؛ فإن لم يظهر تنبيه منها يُستخلص اتجاه العميل من بند يعرّفه فى المتن («العميل: شركة …»)
+    const roleWarning =
+      clientRoleConflictWarning(position.clientRole, position.clientParty, segmentation.preamble) ??
+      bodyDirectionWarning(position.clientRole, position.clientParty, segmentation.clauses.map((c) => c.text), partyNames);
     const contractWarnings = [
       ...uploadWarnings,
       ...segmentation.warnings,
@@ -368,7 +372,7 @@ export class ContractsService implements OnModuleInit {
 
     // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
     progress({ stage: 'contract_level', done: 0, total: 0 });
-    const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings, segmentation.preamble, contract.originalFilename);
+    const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings, segmentation.preamble, contract.originalFilename, position.clientRole);
     // لم يحدد المستخدم نوعاً: يُستنتج من عنوان العقد ويُخزَّن للدليل التفاوضى (بلا النوع يسقط الدليل كله بصمت — وقع فى إنتاج عقد عمل)
     // الجولة 62.1: العنوان ثم متن العقد ثم اسم الملف (بتأييد المتن)؛ ويُخزَّن مصدر الاستنتاج ليُعلَن فى التقرير
     const resolved = contract.contractType
@@ -410,6 +414,7 @@ export class ContractsService implements OnModuleInit {
     extractionWarnings: string[],
     titleText: string | null = null,
     fileName: string | null = null,
+    clientRole: string | null = null,
   ): Promise<ContractLevelResult> {
     const clauses: LevelClause[] = clauseRows.map((c) => ({
       clauseIndex: c.clauseIndex,
@@ -422,7 +427,7 @@ export class ContractsService implements OnModuleInit {
     try {
       rules = sortFindings([
         ...deterministicFindings(clauses, { contractType, textMayBeIncomplete, titleText, fileName }),
-        ...officeRuleFindings(clauses, { contractType, textMayBeIncomplete, titleText, fileName }),
+        ...officeRuleFindings(clauses, { contractType, textMayBeIncomplete, titleText, fileName, clientRole }),
         ...internalConsistencyFindings(clauses, { textMayBeIncomplete }),
       ]);
     } catch (err) {
@@ -489,9 +494,45 @@ export class ContractsService implements OnModuleInit {
           contractClauses: rows.map((r) => ({ clauseLabel: r.clauseLabel, text: r.clauseText })),
         });
         if (out.status === 'ok') f.verification = out.verification;
+        // الجولة 63 (قرار المستشار): ملاحظة عالية/حرجة لا تُستبعد بدحض واحد؛ يلزم دحض ثان مستقل (صياغة وترتيب مختلفان) يوافق الأول
+        // وإلا بقيت مرشحة للمراجعة. العطل فى المراجعة الثانية ⇒ تبقى مرشحة أيضاً (الأمان أولاً: ملاحظة صحيحة تضيع أخطر من زائدة موسومة).
+        if ((f.severity === 'حرج' || f.severity === 'عالٍ') && isDismissedFindingVerification(f.kind, f.verification)) {
+          f.verification = await this.confirmDismissal(f, rows, byIndex, f.verification);
+        }
       } catch (err) {
         this.logger.warn(`finding verification failed id=${f.id} (non-fatal): ${(err as Error).message}`);
       }
+    }
+  }
+
+  /** مراجعة ثانية مستقلة لدحض ملاحظة عالية: يبقى الدحض إن وافقته، وإلا تعود الملاحظة مرشحة (basis 'uncertain') بسبب مكتوب. */
+  private async confirmDismissal(
+    f: ContractFinding,
+    rows: ContractClause[],
+    byIndex: Map<number, ContractClause>,
+    first: ContractFinding['verification'],
+  ): Promise<ContractFinding['verification']> {
+    const keepAsCandidate = (note: string): ContractFinding['verification'] => ({
+      ...(first as NonNullable<ContractFinding['verification']>),
+      status: 'unconfirmed',
+      basis: 'uncertain',
+      refutationKind: undefined,
+      reason: `${note} ${(first as { reason?: string } | undefined)?.reason ?? ''}`.trim().slice(0, 500),
+    });
+    try {
+      const second = await this.verifierService.verifyFinding({
+        kindLabel: FINDING_KIND_LABEL[f.kind] ?? f.kind,
+        title: f.title,
+        explanation: f.explanation,
+        evidence: f.evidence.map((e) => ({ clauseLabel: e.clauseLabel, quote: e.quote })),
+        clauseTexts: f.evidence.map((e) => byIndex.get(e.clauseIndex)?.clauseText ?? ''),
+        contractClauses: rows.map((r) => ({ clauseLabel: r.clauseLabel, text: r.clauseText })),
+        secondOpinion: true,
+      });
+      if (second.status === 'ok' && isDismissedFindingVerification(f.kind, second.verification)) return first;
+      return keepAsCandidate('لم يثبت الدحض فى مراجعة ثانية مستقلة، فبقيت الملاحظة مرشحة للمراجعة البشرية.');
+    } catch {
+      return keepAsCandidate('تعذرت المراجعة الثانية للدحض، فبقيت الملاحظة مرشحة للمراجعة البشرية.');
     }
   }
 
