@@ -127,8 +127,8 @@ BEGIN
     SELECT * INTO v_v1 FROM article_versions WHERE article_id = v_art AND version_no = 1;
     SELECT * INTO v_v2 FROM article_versions WHERE article_id = v_art AND version_no = 2;
 
-    IF v_vcnt = 2 AND v_v2.body = r.new_body AND v_v2.amended_by_law_no = 190 AND v_v2.effective_to IS NULL THEN
-      v_skipped := v_skipped + 1;      -- طُبق من قبل
+    IF v_v2.id IS NOT NULL AND v_v2.body = r.new_body AND v_v2.amended_by_law_no = 190 AND v_v2.amended_by_law_year = 2008 THEN
+      v_skipped := v_skipped + 1;      -- طُبق من قبل (وقد يكون عُدل بعده بقانون لاحق مثل 175/2022)
     ELSIF v_vcnt = 1 AND v_v1.status = 'active' AND v_v1.effective_to IS NULL AND md5(v_v1.body) = r.orig_md5 THEN
       UPDATE article_versions SET status = 'amended', effective_to = DATE '2008-06-22' WHERE id = v_v1.id;
       INSERT INTO article_versions (article_id, version_no, body, effective_from, effective_to, status, amended_by_law_no, amended_by_law_year, change_note)
@@ -150,8 +150,8 @@ BEGIN
       VALUES (v_art, 1, r.body, DATE '2008-06-23', NULL, 'active', 190, 2008, r.note);
       v_added := v_added + 1;
     ELSE
-      IF (SELECT body FROM articles WHERE id = v_art) <> r.body THEN
-        RAISE EXCEPTION '[256] المادة % (suffix %) موجودة بنص مختلف', r.article_no, r.suffix;
+      IF NOT EXISTS (SELECT 1 FROM article_versions v WHERE v.article_id = v_art AND v.version_no = 1 AND v.body = r.body AND v.amended_by_law_no = 190 AND v.amended_by_law_year = 2008) THEN
+        RAISE EXCEPTION '[256] المادة % (suffix %) موجودة بنص مختلف عن نص 190/2008', r.article_no, r.suffix;
       END IF;
       v_skipped := v_skipped + 1;
     END IF;
@@ -177,8 +177,8 @@ BEGIN
 
   -- ===== التحقق النهائى =====
   SELECT count(*) INTO v_cnt FROM articles WHERE law_id = v_law;
-  IF v_cnt <> 32 THEN
-    RAISE EXCEPTION '[256] عدد صفوف القانون % بدل 32', v_cnt;
+  IF v_cnt < 32 THEN
+    RAISE EXCEPTION '[256] عدد صفوف القانون % أقل من 32', v_cnt;
   END IF;
   -- نسخة حالية واحدة بالضبط لكل مادة (الاستعلامات تعتمد effective_to IS NULL)
   SELECT count(*) INTO v_cnt FROM articles a WHERE a.law_id = v_law
@@ -194,7 +194,8 @@ BEGIN
   END IF;
   SELECT count(*) INTO v_cnt FROM m256_amend m JOIN articles a ON a.law_id = v_law AND a.article_no = m.article_no AND a.article_suffix_order = 0
     JOIN article_versions v1 ON v1.article_id = a.id AND v1.version_no = 1 AND v1.status = 'amended' AND v1.effective_to = DATE '2008-06-22' AND md5(v1.body) = m.orig_md5
-    JOIN article_versions v2 ON v2.article_id = a.id AND v2.version_no = 2 AND v2.status = 'active' AND v2.effective_to IS NULL AND v2.effective_from = DATE '2008-06-23' AND v2.body = m.new_body AND a.body = m.new_body;
+    JOIN article_versions v2 ON v2.article_id = a.id AND v2.version_no = 2 AND v2.effective_from = DATE '2008-06-23' AND v2.body = m.new_body AND v2.amended_by_law_no = 190
+         AND ((v2.status = 'active' AND v2.effective_to IS NULL AND a.body = m.new_body) OR v2.status = 'amended');
   IF v_cnt <> 5 THEN
     RAISE EXCEPTION '[256] المواد المعدلة المتحقق منها % بدل 5', v_cnt;
   END IF;
