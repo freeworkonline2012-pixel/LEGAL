@@ -149,3 +149,146 @@ export function findAlternativeHeads(text: string): AltHead[] {
   if (best.length < 3) return [];
   return best.map(({ punct: _p, ...h }) => h);
 }
+
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// الجولة 68: عناوين «أولاً/ثانياً/ثالثاً…» (ترتيبى بصيغة الحال) بلا كلمة «البند». عقد أتعاب محاماة حقيقى ممسوح بنوده «أولاً: … ثانياً: …»
+// بلا أى ترقيم «البند …» خرج بصفر بنود وبغلاف يقول «لم تُرصد بنود تحتاج مراجعة». لا يُستعمل إلا حين لا يجد أى نمط آخر بنوداً كافية.
+// ---------------------------------------------------------------------------------------------------------------------------------
+
+const ADVERB_WORDS: Array<[number, string]> = [
+  [1, 'اولا'], [2, 'ثانيا'], [3, 'ثالثا'], [4, 'رابعا'], [5, 'خامسا'], [6, 'سادسا'], [7, 'سابعا'], [8, 'ثامنا'], [9, 'تاسعا'], [10, 'عاشرا'],
+  [11, 'حادي عشر'], [12, 'ثاني عشر'], [13, 'ثالث عشر'], [14, 'رابع عشر'], [15, 'خامس عشر'],
+];
+/** صيغة العرض الصحيحة لكل رقم (مع التنوين) كما تظهر فى عنوان البند بالتقرير */
+const ADVERB_DISPLAY: Record<number, string> = {
+  1: 'أولاً', 2: 'ثانياً', 3: 'ثالثاً', 4: 'رابعاً', 5: 'خامساً', 6: 'سادساً', 7: 'سابعاً', 8: 'ثامناً', 9: 'تاسعاً', 10: 'عاشراً',
+  11: 'حادى عشر', 12: 'ثانى عشر', 13: 'ثالث عشر', 14: 'رابع عشر', 15: 'خامس عشر',
+};
+const MARKS = '[\\u064b-\\u0652\\u0640]*';
+function looseAdverbPattern(norm: string): string {
+  return [...norm]
+    .map((ch) => {
+      const cls = ch === 'ا' ? '[أإآا]' : ch === 'ي' ? '[يى]' : ch === ' ' ? '[ \\t]+' : ch;
+      return ch === ' ' ? cls : `${cls}${MARKS}`;
+    })
+    .join('');
+}
+const ADVERB_NUMBER = new Map(ADVERB_WORDS.map(([n, w]) => [w, n] as [string, number]));
+// «أولاً» «ثانيا» «(ثالثاً)» فى أول السطر، ثم فاصل اختيارى (: - – . ،)؛ ما بعده نص البند
+const ADVERB_RE = new RegExp(
+  `^[ \\t]*[:：\\-–—.'"’‘|!]{0,3}[ \\t]*[(\\[]?(?<ord>${ADVERB_WORDS.map(([, w]) => looseAdverbPattern(w))
+    .sort((a, b) => b.length - a.length)
+    .join('|')})(?![ء-ي])[)\\]]?[ \\t]*(?<punct>[:：\\-–—.،])?`,
+  'gmu',
+);
+/** بعد العنوان مباشرة تعريف بطرف («أولاً: السادة/ شركة… (طرف أول)») فهو بند ديباجة لا بند عقد */
+const PARTY_AFTER_RE = /^[\s:：\-–—.،/]*(?:السادة|السيد|السيدة|الأستاذ|الاستاذ|الدكتور|الدكتورة|المهندس|المهندسة|شركة|شركه|مكتب|بنك|مؤسسة|مؤسسه|هيئة|هيئه)/u;
+const PARTY_DESIGNATION_RE = /طرف[\s_]*(?:اول|أول|الأول|الاول|ثان|ثاني|ثانى|الثاني|الثانى)/u;
+/** عبارة تمهيدية بعدها بنود الاتفاق («اتفق الطرفان على الآتى»، «على ما يلى») تسوّغ قبول عنوانين فقط */
+const ANNOUNCE_RE = /(?:على|الى|إلى)[\s]+(?:ما[\s]+)?(?:يلي|يلى|الآتي|الاتي|الآتى|الأتي|الاتى)|اتفق[\s]+الطرفان|اتفقا|تم[\s]+الاتفاق/u;
+
+function normForAnnounce(s: string): string {
+  return s.replace(/[\u064b-\u0652\u0640]/g, '');
+}
+
+function editDistance(a: string, b: string): number {
+  const dp: number[] = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = dp[j];
+      dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return dp[b.length];
+}
+
+const FUZZY_LINE_RE = /^[ \t]*[:：\-–—.'"’‘|!]{0,3}[ \t]*(?<tok>[ء-ي\u064b-\u0652]{4,8})(?![ء-ي])[ \t]*(?<punct>[:：\-–—.،'])?/gmu;
+
+/**
+ * عنوان ترتيبى شوّهته القراءة الآلية («نالياً» بدل «ثالثاً») يُقبل فقط كالعنوان التالى المتوقَّع بعد تسلسل مقروء فعلاً، بمسافة تحرير ≤ 2،
+ * وفى سطر بدايته الكلمة وبعدها نص (لا كلمة عابرة). مقيَّد بالتسلسل فلا يلتقط كلمة عادية إلا إن كانت قريبة جداً من الترتيبى المنتظر.
+ */
+function extendFuzzy(text: string, run: AltHead[], literal: AltHead[]): AltHead[] {
+  const out = [...run];
+  const used = new Set(literal.map((h) => h.lineStart));
+  for (;;) {
+    const want = out[out.length - 1].declaredNumber + 1;
+    const word = ADVERB_WORDS.find(([n]) => n === want)?.[1];
+    if (!word || word.includes(' ')) break;
+    const from = out[out.length - 1].lineStart + 1;
+    let found: AltHead | null = null;
+    for (const m of text.matchAll(FUZZY_LINE_RE)) {
+      const lineStart = m.index ?? 0;
+      if (lineStart <= from || used.has(lineStart)) continue;
+      const tok = normOrd(m.groups?.tok ?? '');
+      if (tok.length < 4 || editDistance(tok, word) > 2) continue;
+      const rest = text.slice(lineStart + m[0].length, lineStart + m[0].length + 60).split('\n')[0].trim();
+      if (rest.length < 12) continue;
+      const raw = m[0];
+      const trimmed = raw.replace(/^[ \t]+/, '');
+      found = {
+        lineStart,
+        markerStart: lineStart + (raw.length - trimmed.length),
+        marker: ADVERB_DISPLAY[want],
+        rawLength: trimmed.length,
+        declaredNumber: want,
+      };
+      break;
+    }
+    if (!found) break;
+    out.push(found);
+  }
+  return out;
+}
+
+export function findAdverbialHeads(text: string): AltHead[] {
+  const cands: AltHead[] = [];
+  for (const m of text.matchAll(ADVERB_RE)) {
+    const raw = m[0];
+    const trimmed = raw.replace(/^[ \t]+/, '');
+    const lineStart = m.index ?? 0;
+    const n = ADVERB_NUMBER.get(normOrd(m.groups?.ord ?? '')) ?? null;
+    if (n === null) continue;
+    const after = text.slice(lineStart + raw.length, lineStart + raw.length + 320);
+    if (PARTY_AFTER_RE.test(after) && PARTY_DESIGNATION_RE.test(after)) continue;
+    if (PARTY_AFTER_RE.test(after.slice(0, 40)) && /^[\s:：\-–—.،/]*(?:السادة|السيد|السيدة)/u.test(after)) continue;
+    cands.push({
+      lineStart,
+      markerStart: lineStart + (raw.length - trimmed.length),
+      marker: ADVERB_DISPLAY[n], // بلا نقطتين: ما بعد «أولاً:» متن البند لا عنوانه
+      rawLength: trimmed.length,
+      declaredNumber: n,
+    });
+  }
+  // أطول تسلسل 1،2،3… داخل أى «دورة» (الرقم يعود إلى 1 = دورة جديدة)؛ عند التساوى الأخيرة (متن العقد يلى الديباجة)
+  const runs: AltHead[][] = [];
+  let cur: AltHead[] = [];
+  let want = 1;
+  let last = 0;
+  for (const c of cands) {
+    if (c.declaredNumber <= last && cur.length > 0) {
+      runs.push(cur);
+      cur = [];
+      want = 1;
+    }
+    last = c.declaredNumber;
+    if (c.declaredNumber === want) {
+      cur.push(c);
+      want++;
+    }
+  }
+  if (cur.length > 0) runs.push(cur);
+  let best: AltHead[] = [];
+  for (const r of runs) if (r.length >= best.length) best = r;
+  if (best.length >= 1) best = extendFuzzy(text, best, cands);
+  if (best.length >= 3) return best;
+  if (best.length === 2) {
+    const before = normForAnnounce(text.slice(Math.max(0, best[0].lineStart - 300), best[0].lineStart));
+    if (ANNOUNCE_RE.test(before)) return best;
+  }
+  return [];
+}

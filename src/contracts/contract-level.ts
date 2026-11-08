@@ -1,4 +1,5 @@
 import { quoteInText } from './clause-facts';
+import { damagedEscalationNumber } from './numeric-checks.util';
 import type { Verification } from './verification';
 import { normalizeArabicForMatch, stripDefiniteArticle } from './reasoning.util';
 
@@ -1045,6 +1046,16 @@ const ATTACHMENT_REF =
   /(?:الجدول|الكشف|الملحق|المواصفات|قائمه\w*|الشروط الخاصه|البيان|الوثيقه)\s+(?:ال)?(?:مرفق\w*|المرفقه)|(?:الملحق|الجدول|المرفق)\s*(?:رقم\s*)?\(?\d+\)?|المرفقات|ملحق\w* هذا العقد|الجدول الزمني المرفق/;
 const ATTACHMENT_HEADING = /^\s*(?:ال)?(?:ملحق|جدول|مرفق)(?=[\s:\d(]|$)/m;
 
+/**
+ * الجولة 68: «يعتبر التمهيد وكافة المرفقات وملحقات هذا العقد جزءاً لا يتجزأ منه» عبارة تعاقدية عامة بلا مرفق معيَّن (لا رقم ولا اسم)؛ لا تُعدّ إحالة إلى مرفق مفقود
+ * (كانت تنتج إنذار «مرفق لم يظهر نصه» على عقد إيجار سليم). الإحالة المعيَّنة («الملحق رقم 1»، «الجدول المرفق») تبقى مفحوصة.
+ */
+const NAMED_ATTACHMENT = /(?:الملحق|الجدول|المرفق|الكشف|القائمه)\s*(?:رقم\s*)?\(?(?:\d+|[ابجد])\)?(?![ء-ي])|(?:الجدول|الكشف|الملحق|المواصفات|قائمه\w*|الشروط الخاصه|البيان|الوثيقه)\s+(?:ال)?(?:مرفق\w*|المرفقه)|الجدول الزمني المرفق/;
+const GENERIC_ATTACHMENT = /(?:كافه|جميع|كل)\s+(?:ال)?مرفقات|مرفقات\s+(?:و)?(?:ال)?ملحقات|ملحقات هذا العقد/;
+export function isGenericAttachmentBoilerplate(normSentence: string): boolean {
+  return GENERIC_ATTACHMENT.test(normSentence) && /جزء\s+لا\s+يتجز[اأ]/.test(normSentence) && !NAMED_ATTACHMENT.test(normSentence);
+}
+
 export function checkUndefinedTerms(clauses: LevelClause[]): ContractFinding[] {
   const out: ContractFinding[] = [];
 
@@ -1080,7 +1091,7 @@ export function checkUndefinedTerms(clauses: LevelClause[]): ContractFinding[] {
     const ev: FindingEvidence[] = [];
     for (const c of clauses) {
       for (const s of sentencesOf(c.clauseText)) {
-        if (ATTACHMENT_REF.test(norm(s))) {
+        if (ATTACHMENT_REF.test(norm(s)) && !isGenericAttachmentBoilerplate(norm(s))) {
           const e = evidenceOf(c, s);
           if (e && ev.length < 3) ev.push(e);
         }
@@ -1145,6 +1156,18 @@ export function checkOpenTerms(clauses: LevelClause[]): ContractFinding[] {
 const ABSENCE_ON_SCAN_REASON =
   'ادعاء غياب على عقد مقروء آلياً من صورة ممسوحة وبه تحذيرات قراءة؛ قد تكون الجملة التى تتناول هذا الموضوع مشوّهة أو ضائعة فى القراءة الآلية، ' +
   'فلا يُعدّ الغياب مؤكداً حتى يطابَق الأصل. (وُسم آلياً: ليس اعتراضاً من المدقق المستقل.)';
+
+/** الجولة 68: ملاحظة نموذج يستند اقتباسها إلى رقم زيادة تالف القراءة («7610» بدل «10%») تُوسم «غير مؤكدة» بسبب صريح */
+const DAMAGED_NUMBER_REASON =
+  'يستند اقتباس الملاحظة إلى رقم فى موضع نسبة الزيادة قُرئ تالفاً من الصورة الممسوحة (رقم لا يصلح نسبة)، فقد يكون الأصل نسبة محددة؛ ' +
+  'فلا تُعدّ الملاحظة مؤكدة حتى يطابَق الأصل. (وُسم آلياً: ليس اعتراضاً من المدقق المستقل.)';
+
+export function markDamagedNumberUnconfirmed<T extends ContractFinding>(f: T): T {
+  return {
+    ...f,
+    verification: { status: 'unconfirmed', basis: 'uncertain', reason: DAMAGED_NUMBER_REASON, quote: null, quoteSource: null, verifiedAt: new Date().toISOString() },
+  };
+}
 
 export function markAbsenceUnconfirmed(f: ContractFinding): ContractFinding {
   return {
@@ -1295,7 +1318,8 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
     const relabel = (t: string | null): string | null => (t === null ? null : relabelPositions(t, evidence, byIndex));
     // النموذج يُخرج أحياناً الملاحظة نفسها مرتين (تعارض البند 3 والبند 4 بعنوان واحد وشرح متقارب): تُحفظ مرة واحدة
     if (out.some((o) => isSameModelFinding(o, { kind, evidence, explanation: explanation }))) continue;
-    out.push({
+    const damagedNumber = (kind === 'open_term' || kind === 'undefined_term') && evidence.some((e) => damagedEscalationNumber(e.quote) !== null);
+    const built: ContractFinding = {
       id: `model:${kind}:${out.length + 1}`,
       kind,
       severity,
@@ -1305,7 +1329,8 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
       evidence: evidence.slice(0, 4),
       source: 'model',
       ...(severityNote ? { severityNote } : {}),
-    });
+    };
+    out.push(damagedNumber ? markDamagedNumberUnconfirmed(built) : built);
   }
   return out;
 }

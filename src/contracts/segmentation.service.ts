@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { findAlternativeHeads } from './clause-headings-alt';
+import { findAdverbialHeads, findAlternativeHeads } from './clause-headings-alt';
 import { describeHeadingCandidates, findAlignedHeads } from './clause-headings-fuzzy';
 import { BARE_RE, canonicalHeading, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
+import { classifyDocumentKind, documentBundleWarning } from './document-kind';
 import { findForwardGap, numberingGapEvidence, numberingGapWarningText } from './numbering-gap';
 
 export interface SegmentedClause {
@@ -163,7 +164,7 @@ export class SegmentationService {
     const bare = [...text.matchAll(BARE_RE)].map((m) => ({
       lineStart: m.index ?? 0,
       markerStart: m.index ?? 0,
-      marker: `البند ${(m.groups?.ord ?? '').replace(/[\s_\u0640]+/g, ' ')}`,
+      marker: `البند ${((m.groups?.ord ?? '').startsWith('ال') ? '' : 'ال') + (m.groups?.ord ?? '').replace(/[\s_\u0640]+/g, ' ')}`,
       rawLength: (m.groups?.ord ?? '').length,
       declaredNumber: ordinalToNumber(m.groups?.ord ?? ''),
     }));
@@ -175,7 +176,10 @@ export class SegmentationService {
       // التسلسل المتوقع: التالى مباشرة للسابق؛ وقبل أول عنوان مقبول يبدأ من "الأول" (استرجاع عناوين البنود الأولى التى
       // أسقطتها القراءة الآلية) ولا يُقبل إلا إن تلاه عنوان كامل برقم أعلى (دليل أن ما قبله بنود فعلاً لا قائمة عابرة).
       const expected = prev ? (prev.declaredNumber === null ? null : prev.declaredNumber + 1) : 1;
-      if (expected === null || b.declaredNumber !== expected) continue;
+      // الجولة 68: ترتيبى مركّب («ثالث عشر») لا يلتبس بكلمة عادية، فيُقبل بقفزة حتى رقمين فوق المتوقع (عنوان «حادى عشر» لم تقرأه الآلة)
+      // دون أن تضيع بقية البنود؛ وتُنبِّه فحوص الترقيم لاحقاً إلى القفزة نفسها.
+      const compoundJump = expected !== null && b.declaredNumber > expected && b.declaredNumber - expected <= 2 && b.declaredNumber >= 11;
+      if (expected === null || (b.declaredNumber !== expected && !compoundJump)) continue;
       if (!prev && !(nextFull && nextFull.declaredNumber !== null && nextFull.declaredNumber > b.declaredNumber)) continue;
       if (nextFull && nextFull.declaredNumber === b.declaredNumber) continue;
       merged.push(b);
@@ -198,6 +202,16 @@ export class SegmentationService {
       if (alt.length > heads.length) heads = alt;
     }
     const warnings: string[] = [];
+    // الجولة 68: عقد بلا «البند»/«المادة» أصلاً، بنوده «أولاً: … ثانياً: …» (عقد أتعاب محاماة حقيقى خرج بصفر بنود وبغلاف مطمئن)
+    if (heads.length < 2) {
+      const adv = findAdverbialHeads(text);
+      if (adv.length >= 2 && adv.length > heads.length) {
+        heads = adv;
+        warnings.push(
+          `لا يوجد فى العقد ترقيم «البند …» أو «المادة …»؛ قُسِّم بحسب عناوينه الترتيبية («${adv.map((h) => h.marker).slice(0, 3).join('، ')}…») وعددها ${adv.length}. حدود البنود وأرقامها تقريبية — قارنها بالأصل قبل الاعتماد.`,
+        );
+      }
+    }
 
     // قراءة آلية شوّهت العناوين («البن دالاول»، «البندالالث»، «الند الخامس»…) فالتقط الكاشف الحرفى بنداً أو اثنين وألصق الباقى بهما:
     // مطابقة تقريبية مقيَّدة بالتسلسل، لا تُعتمد إلا إن وجدت بنوداً أكثر مما وجده الكاشف الحرفى (فلا تمس عقداً سليم الترقيم).
@@ -233,6 +247,9 @@ export class SegmentationService {
     }
 
     if (heads.length === 0) {
+      // الجولة 68: صفر بنود لا يُقدَّم كأن العقد سليم؛ ويُفرَّق بين عقد بلا ترقيم وملف مستندات ليس عقداً أصلاً
+      const bundle = documentBundleWarning(classifyDocumentKind(text));
+      if (bundle) warnings.push(bundle);
       warnings.push(
         'لم يُعثَر على أى بند بترقيم مقروء (لا «البند الأول» ولا «المادة 1» ولا «1. العنوان») — قد يكون العقد بلا ترقيم صريح أصلاً. يلزم مراجعة بشرية كاملة قبل أى استخدام آلى.',
       );

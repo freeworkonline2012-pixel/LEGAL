@@ -208,5 +208,30 @@ export function numericWarnings(text: string): string[] {
       `علامة % فى نسب الدفعات (${inst.percentages.join(' + ')}) لم تُقرأ بوضوح من الصورة؛ بعد تصحيحها يساوى المجموع 100%. تأكد من كل نسبة بالأصل قبل الاعتماد.`,
     );
   }
+  const esc = damagedEscalationWarning(text);
+  if (esc) out.push(esc);
   return out;
+}
+
+
+/**
+ * الجولة 68: رقم تالف فى موضع نسبة الزيادة. عقد إيجار ممسوح أصله «زيادة سنوية 10%» قُرئ «7610»: لا يصلح نسبة (أكبر من 100) ولا عملة بعده،
+ * فيُرجَّح أن علامة % وما قبلها أُتلفا. يُنبَّه إليه ولا يُبنى عليه «شرط مفتوح» ولا حكم بغموض الزيادة.
+ */
+const ESCALATION_NUMBER =
+  /(?:زياد[ةه]|الزياد[ةه]|بزياد[ةه]|يزاد|تزاد)(?:[^\n.]{0,50}?)(?<![\d/.,٫\-])(\d{3,})(?![\d/.,٫\-])(?!\s*(?:\([^)]{0,80}\)\s*)?(?:جنيه|جنيها|جنية|ج\.م|جم(?![ء-ي])|دولار|يورو|ريال|درهم|سنة|سنه|شهر|يوم))/u;
+
+export function damagedEscalationNumber(text: string): string | null {
+  const m = ESCALATION_NUMBER.exec(text ?? '');
+  if (!m) return null;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n) || n <= 100) return null;
+  if (/^(?:19|20)\d\d$/.test(m[1])) return null; // سنة
+  return m[1];
+}
+
+export function damagedEscalationWarning(text: string): string | null {
+  const d = damagedEscalationNumber(text);
+  if (!d) return null;
+  return `قُرئ بعد «زيادة…» الرقم «${d}» وهو لا يصلح نسبة (أكبر من 100) وبلا عملة؛ يُرجَّح أنه نسبة تالفة القراءة (مثل «10%»). قارنه بالأصل؛ ولا يُبنى على هذه القراءة حكم بغموض الزيادة.`;
 }

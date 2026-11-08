@@ -251,10 +251,13 @@ function overallRisk(
   counts: Record<Severity, number>,
   findingCounts: { critical: number; high: number; medium: number; officeHigh?: number },
   incomplete: { readCount: number; gapOnly: boolean } | null,
+  noClauses = false,
 ): { text: string; tone: Tone } {
   // تقسيم غير مكتمل: غياب الملاحظات لا يدل على سلامة ما لم يُقرأ، فلا يُقدَّر مستوى «لا بنود تحتاج مراجعة» (وقع على عقد ممسوح قُرئ نصف بنوده).
   // قفزة الترقيم وحدها لا تُثبت نقص بنود: قد تكون كلمة ترتيبية مشوَّهة («الرابعة عشر» قُرئت «الثامنة عشر») والبنود كلها مقروءة، فلا يُجزم بأن بنوداً لم تُقرأ.
-  const caveat = incomplete
+  const caveat = noClauses
+    ? ' — لم يُقسَّم أى بند من العقد: التحليل قاصر على ما رُصد فى العقد ككل'
+    : incomplete
     ? incomplete.gapOnly
       ? ' — ترقيم البنود المقروء متقطع (بنود لم تُقرأ أو أرقام مشوَّهة): راجع حدود البنود'
       : ' — التقسيم غير مكتمل: قد توجد بنود لم تُحلَّل'
@@ -268,6 +271,13 @@ function overallRisk(
   }
   if (counts['عالٍ'] > 0 || findingCounts.high > 0) return { text: `مخاطرة مرتفعة نسبياً — يستوجب المراجعة قبل التوقيع${caveat}`, tone: 'high' };
   if (counts['متوسط'] + counts['غير مصنَّف'] > 0 || findingCounts.medium > 0) return { text: `مخاطرة متوسطة — يستحق المراجعة${caveat}`, tone: 'medium' };
+  // الجولة 68: صفر بنود ليس «لا بنود تحتاج مراجعة»؛ لم يُحلَّل شىء أصلاً (عقد أتعاب غير مرقم وملف مستندات خرجا بغلاف مطمئن)
+  if (noClauses) {
+    return {
+      text: 'غير مُقدَّر — تعذّر تحليل العقد آلياً: لم يُقسَّم منه أى بند فلم يُحلَّل شىء. غياب الملاحظات هنا لا يدل على سلامة العقد؛ يلزم مراجعة بشرية كاملة للأصل',
+      tone: 'high',
+    };
+  }
   if (incomplete) {
     return {
       text: incomplete.gapOnly
@@ -410,7 +420,8 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     unsegmentedBlocks.length > 0 || hardSegWarnings.length > 0 || gapWarnings.length > 0
       ? { readCount: baseClauses.length, gapOnly: unsegmentedBlocks.length === 0 && hardSegWarnings.length === 0 }
       : null;
-  const overall = overallRisk(counts, findingCounts, segIncomplete);
+  const noClauses = baseClauses.length === 0 && unsegmentedBlocks.length === 0;
+  const overall = overallRisk(counts, findingCounts, segIncomplete, noClauses);
   // ملاحظات العقد ككل المؤكدة غير المدمجة فى بند: تدخل العدّاد بدرجتها (ملاحظة المكتب بدرجة «عالٍ» تُعدّ عالية)
   const standalone = findings.map((f, i) => ({ f, i })).filter((x) => !isUnconfirmedFinding(x.f) && !absorbedInto.has(x.i));
   const standaloneBy = (sev: string): number => standalone.filter((x) => x.f.severity === sev).length;
@@ -462,7 +473,8 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   const realCount = baseClauses.length;
   coverRows.push({
     label: 'عدد البنود',
-    value: unsegmentedBlocks.length > 0 ? `${realCount} + نص سابق غير مُقسَّم` : String(clauses.length),
+    value: noClauses ? 'تعذّر التقسيم — لم يُستخرج أى بند' : unsegmentedBlocks.length > 0 ? `${realCount} + نص سابق غير مُقسَّم` : String(clauses.length),
+    ...(noClauses ? { tone: 'high' as Tone } : {}),
   });
   const warnings = (input.extractionWarnings ?? []).filter((w) => w.trim().length > 0);
   const ocrRead = warnings.some((w) => w.includes('OCR'));
@@ -471,8 +483,8 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   const notAssessedCount = realClauses.length - assessedCount;
   coverRows.push({
     label: 'نطاق التغطية',
-    value: `${assessedCount} من ${realClauses.length} بنداً قُيِّمت مقابل نصوص قانونية مفهرسة`,
-    ...(notAssessedCount > 0 ? { tone: 'high' as Tone } : {}),
+    value: noClauses ? 'لم يُحلَّل أى بند — لا تغطية' : `${assessedCount} من ${realClauses.length} بنداً قُيِّمت مقابل نصوص قانونية مفهرسة`,
+    ...(notAssessedCount > 0 || noClauses ? { tone: 'high' as Tone } : {}),
   });
   if (warnings.length > 0) {
     coverRows.push({ label: 'تنبيه الاستخراج', value: 'يحتوى تحذيرات قراءة/تقسيم — راجع القسم 1', tone: 'medium' });
@@ -554,7 +566,10 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     blocks.push({
       t: 'p',
       text:
-        `لم تُرصد فى هذا العقد بنود تحتاج مراجعة وفق النصوص القانونية المصرية المفهرسة لدى المنصة، من أصل ${bands(baseClauses.length)}.${position}${candidatesSentence}` +
+        (noClauses
+          ? 'تعذّر تحليل هذا العقد آلياً: لم يُقسَّم منه أى بند (راجع تنبيهات الاستخراج أعلاه)، فلم يُقيَّم شىء مقابل النصوص القانونية المفهرسة. وهذا لا يعنى أن العقد سليم؛ يلزم أن يراجعه محامٍ مراجعة كاملة قبل التوقيع.'
+          : `لم تُرصد فى هذا العقد بنود تحتاج مراجعة وفق النصوص القانونية المصرية المفهرسة لدى المنصة، من أصل ${bands(baseClauses.length)}.`) +
+        `${position}${candidatesSentence}` +
         (segIncomplete
           ? ' غير أن تقسيم العقد غير مكتمل (راجع تنبيهات الاستخراج أعلاه): فهذا لا يدل على خلو العقد من بنود تحتاج مراجعة، لأن البنود التى لم تُقرأ لم تُحلَّل أصلاً.'
           : ''),
@@ -738,7 +753,10 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   // ---------- 2. مصفوفة تحليل المخاطر ----------
   banner('مصفوفة تحليل المخاطر');
   if (totalRisky === 0 && liveFindingsCount === 0 && candidateTotal === 0 && dismissedTotal === 0) {
-    blocks.push({ t: 'p', text: 'لا توجد بنود تحتاج مراجعة فى هذا العقد وفق النصوص المفهرسة.' });
+    blocks.push({
+      t: 'p',
+      text: noClauses ? 'لم تُبنَ مصفوفة: لم يُقسَّم من العقد أى بند فلم يُحلَّل شىء (لا يدل ذلك على سلامته).' : 'لا توجد بنود تحتاج مراجعة فى هذا العقد وفق النصوص المفهرسة.',
+    });
   } else {
     const statusOf = (r: (typeof risky)[number]): Cell => {
       const verdict = r.c.lawyerVerdict ? ` — رأى المراجع: ${r.c.lawyerVerdict}` : '';
@@ -886,7 +904,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   // ---------- 3. التقييم التفصيلى ----------
   banner('التقييم التفصيلى للمخاطر');
   if (risky.length === 0) {
-    blocks.push({ t: 'p', text: 'لا توجد مخاطر تُفصَّل.' });
+    blocks.push({ t: 'p', text: noClauses ? 'لا تقييم تفصيلى: لم يُقسَّم من العقد أى بند.' : 'لا توجد مخاطر تُفصَّل.' });
   } else {
     const renderRisky = (r: (typeof risky)[number]) => {
       blocks.push({ t: 'h3', text: `${r.n}. ${clauseHeading(r.c)}` });

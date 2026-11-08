@@ -485,6 +485,8 @@ export class ContractsService implements OnModuleInit {
     if (!level || !this.verifierService?.isConfigured) return;
     const byIndex = new Map(rows.map((r) => [r.clauseIndex, r]));
     for (const f of level.findings.filter((x) => x.source === 'model').slice(0, 8)) {
+      // الجولة 68: ما وُسم «غير مؤكد» مسبقاً بسبب رقم تالف القراءة لا يُعاد تقييمه (المدقق قد يؤكده بقراءة خاطئة)
+      if (f.verification) continue;
       try {
         const out = await this.verifierService.verifyFinding({
           kindLabel: FINDING_KIND_LABEL[f.kind] ?? f.kind,

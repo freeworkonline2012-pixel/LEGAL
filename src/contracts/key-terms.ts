@@ -65,6 +65,25 @@ function fmtNumber(n: number): string {
   return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
 }
 
+/**
+ * الجولة 68: تاريخ فى سياق وثيقة هوية («تاريخ الإصدار 15/12/2014» لجواز سفر، «بطاقة رقم قومى … تاريخ إصدار») ليس شرطاً تعاقدياً؛ وظهر فى جدول
+ * الشروط الرئيسية لعقد إيجار ممسوح مع رقم الجواز نفسه. يُفحص السياق قبل التاريخ على السطر نفسه فقط.
+ */
+const IDENTITY_CONTEXT = /(?:جواز\s*سفر|بطاقة|رقم\s*قوم[يى]|الرقم\s*القوم[يى]|تاريخ\s*(?:ال)?[اإ]صدار|تاريخ\s*ال[اإ]صدار|صادر[ةه]?\s*من)/u;
+function isIdentityDate(text: string, pos: number): boolean {
+  const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
+  const before = text.slice(Math.max(lineStart, pos - 45), pos);
+  return IDENTITY_CONTEXT.test(before);
+}
+
+/**
+ * الجولة 68: أى سلسلة أرقام من 9 خانات فأكثر (رقم قومى 14 خانة، رقم شيك، رقم جواز، رقم حساب) تُقنَّع فى المقتطف المعروض بالتقرير، إلا إن تلتها عملة
+ * (مبلغ حقيقى مثل 452500000 جنيه). بيانات الهوية لا مكان لها فى جدول الشروط.
+ */
+export function maskLongNumbers(quote: string): string {
+  return quote.replace(/(?<![\d.,٫])\d{9,}(?![\d])(?!\s*(?:\([^)]{0,80}\)\s*)?(?:جنيه|جنيها|جنية|ج\.م|جم(?![ء-ي])|دولار|يورو|ريال|درهم))/gu, '[رقم مُقنَّع]');
+}
+
 /** الجملة التى تحوى الموضع، أو نافذة حولها إن طالت (جزء متصل من الأصل دائماً). */
 function quoteAround(text: string, pos: number, len: number): string {
   const isStop = (ch: string) => ch === '.' || ch === '؟' || ch === '!' || ch === '؛' || ch === '\n';
@@ -516,6 +535,7 @@ function scan(rawText: string): Hit[] {
     const d = Number(m[1]);
     const mo = Number(m[2]);
     if (d < 1 || d > 31 || mo < 1 || mo > 12) continue;
+    if (isIdentityDate(text, m.index ?? 0)) continue;
     hits.push({ kind: 'date', value: `${m[1]}/${m[2]}/${m[3]}`, pos: m.index ?? 0, len: m[0].length, fromWords: false });
   }
   const dateYmd = /(?<![\d/.\-])(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})(?![\d/])/gu;
@@ -523,10 +543,33 @@ function scan(rawText: string): Hit[] {
     const mo = Number(m[2]);
     const d = Number(m[3]);
     if (d < 1 || d > 31 || mo < 1 || mo > 12) continue;
+    if (isIdentityDate(text, m.index ?? 0)) continue;
     hits.push({ kind: 'date', value: `${m[3]}/${m[2]}/${m[1]}`, pos: m.index ?? 0, len: m[0].length, fromWords: false });
   }
 
-  return reconcileAmounts(text, hits, garbledDigits).sort((a, b) => a.pos - b.pos);
+  const reconciled = reconcileAmounts(text, hits, garbledDigits).sort((a, b) => a.pos - b.pos);
+  corroborateByArithmetic(reconciled);
+  return reconciled;
+}
+
+/**
+ * الجولة 68: مبلغ مكتوب بالحروف سبقه رقم تالف (يُوسم «يلزم التحقق») وله علاقة حسابية صحيحة بمبلغ آخر فى العقد (الدفعة الربع سنوية = 3 × الأجرة الشهرية:
+ * 41,250 = 3 × 13,750 وقد أيّدهما شيكان فى الأصل) لا يبقى موسوماً: قراءتان مستقلتان بحروف مختلفة تتفقان حسابياً. التطابق التام بنسبة 2 أو 3 أو 4 أو 6 أو 12 فقط.
+ */
+function corroborateByArithmetic(hits: Hit[]): void {
+  const RATIOS = [2, 3, 4, 6, 12];
+  for (const h of hits) {
+    if (h.kind !== 'amount' || !h.conflict || h.conflict.digits !== null || h.amount === undefined || h.amount < 100) continue;
+    const a = h.amount;
+    const corroborated = hits.some((o) => {
+      const b = o.amount;
+      return o !== h && o.kind === 'amount' && b !== undefined && b >= 100 && b !== a && RATIOS.some((k) => b === a * k || a === b * k);
+    });
+    if (corroborated) {
+      delete h.conflict;
+      delete h.suspect;
+    }
+  }
 }
 
 /** الشروط الرئيسية لكل البنود بترتيب ورودها، بلا تكرار، بحد أقصى. */
@@ -537,7 +580,7 @@ export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
   for (const c of ordered) {
     for (const h of scan(c.clauseText ?? '')) {
       if (h.partial) continue;
-      const quote = quoteAround(c.clauseText, h.pos, h.len);
+      const quote = maskLongNumbers(quoteAround(c.clauseText, h.pos, h.len));
       const key = `${c.clauseIndex}|${h.kind}|${h.value}|${quote}`;
       const prior = seen.get(key);
       if (prior) {
