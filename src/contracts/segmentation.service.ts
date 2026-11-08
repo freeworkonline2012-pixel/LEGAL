@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { adverbialDiagnostics, findAdverbialHeads, findAlternativeHeads } from './clause-headings-alt';
+import { adverbialDiagnostics, findAdverbialHeads, findAlternativeHeads, zeroHeadLinesDump } from './clause-headings-alt';
 import { describeHeadingCandidates, findAlignedHeads } from './clause-headings-fuzzy';
 import { BARE_RE, canonicalHeading, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
 import { classifyDocumentKind, documentBundleWarning } from './document-kind';
@@ -249,6 +249,7 @@ export class SegmentationService {
     if (heads.length === 0) {
       // الجولة 69: تشخيص بنيوى بلا محتوى لسبب العجز على نص الإنتاج
       this.logger.log(`segmentation adverbial diagnostics: ${adverbialDiagnostics(text)}`);
+      this.logger.log(`segmentation zero-heads lines: ${zeroHeadLinesDump(text)}`);
       // الجولة 68: صفر بنود لا يُقدَّم كأن العقد سليم؛ ويُفرَّق بين عقد بلا ترقيم وملف مستندات ليس عقداً أصلاً
       const bundle = documentBundleWarning(classifyDocumentKind(text));
       if (bundle) warnings.push(bundle);

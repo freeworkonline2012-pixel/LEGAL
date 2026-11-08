@@ -200,7 +200,10 @@ const ADVERB_MID_RE = new RegExp(
 const PARTY_AFTER_RE = /^[\s:：\-–—.،/]*(?:السادة|السيد|السيدة|الأستاذ|الاستاذ|الدكتور|الدكتورة|المهندس|المهندسة|شركة|شركه|مكتب|بنك|مؤسسة|مؤسسه|هيئة|هيئه)/u;
 const PARTY_DESIGNATION_RE = /طرف[\s_]*(?:اول|أول|الأول|الاول|ثان|ثاني|ثانى|الثاني|الثانى)/u;
 /** عبارة تمهيدية بعدها بنود الاتفاق («اتفق الطرفان على الآتى»، «على ما يلى») تسوّغ قبول عنوانين فقط */
-const ANNOUNCE_RE = /(?:على|الى|إلى)[\s]+(?:ما[\s]+)?(?:يلي|يلى|الآتي|الاتي|الآتى|الأتي|الاتى)|اتفق[\s]+الطرفان|اتفقا|تم[\s]+الاتفاق/u;
+// الجولة 69.1: «علي الأني» (قراءة آلية لـ«على الآتى») و«على التالى» تُقبل أيضاً؛ كان عدم مطابقة «الأني» يُسقط عقد أتعاب من عنوانين
+const ANNOUNCE_RE = /(?:على|علي|الى|إلى)[\s]+(?:ما[\s]+)?(?:يلي|يلى|ال[اأآإ]ت[يى]|ال[اأآإ]ن[يى]|التال[يى])|اتفق[\s]+الطرفان|اتفقا|تم[\s]+الاتفاق/u;
+/** تعريف أطراف بصيغة «(طرف أول)» أو «الطرف الأول/الثانى» قبل العنوانين: يكفى مع عنوانين متسلسلين لقبول التقسيم (عقد ثنائى الأطراف لا خطاب) */
+const PARTIES_BEFORE_RE = /(?:الطرف|طرف)[\s_]*(?:ال)?(?:اول|أول|ثان|ثاني|ثانى)/u;
 
 function normForAnnounce(s: string): string {
   return s.replace(/[\u064b-\u0652\u0640]/g, '');
@@ -290,6 +293,9 @@ function pickRun(text: string, cands: AltHead[]): AltHead[] {
   if (best.length === 2) {
     const before = normForAnnounce(text.slice(Math.max(0, best[0].lineStart - 300), best[0].lineStart));
     if (ANNOUNCE_RE.test(before)) return best;
+    // عنوانان متسلسلان بعد تعريف طرفين (طرف أول/ثان) فى النص نفسه: عقد قصير حقيقى («أولاً: … ثانياً: …») وليس خطاباً
+    const wide = normForAnnounce(text.slice(Math.max(0, best[0].lineStart - 1500), best[0].lineStart));
+    if (PARTIES_BEFORE_RE.test(wide)) return best;
   }
   return [];
 }
@@ -353,4 +359,18 @@ export function adverbialDiagnostics(text: string): string {
     parts.push(`${n}:any=${any},lineStart=${atStart},prev=${JSON.stringify(prev)}`);
   }
   return `lines=${lines.length} chars=${text.length} ${parts.join(' ')}`;
+}
+
+/**
+ * الجولة 70: حين لا يُستخرج أى بند يُسجَّل فى سجل النشر (لا فى التقرير) بداية كل سطر مقروء (حتى 48 حرفاً، حتى 90 سطراً) لمعرفة ما قرأته
+ * القراءة الآلية فعلاً من عقد ممسوح قصير؛ فقد خرج عقد أتعاب من صفحتين بـ52 سطراً و1065 حرفاً وبلا أى عنوان ترتيبى ثالث ولا يظهر السبب فى العدّادات وحدها.
+ * سجل خاص بمالك المنصة على Railway.
+ */
+export function zeroHeadLinesDump(text: string): string {
+  return text
+    .split('\n')
+    .map((l, i) => `L${i + 1} ${l.trim().slice(0, 48)}`)
+    .filter((l) => l.length > 4)
+    .slice(0, 90)
+    .join(' | ');
 }
