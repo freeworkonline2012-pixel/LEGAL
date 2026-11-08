@@ -65,7 +65,7 @@ import { evaluateRules, summarizeFindings } from './clause-rules';
 import { ContractConsistencyService } from './contract-consistency.service';
 import { ClauseVerifierService } from './clause-verifier.service';
 import { articleInScopeForFamily } from './article-scope';
-import { type Verification, claimKindFromRisk, isDismissedFindingVerification, needsVerification, pickContributionContext, pickForVerification } from './verification';
+import { type Verification, claimKindFromRisk, damagedNumberClauseVerification, isDismissedFindingVerification, needsVerification, pickContributionContext, pickForVerification } from './verification';
 import { compareFactsForClient, describeWeakenings } from './redraft-guard';
 import type { ClauseFacts } from './clause-facts';
 import type { Weakening } from './redraft-guard';
@@ -370,6 +370,13 @@ export class ContractsService implements OnModuleInit {
     // الطبقة 4: تحقق مستقل بتعليمات معاكسة من ملاحظات البنود التى قيّمها النموذج (لا يُسقط المعالجة أبداً)
     progress({ stage: 'verifying', done: 0, total: 0 });
     await this.verifyClauseFlags(clauseRows, position);
+    // الجولة 69: حارس حتمى بعد المدقق — بند يبنى حكمه على رقم زيادة تالف القراءة لا يبقى «مؤكداً»
+    for (const row of clauseRows) {
+      const v = damagedNumberClauseVerification(row);
+      if (!v || row.verification?.['status'] === 'unconfirmed') continue;
+      row.verification = v as unknown as Record<string, unknown>;
+      await this.clauseRepository.save(row);
+    }
 
     // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
     progress({ stage: 'contract_level', done: 0, total: 0 });

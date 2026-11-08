@@ -1,4 +1,5 @@
 import { quoteInText } from './clause-facts';
+import { damagedEscalationNumber } from './numeric-checks.util';
 
 /**
  * نتيجة المدقق المستقل (الطبقة 4): مدقق ثانٍ بتعليمات معاكسة يبحث عن سبب يجعل الملاحظة خاطئة. لا تُعرض الملاحظة «مؤكدة» إلا إن اجتازته؛
@@ -175,4 +176,29 @@ export function pickContributionContext(
     .sort((a, b) => b.score - a.score || a.c.clauseIndex - b.c.clauseIndex)
     .slice(0, MAX_CONTEXT_CLAUSES)
     .map(({ c }) => ({ clauseLabel: c.clauseLabel, clauseText: c.clauseText.replace(/\s+/g, ' ').trim().slice(0, MAX_CONTEXT_CHARS) }));
+}
+
+/**
+ * الجولة 69: بند قيّمه النموذج «يحتاج مراجعة» وفى نصه رقم تالف القراءة فى موضع نسبة الزيادة («7610» بدل «10%») وشرحه يبنى عليه
+ * (يذكر الرقم نفسه أو يحكم بغموض الزيادة) لا يصح أن يُعرض ملاحظة مؤكدة: الأصل قد يكون نسبة محددة. يُوسم «غير مؤكد» حتمياً
+ * (basis=uncertain) ولو أجازه المدقق المستقل. يُرجع الوسم الجديد أو null إن لم ينطبق. لا يمس درجة البند ولا يحذفه.
+ */
+export const DAMAGED_CLAUSE_NUMBER_REASON =
+  'يستند تقييم هذا البند إلى رقم فى موضع نسبة الزيادة قُرئ تالفاً من الصورة الممسوحة (رقم لا يصلح نسبة)، فقد يكون الأصل نسبة محددة ' +
+  'تنفى الغموض المزعوم؛ فلا يُعدّ الحكم مؤكداً حتى يطابَق الأصل. (وُسم آلياً: ليس اعتراضاً من المدقق المستقل.)';
+
+export function damagedNumberClauseVerification(c: {
+  clauseText: string;
+  assessmentStatus: string | null;
+  riskLevel: string | null;
+  assessmentReasoning: string | null;
+}): Verification | null {
+  if (c.assessmentStatus !== 'يحتاج مراجعة') return null;
+  if (c.riskLevel !== 'حرج' && c.riskLevel !== 'عالٍ' && c.riskLevel !== 'متوسط') return null;
+  const d = damagedEscalationNumber(c.clauseText);
+  if (!d) return null;
+  const r = c.assessmentReasoning ?? '';
+  const builtOnIt = r.includes(d) || /(?:زياد|تزاد|يزاد)/.test(r);
+  if (!builtOnIt) return null;
+  return { status: 'unconfirmed', basis: 'uncertain', reason: DAMAGED_CLAUSE_NUMBER_REASON, quote: null, quoteSource: null, verifiedAt: new Date().toISOString() };
 }

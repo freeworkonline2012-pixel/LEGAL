@@ -176,11 +176,25 @@ function looseAdverbPattern(norm: string): string {
 }
 const ADVERB_NUMBER = new Map(ADVERB_WORDS.map(([n, w]) => [w, n] as [string, number]));
 // «أولاً» «ثانيا» «(ثالثاً)» فى أول السطر، ثم فاصل اختيارى (: - – . ،)؛ ما بعده نص البند
+const ORD_ALT = ADVERB_WORDS.map(([, w]) => looseAdverbPattern(w))
+  .sort((a, b) => b.length - a.length)
+  .join('|');
+/** ضجيج مسح قبل العنوان على السطر نفسه (الجولة 69): حرف عربى مفرد («ش ثانياً»)، أو 1–3 رموز/أرقام، أو حرفان لاتينيان؛ حتى اثنين. */
+const LEAD_JUNK = '(?:(?:[ء-ي]|[A-Za-z]{1,2}|[^\\s\\u0600-\\u06FFA-Za-z]{1,3})[ \\t]+){0,2}';
+/** ضجيج بين العنوان وعلامة الوقف («ثانياً ‎٠:») */
+const TRAIL_JUNK = '[ \\t\\u200e\\u200f٠-٩0-9]{0,4}';
 const ADVERB_RE = new RegExp(
-  `^[ \\t]*[:：\\-–—.'"’‘|!]{0,3}[ \\t]*[(\\[]?(?<ord>${ADVERB_WORDS.map(([, w]) => looseAdverbPattern(w))
-    .sort((a, b) => b.length - a.length)
-    .join('|')})(?![ء-ي])[)\\]]?[ \\t]*(?<punct>[:：\\-–—.،])?`,
+  `^[ \\t]*[:：\\-–—.'"’‘|!]{0,3}[ \\t]*${LEAD_JUNK}[(\\[]?(?<ord>${ORD_ALT})(?![ء-ي])[)\\]]?[ \\t]*(?<punct>[:：\\-–—.،])?`,
   'gmu',
+);
+/**
+ * الجولة 69 (مرحلة احتياطية): العنوان وسط السطر بعد نهاية جملة، لأن القراءة الآلية قد تدمج أسطر العقد الممسوح فى فقرة واحدة
+ * (عقد الأتعاب 0 بند فى الإنتاج رغم نجاحه على قراءة تجريبية). يُشترط هنا علامة وقف بعد العنوان («أولاً:» / «ثانياً -») منعاً للالتقاط العابر،
+ * ويبقى شرط التسلسل 1،2،3 (≥3 أو اثنان مع عبارة تمهيدية).
+ */
+const ADVERB_MID_RE = new RegExp(
+  `(?<![ء-ي])[(\\[]?(?<ord>${ORD_ALT})(?![ء-ي])[)\\]]?${TRAIL_JUNK}(?<punct>[:：\\-–—])`,
+  'gu',
 );
 /** بعد العنوان مباشرة تعريف بطرف («أولاً: السادة/ شركة… (طرف أول)») فهو بند ديباجة لا بند عقد */
 const PARTY_AFTER_RE = /^[\s:：\-–—.،/]*(?:السادة|السيد|السيدة|الأستاذ|الاستاذ|الدكتور|الدكتورة|المهندس|المهندسة|شركة|شركه|مكتب|بنك|مؤسسة|مؤسسه|هيئة|هيئه)/u;
@@ -245,26 +259,13 @@ function extendFuzzy(text: string, run: AltHead[], literal: AltHead[]): AltHead[
   return out;
 }
 
-export function findAdverbialHeads(text: string): AltHead[] {
-  const cands: AltHead[] = [];
-  for (const m of text.matchAll(ADVERB_RE)) {
-    const raw = m[0];
-    const trimmed = raw.replace(/^[ \t]+/, '');
-    const lineStart = m.index ?? 0;
-    const n = ADVERB_NUMBER.get(normOrd(m.groups?.ord ?? '')) ?? null;
-    if (n === null) continue;
-    const after = text.slice(lineStart + raw.length, lineStart + raw.length + 320);
-    if (PARTY_AFTER_RE.test(after) && PARTY_DESIGNATION_RE.test(after)) continue;
-    if (PARTY_AFTER_RE.test(after.slice(0, 40)) && /^[\s:：\-–—.،/]*(?:السادة|السيد|السيدة)/u.test(after)) continue;
-    cands.push({
-      lineStart,
-      markerStart: lineStart + (raw.length - trimmed.length),
-      marker: ADVERB_DISPLAY[n], // بلا نقطتين: ما بعد «أولاً:» متن البند لا عنوانه
-      rawLength: trimmed.length,
-      declaredNumber: n,
-    });
-  }
-  // أطول تسلسل 1،2،3… داخل أى «دورة» (الرقم يعود إلى 1 = دورة جديدة)؛ عند التساوى الأخيرة (متن العقد يلى الديباجة)
+function isPartyIntro(after: string): boolean {
+  if (PARTY_AFTER_RE.test(after) && PARTY_DESIGNATION_RE.test(after)) return true;
+  return PARTY_AFTER_RE.test(after.slice(0, 40)) && /^[\s:：\-–—.،/]*(?:السادة|السيد|السيدة)/u.test(after);
+}
+
+/** أطول تسلسل 1،2،3… داخل أى «دورة» (الرقم يعود إلى 1 = دورة جديدة)؛ عند التساوى الأخيرة (متن العقد يلى الديباجة) ثم قبول بحسب العدد. */
+function pickRun(text: string, cands: AltHead[]): AltHead[] {
   const runs: AltHead[][] = [];
   let cur: AltHead[] = [];
   let want = 1;
@@ -291,4 +292,65 @@ export function findAdverbialHeads(text: string): AltHead[] {
     if (ANNOUNCE_RE.test(before)) return best;
   }
   return [];
+}
+
+export function findAdverbialHeads(text: string): AltHead[] {
+  const cands: AltHead[] = [];
+  for (const m of text.matchAll(ADVERB_RE)) {
+    const raw = m[0];
+    const trimmed = raw.replace(/^[ \t]+/, '');
+    const lineStart = m.index ?? 0;
+    const n = ADVERB_NUMBER.get(normOrd(m.groups?.ord ?? '')) ?? null;
+    if (n === null) continue;
+    const after = text.slice(lineStart + raw.length, lineStart + raw.length + 320);
+    if (isPartyIntro(after)) continue;
+    cands.push({
+      lineStart,
+      markerStart: lineStart + (raw.length - trimmed.length),
+      marker: ADVERB_DISPLAY[n], // بلا نقطتين: ما بعد «أولاً:» متن البند لا عنوانه
+      rawLength: trimmed.length,
+      declaredNumber: n,
+    });
+  }
+  const lineMode = pickRun(text, cands);
+  if (lineMode.length > 0) return lineMode;
+
+  // مرحلة احتياطية: عناوين وسط السطر بعلامة وقف صريحة (قراءة دمجت الأسطر)
+  const mid: AltHead[] = [];
+  for (const m of text.matchAll(ADVERB_MID_RE)) {
+    const at = m.index ?? 0;
+    const n = ADVERB_NUMBER.get(normOrd(m.groups?.ord ?? '')) ?? null;
+    if (n === null) continue;
+    const after = text.slice(at + m[0].length, at + m[0].length + 320);
+    if (isPartyIntro(after)) continue;
+    mid.push({ lineStart: at, markerStart: at, marker: ADVERB_DISPLAY[n], rawLength: m[0].length, declaredNumber: n });
+  }
+  return pickRun(text, mid);
+}
+
+/**
+ * تشخيص بنيوى بلا محتوى (الجولة 69): حين لا يُستخرج أى بند يُسجَّل فى سجل النشر عدد الأسطر وعدد كل كلمة ترتيبية (أولاً…) فى أى موضع وفى أول السطر
+ * والحرف السابق لها (فئته لا قيمته)، ليُعرف سبب العجز على نص الإنتاج دون كشف نص العقد.
+ */
+export function adverbialDiagnostics(text: string): string {
+  const lines = text.split('\n');
+  const parts: string[] = [];
+  for (const [n, w] of ADVERB_WORDS.slice(0, 6)) {
+    const re = new RegExp(`(?<![ء-ي])${looseAdverbPattern(w)}(?![ء-ي])`, 'gu');
+    let any = 0;
+    let atStart = 0;
+    const prev: Record<string, number> = {};
+    for (const l of lines) {
+      for (const m of l.matchAll(re)) {
+        any++;
+        const before = l.slice(0, m.index ?? 0).trimEnd();
+        if (before.length === 0) atStart++;
+        const ch = before.slice(-1);
+        const cls = !ch ? 'start' : /[.،؛:]/.test(ch) ? 'punct' : /[ء-ي]/.test(ch) ? 'arabic' : /\d|[٠-٩]/.test(ch) ? 'digit' : 'symbol';
+        prev[cls] = (prev[cls] ?? 0) + 1;
+      }
+    }
+    parts.push(`${n}:any=${any},lineStart=${atStart},prev=${JSON.stringify(prev)}`);
+  }
+  return `lines=${lines.length} chars=${text.length} ${parts.join(' ')}`;
 }

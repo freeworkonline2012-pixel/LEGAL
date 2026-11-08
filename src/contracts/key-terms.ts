@@ -69,10 +69,11 @@ function fmtNumber(n: number): string {
  * الجولة 68: تاريخ فى سياق وثيقة هوية («تاريخ الإصدار 15/12/2014» لجواز سفر، «بطاقة رقم قومى … تاريخ إصدار») ليس شرطاً تعاقدياً؛ وظهر فى جدول
  * الشروط الرئيسية لعقد إيجار ممسوح مع رقم الجواز نفسه. يُفحص السياق قبل التاريخ على السطر نفسه فقط.
  */
-const IDENTITY_CONTEXT = /(?:جواز\s*سفر|بطاقة|رقم\s*قوم[يى]|الرقم\s*القوم[يى]|تاريخ\s*(?:ال)?[اإ]صدار|تاريخ\s*ال[اإ]صدار|صادر[ةه]?\s*من)/u;
+const IDENTITY_CONTEXT = /(?:جواز\s*سفر|بطاقة|سجل\s*(?:ال)?(?:تجار[يى]|ضريب[يى])|رقم\s*قوم[يى]|الرقم\s*القوم[يى]|تاريخ\s*(?:ال)?[اإ]صدار|تاريخ\s*ال[اإ]صدار|صادر[ةه]?\s*من)/u;
 function isIdentityDate(text: string, pos: number): boolean {
   const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-  const before = text.slice(Math.max(lineStart, pos - 45), pos);
+  // السياق ما بعد آخر نهاية جملة فقط: «… تاريخ الإصدار 15/8/2015 ويقيم بالقاهرة. تبدأ المدة من 1/12/2018» تاريخها الثانى تعاقدى
+  const before = text.slice(Math.max(lineStart, pos - 60), pos).replace(/^[\s\S]*[.؛!؟]/, '');
   return IDENTITY_CONTEXT.test(before);
 }
 
@@ -151,6 +152,11 @@ function wordsBefore(text: string, end: number): { value: number; start: number;
       // ضجيج: نتخطاه، ولا يجوز أن تبدأ العبارة به (يُقصّ لاحقاً)
       kept.unshift({ word: '', idx });
     } else {
+      // الجولة 69: «ثلاثة) او خمسمائة جنيها» — حرف العطف «أو» بعد كلمة عددية يعنى أن العبارة تبدّلت أو التُبس عددها (بدائل لا مبلغ واحد)،
+      // فما بعده وحده («خمسمائة» = 500) ليس المبلغ؛ يُعامل جزءاً غير كامل لا مبلغاً مستقلاً.
+      if (sawNumber && /^(?:او|أو)$/.test(t[0]) && i > 0 && isNumberWord(tokens[i - 1][0]) && NUMBER_GAP.test(head.slice((tokens[i - 1].index ?? 0) + tokens[i - 1][0].length, idx))) {
+        partial = true;
+      }
       break;
     }
     prevStart = idx;
@@ -556,12 +562,12 @@ function scan(rawText: string): Hit[] {
  * الجولة 68: مبلغ مكتوب بالحروف سبقه رقم تالف (يُوسم «يلزم التحقق») وله علاقة حسابية صحيحة بمبلغ آخر فى العقد (الدفعة الربع سنوية = 3 × الأجرة الشهرية:
  * 41,250 = 3 × 13,750 وقد أيّدهما شيكان فى الأصل) لا يبقى موسوماً: قراءتان مستقلتان بحروف مختلفة تتفقان حسابياً. التطابق التام بنسبة 2 أو 3 أو 4 أو 6 أو 12 فقط.
  */
-function corroborateByArithmetic(hits: Hit[]): void {
+function corroborateByArithmetic(hits: Hit[], pool: Hit[] = hits): void {
   const RATIOS = [2, 3, 4, 6, 12];
   for (const h of hits) {
     if (h.kind !== 'amount' || !h.conflict || h.conflict.digits !== null || h.amount === undefined || h.amount < 100) continue;
     const a = h.amount;
-    const corroborated = hits.some((o) => {
+    const corroborated = pool.some((o) => {
       const b = o.amount;
       return o !== h && o.kind === 'amount' && b !== undefined && b >= 100 && b !== a && RATIOS.some((k) => b === a * k || a === b * k);
     });
@@ -572,13 +578,25 @@ function corroborateByArithmetic(hits: Hit[]): void {
   }
 }
 
+/**
+ * الجولة 69: مسح كل البنود ثم التأييد الحسابى عبر العقد كله (الأجرة الشهرية فى بند والدفعة الربع سنوية فى بند آخر: 41,250 = 3 × 13,750).
+ * كان التأييد داخل البند وحده فبقى «يلزم التحقق» على المبلغ وتنبيه الغلاف رغم تطابق القراءتين المستقلتين.
+ */
+function scanAll(texts: string[]): Hit[][] {
+  const per = texts.map((t) => scan(t ?? ''));
+  const pool = per.flat();
+  for (const hits of per) corroborateByArithmetic(hits, pool);
+  return per;
+}
+
 /** الشروط الرئيسية لكل البنود بترتيب ورودها، بلا تكرار، بحد أقصى. */
 export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
   const out: KeyTerm[] = [];
   const seen = new Map<string, KeyTerm>();
   const ordered = [...clauses].sort((a, b) => a.clauseIndex - b.clauseIndex);
-  for (const c of ordered) {
-    for (const h of scan(c.clauseText ?? '')) {
+  const scanned = scanAll(ordered.map((c) => c.clauseText ?? ''));
+  for (const [ci, c] of ordered.entries()) {
+    for (const h of scanned[ci]) {
       if (h.partial) continue;
       const quote = maskLongNumbers(quoteAround(c.clauseText, h.pos, h.len));
       const key = `${c.clauseIndex}|${h.kind}|${h.value}|${quote}`;
@@ -611,8 +629,8 @@ export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
  */
 export function amountConflictWarnings(clauseTexts: string[], existing: string[] = []): string[] {
   const out: string[] = [];
-  for (const t of clauseTexts) {
-    for (const h of scan(t ?? '')) {
+  for (const hits of scanAll(clauseTexts)) {
+    for (const h of hits) {
       if (h.partial) {
         const msg = `جزء من مبلغ مكتوب بالحروف («${fmtNumber(h.amount ?? 0)}» فى آخره) لم يُعرض مبلغاً مستقلاً: بدايته مشوّهة أو فى صفحة سابقة؛ طابق المبالغ بالأصل قبل الاعتماد.`;
         if (!out.includes(msg)) out.push(msg);

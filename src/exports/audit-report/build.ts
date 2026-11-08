@@ -577,7 +577,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   }
   blocks.push({
     t: 'strip',
-    cells: noteMode
+    cells: noClauses
+      ? [{ text: 'لم يُحلَّل أى بند — لا عدّ للمخاطر', tone: 'high' }]
+      : noteMode
       ? [
           { text: notePhrase(unit.medium, NOTE_ADJ.medium), tone: 'medium' },
           { text: notePhrase(unit.high, NOTE_ADJ.high), tone: 'high' },
@@ -591,6 +593,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
           { text: countPhrase(totalRisky, ADJ.review), tone: 'navy' },
         ],
   });
+  if (!noClauses)
   blocks.push({
     t: 'p',
     text:
@@ -658,8 +661,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         });
       }
     }
-    const recommendation =
-      counts['حرج'] > 0 || findingCounts.critical > 0
+    const recommendation = noClauses
+      ? 'التوصية الآلية: لا توصية آلية — لم يُحلَّل أى بند من العقد؛ يلزم أن يراجعه محامٍ مختص كاملاً قبل التوقيع، ولا يدل غياب الملاحظات هنا على سلامته.'
+      : counts['حرج'] > 0 || findingCounts.critical > 0
         ? 'التوصية الآلية: لا يُوصى بالتوقيع قبل معالجة الملاحظات الحرجة وعرضها على محامٍ مختص.'
         : counts['عالٍ'] > 0 || findingCounts.high > 0
           ? 'التوصية الآلية: يُوصى بمعالجة الملاحظات عالية الخطورة قبل التوقيع، وعرضها على محامٍ مختص.'
@@ -975,7 +979,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         text:
           dismissedFindings.length > 0
             ? 'لم تُرصد ملاحظات مؤكدة أو مرشّحة على مستوى العقد ككل بالفحوص المطبَّقة؛ وما استُبعد بدحض موثَّق مذكور فى ملحق مصفوفة المخاطر.'
-            : 'لم تُرصد ملاحظات على مستوى العقد ككل بالفحوص المطبَّقة.',
+            : noClauses
+              ? 'لم يُجرَ فحص على مستوى العقد ككل لأن العقد لم يُقسَّم إلى بنود؛ وغياب الملاحظات هنا لا يدل على سلامته.'
+              : 'لم تُرصد ملاحظات على مستوى العقد ككل بالفحوص المطبَّقة.',
       });
     } else {
       blocks.push({
