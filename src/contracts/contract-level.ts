@@ -1199,12 +1199,57 @@ function str(v: unknown, max: number): string | null {
  */
 function relabelPositions(text: string, evidence: FindingEvidence[], byIndex: Map<number, LevelClause>): string {
   const cited = new Set(evidence.map((e) => e.clauseIndex));
-  return text.replace(/(?<![ء-ي])البند\s+(\d{1,3})(?![\d\-/.])/gu, (whole, d: string) => {
+  const byPosition = text.replace(/(?<![ء-ي])البند\s+(\d{1,3})(?![\d\-/.])/gu, (whole, d: string) => {
     const idx = Number(d);
     if (!cited.has(idx)) return whole;
     const label = byIndex.get(idx)?.clauseLabel;
     return label && !/\d/.test(label) && label !== whole ? label : whole;
   });
+  return relabelOrdinalNouns(byPosition, evidence);
+}
+
+/** كلمة ترتيبية بلا ضبط جنس ولا همزة ولا تاء مربوطة، لمطابقة «الخامسة» و«الخامس» و«الخامسه» معاً. */
+function ordinalKey(w: string): string {
+  return w
+    .replace(/[ً-ْـ]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .split(/[\s_]+/)
+    .filter(Boolean)
+    .map((x) => x.replace(/[ةه]$/, ''))
+    .join(' ');
+}
+
+/**
+ * النموذج يكتب «البند الخامسة» لبند عنوانه فى العقد «المادة الخامسة» (يخلط كلمة العنوان بترتيبى المؤنث): يُستبدل بعنوان البند كما كتبه العقد،
+ * فلا يظهر فى التقرير «البند الخامسة» بجانب اقتباس «المادة الخامسة». الاستبدال لبند مستشهَد به فى أدلة الملاحظة نفسها فقط، وبشرط أن يطابق
+ * ترتيبيه ترتيبى عنوانه (الجولة 67)؛ ولا يمس «البند» غير المتبوع بترتيبى هذا البند.
+ */
+function relabelOrdinalNouns(text: string, evidence: FindingEvidence[]): string {
+  let out = text;
+  const seen = new Set<string>();
+  for (const e of evidence) {
+    const label = e.clauseLabel;
+    if (!label || /\d/.test(label) || seen.has(label)) continue;
+    seen.add(label);
+    const m = /^(?:ال)?(?:بند|مادة|ماده)\s+(.+)$/u.exec(label.trim());
+    if (!m) continue;
+    const key = ordinalKey(m[1]);
+    const noun = /^(?:ال)?بند/u.test(label.trim()) ? 'بند' : 'مادة';
+    // لا يلزم الاستبدال إن كان عنوان البند هو «البند …» نفسه
+    if (noun === 'بند') continue;
+    const words = key.split(' ').length;
+    // سابقة اختيارية («بالبند»، «والبند»، «للبند») تُحفظ: «لل» + «المادة» تُكتب «للمادة» لا «لالمادة»
+    const re = new RegExp(`(?<![ء-ي])(?<pre>[وفبك]?ال|[وف]?لل)بند[ \\t]+(?<ord>(?:[ء-ي]+[ \\t]+){${words - 1}}[ء-ي]+)(?![ء-ي])`, 'gu');
+    out = out.replace(re, (...args: unknown[]) => {
+      const groups = args[args.length - 1] as { pre: string; ord: string };
+      const whole = String(args[0]);
+      if (ordinalKey(groups.ord) !== key) return whole;
+      const bare = label.replace(/^ال/, '');
+      return groups.pre.endsWith('لل') ? `${groups.pre}${bare}` : `${groups.pre.replace(/ال$/, '')}${label}`;
+    });
+  }
+  return out;
 }
 
 /**

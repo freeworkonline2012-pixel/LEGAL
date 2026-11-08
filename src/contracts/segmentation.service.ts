@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { findAlternativeHeads } from './clause-headings-alt';
 import { describeHeadingCandidates, findAlignedHeads } from './clause-headings-fuzzy';
 import { BARE_RE, canonicalHeading, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
+import { findForwardGap, numberingGapEvidence, numberingGapWarningText } from './numbering-gap';
 
 export interface SegmentedClause {
   index: number;
@@ -304,8 +305,12 @@ export class SegmentationService {
     const declared = clauses.map((c) => c.declaredNumber).filter((n): n is number => n !== null);
     for (let i = 0; i < declared.length; i++) {
       if (declared[i] !== i + 1) {
+        // قفزة إلى الأمام: تُفحص أدلة النقص فى النص (إحالة/فقرات فرعية/بند متضخم)؛ التكرار والرجوع يبقيان بصيغتهما (الجولة 67)
+        const gap = findForwardGap(declared);
         warnings.push(
-          `ترقيم البنود المُعلَن غير متسلسل بدءاً من الموضع ${i + 1} (متوقَّع ${i + 1}, وُجد ${declared[i]}) — يلزم مراجعة بشرية.`,
+          gap
+            ? numberingGapWarningText(gap, numberingGapEvidence(text, clauses, gap))
+            : `ترقيم البنود المُعلَن غير متسلسل بدءاً من الموضع ${i + 1} (متوقَّع ${i + 1}, وُجد ${declared[i]}) — يلزم مراجعة بشرية.`,
         );
         break;
       }

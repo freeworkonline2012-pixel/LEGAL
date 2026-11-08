@@ -82,6 +82,7 @@ import {
 } from './contract-level';
 import { internalConsistencyFindings } from './internal-checks';
 import { officeRuleFindings } from './office-rules';
+import { isBenignNumberingGapWarning } from './numbering-gap';
 
 // معايير الموضوعات التى لها قواعد حتمية (clause-rules.ts)
 const RULE_TOPIC_CRITERIA: readonly string[] = ['exit', 'liability', 'force_majeure', 'compensation'];
@@ -422,7 +423,7 @@ export class ContractsService implements OnModuleInit {
       clauseTitle: c.clauseTitle,
       clauseText: c.clauseText,
     }));
-    const textMayBeIncomplete = extractionWarnings.some((w) => /OCR|ترقيم|بند/.test(w));
+    const textMayBeIncomplete = extractionWarnings.some((w) => !isBenignNumberingGapWarning(w) && /OCR|ترقيم|بند/.test(w));
     let rules: ContractFinding[] = [];
     try {
       rules = sortFindings([

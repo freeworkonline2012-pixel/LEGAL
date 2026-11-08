@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortReference } from '../document-model';
 import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
 import { extractKeyTerms, KEY_TERM_KIND_LABEL, type KeyTerm } from '../../contracts/key-terms';
+import { isBenignNumberingGapWarning } from '../../contracts/numbering-gap';
 import { groupKeyTerms } from './key-terms-display';
 import { buildPlaybook, type PlaybookResult } from '../../contracts/playbook';
 import { ACTION_TIMELINE, candidateAction, extraActions, findingAction, isNullityConcern, playbookAction, PRIORITY_RANK, type ActionPriority } from './recommendations';
@@ -285,6 +286,8 @@ function overallRisk(
 const SEGMENTATION_INCOMPLETE_WARNING = /لم تُقرأ عناوين البنود السابقة|لم تُقرأ عناوينها فالتصق|يُحيل إلى "البند رقم/;
 /** «متوقَّع 3, وُجد 5»: قفزة (بند لم يُقرأ) لا تكرار ولا رجوع (خطأ ترقيم فى الأصل نفسه) */
 function numberingGapWarning(w: string): boolean {
+  // الجولة 67: قفزة لا دليل فى النص على بنود ناقصة فيها (ترقيم العقد نفسه يقفز) ليست «تقسيماً غير مكتمل»
+  if (isBenignNumberingGapWarning(w)) return false;
   const m = /غير متسلسل[^()]*\(متوقَّع (\d+),\s*وُجد (\d+)\)/.exec(w);
   return !!m && Number(m[2]) > Number(m[1]);
 }
