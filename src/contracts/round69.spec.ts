@@ -146,7 +146,6 @@ describe('الجولة 70: عقد أتعاب قصير بعنوانين وإعل�
   });
 });
 
-import { WHOLE_TEXT_LABEL } from './segmentation.service';
 
 // أسطر عقد الأتعاب كما قرأها OCR الإنتاج فعلاً (سجل Railway 8 نوفمبر): العناوين «أولاً/ثانياً» تالفة فلا تتسلسل
 const FEES_PROD = [
@@ -163,10 +162,13 @@ describe('الجولة 71: عقد حقيقى تلفت عناوينه يُقيَ�
   const svc = new SegmentationService();
   it('عقد الأتعاب كما قرأه الإنتاج: بند واحد «النص كله» بتنبيه صريح', () => {
     const r = svc.segment(FEES_PROD);
-    expect(r.clauses.length).toBe(1);
-    expect(r.clauses[0].label).toBe(WHOLE_TEXT_LABEL);
-    expect(r.clauses[0].declaredNumber).toBeNull();
-    expect(r.clauses[0].text).toContain('سبعة آلاف وخمسمائة');
+    expect(r.clauses.length).toBeGreaterThanOrEqual(2);
+    expect(r.clauses.every((c) => c.declaredNumber === null && c.label.startsWith('فقرة تقريبية'))).toBe(true);
+    expect(r.clauses.map((c) => c.text).join('\n')).toContain('سبعة آلاف وخمسمائة');
+    expect(r.clauses.some((c) => c.text.includes('سبعة آلاف وخمسمائة') && c.text.includes('تقوم الشركة'))).toBe(true);
+    // لا يُفقد من النص شىء: ضم الفقرات يعيد الأسطر كلها
+    expect(r.clauses.map((c) => c.text).join('\n').replace(/\s+/g, ' ')).toBe(FEES_PROD.replace(/\s+/g, ' ').trim());
+    expect(r.warnings.some((w) => w.includes('فقرات تقريبية'))).toBe(true);
     expect(r.warnings.some((w) => w.includes('تعذّر تقسيم العقد إلى بنود'))).toBe(true);
   });
   it('ملف مستندات أو نص بلا صيغة عقد أو نص أطول من الحد: يبقى صفر بنود', () => {
@@ -179,13 +181,13 @@ describe('الجولة 71: عقد حقيقى تلفت عناوينه يُقيَ�
     const NOW = new Date('2026-11-08T10:00:00Z');
     const r = buildContractAuditReport({
       contractId: 'abcdef12-0000-0000-0000-000000000000', originalFilename: 'عقد.pdf', uploadedAt: NOW, contractType: null, clientRole: null,
-      clauses: [{ clauseIndex: 1, clauseLabel: WHOLE_TEXT_LABEL, clauseTitle: null, clauseText: 'نص', assessmentStatus: 'سليم', assessmentReasoning: null, matchedArticles: [], riskLevel: null, suggestedWording: null, lawyerVerdict: null, lawyerNotes: null }],
+      clauses: [1, 2, 3].map((i) => ({ clauseIndex: i, clauseLabel: `فقرة تقريبية ${i}`, clauseTitle: null, clauseText: 'نص', assessmentStatus: 'سليم', assessmentReasoning: null, matchedArticles: [], riskLevel: null, suggestedWording: null, lawyerVerdict: null, lawyerNotes: null })),
       approvedAt: null, approvalNote: null, generatedAt: NOW, brand: 'شيلد',
       extractionWarnings: ['تعذّر تقسيم العقد إلى بنود (لا ترقيم)'],
     }).report;
     const val = (l: string) => r.cover.rows.find((x) => x.label === l)?.value ?? '';
-    expect(val('عدد البنود')).toContain('قُيِّم النص كله');
-    expect(val('مستوى المخاطرة العام')).toContain('قُيِّم نصه كله');
+    expect(val('عدد البنود')).toContain('3 فقرات تقريبية');
+    expect(val('مستوى المخاطرة العام')).toContain('فقرات تقريبية');
   });
   it('تقرير صفر بنود لا يدّعى أن العقد أطول من الحد المعتمد', () => {
     const NOW = new Date('2026-11-08T10:00:00Z');
@@ -195,6 +197,6 @@ describe('الجولة 71: عقد حقيقى تلفت عناوينه يُقيَ�
     } as AuditReportInput).report;
     const text = JSON.stringify(r.blocks);
     expect(text).not.toContain('أطول من الحد المعتمد');
-    expect(text).toContain('لأن العقد لم يُقسَّم إلى بنود');
+    expect(text).toContain('لا توجد بنود متعددة يُقارَن بينها');
   });
 });

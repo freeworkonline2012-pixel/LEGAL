@@ -5,8 +5,38 @@ import { BARE_RE, canonicalHeading, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordi
 import { classifyDocumentKind, documentBundleWarning } from './document-kind';
 import { findForwardGap, numberingGapEvidence, numberingGapWarningText } from './numbering-gap';
 
-/** تسمية البند الوحيد حين لم يُقرأ أى ترقيم فى عقد حقيقى (الجولة 71)؛ build.ts يعرف التسمية نفسها. */
+/** بادئة تسمية الفقرات التقريبية حين لم يُقرأ أى ترقيم فى عقد حقيقى (الجولة 71/72)؛ build.ts يعرف البادئة نفسها. */
 export const WHOLE_TEXT_LABEL = 'نص العقد كله (غير مُقسَّم)';
+export const APPROX_PARAGRAPH_PREFIX = 'فقرة تقريبية';
+export const APPROX_TARGET_CHARS = 250;
+export const APPROX_HARD_CHARS = 450;
+
+/**
+ * الجولة 72: تقسيم تقريبى لنص عقد بلا عناوين مقروءة إلى فقرات متجاورة (بحسب الأسطر ونهايات الجمل) ليُقيَّم كل موضوع على حدة؛
+ * بند واحد بنص العقد كله لم يطابق أى نص قانونى مفهرس (عقد أتعاب من صفحتين: «0 من 1 بنداً قُيِّمت»). الحدود تقريبية وتُعلَن كذلك.
+ * لا يقطع سطراً؛ يغلق الفقرة عند نهاية جملة بعد الحد المستهدف، أو عند الحد الأقصى.
+ */
+export function splitIntoApproxParagraphs(text: string): string[] {
+  const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+  const out: string[] = [];
+  let cur = '';
+  const flush = () => {
+    if (cur.trim().length > 0) out.push(cur.trim());
+    cur = '';
+  };
+  for (const line of lines) {
+    cur = cur ? `${cur}\n${line}` : line;
+    const endsSentence = /[.؟!؛:]\s*$/.test(line);
+    if ((cur.length >= APPROX_TARGET_CHARS && endsSentence) || cur.length >= APPROX_HARD_CHARS) flush();
+  }
+  flush();
+  // فقرة أخيرة قصيرة جداً تُضم إلى سابقتها
+  if (out.length >= 2 && out[out.length - 1].length < 120) {
+    const last = out.pop() as string;
+    out[out.length - 1] = `${out[out.length - 1]}\n${last}`;
+  }
+  return out;
+}
 export const WHOLE_TEXT_MAX_CHARS = 12000;
 export const WHOLE_TEXT_MIN_CHARS = 200;
 
@@ -268,8 +298,9 @@ export class SegmentationService {
       const trimmed = text.trim();
       if (kind.kind !== 'document_bundle' && kind.contractSignals.length >= 1 && trimmed.length >= WHOLE_TEXT_MIN_CHARS && trimmed.length <= WHOLE_TEXT_MAX_CHARS) {
         wholeText = trimmed;
+        const n = splitIntoApproxParagraphs(trimmed).length;
         warnings.push(
-          'تعذّر تقسيم العقد إلى بنود (لا ترقيم ولا عناوين ترتيبية مقروءة)؛ أُدرج نصه كله كبند واحد غير مُقسَّم ليخضع للتقييم، فالنتيجة عامة وحدود البنود غير دقيقة — يلزم تقسيمه ومراجعته يدوياً، ويُفضَّل رفع نسخة أوضح أو نص Word إن وُجد.',
+          `تعذّر تقسيم العقد إلى بنود (لا ترقيم ولا عناوين ترتيبية مقروءة)؛ قُسِّم نصه آلياً إلى ${n === 1 ? 'فقرة واحدة' : `${n} فقرات تقريبية`} متجاورة ليخضع للتقييم، فالنتيجة عامة وحدود البنود غير دقيقة — يلزم تقسيمه ومراجعته يدوياً، ويُفضَّل رفع نسخة أوضح أو نص Word إن وُجد.`,
         );
       }
     }
@@ -386,7 +417,10 @@ export class SegmentationService {
     }
 
     if (clauses.length === 0 && wholeText) {
-      clauses.push({ index: 1, declaredNumber: null, label: WHOLE_TEXT_LABEL, title: null, text: wholeText });
+      const parts = splitIntoApproxParagraphs(wholeText);
+      parts.forEach((p, i) =>
+        clauses.push({ index: i + 1, declaredNumber: null, label: parts.length === 1 ? WHOLE_TEXT_LABEL : `${APPROX_PARAGRAPH_PREFIX} ${i + 1}`, title: null, text: p }),
+      );
     }
 
     const firstHead = heads[0];
