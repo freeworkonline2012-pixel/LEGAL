@@ -145,3 +145,56 @@ describe('الجولة 70: عقد أتعاب قصير بعنوانين وإعل�
     expect(findAdverbialHeads(t)).toEqual([]);
   });
 });
+
+import { WHOLE_TEXT_LABEL } from './segmentation.service';
+
+// أسطر عقد الأتعاب كما قرأها OCR الإنتاج فعلاً (سجل Railway 8 نوفمبر): العناوين «أولاً/ثانياً» تالفة فلا تتسلسل
+const FEES_PROD = [
+  'رن بارع ماه اتاحتخخخ م ١١', '. شارع عماد الدين بالقاهرة ٠', 'مكتب سلامة للاستشارات القانونبة', 'Salama_law@hotmail.com', 'عقد إتفاق أتعاب محاماه',
+  ') في يوم الخميس الموافق ١رتنا/غ١ ٠', 'تحرر هذا العقد بين كل من', 'أولاً : السادة/ شركة أروب لتأمينات الممتلكات والمسئوليات مصر ومقرها شارع مصدق',
+  'مصدق = الدفي -- الجيزة ويمثلها السيد الأستاذ/ بشار عدنان الحلبى', 'B by أول»', 'L : مكتب سلامة للمحاماة والأسدشارات القانونية الكائن مقره شارع عماد',
+  'الدين - القاهرة ويمثله في الدوقيع علي هذا العقد الأستاذ فحى فهيم', '(g8 by', 'تمهيد', 'الأعمال التي يقوم بها المكتب لشركتكم وبباشرة قضايا التعويض',
+  'Y مع سيادتكم علي Syl', 'ب - يلوم المكتب ابمراجعة ك8 القضايا الي ب علي - وإبداء الرأى القانونى', 'بالتتسيق مع إدارة قسم + العويضات" في قضايا لابين',
+  'ثانياً: تقوم الشركة بسداد مبلغ وقدره سبعة آلاف وخمسمائة جنيه شهرياً للمكتب', 'اند سس', 's ¥ في ١ 11/17/7١ ريم', 'VAN من (G هذا الإنفاق Ty',
+  'تجديده لمدة أو لمدد ممائلة بموافقة الطرفين.', 'شركة أروب لتأمينات الممتلكاث', 'والمسئوليات- مصر',
+].join('\n');
+
+describe('الجولة 71: عقد حقيقى تلفت عناوينه يُقيَّم نصه كله كبند واحد', () => {
+  const svc = new SegmentationService();
+  it('عقد الأتعاب كما قرأه الإنتاج: بند واحد «النص كله» بتنبيه صريح', () => {
+    const r = svc.segment(FEES_PROD);
+    expect(r.clauses.length).toBe(1);
+    expect(r.clauses[0].label).toBe(WHOLE_TEXT_LABEL);
+    expect(r.clauses[0].declaredNumber).toBeNull();
+    expect(r.clauses[0].text).toContain('سبعة آلاف وخمسمائة');
+    expect(r.warnings.some((w) => w.includes('تعذّر تقسيم العقد إلى بنود'))).toBe(true);
+  });
+  it('ملف مستندات أو نص بلا صيغة عقد أو نص أطول من الحد: يبقى صفر بنود', () => {
+    const bundle = ['تحية طيبة وبعد', 'الموضوع : توريد وتركيب مصعد', 'محضر استلام ابتدائى للمصعد', 'Cheque No. 190000 Pay this cheque', 'بطاقة الرقم القومى', 'PACKING LIST'].join('\n').padEnd(400, ' ملاحظة');
+    expect(svc.segment(bundle).clauses.length).toBe(0);
+    expect(svc.segment('نص عادى لا صيغة عقد فيه '.repeat(30)).clauses.length).toBe(0);
+    expect(svc.segment(FEES_PROD + '\n' + 'تحرر هذا العقد بين الطرفين. '.repeat(500)).clauses.length).toBe(0);
+  });
+  it('التقرير: لا «تعذّر التقسيم — لم يُستخرج أى بند» ويقول إن النص كله قُيِّم كبند واحد', () => {
+    const NOW = new Date('2026-11-08T10:00:00Z');
+    const r = buildContractAuditReport({
+      contractId: 'abcdef12-0000-0000-0000-000000000000', originalFilename: 'عقد.pdf', uploadedAt: NOW, contractType: null, clientRole: null,
+      clauses: [{ clauseIndex: 1, clauseLabel: WHOLE_TEXT_LABEL, clauseTitle: null, clauseText: 'نص', assessmentStatus: 'سليم', assessmentReasoning: null, matchedArticles: [], riskLevel: null, suggestedWording: null, lawyerVerdict: null, lawyerNotes: null }],
+      approvedAt: null, approvalNote: null, generatedAt: NOW, brand: 'شيلد',
+      extractionWarnings: ['تعذّر تقسيم العقد إلى بنود (لا ترقيم)'],
+    }).report;
+    const val = (l: string) => r.cover.rows.find((x) => x.label === l)?.value ?? '';
+    expect(val('عدد البنود')).toContain('قُيِّم النص كله');
+    expect(val('مستوى المخاطرة العام')).toContain('قُيِّم نصه كله');
+  });
+  it('تقرير صفر بنود لا يدّعى أن العقد أطول من الحد المعتمد', () => {
+    const NOW = new Date('2026-11-08T10:00:00Z');
+    const r = buildContractAuditReport({
+      contractId: 'abcdef12-0000-0000-0000-000000000000', originalFilename: 'عقد.pdf', uploadedAt: NOW, contractType: null, clientRole: null, clauses: [],
+      approvedAt: null, approvalNote: null, generatedAt: NOW, brand: 'شيلد', contractFindings: [], contractFindingsModel: 'skipped',
+    } as AuditReportInput).report;
+    const text = JSON.stringify(r.blocks);
+    expect(text).not.toContain('أطول من الحد المعتمد');
+    expect(text).toContain('لأن العقد لم يُقسَّم إلى بنود');
+  });
+});

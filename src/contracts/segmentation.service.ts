@@ -5,6 +5,11 @@ import { BARE_RE, canonicalHeading, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordi
 import { classifyDocumentKind, documentBundleWarning } from './document-kind';
 import { findForwardGap, numberingGapEvidence, numberingGapWarningText } from './numbering-gap';
 
+/** تسمية البند الوحيد حين لم يُقرأ أى ترقيم فى عقد حقيقى (الجولة 71)؛ build.ts يعرف التسمية نفسها. */
+export const WHOLE_TEXT_LABEL = 'نص العقد كله (غير مُقسَّم)';
+export const WHOLE_TEXT_MAX_CHARS = 12000;
+export const WHOLE_TEXT_MIN_CHARS = 200;
+
 export interface SegmentedClause {
   index: number;
   declaredNumber: number | null;
@@ -195,6 +200,7 @@ export class SegmentationService {
       .replace(/\r\n/g, '\n')
       .replace(/\*\*/g, '')
       .replace(/^[ \t]*#{1,6}[ \t]+/gm, '');
+    let wholeText: string | null = null;
     let heads = this.findHeads(text);
     // نمط الترقيم الأصلى («البند الأول…») لم يجد بنوداً كافية: جرّب «المادة 1» و«المادة الأولى» و«1. العنوان»
     if (heads.length < 2) {
@@ -256,6 +262,16 @@ export class SegmentationService {
       warnings.push(
         'لم يُعثَر على أى بند بترقيم مقروء (لا «البند الأول» ولا «المادة 1» ولا «1. العنوان») — قد يكون العقد بلا ترقيم صريح أصلاً. يلزم مراجعة بشرية كاملة قبل أى استخدام آلى.',
       );
+      // الجولة 71: نص عقد حقيقى (صيغة عقد مقروءة) قصير لا يُترك بلا تحليل لأن قراءته الآلية أتلفت عناوينه (عقد أتعاب ممسوح من صفحتين: «أولاً» قُرئت «ب -»
+      // و«ثانياً» قُرئت «L»): يُقيَّم نصه كله كبند واحد غير مُقسَّم بتنبيه صريح. ملف المستندات والنص الطويل جداً أو غير الواضح يبقيان بلا بنود.
+      const kind = classifyDocumentKind(text);
+      const trimmed = text.trim();
+      if (kind.kind !== 'document_bundle' && kind.contractSignals.length >= 1 && trimmed.length >= WHOLE_TEXT_MIN_CHARS && trimmed.length <= WHOLE_TEXT_MAX_CHARS) {
+        wholeText = trimmed;
+        warnings.push(
+          'تعذّر تقسيم العقد إلى بنود (لا ترقيم ولا عناوين ترتيبية مقروءة)؛ أُدرج نصه كله كبند واحد غير مُقسَّم ليخضع للتقييم، فالنتيجة عامة وحدود البنود غير دقيقة — يلزم تقسيمه ومراجعته يدوياً، ويُفضَّل رفع نسخة أوضح أو نص Word إن وُجد.',
+        );
+      }
     }
 
     const clauses: SegmentedClause[] = heads.map((h, i) => {
@@ -367,6 +383,10 @@ export class SegmentationService {
       warnings.push(
         `${emptyClauses.length} بند(بنود) بمتن شبه فارغ بعد التقسيم — مؤشر خطأ تقسيم محتمل: ${emptyClauses.map((c) => c.label).join('، ')}.`,
       );
+    }
+
+    if (clauses.length === 0 && wholeText) {
+      clauses.push({ index: 1, declaredNumber: null, label: WHOLE_TEXT_LABEL, title: null, text: wholeText });
     }
 
     const firstHead = heads[0];

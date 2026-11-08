@@ -109,6 +109,8 @@ export interface AuditContractFinding {
 const NEEDS_REVIEW = 'يحتاج مراجعة';
 /** بادئة تسمية البند الذى يُدرجه المقسِّم لنص سابق لأول عنوان مُتعرَّف (راجع SegmentationService). */
 const UNSEGMENTED_PREFIX = 'نص سابق لـ';
+/** البند الوحيد حين لم يُقرأ أى ترقيم فى عقد حقيقى (الجولة 71)، راجع SegmentationService. */
+const WHOLE_TEXT_LABEL = 'نص العقد كله (غير مُقسَّم)';
 const NO_TEXT = 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';
 const SEVERITY_ORDER: Severity[] = ['حرج', 'عالٍ', 'متوسط', 'غير مصنَّف'];
 const SEVERITY_TONE: Record<Severity, Tone> = { حرج: 'critical', عالٍ: 'high', متوسط: 'medium', 'غير مصنَّف': 'grey' };
@@ -250,7 +252,7 @@ const PRIORITY_NOTE: Record<Severity, string> = {
 function overallRisk(
   counts: Record<Severity, number>,
   findingCounts: { critical: number; high: number; medium: number; officeHigh?: number },
-  incomplete: { readCount: number; gapOnly: boolean } | null,
+  incomplete: { readCount: number; gapOnly: boolean; whole?: boolean } | null,
   noClauses = false,
 ): { text: string; tone: Tone } {
   // تقسيم غير مكتمل: غياب الملاحظات لا يدل على سلامة ما لم يُقرأ، فلا يُقدَّر مستوى «لا بنود تحتاج مراجعة» (وقع على عقد ممسوح قُرئ نصف بنوده).
@@ -278,6 +280,12 @@ function overallRisk(
       tone: 'high',
     };
   }
+  if (incomplete?.whole) {
+    return {
+      text: 'غير مُقدَّر — لم يُقسَّم العقد إلى بنود لتلف عناوينه فى القراءة الآلية، فقُيِّم نصه كله كوحدة واحدة؛ النتيجة عامة وحدود البنود غير دقيقة، وغياب الملاحظات لا يدل على خلو العقد من المخاطر (قارن بالأصل قبل التوقيع)',
+      tone: 'medium',
+    };
+  }
   if (incomplete) {
     return {
       text: incomplete.gapOnly
@@ -293,7 +301,7 @@ function overallRisk(
  * تحذيرات التقسيم التى تعنى أن بنوداً لم تُقرأ (لا مجرد خطأ ترقيم فى الأصل): نص سابق غير مقسَّم، فقرات فرعية تتجاوز عدد البنود، إحالة لبند أعلى مما قُسِّم.
  * «متن شبه فارغ» ليس منها: بند من سطر واحد («يعتبر التمهيد السابق جزءاً لا يتجزأ من هذا العقد») سليم، وكان يُنتج إنذاراً كاذباً على عقد قُرئت بنوده العشرة كلها.
  */
-const SEGMENTATION_INCOMPLETE_WARNING = /لم تُقرأ عناوين البنود السابقة|لم تُقرأ عناوينها فالتصق|يُحيل إلى "البند رقم/;
+const SEGMENTATION_INCOMPLETE_WARNING = /تعذّر تقسيم العقد إلى بنود|لم تُقرأ عناوين البنود السابقة|لم تُقرأ عناوينها فالتصق|يُحيل إلى "البند رقم/;
 /** «متوقَّع 3, وُجد 5»: قفزة (بند لم يُقرأ) لا تكرار ولا رجوع (خطأ ترقيم فى الأصل نفسه) */
 function numberingGapWarning(w: string): boolean {
   // الجولة 67: قفزة لا دليل فى النص على بنود ناقصة فيها (ترقيم العقد نفسه يقفز) ليست «تقسيماً غير مكتمل»
@@ -414,11 +422,12 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     medium: confirmedFindings.filter((f) => f.severity === 'متوسط').length,
     officeHigh: confirmedFindings.filter((f) => f.severity === 'عالٍ' && f.kind === 'office_rule').length,
   };
+  const wholeTextOnly = baseClauses.length === 1 && baseClauses[0].clauseLabel === WHOLE_TEXT_LABEL;
   const hardSegWarnings = (input.extractionWarnings ?? []).filter((w) => SEGMENTATION_INCOMPLETE_WARNING.test(w));
   const gapWarnings = (input.extractionWarnings ?? []).filter((w) => numberingGapWarning(w));
   const segIncomplete =
     unsegmentedBlocks.length > 0 || hardSegWarnings.length > 0 || gapWarnings.length > 0
-      ? { readCount: baseClauses.length, gapOnly: unsegmentedBlocks.length === 0 && hardSegWarnings.length === 0 }
+      ? { readCount: baseClauses.length, gapOnly: unsegmentedBlocks.length === 0 && hardSegWarnings.length === 0, whole: wholeTextOnly }
       : null;
   const noClauses = baseClauses.length === 0 && unsegmentedBlocks.length === 0;
   const overall = overallRisk(counts, findingCounts, segIncomplete, noClauses);
@@ -473,7 +482,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   const realCount = baseClauses.length;
   coverRows.push({
     label: 'عدد البنود',
-    value: noClauses ? 'تعذّر التقسيم — لم يُستخرج أى بند' : unsegmentedBlocks.length > 0 ? `${realCount} + نص سابق غير مُقسَّم` : String(clauses.length),
+    value: noClauses ? 'تعذّر التقسيم — لم يُستخرج أى بند' : wholeTextOnly ? 'لم يُقسَّم — قُيِّم النص كله كبند واحد' : unsegmentedBlocks.length > 0 ? `${realCount} + نص سابق غير مُقسَّم` : String(clauses.length),
     ...(noClauses ? { tone: 'high' as Tone } : {}),
   });
   const warnings = (input.extractionWarnings ?? []).filter((w) => w.trim().length > 0);
@@ -967,7 +976,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         t: 'note',
         label: 'نطاق الفحص:',
         text:
-          input.contractFindingsModel === 'skipped'
+          input.contractFindingsModel === 'skipped' && noClauses
+            ? 'لم يُجرَ فحص التعارض بين البنود لأن العقد لم يُقسَّم إلى بنود؛ وما يلى نتائج الفحوص الحتمية فقط.'
+            : input.contractFindingsModel === 'skipped'
             ? 'العقد أطول من الحد المعتمد لفحص التعارض بين البنود آلياً، فلم يُجرَ هذا الفحص؛ وما يلى نتائج الفحوص الحتمية فقط.'
             : 'تعذّر إتمام فحص التعارض بين البنود آلياً وقت المعالجة؛ وما يلى نتائج الفحوص الحتمية فقط.',
       });
