@@ -26,6 +26,9 @@ import {
   servicesAnchorArticleNumbers,
   ipAnchorArticleNumbers,
   IP_LAW,
+  ADVOCACY_LAW,
+  attorneyFeeAnchorArticleNumbers,
+  isAttorneyFeeContract,
   scopedLawsForClause,
   serializeCriteria,
 } from './criteria.util';
@@ -948,7 +951,13 @@ export class ContractsService implements OnModuleInit {
       const mergedFamily = mergedRaw.filter(inFamily);
       const merged = mergedFamily.filter(inLaw);
 
-      const anchorsRaw = await this.anchorCandidates(criteria, row.clauseText, row.clauseTitle, scopeFamily === 'services');
+      const anchorsRaw = await this.anchorCandidates(
+        criteria,
+        row.clauseText,
+        row.clauseTitle,
+        scopeFamily === 'services',
+        lawScope ? isAttorneyFeeContract(lawScope.normalizedText) : false,
+      );
       const anchors = anchorsRaw.filter(inScope);
       // الجولة 73: أعداد كل مرحلة (بلا نص البند): بحث نصى/دلالى ← دمج ← بوابة النوع ← بوابة القانون ← المراسى
       this.safeDiag(() =>
@@ -1367,18 +1376,23 @@ export class ContractsService implements OnModuleInit {
     clauseText: string,
     clauseTitle: string | null,
     contractIsServices = false,
+    attorneyFeeContract = false,
   ): Promise<ClauseCandidate[]> {
     const out: ClauseCandidate[] = [];
+    // عقود أتعاب المحاماة (الجولة 74): م82/83 من 17/1983 ومواد الوكالة بالمدنى بحسب موضوع البند
+    const fee = attorneyFeeAnchorArticleNumbers(clauseTitle, clauseText, attorneyFeeContract);
     const articleNos = Array.from(
       new Set([
         ...anchorArticleNumbers(criteria, 3),
         ...leaseAnchorArticleNumbers(clauseTitle, clauseText, 3),
         ...servicesAnchorArticleNumbers(clauseTitle, clauseText, 3, contractIsServices),
+        ...fee.civil,
       ]),
     );
     out.push(...(await this.civilCodeCandidates(articleNos)));
     const ipNos = ipAnchorArticleNumbers(clauseTitle, clauseText, 3);
     if (ipNos.length > 0) out.push(...(await this.lawArticleCandidates(IP_LAW, ipNos)));
+    if (fee.law17.length > 0) out.push(...(await this.lawArticleCandidates(ADVOCACY_LAW, fee.law17)));
     for (const scope of scopedLawsForClause(criteria, clauseTitle, clauseText)) {
       const scoped = await this.ftsCandidates(`${scope.seed ?? ''} ${clauseText}`.trim(), 2, scope);
       out.push(...scoped.map((c) => ({ ...c, source: 'anchor' as const })));

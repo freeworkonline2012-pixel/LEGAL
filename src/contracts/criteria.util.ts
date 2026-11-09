@@ -337,3 +337,57 @@ export function ipAnchorArticleNumbers(title: string | null | undefined, text: s
     max,
   );
 }
+
+/**
+ * عقود أتعاب المحاماة والوكالة بالخصومة (الجولة 74). تشخيص الجولة 73 على عقد أتعاب حقيقى: البحث النصى والدلالى لم يرجعا
+ * ولا مادة من قانون المحاماة ولا من الوكالة (كلها قوانين ضريبة/شركات/تجارى)، والمراسى كانت مواد المسئولية والتعويض فقط،
+ * فرفض النموذج كل المرشحين وخرج البندان «لا نص مفهرس» رغم أن النص الحاكم مفهرس. المراسى هنا نصها الحرفى متحقَّق منه
+ * من migrations/012 وmigrations/074:
+ * - قانون المحاماة 17/1983: م82 (حق المحامى فى الأتعاب وفق العقد، سقف 20% عند التقدير، منع الحصة العينية من الحق المتنازع عليه)،
+ *   م83 (استحقاق الأتعاب المتفق عليها عند الصلح/التحكيم، واستحقاقها إن أنهى الموكل الوكالة بلا مسوغ قبل إتمام المهمة).
+ *   لم تُربط م84 (ساقطة بحكم دستورى) ولا م85 (حالتها غير محسومة).
+ * - القانون المدنى 131/1948 فى الوكالة: 699 تعريف الوكالة، 704 عناية الوكيل (المعتاد إن كانت بأجر)، 709 الوكالة تبرعية ما لم يُتفق
+ *   على أجر والأجر خاضع لتقدير القاضى، 714 انتهاء الوكالة، 715 إنهاء الموكل لها فى أى وقت ولو خالف اتفاق (والتعويض إن كانت بأجر وبلا
+ *   مسوغ)، 716 تنازل الوكيل.
+ * التفعيل: العقد كله عقد أتعاب محاماة (محامٍ + أتعاب/موكل/توكيل/دعوى)، أو البند نفسه يجمع الأتعاب مع المحامى/الموكل/الوكيل.
+ * وهى مرشحات للتقييم فقط، لا حكم؛ يبقى القرار للنموذج بنص المادة.
+ */
+export const ADVOCACY_LAW = { lawNo: 17, lawYear: 1983 } as const;
+
+const ATTORNEY_ANY = /محام/;
+const ATTORNEY_FEE_SIGNAL = /اتعاب|موكل|توكيل|وكاله|دعوي|دعاوي|قضيه|قضايا|مرافعه|تمثيل قانوني/;
+const ATTORNEY_CLAUSE_SIGNAL = /(?:اتعاب|الاتعاب).{0,80}(?:محام|موكل|وكيل|وكاله)|(?:محام|موكل|وكيل|وكاله).{0,80}(?:اتعاب|الاتعاب)/;
+
+/** هل نص العقد كله عقد أتعاب محاماة؟ (محامٍ + أتعاب/موكل/توكيل/دعوى). يُحسب مرة واحدة لكل عقد. */
+export function isAttorneyFeeContract(contractText: string): boolean {
+  const h = normalizeArabicForMatch(contractText ?? '');
+  return matchesLoose(ATTORNEY_ANY, h) && matchesLoose(ATTORNEY_FEE_SIGNAL, h) && matchesLoose(/اتعاب|موكل|توكيل/, h);
+}
+
+const ATTORNEY_TOPICS: ReadonlyArray<{ pattern: RegExp; law17: number[]; civil: number[] }> = [
+  { pattern: /اتعاب|اجر|مقابل|مبلغ|سداد|يسدد|دفعه|دفعات|مقدم|مصروفات|رسوم|نجاح|حصه|نسبه/, law17: [82], civil: [709] },
+  { pattern: /انهاء|فسخ|الغاء|عزل|تنازل|انسحاب|وقف|صلح|تحكيم|دون مسوغ|بدون مسوغ|قبل (?:ال)?انتهاء|اتمام المهمه/, law17: [83], civil: [715, 716] },
+  { pattern: /مده|سنه|سنوات|اشهر|شهر|تجديد|يجدد|ينتهي|سريان/, law17: [], civil: [714] },
+  { pattern: /مسئوليه|مسوليه|تقصير|اهمال|عنايه|خطا|ضمان|التزام|بذل/, law17: [], civil: [704] },
+  { pattern: /وكاله|توكيل|تمثيل|اعمال المحاماه|نطاق|قضيه|دعوي/, law17: [], civil: [699] },
+];
+
+/**
+ * مراسى بند فى عقد أتعاب محاماة: مواد من قانون المحاماة (حتى 2) ومن الوكالة بالمدنى (حتى 3) بحسب موضوع البند.
+ * `attorneyFeeContract` حكم العقد كله (isAttorneyFeeContract). بند بلا موضوع مطابق فى عقد أتعاب يأخذ م82 من قانون المحاماة وم704 المدنية كأساس.
+ */
+export function attorneyFeeAnchorArticleNumbers(
+  title: string | null | undefined,
+  text: string,
+  attorneyFeeContract: boolean,
+): { law17: number[]; civil: number[] } {
+  const haystack = normalizeArabicForMatch(`${title ?? ''} ${text ?? ''}`);
+  const active = attorneyFeeContract || matchesLoose(ATTORNEY_CLAUSE_SIGNAL, haystack);
+  if (!active) return { law17: [], civil: [] };
+  const hits = ATTORNEY_TOPICS.filter((t) => matchesLoose(t.pattern, haystack));
+  if (hits.length === 0) return attorneyFeeContract ? { law17: [82], civil: [704] } : { law17: [], civil: [] };
+  return {
+    law17: roundRobinArticles(hits.map((t) => [...t.law17]), 2),
+    civil: roundRobinArticles(hits.map((t) => [...t.civil]), 3),
+  };
+}
