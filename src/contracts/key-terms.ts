@@ -29,6 +29,11 @@ export interface KeyTerm {
   fromWords: boolean;
   /** تنبيه إن كانت القراءة الآلية مشكوكاً فيها (مثل رمز % مقروء 96)؛ تُعرض القيمة مع التنبيه ولا تُعتمد دون مطابقة الأصل */
   suspect?: string;
+  /**
+   * الجولة 79: قيمة مقروءة بالأرقام من نسخة ممسوحة ضوئياً (OCR) ولم تؤيدها كتابتها بالحروف: Tesseract لا يُعتمد على قراءته للأرقام العربية-الهندية
+   * (750 قُرئت 76,560 و10% قُرئت 9011 فى إنتاج عقد الأتعاب). تُعرض «غير موثَّق—قراءة آلية» ولا يتغير حساب جدول الدفعات ولا حكم أى بند.
+   */
+  ocrUnverified?: boolean;
   /** عدد مرات ورود الشرط نفسه فى الاقتباس نفسه (يظهر فى الجدول مرة واحدة؛ يحتاجه فحص مجموع الدفعات: 30% مرتين = دفعتان) */
   occurrences?: number;
 }
@@ -229,6 +234,8 @@ interface Hit {
   conflict?: { digits: number | null; words: number };
   /** المقروء بالحروف جزء من عدد أكبر لم يُقرأ كله (بدايته مشوّهة أو فى صفحة سابقة): لا يُعرض مبلغاً مستقلاً ولا يُقدَّم على الرقم */
   partial?: boolean;
+  /** الرقم المقروء طابق كتابته بالحروف المجاورة له (قراءتان مستقلتان متفقتان) */
+  wordsConfirmed?: boolean;
 }
 
 /** وصف التعارض بين رقم المبلغ وكتابته بالحروف: يُعرض مع القيمة فى الجدول وفى تنبيهات العقد. */
@@ -304,6 +311,7 @@ function reconcileAmounts(text: string, hits: Hit[], garbled: Array<{ pos: numbe
       replaced.set(wh, { ...wh, suspect: conflictNote(digits, wh.amount), conflict: { digits, words: wh.amount } });
     } else if (d.hit.amount === wh.amount) {
       drop.add(wh);
+      replaced.set(d.hit, { ...d.hit, wordsConfirmed: true });
     } else {
       drop.add(wh);
       replaced.set(d.hit, {
@@ -335,6 +343,7 @@ function scan(rawText: string): Hit[] {
     let spanEnd = (m.index ?? 0) + m[0].length;
     const n = Number(m[1].replace(/[,٬]/g, ''));
     if (!Number.isFinite(n)) continue;
+    let confirmedByWords = false;
     if (!curMatch) {
       // الرقم ثم كتابته بالحروف (قد يضيع القوس الافتتاحى فى المسح): «1125000 ) مليون ومائة … ألف جنيه»
       const tail = amountWordsTail(text, spanEnd);
@@ -377,6 +386,7 @@ function scan(rawText: string): Hit[] {
       }
       curMatch = tail.currency;
       spanEnd = tail.end;
+      if (tail.words !== null && tail.words === n) confirmedByWords = true;
       if (tail.words !== null && tail.words >= 100 && tail.words !== n) {
         const cur0 = /دولار/.test(curMatch) ? 'دولار' : /يورو/.test(curMatch) ? 'يورو' : /ريال/.test(curMatch) ? 'ريال' : /درهم/.test(curMatch) ? 'درهم' : 'جنيه';
         hits.push({
@@ -406,8 +416,11 @@ function scan(rawText: string): Hit[] {
       if (w !== null && w >= 100 && w !== n) {
         hit.suspect = conflictNote(n, w);
         hit.conflict = { digits: n, words: w };
+      } else if (w !== null && w === n) {
+        confirmedByWords = true;
       }
     }
+    if (confirmedByWords && !hit.suspect) hit.wordsConfirmed = true;
     hits.push(hit);
     amountSpans.push([m.index ?? 0, spanEnd]);
   }
@@ -590,7 +603,7 @@ function scanAll(texts: string[]): Hit[][] {
 }
 
 /** الشروط الرئيسية لكل البنود بترتيب ورودها، بلا تكرار، بحد أقصى. */
-export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
+export function extractKeyTerms(clauses: KeyTermClause[], opts: { ocrRead?: boolean } = {}): KeyTerm[] {
   const out: KeyTerm[] = [];
   const seen = new Map<string, KeyTerm>();
   const ordered = [...clauses].sort((a, b) => a.clauseIndex - b.clauseIndex);
@@ -614,6 +627,7 @@ export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
         quote,
         fromWords: h.fromWords,
         ...(h.suspect ? { suspect: h.suspect } : {}),
+        ...(opts.ocrRead && !h.fromWords && !h.suspect && !h.wordsConfirmed ? { ocrUnverified: true } : {}),
       };
       seen.set(key, term);
       out.push(term);
@@ -622,6 +636,11 @@ export function extractKeyTerms(clauses: KeyTermClause[]): KeyTerm[] {
   }
   return out;
 }
+
+/** الجولة 79: وسم الجدول كله حين كانت قراءة العقد آلية (OCR) — ما قُرئ بالأرقام ولم يؤيده نص بالحروف. */
+export const OCR_UNVERIFIED_LABEL = 'غير موثَّق—قراءة آلية';
+export const OCR_UNVERIFIED_NOTE =
+  'القيم الموسومة «غير موثَّق—قراءة آلية» مقروءة آلياً من نسخة ممسوحة ضوئياً بلا مطابقة بالحروف؛ الأرقام العربية-الهندية تُقرأ آلياً بلا ثقة (قد يُقرأ 750 «76,560» و10% «9011») — طابقه بالأصل قبل الاعتماد.';
 
 /**
  * تنبيهات على مستوى العقد للمبالغ التى تعارض فيها الرقم المقروء مع المكتوب بالحروف (أو تلف الرقم). تتخطى ما سبق أن نبّه عليه

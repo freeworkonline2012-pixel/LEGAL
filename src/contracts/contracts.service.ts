@@ -29,6 +29,7 @@ import {
   ADVOCACY_LAW,
   attorneyFeeAnchorArticleNumbers,
   contractContextFor,
+  ATTORNEY_FEE_CONTRACT_LABEL,
   isAttorneyFeeContract,
   scopedLawsForClause,
   serializeCriteria,
@@ -429,7 +430,13 @@ export class ContractsService implements OnModuleInit {
           clauses: clauseRows.map((c) => ({ clauseTitle: c.clauseTitle, clauseText: c.clauseText })),
           fileName: contract.originalFilename,
         });
-    const inferredType = resolved && resolved.family !== 'unknown' ? FAMILY_NAME[resolved.family] : null;
+    // الجولة 79: عقد أتعاب محاماة يُعلَن «عقد أتعاب محاماة» لا «خدمات أو مقاولة أو توريد» (الدليل التفاوضى يبقى فى عائلة الخدمات)
+    const inferredType =
+      resolved && resolved.family !== 'unknown'
+        ? resolved.family === 'services' && isAttorneyFeeContract(extraction.text)
+          ? ATTORNEY_FEE_CONTRACT_LABEL
+          : FAMILY_NAME[resolved.family]
+        : null;
     contract.contractFindings = {
       ...level,
       parties: partyNames,

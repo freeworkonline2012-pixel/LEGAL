@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { STANDARD_DISCLAIMER } from '../document-model';
-import { extractKeyTerms, KEY_TERM_KIND_LABEL, type KeyTerm } from '../../contracts/key-terms';
+import { extractKeyTerms, KEY_TERM_KIND_LABEL, OCR_UNVERIFIED_LABEL, OCR_UNVERIFIED_NOTE, type KeyTerm } from '../../contracts/key-terms';
 import { buildPaymentSchedules, formatMoney, formatPercent } from '../../contracts/payment-schedule';
 import type { AuditReport, Cell, RBlock, Tone } from './model';
 
@@ -121,7 +121,8 @@ export function buildClientAuditReport(ctx: ClientContext): AuditReport {
   }
 
   // 3) المبالغ والمواعيد
-  const terms = extractKeyTerms(ctx.clauses);
+  const ocrRead = ctx.warnings.some((w) => w.includes('OCR'));
+  const terms = extractKeyTerms(ctx.clauses, { ocrRead });
   const schedules = buildPaymentSchedules(terms);
   const listed = listTerms(terms, ['amount', 'duration', 'date']);
   if (schedules.length > 0 || listed.length > 0) {
@@ -154,9 +155,10 @@ export function buildClientAuditReport(ctx: ClientContext): AuditReport {
         t: 'grid',
         columns: ['النوع', 'القيمة', 'فى'],
         widths: [18, 52, 30],
-        rows: listed.map((t): Cell[] => [{ text: KEY_TERM_KIND_LABEL[t.kind], tone: 'info', center: true }, { text: t.fromWords ? `${t.value} (مكتوبة بالحروف)` : t.value, bold: true }, { text: t.clauseLabel, center: true }]),
+        rows: listed.map((t): Cell[] => [{ text: KEY_TERM_KIND_LABEL[t.kind], tone: 'info', center: true }, { text: t.ocrUnverified ? `${t.value} (${OCR_UNVERIFIED_LABEL})` : t.fromWords ? `${t.value} (مكتوبة بالحروف)` : t.value, bold: true }, { text: t.clauseLabel, center: true }]),
       });
       blocks.push({ t: 'p', size: 'small', text: 'القيم مستخرجة آلياً من نص الملف؛ طابقها على الأصل الموقَّع قبل الاعتماد عليها.' });
+      if (listed.some((t) => t.ocrUnverified)) blocks.push({ t: 'p', size: 'small', text: OCR_UNVERIFIED_NOTE });
     }
   }
 

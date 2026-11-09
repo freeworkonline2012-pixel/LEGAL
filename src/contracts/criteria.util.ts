@@ -371,6 +371,12 @@ const ATTORNEY_ANY = /محام/;
 const ATTORNEY_FEE_SIGNAL = /اتعاب|موكل|توكيل|وكاله|دعوي|دعاوي|قضيه|قضايا|مرافعه|تمثيل قانوني/;
 const ATTORNEY_CLAUSE_SIGNAL = /(?:اتعاب|الاتعاب).{0,80}(?:محام|موكل|وكيل|وكاله)|(?:محام|موكل|وكيل|وكاله).{0,80}(?:اتعاب|الاتعاب)/;
 
+/**
+ * الجولة 79: تسمية نوع العقد على الغلاف حين يكون عقد أتعاب محاماة. لا تحوى «وكالة» عمداً (contractFamily يقرأها agency قبل services)، وتبقى فى عائلة
+ * الخدمات فيبقى الدليل التفاوضى كما هو، فالتغيير فى ما يُقرأ على الغلاف لا فى نوع الدليل.
+ */
+export const ATTORNEY_FEE_CONTRACT_LABEL = 'عقد أتعاب محاماة';
+
 /** هل نص العقد كله عقد أتعاب محاماة؟ (محامٍ + أتعاب/موكل/توكيل/دعوى). يُحسب مرة واحدة لكل عقد. */
 export function isAttorneyFeeContract(contractText: string): boolean {
   const h = normalizeArabicForMatch(contractText ?? '');

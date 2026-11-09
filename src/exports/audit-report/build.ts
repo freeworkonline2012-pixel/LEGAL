@@ -1,7 +1,7 @@
 import { createHash } from 'crypto';
 import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortReference } from '../document-model';
 import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
-import { extractKeyTerms, KEY_TERM_KIND_LABEL, type KeyTerm } from '../../contracts/key-terms';
+import { extractKeyTerms, KEY_TERM_KIND_LABEL, OCR_UNVERIFIED_LABEL, OCR_UNVERIFIED_NOTE, type KeyTerm } from '../../contracts/key-terms';
 import { isBenignNumberingGapWarning } from '../../contracts/numbering-gap';
 import { groupKeyTerms } from './key-terms-display';
 import { buildPlaybook, type PlaybookResult } from '../../contracts/playbook';
@@ -691,7 +691,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
 
   // ---------- الشروط الرئيسية ----------
   {
-    const terms = extractKeyTerms(clauses);
+    const terms = extractKeyTerms(clauses, { ocrRead });
     banner('الشروط الرئيسية للعقد');
     if (terms.length === 0) {
       blocks.push({ t: 'p', text: 'لم تُستخرج مبالغ أو نسب أو مدد أو تواريخ من نص العقد بالقراءة الآلية.' });
@@ -709,16 +709,19 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
         // صف لكل مقطع من العقد: القيم المتجاورة فى المقطع نفسه معاً (لا يتكرر النص)، وما قُرئ بالأرقام والحروف معاً يُعرض مرة
         rows: groupKeyTerms(terms).map((row) => {
           const label = (t: KeyTerm): string =>
-            (t.suspect ? `${t.value} (؟ يلزم التحقق)` : t.fromWords ? `${t.value} (بالحروف)` : t.value) + ((t.occurrences ?? 1) > 1 ? ` — ترد ${t.occurrences} مرات فى النص` : '');
+            (t.suspect ? `${t.value} (؟ يلزم التحقق)` : t.ocrUnverified ? `${t.value} (${OCR_UNVERIFIED_LABEL})` : t.fromWords ? `${t.value} (بالحروف)` : t.value) + ((t.occurrences ?? 1) > 1 ? ` — ترد ${t.occurrences} مرات فى النص` : '');
           const notes = row.terms.filter((t) => t.suspect).map((t) => `ملاحظة المنصة (ليست من نص العقد): ${t.suspect}`);
           return [
             { text: row.terms.map((t) => KEY_TERM_KIND_LABEL[t.kind]).join('\n'), tone: 'info' as Tone, center: true },
-            { text: row.terms.map(label).join('\n'), bold: true, ...(row.terms.some((t) => t.suspect) ? { tone: 'medium' as Tone } : {}) },
+            { text: row.terms.map(label).join('\n'), bold: true, ...(row.terms.some((t) => t.suspect || t.ocrUnverified) ? { tone: 'medium' as Tone } : {}) },
             { text: row.clauseLabel, center: true },
             { text: [row.quote, ...notes].join('\n') },
           ];
         }),
       });
+      if (terms.some((t) => t.ocrUnverified)) {
+        blocks.push({ t: 'note', label: 'تنبيه:', text: OCR_UNVERIFIED_NOTE });
+      }
       // جدول الدفعات وفحص مجموعها (الجولة 34): حساب حتمى من النسب والمبلغ المقروءين، إنذار لا حكم
       for (const sch of buildPaymentSchedules(terms)) {
         blocks.push({ t: 'h3', text: `جدول الدفعات المستخرج — ${sch.clauseLabel}`, rule: true });

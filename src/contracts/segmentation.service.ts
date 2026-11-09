@@ -274,9 +274,11 @@ export class SegmentationService {
     this.logger.log(
       `segmentation heads: literal=${heads.length} aligned=${aligned.length} alignedNumbers=${aligned.map((h) => h.declaredNumber).join(',')}`,
     );
+    let headingLinesLogged = false;
     if (heads.length < 4 || aligned.length > heads.length) {
       // عقد قليل العناوين المقروءة (غالباً ممسوح): تُسجَّل الأسطر الشبيهة بعنوان فقط (≤ 34 حرفاً) لمعرفة سبب ما فاتنا
       this.logger.log(`segmentation heading-like lines: ${describeHeadingCandidates(text).join(' | ')}`);
+      headingLinesLogged = true;
     }
     if (aligned.length >= 3 && aligned.length <= heads.length) {
       // الجولة 77: الكاشف الحرفى وجد عدداً مساوياً أو أكبر لكنه أسقط رقماً قرأته المطابقة التقريبية («البنك السادس») بينما التقط الحرفى رقماً لم تلتقطه هى
@@ -399,6 +401,14 @@ export class SegmentationService {
     // فقط) — بند مفقود أو مكرر مؤشر خطأ تقسيم أو خطأ فى العقد الأصلى نفسه،
     // وفى الحالتين يستحق تنبيهاً صريحاً بدل تمريره بصمت.
     const declared = clauses.map((c) => c.declaredNumber).filter((n): n is number => n !== null);
+    // الجولة 79: قفزة فى الترقيم المُعلَن (عنوان «البند الخامس» ما زال ملتصقاً بالرابع فى إنتاج عقد الأتعاب) ولم يُسجَّل شىء لأن عدد العناوين ≥ 4:
+    // تُسجَّل الأسطر الشبيهة بعنوان لمعرفة كيف قُرئ العنوان الناقص فعلاً (تشخيص فقط، لا يغيّر التقسيم)
+    const forwardGap = findForwardGap(declared);
+    if (forwardGap && !headingLinesLogged) {
+      this.logger.log(
+        `segmentation numbering gap: missing=${forwardGap.missing.join(',')} declared=${declared.join(',')} heading-like lines: ${describeHeadingCandidates(text).join(' | ')}`,
+      );
+    }
     for (let i = 0; i < declared.length; i++) {
       if (declared[i] !== i + 1) {
         // قفزة إلى الأمام: تُفحص أدلة النقص فى النص (إحالة/فقرات فرعية/بند متضخم)؛ التكرار والرجوع يبقيان بصيغتهما (الجولة 67)
