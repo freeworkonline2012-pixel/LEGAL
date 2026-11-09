@@ -61,12 +61,12 @@ export interface ReadDocumentResult {
   usedOcr: boolean;
   warnings: string[];
   /** تشخيص القراءة الآلية (أعداد فقط)، موجود فقط إن استُعملت القراءة الآلية. */
-  ocr?: { pages: number; truncated: boolean; pageChars: number[] };
+  ocr?: { pages: number; truncated: boolean; pageChars: number[]; vision?: { attempted: number; adopted: number } };
 }
 
 /**
  * قارئ المستندات المشترك: بصمة الملف ← استخراج النص ← بديل القراءة الآلية (OCR) للممسوح/التالف/المعكوس.
- * يُستعمل فى تحليل مستند الاستيضاح وفى الترجمة القانونية؛ لا يُخزّن شيئاً ولا يُرسل شيئاً لأى جهة خارجية.
+ * يُستعمل فى تحليل مستند الاستيضاح وفى الترجمة القانونية؛ لا يُخزّن شيئاً؛ ولا يُرسل صور الصفحات لأى جهة خارجية إلا إن فُعِّلت قراءة الرؤية صراحةً (OCR_VISION_ENABLED، مغلقة افتراضياً).
  */
 @Injectable()
 export class DocumentReaderService {
@@ -153,9 +153,20 @@ export class DocumentReaderService {
       }
       warnings.push(`قُرئت أول ${maxPages} صفحات فقط من المستند.`);
     }
+    // الجولة 78: إن قُرئت صفحات بنموذج الرؤية يُنبَّه صراحةً (النسخ بنموذج لا يُغنى عن مطابقة الأرقام بالأصل)
+    if (r.vision && r.vision.adopted > 0) {
+      warnings.push(
+        `قُرئت ${r.vision.adopted} من ${r.pages} صفحة بنموذج رؤية لتحسين دقة الأرقام والعناوين؛ ما زال لازماً مطابقة المبالغ والنسب والتواريخ بالأصل قبل أى اعتماد.`,
+      );
+    }
     return {
       text: r.text,
-      info: { pages: r.pages, truncated: r.truncatedPages, pageChars: r.pageChars ?? [] },
+      info: {
+        pages: r.pages,
+        truncated: r.truncatedPages,
+        pageChars: r.pageChars ?? [],
+        ...(r.vision ? { vision: { attempted: r.vision.attempted, adopted: r.vision.adopted } } : {}),
+      },
     };
   }
 }

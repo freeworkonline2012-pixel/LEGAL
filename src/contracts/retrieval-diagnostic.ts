@@ -172,6 +172,8 @@ export interface OcrStageDiag {
   truncated: boolean | null;
   /** أحرف غير بيضاء لكل صفحة بعد القراءة الآلية (أعداد فقط، بلا نص) */
   pageChars: number[];
+  /** الجولة 78: صفحات قُرئت بنموذج الرؤية (أعداد فقط)؛ غائب = لم تُفعَّل */
+  vision?: { attempted: number; adopted: number };
 }
 
 /** الجولة 75: هل الـ1,039 حرفاً هى العقد كله أم قراءة مقطوعة؟ صفحات الملف وأحرف كل صفحة. */
@@ -179,6 +181,7 @@ export function formatOcrStage(d: OcrStageDiag): string {
   const per = d.pageChars.slice(0, 80).join(',');
   return (
     `[retrieval-diag] stage=ocr contract=${d.contractId} firstExtraction=${d.firstStatus}/${d.firstChars} usedOcr=${d.usedOcr} ` +
-    `pages=${d.pages ?? '-'} truncated=${d.truncated ?? '-'} pageChars=[${per}]`
+    `pages=${d.pages ?? '-'} truncated=${d.truncated ?? '-'} pageChars=[${per}]` +
+    (d.vision ? ` vision=${d.vision.adopted}/${d.vision.attempted}` : '')
   );
 }

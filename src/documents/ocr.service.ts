@@ -5,6 +5,7 @@ import { tmpdir } from 'os';
 import * as path from 'path';
 import { join } from 'path';
 import { promisify } from 'util';
+import { VisionOcrService, type VisionApplyStats } from './vision-ocr.service';
 import { insertLinesByPosition, linesToText, OcrLine, parseTsvLines } from './ocr-recovery.util';
 
 const execFileAsync = promisify(execFile);
@@ -61,7 +62,7 @@ export interface OcrRecognizeOptions {
 }
 
 export type OcrOutcome =
-  | { status: 'ok'; text: string; pages: number; truncatedPages: boolean; pageChars?: number[] }
+  | { status: 'ok'; text: string; pages: number; truncatedPages: boolean; pageChars?: number[]; vision?: VisionApplyStats }
   | { status: 'unavailable' }
   | { status: 'error'; detail: string };
 
@@ -79,6 +80,8 @@ export class OcrService {
   private readonly lang = process.env.OCR_LANGS ?? 'ara+eng';
   /** مجلد نموذج لغة ثانٍ (ara «fast» + eng) يُقرأ به كل صفحة قراءة إضافية؛ الغائب = لا قراءة إضافية */
   private readonly altTessdata = process.env.OCR_TESSDATA_ALT?.trim() || null;
+  /** الجولة 78: قراءة رؤية اختيارية (مغلقة افتراضياً)؛ انظر vision-ocr.service.ts */
+  private readonly vision = new VisionOcrService();
   private availability: Promise<boolean> | null = null;
   private altAvailability: Promise<boolean> | null = null;
   private active = 0;
@@ -360,6 +363,14 @@ export class OcrService {
             (await this.isAltAvailable()) ? lows : undefined,
           );
         }
+        // الجولة 78: قراءة الرؤية (إن فُعِّلت) تستبدل نص الصفحة المقبول فقط؛ الفاشل أو المشكوك فيه يبقى Tesseract
+        const vision = this.vision.isEnabled
+          ? await this.vision.improvePages(
+              used.map((f) => join(dir as string, f)),
+              texts,
+              deadline,
+            )
+          : undefined;
         return {
           status: 'ok',
           text: texts.join('\n\n'),
@@ -367,12 +378,15 @@ export class OcrService {
           truncatedPages: pages.length > maxPages,
           // الجولة 75 (تشخيص): أحرف غير بيضاء لكل صفحة، أعداد فقط
           pageChars: texts.map((t) => t.replace(/\s+/g, '').length),
+          ...(vision ? { vision } : {}),
         };
       }
       const imgPath = join(dir, kind === 'png' ? 'in.png' : 'in.jpg');
       await writeFile(imgPath, buffer, { mode: 0o600 });
-      const text = await this.recognizeFile(imgPath);
-      return { status: 'ok', text, pages: 1, truncatedPages: false, pageChars: [text.replace(/\s+/g, '').length] };
+      const texts = [await this.recognizeFile(imgPath)];
+      const vision = this.vision.isEnabled ? await this.vision.improvePages([imgPath], texts, deadline) : undefined;
+      const text = texts[0];
+      return { status: 'ok', text, pages: 1, truncatedPages: false, pageChars: [text.replace(/\s+/g, '').length], ...(vision ? { vision } : {}) };
     } catch (err) {
       this.logger.warn(`OCR failed: ${(err as Error).message.slice(0, 200)}`);
       return { status: 'error', detail: (err as Error).message.slice(0, 200) };

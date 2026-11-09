@@ -263,7 +263,7 @@ export class ContractsService implements OnModuleInit {
     const uploadWarnings: string[] = [];
     // الجولة 75 (تشخيص بلا نص): ما قاله الاستخراج الأول وما أعطته القراءة الآلية لكل صفحة
     const firstExtraction = { status: extraction.status as string, chars: extraction.status === 'ok' ? extraction.text.length : 0 };
-    let ocrDiag: { pages: number; truncated: boolean; pageChars: number[] } | null = null;
+    let ocrDiag: { pages: number; truncated: boolean; pageChars: number[]; vision?: { attempted: number; adopted: number } } | null = null;
 
     // PDF ممسوح ضوئياً (صور بلا نص) أو بترميز تالف/معكوس: القراءة الآلية (OCR) لصور الصفحات هى الحل الجذرى
     // بدل رفض العقد. النص المقروء آلياً قد يخطئ فى الأرقام والمبالغ والتواريخ والأسماء والخط اليدوى، فيُنبَّه
@@ -338,6 +338,7 @@ export class ContractsService implements OnModuleInit {
         pages: ocrDiag?.pages ?? null,
         truncated: ocrDiag?.truncated ?? null,
         pageChars: ocrDiag?.pageChars ?? [],
+        ...(ocrDiag?.vision ? { vision: ocrDiag.vision } : {}),
       }),
     );
     progress({ stage: 'segmenting', done: 0, total: 0 });

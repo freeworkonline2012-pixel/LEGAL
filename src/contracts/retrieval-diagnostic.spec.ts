@@ -86,3 +86,11 @@ describe('retrieval-diagnostic (round 73)', () => {
     ).toContain('firstExtraction=ok/1109 usedOcr=false pages=- truncated=- pageChars=[]');
   });
 });
+
+describe('round 78: stage=ocr يحمل إحصاء الرؤية (أعداد فقط)', () => {
+  it('مع الرؤية: vision=مقبول/مجرَّب؛ وبدونها لا لاحقة', () => {
+    const base = { contractId: 'c1', firstStatus: 'empty', firstChars: 0, usedOcr: true, pages: 4, truncated: false, pageChars: [900, 800, 900, 700] };
+    expect(formatOcrStage({ ...base, vision: { attempted: 4, adopted: 3 } })).toContain('vision=3/4');
+    expect(formatOcrStage(base)).not.toContain('vision=');
+  });
+});
