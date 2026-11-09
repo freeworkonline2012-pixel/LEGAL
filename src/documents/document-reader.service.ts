@@ -60,6 +60,8 @@ export interface ReadDocumentResult {
   type: SniffedType;
   usedOcr: boolean;
   warnings: string[];
+  /** تشخيص القراءة الآلية (أعداد فقط)، موجود فقط إن استُعملت القراءة الآلية. */
+  ocr?: { pages: number; truncated: boolean; pageChars: number[] };
 }
 
 /**
@@ -81,13 +83,18 @@ export class DocumentReaderService {
     const warnings: string[] = [];
     let text = '';
     let usedOcr = false;
+    let ocrInfo: ReadDocumentResult['ocr'];
 
     if (type === 'png' || type === 'jpeg') {
       const dim = imageDimensions(buffer, type);
       if (!dim || dim.width * dim.height > MAX_IMAGE_PIXELS) {
         throw new BadRequestException('أبعاد الصورة غير صالحة أو كبيرة جداً — صوّر المستند بدقة أقل.');
       }
-      text = await this.runOcr(buffer, type, warnings, options);
+      {
+        const o = await this.runOcr(buffer, type, warnings, options);
+        text = o.text;
+        ocrInfo = o.info;
+      }
       usedOcr = true;
     } else {
       const extracted = await this.extraction.extract(
@@ -103,7 +110,9 @@ export class DocumentReaderService {
         (visualOrder || extracted.status === 'empty' || extracted.status === 'corrupted_encoding')
       ) {
         // PDF ممسوح ضوئياً أو بترميز تالف: القراءة الآلية للصفحات هى الحل الجذرى
-        text = await this.runOcr(buffer, 'pdf', warnings, options);
+        const o = await this.runOcr(buffer, 'pdf', warnings, options);
+        text = o.text;
+        ocrInfo = o.info;
         usedOcr = true;
       } else {
         throw new UnprocessableEntityException(
@@ -115,7 +124,7 @@ export class DocumentReaderService {
     if (text.replace(/\s+/g, '').length < (options.minChars ?? 20)) {
       throw new UnprocessableEntityException(options.messages.tooLittleText);
     }
-    return { text, type, usedOcr, warnings };
+    return { text, type, usedOcr, warnings, ...(ocrInfo ? { ocr: ocrInfo } : {}) };
   }
 
   private async runOcr(
@@ -123,7 +132,7 @@ export class DocumentReaderService {
     kind: 'pdf' | 'png' | 'jpeg',
     warnings: string[],
     options: ReadDocumentOptions,
-  ): Promise<string> {
+  ): Promise<{ text: string; info: NonNullable<ReadDocumentResult['ocr']> }> {
     const maxPages = options.ocrMaxPages ?? OCR_MAX_PAGES;
     const r = await (options.ocrPageScore || options.ocrRecoverMissing || options.ocrMaxPages || options.onOcrProgress
         ? this.ocr.recognize(buffer, kind, {
@@ -144,6 +153,9 @@ export class DocumentReaderService {
       }
       warnings.push(`قُرئت أول ${maxPages} صفحات فقط من المستند.`);
     }
-    return r.text;
+    return {
+      text: r.text,
+      info: { pages: r.pages, truncated: r.truncatedPages, pageChars: r.pageChars ?? [] },
+    };
   }
 }

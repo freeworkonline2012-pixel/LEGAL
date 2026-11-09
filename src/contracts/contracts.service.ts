@@ -53,6 +53,7 @@ import { articleInLawScope, lawScopeContext, type LawScopeContext } from './law-
 import {
   formatClauseOutcome,
   formatContractShape,
+  formatOcrStage,
   formatRetrievalStage,
   idList,
   textShape,
@@ -259,6 +260,9 @@ export class ContractsService implements OnModuleInit {
     const progress = this.progressOf(contract.id);
     let extraction = await this.extractionService.extract(file.buffer, file.mimetype, file.originalname);
     const uploadWarnings: string[] = [];
+    // الجولة 75 (تشخيص بلا نص): ما قاله الاستخراج الأول وما أعطته القراءة الآلية لكل صفحة
+    const firstExtraction = { status: extraction.status as string, chars: extraction.status === 'ok' ? extraction.text.length : 0 };
+    let ocrDiag: { pages: number; truncated: boolean; pageChars: number[] } | null = null;
 
     // PDF ممسوح ضوئياً (صور بلا نص) أو بترميز تالف/معكوس: القراءة الآلية (OCR) لصور الصفحات هى الحل الجذرى
     // بدل رفض العقد. النص المقروء آلياً قد يخطئ فى الأرقام والمبالغ والتواريخ والأسماء والخط اليدوى، فيُنبَّه
@@ -302,6 +306,7 @@ export class ContractsService implements OnModuleInit {
             : {}),
         });
         extraction = { status: 'ok', text: read.text };
+        ocrDiag = read.ocr ?? null;
         uploadWarnings.push(
           'قُرئ هذا العقد آلياً من صور ممسوحة ضوئياً (OCR). قد تحتوى القراءة أخطاء، خصوصاً فى الأرقام والمبالغ والتواريخ والأسماء والخط اليدوى والأختام، وقد يفوت التقسيم بعض البنود. قارن كل بند بالأصل قبل أى اعتماد، ويُفضَّل رفع نسخة Word أو PDF نصى إن وُجدت.',
         );
@@ -323,6 +328,17 @@ export class ContractsService implements OnModuleInit {
       return this.toResponseDto(contract, [], []);
     }
 
+    this.safeDiag(() =>
+      formatOcrStage({
+        contractId: contract.id,
+        firstStatus: firstExtraction.status,
+        firstChars: firstExtraction.chars,
+        usedOcr: ocrDiag !== null,
+        pages: ocrDiag?.pages ?? null,
+        truncated: ocrDiag?.truncated ?? null,
+        pageChars: ocrDiag?.pageChars ?? [],
+      }),
+    );
     progress({ stage: 'segmenting', done: 0, total: 0 });
     const segmentation = this.segmentationService.segment(extraction.text);
     // الجولة 73: تشخيص بلا نص العقد (أعداد فقط) — هل القراءة الآلية قصيرة/مشوهة؟ وكم طول كل بند؟
@@ -1122,7 +1138,7 @@ export class ContractsService implements OnModuleInit {
           topCandidates: topCandidates.length,
           selected: sel,
           assessmentStatus: row.assessmentStatus,
-          topIds: idList(topCandidates.map((c) => c.citation)),
+          topIds: idList(topCandidates.map((c) => c.citation), 8),
         });
       });
 

@@ -98,7 +98,7 @@ export function formatRetrievalStage(d: ClauseRetrievalDiag): string {
     `ftsTokens=${d.ftsTokens} fts=${d.fts.length} semConfigured=${d.semConfigured} sem=${d.sem.length} ` +
     `merged=${d.merged.length} droppedByFamily=${famDropped} droppedByLawScope=${lawDropped} kept=${d.afterLawScope.length} ` +
     `anchorsRaw=${d.anchorsRaw.length} anchorsKept=${d.anchorsKept.length} ` +
-    `ftsLaws=${lawCounts(d.fts)} semLaws=${lawCounts(d.sem)} droppedLaws=${droppedLaws} anchorIds=${idList(d.anchorsKept)}`
+    `ftsLaws=${lawCounts(d.fts)} semLaws=${lawCounts(d.sem)} droppedLaws=${droppedLaws} anchorsRawIds=${idList(d.anchorsRaw, 24)} anchorIds=${idList(d.anchorsKept, 24)}`
   );
 }
 
@@ -133,5 +133,26 @@ export function formatContractShape(d: ContractShapeDiag): string {
   return (
     `[retrieval-diag] stage=contract contract=${d.contractId} ${formatShape(d.extraction)} clauses=${d.clauseCount} ` +
     `preambleChars=${d.preambleChars} clauseChars=[${lens}]`
+  );
+}
+
+export interface OcrStageDiag {
+  contractId: string;
+  /** حالة الاستخراج الأول للملف (ok | empty | corrupted_encoding ...) وعدد أحرفه قبل أى قراءة آلية */
+  firstStatus: string;
+  firstChars: number;
+  usedOcr: boolean;
+  pages: number | null;
+  truncated: boolean | null;
+  /** أحرف غير بيضاء لكل صفحة بعد القراءة الآلية (أعداد فقط، بلا نص) */
+  pageChars: number[];
+}
+
+/** الجولة 75: هل الـ1,039 حرفاً هى العقد كله أم قراءة مقطوعة؟ صفحات الملف وأحرف كل صفحة. */
+export function formatOcrStage(d: OcrStageDiag): string {
+  const per = d.pageChars.slice(0, 80).join(',');
+  return (
+    `[retrieval-diag] stage=ocr contract=${d.contractId} firstExtraction=${d.firstStatus}/${d.firstChars} usedOcr=${d.usedOcr} ` +
+    `pages=${d.pages ?? '-'} truncated=${d.truncated ?? '-'} pageChars=[${per}]`
   );
 }

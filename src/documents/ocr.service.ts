@@ -61,7 +61,7 @@ export interface OcrRecognizeOptions {
 }
 
 export type OcrOutcome =
-  | { status: 'ok'; text: string; pages: number; truncatedPages: boolean }
+  | { status: 'ok'; text: string; pages: number; truncatedPages: boolean; pageChars?: number[] }
   | { status: 'unavailable' }
   | { status: 'error'; detail: string };
 
@@ -365,12 +365,14 @@ export class OcrService {
           text: texts.join('\n\n'),
           pages: used.length,
           truncatedPages: pages.length > maxPages,
+          // الجولة 75 (تشخيص): أحرف غير بيضاء لكل صفحة، أعداد فقط
+          pageChars: texts.map((t) => t.replace(/\s+/g, '').length),
         };
       }
       const imgPath = join(dir, kind === 'png' ? 'in.png' : 'in.jpg');
       await writeFile(imgPath, buffer, { mode: 0o600 });
       const text = await this.recognizeFile(imgPath);
-      return { status: 'ok', text, pages: 1, truncatedPages: false };
+      return { status: 'ok', text, pages: 1, truncatedPages: false, pageChars: [text.replace(/\s+/g, '').length] };
     } catch (err) {
       this.logger.warn(`OCR failed: ${(err as Error).message.slice(0, 200)}`);
       return { status: 'error', detail: (err as Error).message.slice(0, 200) };

@@ -2,6 +2,7 @@ import {
   candidateId,
   formatClauseOutcome,
   formatContractShape,
+  formatOcrStage,
   formatRetrievalStage,
   idList,
   lawCounts,
@@ -56,5 +57,32 @@ describe('retrieval-diagnostic (round 73)', () => {
     ).toBe('[retrieval-diag] stage=outcome clause=1 outcome=empty_retrieval reranked=- topCandidates=0 selected=0 status=set topIds=-');
     const l = formatContractShape({ contractId: 'abc', extraction: textShape('كلمة'), clauseCount: 2, clauseChars: [300, 280], preambleChars: 0 });
     expect(l).toContain('clauses=2 preambleChars=0 clauseChars=[300,280]');
+  });
+
+  it('round 75: anchors are listed beyond the first four and the ocr line carries counts only', () => {
+    const anchors = [c(17, 1983, 82), c(17, 1983, 83), c(131, 1948, 709), c(131, 1948, 704), c(131, 1948, 715), c(131, 1948, 716)];
+    const line = formatRetrievalStage({
+      clauseIndex: 1,
+      shape: textShape('x'),
+      criteria: '',
+      family: null,
+      ftsTokens: 0,
+      fts: [],
+      semConfigured: true,
+      sem: [],
+      merged: [],
+      afterFamily: [],
+      afterLawScope: [],
+      anchorsRaw: anchors,
+      anchorsKept: anchors,
+    });
+    expect(line).toContain('anchorsRawIds=17/1983#82,17/1983#83,131/1948#709,131/1948#704,131/1948#715,131/1948#716');
+    expect(line).toContain('anchorIds=17/1983#82,17/1983#83,131/1948#709,131/1948#704,131/1948#715,131/1948#716');
+    expect(
+      formatOcrStage({ contractId: 'abc', firstStatus: 'empty', firstChars: 0, usedOcr: true, pages: 2, truncated: false, pageChars: [820, 190] }),
+    ).toBe('[retrieval-diag] stage=ocr contract=abc firstExtraction=empty/0 usedOcr=true pages=2 truncated=false pageChars=[820,190]');
+    expect(
+      formatOcrStage({ contractId: 'abc', firstStatus: 'ok', firstChars: 1109, usedOcr: false, pages: null, truncated: null, pageChars: [] }),
+    ).toContain('firstExtraction=ok/1109 usedOcr=false pages=- truncated=- pageChars=[]');
   });
 });
