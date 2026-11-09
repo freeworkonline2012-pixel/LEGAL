@@ -111,12 +111,38 @@ export interface ClauseOutcomeDiag {
   selected: number;
   assessmentStatus: string | null;
   topIds: string;
+  /** الجولة 76: حكم النموذج الخام (تصنيفات وأعداد فقط) — غائب إن لم يُستدعَ النموذج أو فشل */
+  verdict?: ClauseVerdictDiag;
+}
+
+export interface ClauseVerdictDiag {
+  /** الحكم كما أصدره النموذج: سليم | يحتاج مراجعة | لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة */
+  label: string;
+  rawSelected: number;
+  validSelected: number;
+  violationType: string;
+  confidence: number;
+  contextGiven: boolean;
+}
+
+/** يحوّل الحكم العربى إلى رمز ASCII ثابت قابل للبحث فى سجلات Railway. */
+export function verdictCode(label: string): string {
+  if (label === 'سليم') return 'sound';
+  if (label === 'يحتاج مراجعة') return 'needs_review';
+  if (label.startsWith('لا يوجد نص')) return 'no_text';
+  return 'other';
+}
+
+export function formatClauseVerdict(v: ClauseVerdictDiag): string {
+  const conf = Number.isFinite(v.confidence) ? v.confidence.toFixed(2) : '-';
+  return ` verdict=${verdictCode(v.label)} rawSelected=${v.rawSelected} validSelected=${v.validSelected} violation=${v.violationType} conf=${conf} ctx=${v.contextGiven}`;
 }
 
 export function formatClauseOutcome(o: ClauseOutcomeDiag): string {
   return (
     `[retrieval-diag] stage=outcome clause=${o.clauseIndex} outcome=${o.outcome} reranked=${o.reranked ?? '-'} ` +
-    `topCandidates=${o.topCandidates} selected=${o.selected} status=${o.assessmentStatus ? 'set' : 'null'} topIds=${o.topIds}`
+    `topCandidates=${o.topCandidates} selected=${o.selected} status=${o.assessmentStatus ? 'set' : 'null'} topIds=${o.topIds}` +
+    (o.verdict ? formatClauseVerdict(o.verdict) : '')
   );
 }
 

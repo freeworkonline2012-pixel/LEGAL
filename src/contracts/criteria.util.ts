@@ -364,6 +364,18 @@ export function isAttorneyFeeContract(contractText: string): boolean {
   return matchesLoose(ATTORNEY_ANY, h) && matchesLoose(ATTORNEY_FEE_SIGNAL, h) && matchesLoose(/اتعاب|موكل|توكيل/, h);
 }
 
+/**
+ * الجولة 76: سياق العقد كله للنموذج حين يقيّم فقرة منه. فى عقد أتعاب ممسوح تُقسَّم الفقرات تقسيماً تقريبياً فتصل الفقرة للنموذج وحدها
+ * («تسدد الشركة مبلغ كذا شهرياً») بلا ما يدل على أن العلاقة محامٍ/موكل، فلا يربطها بمادة 82 أو 709 ويختار «لا يوجد نص» (م82/709 وصلتاه كمراسٍ
+ * ورُفضتا فى إنتاج الجولة 75). السياق بيانات وصفية حتمية (isAttorneyFeeContract) لا حكم، وتبقى ضوابط الخطوات الأربع كما هى.
+ */
+export const ATTORNEY_FEE_CONTRACT_CONTEXT =
+  'اتفاق أتعاب محاماة: علاقة وكالة بأجر بين موكل (عميل) ومحامٍ أو مكتب محاماة؛ يحكمها قانون المحاماة 17 لسنة 1983 (الأتعاب والمصروفات وإنهاء الوكالة) وأحكام الوكالة فى القانون المدنى.';
+
+export function contractContextFor(attorneyFeeContract: boolean): string | null {
+  return attorneyFeeContract ? ATTORNEY_FEE_CONTRACT_CONTEXT : null;
+}
+
 const ATTORNEY_TOPICS: ReadonlyArray<{ pattern: RegExp; law17: number[]; civil: number[] }> = [
   { pattern: /اتعاب|اجر|مقابل|مبلغ|سداد|يسدد|دفعه|دفعات|مقدم|مصروفات|رسوم|نجاح|حصه|نسبه/, law17: [82], civil: [709] },
   { pattern: /انهاء|فسخ|الغاء|عزل|تنازل|انسحاب|وقف|صلح|تحكيم|دون مسوغ|بدون مسوغ|قبل (?:ال)?انتهاء|اتمام المهمه/, law17: [83], civil: [715, 716] },

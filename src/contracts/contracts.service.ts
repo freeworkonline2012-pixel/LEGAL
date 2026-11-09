@@ -28,6 +28,7 @@ import {
   IP_LAW,
   ADVOCACY_LAW,
   attorneyFeeAnchorArticleNumbers,
+  contractContextFor,
   isAttorneyFeeContract,
   scopedLawsForClause,
   serializeCriteria,
@@ -967,12 +968,13 @@ export class ContractsService implements OnModuleInit {
       const mergedFamily = mergedRaw.filter(inFamily);
       const merged = mergedFamily.filter(inLaw);
 
+      const attorneyFeeContract = lawScope ? isAttorneyFeeContract(lawScope.normalizedText) : false;
       const anchorsRaw = await this.anchorCandidates(
         criteria,
         row.clauseText,
         row.clauseTitle,
         scopeFamily === 'services',
-        lawScope ? isAttorneyFeeContract(lawScope.normalizedText) : false,
+        attorneyFeeContract,
       );
       const anchors = anchorsRaw.filter(inScope);
       // الجولة 73: أعداد كل مرحلة (بلا نص البند): بحث نصى/دلالى ← دمج ← بوابة النوع ← بوابة القانون ← المراسى
@@ -1030,6 +1032,8 @@ export class ContractsService implements OnModuleInit {
       const assessRequest = {
         clauseText: row.clauseText,
         clientPosition: describePosition(position),
+        // الجولة 76: نوع العقد كله حتى لا تصل الفقرة المقتطعة للنموذج بلا سياق علاقتها (محامٍ/موكل)
+        contractContext: contractContextFor(attorneyFeeContract),
         candidates: topCandidates.map((c) => ({
           lawTitle: c.citation.law,
           lawNo: c.citation.lawNo,
@@ -1139,6 +1143,18 @@ export class ContractsService implements OnModuleInit {
           selected: sel,
           assessmentStatus: row.assessmentStatus,
           topIds: idList(topCandidates.map((c) => c.citation), 8),
+          // الجولة 76: حكم النموذج الخام (تصنيفات وأعداد فقط، بلا نص): هل قال «لا يوجد نص» صراحة أم حكماً بلا استشهاد خُفِّض قسراً؟
+          verdict:
+            assessment.status === 'ok'
+              ? {
+                  label: assessment.assessment,
+                  rawSelected: assessment.selectedIndices.length,
+                  validSelected: assessment.selectedIndices.filter((i) => topCandidates[i] !== undefined).length,
+                  violationType: assessment.violationType,
+                  confidence: assessment.confidence,
+                  contextGiven: attorneyFeeContract,
+                }
+              : undefined,
         });
       });
 
