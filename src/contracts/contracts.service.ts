@@ -47,6 +47,13 @@ import { clientRoleConflictWarning, directionResolvable, extractPartyNames } fro
 import { bodyDirectionWarning } from './client-side';
 import { playbookFamily } from './playbook';
 import { articleInLawScope, lawScopeContext, type LawScopeContext } from './law-scope';
+import {
+  formatClauseOutcome,
+  formatContractShape,
+  formatRetrievalStage,
+  idList,
+  textShape,
+} from './retrieval-diagnostic';
 import { riskLevelFor } from './risk-level.util';
 import { neutralizeOcrNoise } from './ocr-noise.util';
 import { describeRedraftRejection, describeWeakeningFeedback, REDRAFT_DISCLAIMER, RedraftProposal, validateRedraft } from './redraft.util';
@@ -315,6 +322,16 @@ export class ContractsService implements OnModuleInit {
 
     progress({ stage: 'segmenting', done: 0, total: 0 });
     const segmentation = this.segmentationService.segment(extraction.text);
+    // الجولة 73: تشخيص بلا نص العقد (أعداد فقط) — هل القراءة الآلية قصيرة/مشوهة؟ وكم طول كل بند؟
+    this.safeDiag(() =>
+      formatContractShape({
+        contractId: contract.id,
+        extraction: textShape(extraction.text),
+        clauseCount: segmentation.clauses.length,
+        clauseChars: segmentation.clauses.map((c) => c.text.length),
+        preambleChars: segmentation.preamble.length,
+      }),
+    );
     // اسما الطرفين من الديباجة: يربطان الأسماء الواردة فى البنود بالطرف الأول/الثانى فلا يخمّن النموذج اتجاه الحق والالتزام
     const partyNames = extractPartyNames(segmentation.preamble);
     position = { ...position, partyNames };
@@ -907,7 +924,12 @@ export class ContractsService implements OnModuleInit {
       const criteria = classifyClauseCriteria(row.clauseTitle, row.clauseText);
       row.clauseTypeGuess = serializeCriteria(criteria);
       try {
-        if (await this.tryRuleAssessment(row, criteria, position, context)) return;
+        if (await this.tryRuleAssessment(row, criteria, position, context)) {
+          this.safeDiag(() =>
+            formatClauseOutcome({ clauseIndex: row.clauseIndex, outcome: 'rules', reranked: null, topCandidates: 0, selected: 0, assessmentStatus: row.assessmentStatus, topIds: '-' }),
+          );
+          return;
+        }
       } catch (err) {
         // أى عطل فى مسار القواعد لا يُسقط البند: يُكمل بالتقييم الآلى العادى
         this.logger.warn(`rule assessment skipped clauseIndex=${row.clauseIndex}: ${(err as Error).message}`);
@@ -918,12 +940,34 @@ export class ContractsService implements OnModuleInit {
       ]);
       // بوابة النطاق: مواد علاقة العمل لا تُعرض على عقد شراكة/بيع/إيجار... (نوعه معلوم)؛ انظر article-scope.ts
       const scopeFamily = playbookFamily(position.contractType);
-      const inScope = (c: ClauseCandidate): boolean =>
-        articleInScopeForFamily(scopeFamily, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo }) &&
-        (!lawScope || articleInLawScope(lawScope, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear }));
-      const merged = this.mergeCandidates(ftsCandidates, semanticCandidates).filter(inScope);
+      const inFamily = (c: ClauseCandidate): boolean =>
+        articleInScopeForFamily(scopeFamily, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo });
+      const inLaw = (c: ClauseCandidate): boolean => !lawScope || articleInLawScope(lawScope, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear });
+      const inScope = (c: ClauseCandidate): boolean => inFamily(c) && inLaw(c);
+      const mergedRaw = this.mergeCandidates(ftsCandidates, semanticCandidates);
+      const mergedFamily = mergedRaw.filter(inFamily);
+      const merged = mergedFamily.filter(inLaw);
 
-      const anchors = (await this.anchorCandidates(criteria, row.clauseText, row.clauseTitle, scopeFamily === 'services')).filter(inScope);
+      const anchorsRaw = await this.anchorCandidates(criteria, row.clauseText, row.clauseTitle, scopeFamily === 'services');
+      const anchors = anchorsRaw.filter(inScope);
+      // الجولة 73: أعداد كل مرحلة (بلا نص البند): بحث نصى/دلالى ← دمج ← بوابة النوع ← بوابة القانون ← المراسى
+      this.safeDiag(() =>
+        formatRetrievalStage({
+          clauseIndex: row.clauseIndex,
+          shape: textShape(row.clauseText),
+          criteria: row.clauseTypeGuess ?? '',
+          family: scopeFamily ?? null,
+          ftsTokens: buildFtsQuery(row.clauseText) ? buildFtsQuery(row.clauseText).split(' | ').length : 0,
+          fts: ftsCandidates.map((c) => c.citation),
+          semConfigured: this.embeddingsService.isConfigured,
+          sem: semanticCandidates.map((c) => c.citation),
+          merged: mergedRaw.map((c) => c.citation),
+          afterFamily: mergedFamily.map((c) => c.citation),
+          afterLawScope: merged.map((c) => c.citation),
+          anchorsRaw: anchorsRaw.map((c) => c.citation),
+          anchorsKept: anchors.map((c) => c.citation),
+        }),
+      );
 
       if (merged.length === 0 && anchors.length === 0) {
         row.assessmentStatus = 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';
@@ -932,6 +976,9 @@ export class ContractsService implements OnModuleInit {
         row.matchedArticles = [];
         row.assessmentConfidence = 0;
         await this.clauseRepository.save(row);
+        this.safeDiag(() =>
+          formatClauseOutcome({ clauseIndex: row.clauseIndex, outcome: 'empty_retrieval', reranked: null, topCandidates: 0, selected: 0, assessmentStatus: row.assessmentStatus, topIds: '-' }),
+        );
         return;
       }
 
@@ -1047,6 +1094,28 @@ export class ContractsService implements OnModuleInit {
       }
 
       await this.clauseRepository.save(row);
+      this.safeDiag(() => {
+        const sel = row.matchedArticles?.length ?? 0;
+        const outcome =
+          assessment.status === 'not_configured'
+            ? 'model_not_configured'
+            : assessment.status === 'error'
+              ? 'model_error'
+              : sel > 0
+                ? 'model_selected'
+                : row.assessmentStatus === 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة'
+                  ? 'model_no_text'
+                  : 'model_selected_none';
+        return formatClauseOutcome({
+          clauseIndex: row.clauseIndex,
+          outcome,
+          reranked: rerankResults !== null,
+          topCandidates: topCandidates.length,
+          selected: sel,
+          assessmentStatus: row.assessmentStatus,
+          topIds: idList(topCandidates.map((c) => c.citation)),
+        });
+      });
 
       await this.audit(context, 'contracts.clause_assessed', row.contractId, {
         clauseIndex: row.clauseIndex,
@@ -1066,6 +1135,18 @@ export class ContractsService implements OnModuleInit {
       row.assessmentConfidence = 0;
       row.riskLevel = null;
       await this.clauseRepository.save(row);
+      this.safeDiag(() =>
+        formatClauseOutcome({ clauseIndex: row.clauseIndex, outcome: `exception:${(err as Error)?.name ?? 'Error'}`, reranked: null, topCandidates: 0, selected: 0, assessmentStatus: row.assessmentStatus, topIds: '-' }),
+      );
+    }
+  }
+
+  /** تسجيل تشخيصى لا يُسقط المعالجة أبداً: أى عطل فى بناء السطر يُبتلع. */
+  private safeDiag(build: () => string): void {
+    try {
+      this.logger.log(build());
+    } catch {
+      /* التشخيص لا يؤثر على نتيجة التقييم */
     }
   }
 
