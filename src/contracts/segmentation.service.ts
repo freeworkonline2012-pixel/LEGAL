@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { adverbialDiagnostics, findAdverbialHeads, findAlternativeHeads, zeroHeadLinesDump } from './clause-headings-alt';
-import { describeHeadingCandidates, findAlignedHeads } from './clause-headings-fuzzy';
-import { BARE_RE, canonicalHeading, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ordinalToNumber, REFERENCE_RE } from './clause-headings';
+import { describeHeadingCandidates, editDistance, findAlignedHeads } from './clause-headings-fuzzy';
+import { BARE_RE, canonicalHeading, CLAUSE_RE, MAX_REST_AFTER_NOISE_PREFIX, ORDINALS, ordinalToNumber, REFERENCE_RE } from './clause-headings';
 import { classifyDocumentKind, documentBundleWarning } from './document-kind';
 import { findForwardGap, numberingGapEvidence, numberingGapWarningText } from './numbering-gap';
 
@@ -192,6 +192,94 @@ export function fillGapsFromAligned<H extends { lineStart: number; declaredNumbe
   return { heads: all, added: extra.map((e) => e.declaredNumber as number) };
 }
 
+const ORD_NORM = (w: string): string =>
+  w
+    .replace(/[\u064b-\u0652\u0640]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .trim();
+/** كلمات تسبق ترتيبياً فى جملة عادية («الطرف الخامس»)؛ سطر بها ليس عنوان بند. */
+const NOT_A_HEADING_PREFIX = /^(?:ال)?(?:طرف|شريك|مرحله|دفعه|قسط|جزء|فقره|نسخه|شخص|متهم|مدعي|عميل|مستند)$/;
+
+/**
+ * الجولة 80: عنوان بند ضاعت منه كلمة «البند» أو قُرئت رمزاً غير لاتينى («Rent الخامس» فى الجولة 77، وفى إنتاج الجولة 79 سطر لم يلتقطه لا الكاشف الحرفى
+ * ولا المطابقة التقريبية فبقى «الخامس» ملتصقاً بالرابع): بحث موجَّه بالتسلسل عن الرقم الناقص n بين عنوانى n-1 وما بعد n المقروءين؛ يُقبل أول سطر قصير
+ * (≤ 28 حرفاً) آخر كلمة فيه هى ترتيبى n (مطابقة تامة أو بخطأ حرف واحد لا يلتبس بترتيبى آخر) تسبقها كلمة أو كلمتان ضوضاء قصيرتان بلا أرقام، وليس فى
+ * آخره علامة جملة ولا سبقته كلمة تدل على جملة عادية («الطرف الخامس»). يشترط وجود عنوان مقروء بعد الرقم (فلا يُخمَّن بند أخير) وسطر تالٍ للعنوان.
+ * فاشل الأمان: لا مرشح ⇒ لا تغيير، والتنبيه الصريح يصاحب أى استرجاع.
+ */
+export function recoverNoisyOrdinalHeads<H extends { lineStart: number; markerStart: number; marker: string; rawLength: number; declaredNumber: number | null }>(
+  text: string,
+  heads: H[],
+): { heads: H[]; recovered: number[] } {
+  const out = [...heads].sort((a, b) => a.lineStart - b.lineStart);
+  const recovered: number[] = [];
+  const max = Math.max(0, ...out.map((h) => h.declaredNumber ?? 0));
+  for (let n = 2; n < max && n <= 10; n++) {
+    if (out.some((h) => h.declaredNumber === n)) continue;
+    const before = out.filter((h) => h.declaredNumber !== null && h.declaredNumber === n - 1).pop();
+    const after = out.find((h) => h.declaredNumber !== null && h.declaredNumber > n && before !== undefined && h.lineStart > before.lineStart);
+    if (!before || !after) continue;
+    const wanted = ORDINALS.find(([num]) => num === n)?.[1].filter((sp) => !sp.includes(' ')).map((sp) => ORD_NORM(sp).replace(/^ال/, '')) ?? [];
+    const others = ORDINALS.filter(([num]) => num !== n && num <= 10).flatMap(([, sp]) => sp.map((x) => ORD_NORM(x).replace(/^ال/, '')));
+    if (wanted.length === 0) continue;
+    const winStart = text.indexOf('\n', before.lineStart);
+    if (winStart === -1) continue;
+    let pos = winStart + 1;
+    while (pos < after.lineStart) {
+      const nl = text.indexOf('\n', pos);
+      const lineEnd = nl === -1 || nl > after.lineStart ? after.lineStart : nl;
+      const raw = text.slice(pos, lineEnd);
+      const lead = raw.length - raw.trimStart().length;
+      const line = raw.trim();
+      const next = nl === -1 ? '' : text.slice(nl + 1, after.lineStart).trim();
+      const at = pos + lead;
+      pos = lineEnd + 1;
+      if (line.length === 0 || line.length > 28 || next.length === 0) continue;
+      if (/[.،,؛;!؟?]$/.test(line) && !/[:.]$/.test(line)) continue;
+      const tokens = line.replace(/[:.\-–_]+$/, '').split(/[ \t]+/).filter(Boolean);
+      if (tokens.length === 0 || tokens.length > 3) continue;
+      const last = ORD_NORM(tokens[tokens.length - 1]).replace(/^ال/, '');
+      const prefix = tokens.slice(0, -1);
+      if (prefix.some((t) => t.length > 8 || /[0-9٠-٩]/.test(t) || NOT_A_HEADING_PREFIX.test(ORD_NORM(t)))) continue;
+      if (/[0-9٠-٩]/.test(last)) continue;
+      const exact = wanted.includes(last);
+      const near = !exact && last.length >= 4 && wanted.some((w) => editDistance(last, w, 1) <= 1) && !others.some((o) => editDistance(last, o, 1) <= 1);
+      if (!exact && !near) continue;
+      const label = canonicalHeading(n);
+      if (!label) break;
+      out.push({ ...before, lineStart: at, markerStart: at, marker: label, rawLength: line.length, declaredNumber: n, synthetic: false } as H);
+      out.sort((a, b) => a.lineStart - b.lineStart);
+      recovered.push(n);
+      break;
+    }
+  }
+  return { heads: out, recovered };
+}
+
+/** تشخيص بلا نص عقد (أرقام وبداية قصيرة فقط): أسطر النافذة بين عنوانى الرقم الناقص، لمعرفة كيف قُرئ العنوان الضائع. */
+export function describeGapWindow(text: string, heads: Array<{ lineStart: number; declaredNumber: number | null }>, missing: number): string {
+  const sorted = [...heads].sort((a, b) => a.lineStart - b.lineStart);
+  const before = sorted.filter((h) => h.declaredNumber !== null && h.declaredNumber < missing).pop();
+  const after = sorted.find((h) => h.declaredNumber !== null && h.declaredNumber > missing);
+  if (!before) return 'no-before';
+  const lo = text.indexOf('\n', before.lineStart);
+  const hi = after ? after.lineStart : Math.min(text.length, (lo === -1 ? 0 : lo) + 800);
+  if (lo === -1) return 'no-window';
+  const firstLine = text.slice(0, before.lineStart).split('\n').length;
+  const out: string[] = [];
+  text
+    .slice(lo + 1, hi)
+    .split('\n')
+    .forEach((l, i) => {
+      const t = l.trim();
+      if (t.length === 0) return;
+      out.push(`L${firstLine + 1 + i} len=${t.length} ${JSON.stringify(t.length <= 40 ? t : `${t.slice(0, 14)}...`)}`);
+    });
+  return out.slice(0, 14).join(' | ');
+}
+
 @Injectable()
 export class SegmentationService {
   private readonly logger = new Logger(SegmentationService.name);
@@ -297,6 +385,17 @@ export class SegmentationService {
       if (fuzzy > 0) {
         warnings.push(
           `قُرئت عناوين ${fuzzy} بنداً من ${aligned.length} من قراءة آلية مشوَّهة بمطابقة تقريبية مقيَّدة بالتسلسل — تحقق من أن حدود البنود وأرقامها صحيحة قبل الاعتماد.`,
+        );
+      }
+    }
+
+    // الجولة 80: عنوان ناقص بين رقمين مقروءين وسطره «ضوضاء + ترتيبى» (لا «البند» ولا بادئة لاتينية): بحث موجَّه بالتسلسل مع تحذير صريح
+    if (heads.length >= 3) {
+      const noisy = recoverNoisyOrdinalHeads(text, heads);
+      if (noisy.recovered.length > 0) {
+        heads = noisy.heads;
+        warnings.push(
+          `قُرئ عنوان ${noisy.recovered.length === 1 ? 'بند' : `${noisy.recovered.length} بنود`} (${noisy.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) من سطر مشوَّه لم تُقرأ فيه كلمة «البند» (بحث موجَّه بالتسلسل بين البندين المجاورين) — تحقق من حدود البنود وأرقامها بالأصل قبل الاعتماد.`,
         );
       }
     }
@@ -408,6 +507,10 @@ export class SegmentationService {
       this.logger.log(
         `segmentation numbering gap: missing=${forwardGap.missing.join(',')} declared=${declared.join(',')} heading-like lines: ${describeHeadingCandidates(text).join(' | ')}`,
       );
+    }
+    if (forwardGap) {
+      // الجولة 80: أسطر النافذة بين عنوانى الرقم الناقص (أرقام وبدايات قصيرة فقط) لمعرفة كيف قُرئ العنوان الضائع إن بقيت الفجوة
+      this.logger.log(`segmentation gap window n=${forwardGap.missing[0]}: ${describeGapWindow(text, heads, forwardGap.missing[0])}`);
     }
     for (let i = 0; i < declared.length; i++) {
       if (declared[i] !== i + 1) {
