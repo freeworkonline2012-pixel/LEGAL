@@ -174,6 +174,24 @@ function recoverHeadsFromSubclauses(text: string, heads: Head[]): { heads: Head[
 
 const EXTERNAL_REFERENCE_RE = /^[\s_\u0640]*من[\s_\u0640]+(?:ال)?(?:عقد|قانون|لائحة|لائحه|ملحق|اتفاق|اتفاقية|اتفاقيه|نظام|اللائحة)/u;
 
+/** يضيف إلى العناوين الحرفية عناوين المطابقة التقريبية لأرقام غائبة عنها، إن بقى الترتيب متزايداً؛ وإلا يُرجع الأصل بلا إضافة. */
+export function fillGapsFromAligned<H extends { lineStart: number; declaredNumber: number | null }>(
+  literal: H[],
+  aligned: Array<H>,
+): { heads: H[]; added: number[] } {
+  const have = new Set(literal.map((h) => h.declaredNumber));
+  const lines = new Set(literal.map((h) => h.lineStart));
+  const extra = aligned.filter((a) => a.declaredNumber !== null && !have.has(a.declaredNumber) && !lines.has(a.lineStart));
+  if (extra.length === 0) return { heads: literal, added: [] };
+  const all = [...literal, ...extra].sort((x, y) => x.lineStart - y.lineStart);
+  for (let i = 1; i < all.length; i++) {
+    const a = all[i - 1].declaredNumber;
+    const b = all[i].declaredNumber;
+    if (a === null || b === null || b <= a) return { heads: literal, added: [] };
+  }
+  return { heads: all, added: extra.map((e) => e.declaredNumber as number) };
+}
+
 @Injectable()
 export class SegmentationService {
   private readonly logger = new Logger(SegmentationService.name);
@@ -259,6 +277,17 @@ export class SegmentationService {
     if (heads.length < 4 || aligned.length > heads.length) {
       // عقد قليل العناوين المقروءة (غالباً ممسوح): تُسجَّل الأسطر الشبيهة بعنوان فقط (≤ 34 حرفاً) لمعرفة سبب ما فاتنا
       this.logger.log(`segmentation heading-like lines: ${describeHeadingCandidates(text).join(' | ')}`);
+    }
+    if (aligned.length >= 3 && aligned.length <= heads.length) {
+      // الجولة 77: الكاشف الحرفى وجد عدداً مساوياً أو أكبر لكنه أسقط رقماً قرأته المطابقة التقريبية («البنك السادس») بينما التقط الحرفى رقماً لم تلتقطه هى
+      // («Rent الخامس»): يُضاف الناقص فقط، بشرط بقاء الأرقام متزايدة بحسب موضع العنوان، وإلا تُترك القراءة الحرفية كما هى.
+      const filled = fillGapsFromAligned(heads, aligned);
+      if (filled.added.length > 0) {
+        heads = filled.heads;
+        warnings.push(
+          `قُرئ عنوان ${filled.added.length === 1 ? 'بند' : `${filled.added.length} بنود`} (${filled.added.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) بمطابقة تقريبية مقيَّدة بالتسلسل لأن قراءته الآلية مشوَّهة — تحقق من حدود البنود وأرقامها بالأصل قبل الاعتماد.`,
+        );
+      }
     }
     if (aligned.length >= 3 && aligned.length > heads.length) {
       heads = aligned;

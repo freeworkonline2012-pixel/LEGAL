@@ -941,7 +941,8 @@ export class ContractsService implements OnModuleInit {
       // تصنيف البند إلى معايير المراجعة العشرة (حتمى، بكلمات مفتاحية) + جلب المواد
       // المرجعية للمعيار (مثل 224 للتعويض الاتفاقى و217 للإعفاء من المسؤولية) التى
       // لا يلتقطها البحث العام لأن صياغة البند التعاقدى لا تشبه صياغة النص القانونى.
-      const criteria = classifyClauseCriteria(row.clauseTitle, row.clauseText);
+      const attorneyFeeContract = lawScope ? isAttorneyFeeContract(lawScope.normalizedText) : false;
+      const criteria = classifyClauseCriteria(row.clauseTitle, row.clauseText, { attorneyFeeContract });
       row.clauseTypeGuess = serializeCriteria(criteria);
       try {
         if (await this.tryRuleAssessment(row, criteria, position, context)) {
@@ -968,7 +969,6 @@ export class ContractsService implements OnModuleInit {
       const mergedFamily = mergedRaw.filter(inFamily);
       const merged = mergedFamily.filter(inLaw);
 
-      const attorneyFeeContract = lawScope ? isAttorneyFeeContract(lawScope.normalizedText) : false;
       const anchorsRaw = await this.anchorCandidates(
         criteria,
         row.clauseText,

@@ -157,14 +157,27 @@ export function criterionLabel(key: string): string | null {
  * يصنّف نص البند (مع عنوانه) إلى معيار أو أكثر (بحد أقصى 3، بترتيب عدد المطابقات
  * ثم ترتيب المعايير). لا يُفترض أن التصنيف حكم قانونى: هو وسم تقريبى.
  */
-export function classifyClauseCriteria(title: string | null | undefined, text: string): ContractCriterion[] {
+/**
+ * الجولة 77: فى عقد أتعاب محاماة تدور موضوعات البنود حول «قضايا التعويض» و«مبلغ التعويض المرفوع به الدعوى» (محل عمل المحامى لا التزام تعاقدى بتعويض).
+ * كلمة «تعويض» وحدها كانت توسم بند الأتعاب بمعيار «التعويض» فتُرفق به م223–225 (التعويض الاتفاقى) فاعتمدها النموذج على نسبة أتعاب
+ * (إنتاج 2026-11-09: «يحدد البند التعويض مقدماً» عن نسبة 10% أتعاب). فى هذا النوع من العقود لا يُوسَم البند بالتعويض إلا بصيغة جزاء/تعويض اتفاقى صريحة.
+ */
+const STRICT_PENALTY_TRIGGERS: RegExp[] = [/شرط جزائي|تعويض اتفاقي|تعويضا اتفاقيا|تعويض مقدر|غرامه|غرامات|جزاء/];
+
+export interface ClassifyOptions {
+  /** العقد كله عقد أتعاب محاماة (isAttorneyFeeContract) */
+  attorneyFeeContract?: boolean;
+}
+
+export function classifyClauseCriteria(title: string | null | undefined, text: string, opts?: ClassifyOptions): ContractCriterion[] {
   const haystack = normalizeArabicForMatch(`${title ?? ''} ${title ?? ''} ${text ?? ''}`);
   // الصياغات المعرَّفة بـ«ال» («الملكية الفكرية») تُطابَق كما تُطابَق نكرتاها: يُحسب الأكثر مطابقةً من النص ونسخته بلا «ال»
   const loose = stripDefiniteArticle(haystack);
   const scored: Array<{ key: ContractCriterion; score: number; order: number }> = [];
   CRITERIA.forEach((def, order) => {
     let score = 0;
-    for (const re of def.triggers) {
+    const triggers = opts?.attorneyFeeContract && def.key === 'compensation' ? STRICT_PENALTY_TRIGGERS : def.triggers;
+    for (const re of triggers) {
       const g = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
       score += Math.max(haystack.match(g)?.length ?? 0, loose.match(g)?.length ?? 0);
     }
