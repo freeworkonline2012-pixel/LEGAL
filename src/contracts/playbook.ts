@@ -271,7 +271,7 @@ export function buildPlaybook(input: PlaybookInput): PlaybookResult | null {
   const prepared = prepare(input.clauses);
   const fullNorm = prepared.map((p) => p.clauseNorm).join(' ');
   const ctx = playbookCtx(family, side, input.clientParty ?? null);
-  const subtype = family === 'services' ? servicesSubtype(fullNorm) : null;
+  const subtype = family === 'services' ? servicesSubtype(fullNorm, input.contractType) : null;
   const rows = PLAYBOOK_TOPICS.filter((t) => t.families.includes(family))
     .map((t) => ({ t, row: buildRow(t, family, side, prepared, fullNorm, ctx) }))
     // محور لم يُرصد نصه ولا ينطبق على هذا العقد لا يُعرض «غير مرصود» (appliesWhen)

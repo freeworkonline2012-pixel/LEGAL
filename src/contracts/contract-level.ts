@@ -317,9 +317,13 @@ interface MissingCheck {
 }
 
 /** النوع الفرعى لعقد الخدمات (يُستنتج من متن العقد): تحصيل أموال، بوابة دفع/خدمات إلكترونية، مقاولة، توريد. */
-export type ServicesSubtype = 'collection' | 'payment_gateway' | 'works' | 'supply';
+export type ServicesSubtype = 'attorney_fees' | 'collection' | 'payment_gateway' | 'works' | 'supply';
 
-const SUBTYPE_SIGNALS: Array<{ subtype: ServicesSubtype; re: RegExp; min: number }> = [
+const ATTORNEY_TITLE = /اتعاب.{0,25}محام|محام.{0,25}اتعاب/;
+
+const SUBTYPE_SIGNALS: Array<{ subtype: ServicesSubtype; re: RegExp; min: number; and?: { re: RegExp; min: number } }> = [
+  // الجولة 81: عقد أتعاب محاماة (محامٍ + أتعاب/موكل/توكيل بتكرار كافٍ، فلا يكفى ذكر عابر لمحامى الشركة)؛ يسبق بقية الأنواع لأن عقد الأتعاب كثيراً ما يذكر التحصيل والدعاوى
+  { subtype: 'attorney_fees', re: /محام/g, min: 3, and: { re: /اتعاب|موكل|توكيل/g, min: 2 } },
   { subtype: 'collection', re: /تحصيل|متحصلات|الحصيله|المبالغ المحصله/g, min: 3 },
   { subtype: 'payment_gateway', re: /بوابه (?:ال)?دفع|خدمات (?:ال)?دفع|محفظه الكترونيه|نقاط (?:ال)?دفع|ماكينات (?:ال)?دفع|الدفع الالكتروني/g, min: 2 },
   { subtype: 'works', re: /مقاول|اعمال (?:ال)?مقاوله|تنفيذ (?:ال)?اعمال|اعمال (?:ال)?انشاء|اعمال (?:ال)?تشطيب|مستخلص/g, min: 3 },
@@ -330,10 +334,12 @@ const SUBTYPE_SIGNALS: Array<{ subtype: ServicesSubtype; re: RegExp; min: number
  * النوع الفرعى لعقد الخدمات من النص الموحَّد: الأسبق ذو المؤشرات الكافية (تحصيل ثم دفع ثم مقاولة ثم توريد)؛ لا مؤشرات كافية ⇒ null
  * ولا تُعدَّل لزوم البنود (فشل مغلق). «توريد المبالغ المحصلة» فى عقد تحصيل لا يجعله عقد توريد لأن التحصيل يسبقه.
  */
-export function servicesSubtype(fullNormText: string): ServicesSubtype | null {
+export function servicesSubtype(fullNormText: string, titleHint?: string | null): ServicesSubtype | null {
+  // الجولة 81: عنوان العقد أو نوعه المعلَن «أتعاب محاماة» (فى عقد ممسوح لا يتكرر «المحامى» داخل البنود فلا يكفى عدّها)
+  if (titleHint && ATTORNEY_TITLE.test(norm(titleHint))) return 'attorney_fees';
   for (const s of SUBTYPE_SIGNALS) {
     const n = (fullNormText.match(s.re) ?? []).length;
-    if (n >= s.min) return s.subtype;
+    if (n >= s.min && (!s.and || (fullNormText.match(s.and.re) ?? []).length >= s.and.min)) return s.subtype;
   }
   return null;
 }
@@ -411,6 +417,8 @@ export const CHECKS: MissingCheck[] = [
     families: ['services', 'sale', 'licence', 'agency', 'partnership'],
     patterns: [/قوه قاهره|قوه قهريه|ظروف قاهره|ظروف طارئه|حادث مفاجئ|اسباب قهريه|ظروف قهريه|سبب اجنبي|السبب الاجنبي/],
     severity: 'متوسط',
+    // الجولة 81: عقد أتعاب المحاماة لا يتطلب هذا البند (ليس مقاولة ولا توريداً ولا ترخيصاً)
+    bySubtype: { attorney_fees: 'na' },
     why: 'بلا تنظيم للقوة القاهرة تتحدد آثارها بالقواعد العامة، ولا يُعرف سلفاً من يتحمل التأخر وكيف تُخطر الظروف وتُثبت.',
     suggestion: 'نص يحدد الحالات ومتطلبات الإخطار والإثبات وأثرها على المواعيد وحق الإنهاء إن طالت.',
   },
@@ -439,6 +447,8 @@ export const CHECKS: MissingCheck[] = [
     families: ['services', 'sale'],
     patterns: [/استلام|الاستلام|قبول|محضر.{0,12}(?:تسليم|استلام)|فحص|اختبار القبول|يعتبر مقبولا/],
     severity: 'متوسط',
+    // الجولة 81: عقد أتعاب المحاماة لا يتطلب هذا البند (ليس مقاولة ولا توريداً ولا ترخيصاً)
+    bySubtype: { attorney_fees: 'na' },
     why: 'بلا إجراء قبول واضح (مدة الفحص، الاعتراض، أثر السكوت) يُنازَع فى اكتمال التنفيذ وفى استحقاق الدفعات المرتبطة به.',
     suggestion: 'نص يحدد إجراء الفحص ومدته وكيفية الاعتراض وأثر السكوت.',
   },
@@ -448,7 +458,7 @@ export const CHECKS: MissingCheck[] = [
     families: ['sale', 'services'],
     patterns: [/ضمان|عيوب|عيب|كفاله|فتره الصيانه|الصيانه/],
     severity: 'متوسط',
-    bySubtype: { collection: 'na', payment_gateway: 'optional' },
+    bySubtype: { attorney_fees: 'na', collection: 'na', payment_gateway: 'optional' },
     why: 'مدة الضمان ونطاقه وإجراءات الإصلاح ما يُبنى عليه رجوع المشترى أو العميل عند ظهور العيوب.',
     suggestion: 'نص يحدد مدة الضمان ونطاقه وإجراءات الإبلاغ والإصلاح.',
   },
@@ -458,7 +468,7 @@ export const CHECKS: MissingCheck[] = [
     families: ['services', 'licence'],
     patterns: [/ملكيه فكريه|حقوق الملكيه|حقوق المؤلف|المصنفات|الشفره المصدريه|ملكا لل|يظل.{0,40}ملكا|ملكيه (?:النظام|البرنامج|المخرجات)/],
     severity: 'عالٍ',
-    bySubtype: { collection: 'na', payment_gateway: 'optional', supply: 'na' },
+    bySubtype: { attorney_fees: 'na', collection: 'na', payment_gateway: 'optional', supply: 'na' },
     why: 'بلا نص صريح قد يُنازَع فى ملكية المخرجات وحق استعمالها وتعديلها بعد انتهاء العقد.',
     suggestion: 'نص يحدد مالك المخرجات ونطاق الترخيص المتاح للطرف الآخر ومدته.',
   },
@@ -1008,7 +1018,7 @@ export function checkMissingClauses(clauses: LevelClause[], opts: MissingOptions
   const fullNorm = norm(clauses.map((c) => `${c.clauseTitle ?? ''}\n${c.clauseText}`).join('\n'));
   if (fullNorm.length < 40) return [];
   const out: ContractFinding[] = [];
-  const subtype = family === 'services' ? servicesSubtype(fullNorm) : null;
+  const subtype = family === 'services' ? servicesSubtype(fullNorm, `${opts.titleText ?? ''}\n${opts.contractType ?? ''}`) : null;
   for (const check of CHECKS) {
     if (check.families && !check.families.includes(family)) continue;
     const need = subtype ? check.bySubtype?.[subtype] : undefined;
