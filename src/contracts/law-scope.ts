@@ -1,4 +1,5 @@
 import type { PlaybookFamily } from './playbook';
+import { isEmploymentRegimeArticle } from './article-scope';
 import { norm } from './playbook-util';
 import { matchesLoose } from './reasoning.util';
 
@@ -22,6 +23,13 @@ interface SectorLaw {
   allowFamilies?: ReadonlyArray<PlaybookFamily>;
   /** تُحذف أسماء شركات التأمين من النص قبل مطابقة المؤشرات (قوانين قطاع التأمين). */
   stripInsurerNames?: boolean;
+  /**
+   * الجولة 83: قانون عام يُحجب عن أسر بعينها ما لم يرد مؤشره فى النص (القانون 17/1999 على عقد إيجار)؛ غيرها (وأسرة مجهولة) تقبله دون مؤشر. يتميز عن allowFamilies
+   * الذى يجعل غير المذكور محجوباً حتماً دون مؤشر.
+   */
+  blockFamilies?: ReadonlyArray<PlaybookFamily>;
+  /** الجولة 83 (قرار المالك): القانون لا يُعرض إلا على هذه الأسر (أسرة مجهولة ⇒ محجوب)، مهما كانت المؤشرات النصية (قوانين الإيجار على عقود الإيجار وحدها). */
+  onlyFamilies?: ReadonlyArray<PlaybookFamily>;
 }
 
 /**
@@ -53,9 +61,32 @@ const OLD_RENT_SIGNALS: RegExp[] = [
   /164\s*(?:لسنه|\/|-)\s*2025/,
 ];
 
+/** مؤشرات المحاماة (الجولة 83): قانون المحاماة 17/1983 لا يحكم إلا عقداً يتناول عمل محام أو أتعابه؛ ظهر مرشحاً على بند إيجار فى عقد إيجار ممسوح. */
+const LAWYER_SIGNALS: RegExp[] = [/محام|نقابه المحامين|وكاله قضائيه|توكيل قضائي/];
+
+/** مؤشرات تجارية صريحة (الجولة 83): قانون التجارة 17/1999 على عقد إيجار لا يُعرض إلا إن ذُكر نصاً أن العقد أو العمل تجارى. */
+const COMMERCIAL_SIGNALS: RegExp[] = [/قانون (?:ال)?تجاره|القانون التجاري|عقد تجاري|عمل تجاري|اعمال تجاريه|عمليه تجاريه/];
+
+/** مؤشرات سوق المال (الجولة 83): القانون 95/1992 ولائحته 135/1993 ظهرت مرشحة على بند إيجار؛ لا يُعرضان إلا على عقد يذكر نشاط سوق رأس المال. */
+const CAPITAL_MARKET_SIGNALS: RegExp[] = [/سوق راس المال|اوراق ماليه|بورصه|الرقابه الماليه|صناديق (?:ال)?استثمار|شركات (?:ال)?سمسره فى الاوراق|حفظ مركزي|اسهم مقيده|طرح (?:عام|خاص) (?:ل)?(?:ال)?(?:اوراق|اسهم)/];
+
+/**
+ * مؤشرات علاقة العمل (الجولة 83، قرار المالك «قيّد قانون العمل»): قانون العمل 14/2025 ومواد عقد العمل فى القانون المدنى (674-698) لا تُعرض إلا على عقد عمل،
+ * أو على عقد آخر نصّ صراحةً على قانون العمل أو علاقة عمل بين طرفيه (لا مجرد ذكر «عامل» أو «عمالة» فى عقد خدمات أو حراسة بين شركتين).
+ */
+const EMPLOYMENT_SIGNALS: RegExp[] = [/قانون (?:ال)?عمل|14\s*(?:لسنه|\/|-)\s*2025|12\s*(?:لسنه|\/|-)\s*2003|عقد (?:ال)?عمل|صاحب (?:ال)?عمل|علاقه (?:ال)?عمل|فصل تعسفي|مكافاه نهايه (?:ال)?خدمه|ساعات (?:ال)?عمل/];
+
 const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
+  { lawNo: 14, lawYear: 2025, sector: 'العمل', signals: EMPLOYMENT_SIGNALS, allowFamilies: ['employment'] },
+  { lawNo: 95, lawYear: 1992, sector: 'سوق رأس المال', signals: CAPITAL_MARKET_SIGNALS },
+  { lawNo: 135, lawYear: 1993, sector: 'اللائحة التنفيذية لسوق رأس المال', signals: CAPITAL_MARKET_SIGNALS },
+  // الجولة 83: قانون إيجار الأماكن القديم 49/1977 و136/1981 لا يظهران إلا على عقد إيجار أو إن ورد فى النص ما يدل على علاقة إيجار قديمة (ظهر 49/1977 «قانوناً حاكماً» لعقد بيع وحدة إدارية)
+  { lawNo: 49, lawYear: 1977, sector: 'إيجار الأماكن', signals: OLD_RENT_SIGNALS, allowFamilies: ['lease'], onlyFamilies: ['lease'] },
+  { lawNo: 136, lawYear: 1981, sector: 'إيجار الأماكن', signals: OLD_RENT_SIGNALS, allowFamilies: ['lease'], onlyFamilies: ['lease'] },
+  { lawNo: 17, lawYear: 1983, sector: 'المحاماة', signals: LAWYER_SIGNALS },
+  { lawNo: 17, lawYear: 1999, sector: 'التجارة', signals: COMMERCIAL_SIGNALS, blockFamilies: ['lease'] },
   { lawNo: 181, lawYear: 2018, sector: 'حماية المستهلك', signals: CONSUMER_SIGNALS },
-  { lawNo: 164, lawYear: 2025, sector: 'الإيجار القديم', signals: OLD_RENT_SIGNALS },
+  { lawNo: 164, lawYear: 2025, sector: 'الإيجار القديم', signals: OLD_RENT_SIGNALS, onlyFamilies: ['lease'] },
   {
     lawNo: 176,
     lawYear: 2018,
@@ -87,11 +118,18 @@ export function lawScopeContext(contractText: string, family: PlaybookFamily | n
 }
 
 /** true = المادة تصلح مرشّحة لهذا العقد. قانون غير قطاعى ⇒ true دائماً. */
-export function articleInLawScope(ctx: LawScopeContext, a: { lawNo: number | null; lawYear: number | null }): boolean {
+export function articleInLawScope(ctx: LawScopeContext, a: { lawNo: number | null; lawYear: number | null; articleNo?: number }): boolean {
   if (a.lawNo == null || a.lawYear == null) return true;
+  // مواد عقد العمل فى القانون المدنى (674-698): تُعامل معاملة قانون العمل نفسه
+  if (a.lawNo === 131 && a.lawYear === 1948 && a.articleNo !== undefined && isEmploymentRegimeArticle({ lawNo: a.lawNo, lawYear: a.lawYear, articleNo: a.articleNo })) {
+    return ctx.family === 'employment' || EMPLOYMENT_SIGNALS.some((re) => matchesLoose(re, ctx.normalizedText));
+  }
   const law = SECTOR_LAWS.find((l) => l.lawNo === a.lawNo && l.lawYear === a.lawYear);
   if (!law) return true;
+  if (law.onlyFamilies && !(ctx.family && law.onlyFamilies.includes(ctx.family))) return false;
   if (ctx.family && law.allowFamilies?.includes(ctx.family)) return true;
+  // قانون عام محجوب عن أسر بعينها: الأسرة المجهولة والأسر الأخرى تقبله دون مؤشر
+  if (law.blockFamilies) return !(ctx.family && law.blockFamilies.includes(ctx.family)) || hasSignal(law, ctx.normalizedText);
   return hasSignal(law, ctx.normalizedText);
 }
 

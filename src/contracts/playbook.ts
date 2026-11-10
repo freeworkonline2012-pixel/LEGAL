@@ -1,5 +1,5 @@
 import { quoteInText } from './clause-facts';
-import { contractFamily, sentencesOf, servicesSubtype, stripDefiniteArticle, type LevelClause } from './contract-level';
+import { contractFamily, sentencesOf, servicesSubtype, stripDefiniteArticle, type ContractFamily, type LevelClause } from './contract-level';
 import {
   LAW_NAME,
   PLAYBOOK_TOPICS,
@@ -101,7 +101,11 @@ export interface PlaybookInput {
 
 /** الأنواع التى لها دليل تفاوضى (ثمانية)؛ غيرها (رهن، هبة، وديعة، صلح، تأمين، سرية، غير محدد) لها فحوص بنود ناقصة فقط. */
 export function playbookFamily(contractType: string | null | undefined): PlaybookFamily | null {
-  const f = contractFamily(contractType);
+  return toPlaybookFamily(contractFamily(contractType));
+}
+
+/** الجولة 83: أسرة العقد المستنتَجة (عنوان/متن/اسم ملف) إلى أسرة الدليل؛ غير الثمانية ⇒ null. */
+export function toPlaybookFamily(f: ContractFamily): PlaybookFamily | null {
   switch (f) {
     case 'lease':
     case 'sale':

@@ -1,4 +1,4 @@
-import { parseArabicNumberWords, strayPrefix, strayPrefixWarning } from './numeric-checks.util';
+import { isGarbledNumberWord, parseArabicNumberWords, strayPrefix, strayPrefixWarning } from './numeric-checks.util';
 import { normalizeArabicForMatch } from './reasoning.util';
 
 /**
@@ -159,6 +159,8 @@ function wordsBefore(text: string, end: number): { value: number; start: number;
     } else {
       // الجولة 69: «ثلاثة) او خمسمائة جنيها» — حرف العطف «أو» بعد كلمة عددية يعنى أن العبارة تبدّلت أو التُبس عددها (بدائل لا مبلغ واحد)،
       // فما بعده وحده («خمسمائة» = 500) ليس المبلغ؛ يُعامل جزءاً غير كامل لا مبلغاً مستقلاً.
+      // الجولة 83: كلمة عددية تالفة («ثمائمائة») ملاصقة لبداية العبارة المقروءة («الف»): العدد المكتوب أكبر مما قُرئ ⇒ جزئى لا «1,000»
+      if (sawNumber && isGarbledNumberWord(t[0])) partial = true;
       if (sawNumber && /^(?:او|أو)$/.test(t[0]) && i > 0 && isNumberWord(tokens[i - 1][0]) && NUMBER_GAP.test(head.slice((tokens[i - 1].index ?? 0) + tokens[i - 1][0].length, idx))) {
         partial = true;
       }
@@ -341,9 +343,25 @@ function scan(rawText: string): Hit[] {
   for (const m of text.matchAll(amountDigits)) {
     let curMatch = m[3] ?? (m[2] ? m[2].match(new RegExp(CURRENCY, 'u'))?.[0] : undefined);
     let spanEnd = (m.index ?? 0) + m[0].length;
-    const n = Number(m[1].replace(/[,٬]/g, ''));
+    let n = Number(m[1].replace(/[,٬]/g, ''));
     if (!Number.isFinite(n)) continue;
     let confirmedByWords = false;
+    // الجولة 83: «800 الف جنيها» / «5 ملايين جنيه»: الرقم مضروب فى مضاعفه المكتوب بعده مباشرة (800,000 و5,000,000)، لا يُقرأ «الف» وحدها كأنها كتابة المبلغ بالحروف
+    if (!m[2] && !m[3]) {
+      const scale = text.slice(spanEnd).match(/^[ \t]*(?:(?<th>[اأآ]لاف|[اأ]لف|الاف)|(?<mi>مليون|ملايين))(?![ء-ي])/u);
+      // لا يُضرب إلا إن تلت كلمةَ المضاعف العملةُ أو نهاية العبارة (لا «وخمسمائة…» فتلك شظية عدد مركّب) ولم تسبق الرقمَ كلمةٌ عددية ناقصة
+      const afterScale = scale ? text.slice(spanEnd + scale[0].length) : '';
+      const closes = scale ? new RegExp(`^[ \\t]*(?:${CURRENCY}|[()（）.,،؛:\\n]|$)`, 'u').test(afterScale) : false;
+      if (scale && closes && n > 0 && n < 1000 && !precededByIncompleteNumber(text, m.index ?? 0)) {
+        n *= scale.groups?.mi ? 1_000_000 : 1000;
+        spanEnd += scale[0].length;
+        const cm = text.slice(spanEnd).match(new RegExp(`^[ \\t]*(${CURRENCY})`, 'u'));
+        if (cm) {
+          curMatch = cm[1];
+          spanEnd += cm[0].length;
+        }
+      }
+    }
     if (!curMatch) {
       // الرقم ثم كتابته بالحروف (قد يضيع القوس الافتتاحى فى المسح): «1125000 ) مليون ومائة … ألف جنيه»
       const tail = amountWordsTail(text, spanEnd);

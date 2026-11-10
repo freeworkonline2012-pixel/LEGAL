@@ -258,6 +258,134 @@ export function recoverNoisyOrdinalHeads<H extends { lineStart: number; markerSt
   return { heads: out, recovered };
 }
 
+/**
+ * الجولة 82: عنوان بند ضاع من القراءة الآلية كلياً (سطره فارغ فى نص الإنتاج: «gap window» بين البندين الرابع والسادس أظهر متن الرابع ثم سطراً فارغاً ثم
+ * «يلتزم الطرف…»، فلا شىء يُطابَق عنواناً). الدليل البنيوى الوحيد فاصل الفقرات: بين عنوانى n-1 وما بعد آخر رقم ناقص تتتالى أرقام ناقصة k ويقع فى النافذة
+ * بالضبط k فواصل فقرات (k+1 فقرة، كل منها ≥ 25 حرفاً) فيبدأ كل رقم ناقص عند فقرة بعد الأولى. k ≤ 2. أى التباس (فقرات أكثر أو أقل) ⇒ لا تغيير.
+ * العنوان المسترجع تركيبى (rawLength = 0) والتنبيه الصريح يصاحبه: حدّ البند تقريبى ويلزم مقارنته بالأصل.
+ */
+export function recoverHeadsFromParagraphBreaks<H extends { lineStart: number; markerStart: number; marker: string; rawLength: number; declaredNumber: number | null }>(
+  text: string,
+  heads: H[],
+): { heads: H[]; recovered: number[] } {
+  const out = [...heads].sort((a, b) => a.lineStart - b.lineStart);
+  const recovered: number[] = [];
+  const known = (): Set<number> => new Set(out.map((h) => h.declaredNumber).filter((n): n is number => n !== null));
+  const max = Math.max(0, ...known());
+  for (let n = 2; n < max; n++) {
+    if (known().has(n) || !known().has(n - 1)) continue;
+    let m = n;
+    while (m + 1 < max && !known().has(m + 1)) m++;
+    const k = m - n + 1;
+    const before = out.find((h) => h.declaredNumber === n - 1);
+    const after = out.find((h) => h.declaredNumber === m + 1);
+    if (!before || !after || k > 2 || after.lineStart <= before.lineStart) continue;
+    const lineEnd = text.indexOf('\n', before.lineStart);
+    if (lineEnd === -1) continue;
+    const paragraphs: Array<{ at: number; len: number }> = [];
+    let pos = lineEnd + 1;
+    let blankBefore = true;
+    let cur: { at: number; len: number } | null = null;
+    while (pos < after.lineStart) {
+      const nl = text.indexOf('\n', pos);
+      const end = nl === -1 || nl > after.lineStart ? after.lineStart : nl;
+      const raw = text.slice(pos, end);
+      const t = raw.trim();
+      if (t.length === 0) {
+        blankBefore = true;
+        cur = null;
+      } else if (blankBefore || cur === null) {
+        cur = { at: pos + (raw.length - raw.trimStart().length), len: t.length };
+        paragraphs.push(cur);
+        blankBefore = false;
+      } else {
+        cur.len += t.length;
+      }
+      pos = end + 1;
+    }
+    if (paragraphs.length !== k + 1 || paragraphs.some((p) => p.len < 25)) continue;
+    for (let i = 0; i < k; i++) {
+      const label = canonicalHeading(n + i);
+      if (!label) break;
+      const p = paragraphs[i + 1];
+      out.push({ ...before, lineStart: p.at, markerStart: p.at, marker: label, rawLength: 0, declaredNumber: n + i, synthetic: true } as H);
+      recovered.push(n + i);
+    }
+    out.sort((a, b) => a.lineStart - b.lineStart);
+  }
+  return { heads: out, recovered };
+}
+
+/**
+ * الجولة 83: عنوان بند قُرئ سطراً قصيراً تالفاً لا يشبه أى ترتيبى («T P» و«PN» فى عقد بيع ممسوح فالتصق متن البند الثالث بالثانى فنُسبت دفعات الثمن
+ * إلى «البند الثانى»؛ و«geil البنسد» فى عقد وكالة). الدليل البنيوى: سطر قصير (≤ 16 حرفاً) معزول بفراغ قبله وتالٍ له متن (≥ 20 حرفاً)، فى النافذة بين
+ * عنوانى n-1 وما بعد آخر رقم ناقص (k ≤ 2). يُقبل فقط إن كان عدد هذه الأسطر k بالضبط (أى التباس ⇒ لا تغيير)، وليس رقم صفحة ولا ضوضاء لاتينية طويلة
+ * («Office Supplies»)، ويسبقه ويليه متن (≥ 40 حرفاً). التنبيه الصريح يصاحب أى استرجاع.
+ */
+const ISOLATED_MAX_LEN = 16;
+function isIsolatedHeadingNoise(line: string): boolean {
+  const t = line.trim();
+  if (t.length < 2 || t.length > ISOLATED_MAX_LEN) return false;
+  if (/[.،,؛;!؟?]$/.test(t)) return false;
+  if (!/[A-Za-z\u0621-\u064A]{2,}|[A-Za-z]\s+[A-Za-z]/.test(t)) return false; // أرقام/رموز فقط (رقم صفحة)
+  const compact = t.replace(/\s+/g, '');
+  const letters = (compact.match(/[A-Za-z\u0621-\u064A]/g) ?? []).length;
+  if (letters < compact.length * 0.7) return false; // سطر أرقام ورموز غالباً (هاتف/فاكس/ترويسة)
+  const tokens = t.split(/[ \t]+/).filter(Boolean);
+  if (!/[\u0621-\u064A]/.test(t) && tokens.some((x) => /[A-Za-z]{4,}/.test(x))) return false; // ترويسة لاتينية خالصة («Office Supplies»)
+  if (tokens.some((x) => x.length > 8)) return false;
+  return true;
+}
+export function recoverHeadsFromIsolatedShortLines<H extends { lineStart: number; markerStart: number; marker: string; rawLength: number; declaredNumber: number | null }>(
+  text: string,
+  heads: H[],
+): { heads: H[]; recovered: number[] } {
+  const out = [...heads].sort((a, b) => a.lineStart - b.lineStart);
+  const recovered: number[] = [];
+  const known = (): Set<number> => new Set(out.map((h) => h.declaredNumber).filter((n): n is number => n !== null));
+  const max = Math.max(0, ...known());
+  for (let n = 2; n < max; n++) {
+    if (known().has(n) || !known().has(n - 1)) continue;
+    let m = n;
+    while (m + 1 < max && !known().has(m + 1)) m++;
+    const k = m - n + 1;
+    const before = out.find((h) => h.declaredNumber === n - 1);
+    const after = out.find((h) => h.declaredNumber === m + 1);
+    if (!before || !after || k > 2 || after.lineStart <= before.lineStart) continue;
+    const lineEnd = text.indexOf('\n', before.lineStart);
+    if (lineEnd === -1) continue;
+    const lines: Array<{ at: number; end: number; t: string }> = [];
+    let pos = lineEnd + 1;
+    while (pos < after.lineStart) {
+      const nl = text.indexOf('\n', pos);
+      const end = nl === -1 || nl > after.lineStart ? after.lineStart : nl;
+      const raw = text.slice(pos, end);
+      lines.push({ at: pos + (raw.length - raw.trimStart().length), end, t: raw.trim() });
+      pos = end + 1;
+    }
+    const cands: Array<{ at: number; len: number }> = [];
+    for (let i = 0; i < lines.length; i++) {
+      const prevBlank = i === 0 ? false : lines[i - 1].t.length === 0;
+      if (!prevBlank || !isIsolatedHeadingNoise(lines[i].t)) continue;
+      const nextBody = lines.slice(i + 1).find((l) => l.t.length > 0);
+      if (!nextBody || nextBody.t.length < 20) continue;
+      const bodyBefore = text.slice(lineEnd, lines[i].at).replace(/\s+/g, '').length;
+      const bodyAfter = text.slice(lines[i].end, after.lineStart).replace(/\s+/g, '').length;
+      if (bodyBefore < 40 || bodyAfter < 40) continue;
+      cands.push({ at: lines[i].at, len: lines[i].t.length });
+    }
+    if (cands.length !== k) continue;
+    for (let i = 0; i < k; i++) {
+      const label = canonicalHeading(n + i);
+      if (!label) break;
+      out.push({ ...before, lineStart: cands[i].at, markerStart: cands[i].at, marker: label, rawLength: cands[i].len, declaredNumber: n + i, synthetic: false } as H);
+      recovered.push(n + i);
+    }
+    out.sort((a, b) => a.lineStart - b.lineStart);
+  }
+  return { heads: out, recovered };
+}
+
 /** تشخيص بلا نص عقد (أرقام وبداية قصيرة فقط): أسطر النافذة بين عنوانى الرقم الناقص، لمعرفة كيف قُرئ العنوان الضائع. */
 export function describeGapWindow(text: string, heads: Array<{ lineStart: number; declaredNumber: number | null }>, missing: number): string {
   const sorted = [...heads].sort((a, b) => a.lineStart - b.lineStart);
@@ -297,7 +425,7 @@ export class SegmentationService {
         return {
           lineStart: m.index ?? 0,
           markerStart: (m.index ?? 0) + off,
-          marker: m[0].slice(off).trim().replace(/[_\u0640]+/g, ' ').replace(/ {2,}/g, ' '),
+          marker: m[0].slice(off).trim().replace(/[_\u0640\-\u2013\u2014]+/g, ' ').replace(/ {2,}/g, ' '),
           rawLength: m[0].slice(off).trim().length,
           declaredNumber: ordinalToNumber(m.groups?.ord ?? ''),
         };
@@ -380,7 +508,11 @@ export class SegmentationService {
       }
     }
     if (aligned.length >= 3 && aligned.length > heads.length) {
+      // الجولة 83: عنوان حرفى سليم (مثل «البند-الثانى») لم تلتقطه المطابقة التقريبية يُضاف إليها بدل أن يضيع، إن بقى الترتيب متزايداً
+      const literalHeads = heads;
       heads = aligned;
+      const kept = fillGapsFromAligned(aligned as unknown as Head[], literalHeads);
+      if (kept.added.length > 0) heads = kept.heads as unknown as typeof aligned;
       const fuzzy = aligned.filter((h) => h.distance > 0).length;
       if (fuzzy > 0) {
         warnings.push(
@@ -408,6 +540,28 @@ export class SegmentationService {
         const labels = rec.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ');
         warnings.push(
           `لم تُقرأ عناوين ${rec.recovered.length === 1 ? 'بند' : `${rec.recovered.length} بنود`} (${labels}) فاستُرجعت حدودها من ترقيم فقراتها الفرعية (مثل «${rec.recovered[0]}-1»)؛ حدودها وعناوينها تقريبية — تحقق منها بالأصل قبل الاعتماد.`,
+        );
+      }
+    }
+
+    // الجولة 83: عنوان قُرئ سطراً قصيراً تالفاً معزولاً (لا يشبه ترتيبياً): يُسترجع من بنية الفقرات بتحذير صريح
+    if (heads.length >= 3) {
+      const iso = recoverHeadsFromIsolatedShortLines(text, heads);
+      if (iso.recovered.length > 0) {
+        heads = iso.heads;
+        warnings.push(
+          `عنوان ${iso.recovered.length === 1 ? 'بند' : `${iso.recovered.length} بنود`} (${iso.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) قُرئ سطراً قصيراً تالفاً لا يُقرأ ترتيبيه؛ حُدِّد من موضعه المعزول بين البندين المجاورين، فنسبة المتن إلى هذا البند تقريبية — قارنها بالأصل قبل الاعتماد.`,
+        );
+      }
+    }
+
+    // الجولة 82: عنوان ضاع كلياً من القراءة (سطره فارغ): يُسترجع حدّه من فاصل الفقرات حين يطابق عدد الفقرات عدد الأرقام الناقصة بالضبط، بتحذير صريح
+    if (heads.length >= 3) {
+      const para = recoverHeadsFromParagraphBreaks(text, heads);
+      if (para.recovered.length > 0) {
+        heads = para.heads;
+        warnings.push(
+          `لم يُقرأ عنوان ${para.recovered.length === 1 ? 'بند' : `${para.recovered.length} بنود`} (${para.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) إطلاقاً من القراءة الآلية؛ حُدِّد بدء ${para.recovered.length === 1 ? 'البند' : 'كل بند'} من فاصل الفقرات بين البندين المجاورين، فحدّه تقريبى — قارنه بالأصل قبل الاعتماد.`,
         );
       }
     }

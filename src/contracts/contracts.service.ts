@@ -50,7 +50,7 @@ import {
 import { ClientPosition, describePosition } from './position.util';
 import { clientRoleConflictWarning, directionResolvable, extractPartyNames } from './parties.util';
 import { bodyDirectionWarning } from './client-side';
-import { playbookFamily } from './playbook';
+import { playbookFamily, toPlaybookFamily } from './playbook';
 import { articleInLawScope, lawScopeContext, type LawScopeContext } from './law-scope';
 import {
   formatClauseOutcome,
@@ -394,7 +394,15 @@ export class ContractsService implements OnModuleInit {
     // سيخاطر بإطلاقها من أول استخدام حقيقى لخدمة جديدة، مقابل فارق زمن استجابة
     // مقبول لمستخدم يرفع عقداً (عملية غير تفاعلية آنية أصلاً).
     // بوابة نطاق القانون: إشارات النشاط تُقرأ من نص العقد كله مرة واحدة (لا من البند وحده)
-    const lawScope = lawScopeContext(extraction.text, playbookFamily(position.contractType));
+    // الجولة 83: أسرة العقد تُستنتج قبل التقييم (المحدَّد عند الرفع ثم عنوان الديباجة ثم المتن ثم اسم الملف بتأييد المتن) لتعمل بوابتا النوع والقانون على العقد غير المحدَّد النوع
+    // أيضاً؛ بدونها ظهر قانون إيجار الأماكن 49/1977 «قانوناً حاكماً» لعقد بيع وقانون المحاماة مرشحاً على بند إيجار.
+    const earlyFamily = resolveContractFamily({
+      contractType: contract.contractType ?? position.contractType,
+      titleText: segmentation.preamble,
+      clauses: segmentation.clauses.map((c) => ({ clauseTitle: c.title, clauseText: c.text })),
+      fileName: contract.originalFilename,
+    });
+    const lawScope = lawScopeContext(extraction.text, toPlaybookFamily(earlyFamily.family));
     for (let i = 0; i < clauseRows.length; i++) {
       progress({ stage: 'assessing', done: i, total: clauseRows.length });
       await this.assessAndPersistClause(clauseRows[i], context, position, lawScope);
@@ -969,9 +977,10 @@ export class ContractsService implements OnModuleInit {
       ]);
       // بوابة النطاق: مواد علاقة العمل لا تُعرض على عقد شراكة/بيع/إيجار... (نوعه معلوم)؛ انظر article-scope.ts
       const scopeFamily = playbookFamily(position.contractType);
+      const gateFamily = lawScope?.family ?? scopeFamily;
       const inFamily = (c: ClauseCandidate): boolean =>
-        articleInScopeForFamily(scopeFamily, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo });
-      const inLaw = (c: ClauseCandidate): boolean => !lawScope || articleInLawScope(lawScope, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear });
+        articleInScopeForFamily(gateFamily, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo });
+      const inLaw = (c: ClauseCandidate): boolean => !lawScope || articleInLawScope(lawScope, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo });
       const inScope = (c: ClauseCandidate): boolean => inFamily(c) && inLaw(c);
       const mergedRaw = this.mergeCandidates(ftsCandidates, semanticCandidates);
       const mergedFamily = mergedRaw.filter(inFamily);

@@ -1,4 +1,5 @@
 import { normalizeArabicForMatch } from './reasoning.util';
+import { editDistance } from './clause-headings-fuzzy';
 
 /**
  * فحوص حسابية حتمية على نص العقد (بلا نموذج لغوى): المبلغ المكتوب بالحروف مقابل الأرقام، ومجموع نسب الدفعات.
@@ -31,6 +32,20 @@ const FILLERS = new Set(['فقط', 'لا', 'غير', 'جنيه', 'جنيها', '
 function norm(word: string): string {
   // بعد التوحيد: ة→ه، ى→ي، همزات→ا؛ نوحّد أشكال الأعداد التى تتغير بهما
   return normalizeArabicForMatch(word).replace(/^و(?=[^\s])/, '');
+}
+
+/**
+ * الجولة 83: كلمة عددية للمئات/العشرات شوّهتها القراءة الآلية («ثمائمائة» بدل «ثمانمائة») فلا تُعرف عدداً؛ فإن وقعت قبل «ألف» مباشرة فالعدد المكتوب أكبر
+ * مما يُقرأ، ولا يجوز أن تُعرض «ألف» وحدها (1,000) كأنها المكتوب بالحروف. تُعدّ تالفة إن لم تكن كلمة عددية معروفة وانتهت بصيغة «مائة» أو كانت على بعد
+ * ≤ 2 حرفين من كلمة مئات/عشرات طويلة (≥ 5 حروف).
+ */
+export function isGarbledNumberWord(word: string): boolean {
+  const t = norm(word);
+  if (t.length < 4) return false;
+  if (t in HUNDREDS || t in TENS || t in UNITS || t in TEENS || THOUSANDS.has(t) || MILLIONS.has(t)) return false;
+  if (t.length >= 6 && /(?:مايه|مائه|مئه|ميه)$/.test(t)) return true;
+  const pool = [...Object.keys(HUNDREDS), ...Object.keys(TENS)].filter((k) => k.length >= 5);
+  return pool.some((k) => editDistance(t, k, 2) <= 2);
 }
 
 /**
