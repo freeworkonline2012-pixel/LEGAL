@@ -323,6 +323,8 @@ export function recoverHeadsFromParagraphBreaks<H extends { lineStart: number; m
  * («Office Supplies»)، ويسبقه ويليه متن (≥ 40 حرفاً). التنبيه الصريح يصاحب أى استرجاع.
  */
 const ISOLATED_MAX_LEN = 16;
+/** الجولة 84: أقصى عدد أرقام ناقصة متتالية يُقبل استرجاعها (كانت 2؛ عقد بيع ضاعت فيه عناوين 5 و6 و7 معاً). يلازمه شرط «عدد الأسطر = العدد الناقص بالضبط». */
+const ISOLATED_MAX_MISSING = 4;
 function isIsolatedHeadingNoise(line: string): boolean {
   const t = line.trim();
   if (t.length < 2 || t.length > ISOLATED_MAX_LEN) return false;
@@ -351,7 +353,7 @@ export function recoverHeadsFromIsolatedShortLines<H extends { lineStart: number
     const k = m - n + 1;
     const before = out.find((h) => h.declaredNumber === n - 1);
     const after = out.find((h) => h.declaredNumber === m + 1);
-    if (!before || !after || k > 2 || after.lineStart <= before.lineStart) continue;
+    if (!before || !after || k > ISOLATED_MAX_MISSING || after.lineStart <= before.lineStart) continue;
     const lineEnd = text.indexOf('\n', before.lineStart);
     if (lineEnd === -1) continue;
     const lines: Array<{ at: number; end: number; t: string }> = [];
@@ -366,7 +368,11 @@ export function recoverHeadsFromIsolatedShortLines<H extends { lineStart: number
     const cands: Array<{ at: number; len: number }> = [];
     for (let i = 0; i < lines.length; i++) {
       const prevBlank = i === 0 ? false : lines[i - 1].t.length === 0;
-      if (!prevBlank || !isIsolatedHeadingNoise(lines[i].t)) continue;
+      if (!isIsolatedHeadingNoise(lines[i].t)) continue;
+      // الجولة 84: نص الإنتاج لعقد البيع بلا أسطر فارغة بين البنود 4 و8 (أرقام L83..L96 متتالية)، فلا يُشترط الفراغ قبل السطر؛ يُعوَّض بأدلة أشد:
+      // سطر سابق متن كامل (≥ 25 حرفاً: ليس بداية فقرة) وفى السطر رمز لاتينى مخلوط (gl/oa/silt/«T P») وهو بصمة العنوان الكبير الممسوح.
+      // لا يُقبل ترتيبى قريب هنا: الأسطر ذات الترتيبى لها بحث الجولة 80 الأضيق («الطرف الخامس» جملة لا عنوان).
+      if (!prevBlank && (i === 0 || lines[i - 1].t.length < 25 || !/[A-Za-z]/.test(lines[i].t))) continue;
       const nextBody = lines.slice(i + 1).find((l) => l.t.length > 0);
       if (!nextBody || nextBody.t.length < 20) continue;
       const bodyBefore = text.slice(lineEnd, lines[i].at).replace(/\s+/g, '').length;
@@ -664,7 +670,13 @@ export class SegmentationService {
     }
     if (forwardGap) {
       // الجولة 80: أسطر النافذة بين عنوانى الرقم الناقص (أرقام وبدايات قصيرة فقط) لمعرفة كيف قُرئ العنوان الضائع إن بقيت الفجوة
-      this.logger.log(`segmentation gap window n=${forwardGap.missing[0]}: ${describeGapWindow(text, heads, forwardGap.missing[0])}`);
+      // الجولة 84: كل مجموعة أرقام ناقصة متتالية تُسجَّل نافذتها (كانت الأولى فقط؛ عقد البيع ضاع فيه 5-7 و11-12 ولم يظهر لوج الثانية)
+      const have = new Set(declared);
+      const allMissing = Array.from({ length: Math.max(0, ...declared) }, (_, i) => i + 1).filter((m) => !have.has(m));
+      const groupStarts = allMissing.filter((m, i) => i === 0 || m !== allMissing[i - 1] + 1).slice(0, 4);
+      for (const g of groupStarts) {
+        this.logger.log(`segmentation gap window n=${g}: ${describeGapWindow(text, heads, g)}`);
+      }
     }
     for (let i = 0; i < declared.length; i++) {
       if (declared[i] !== i + 1) {

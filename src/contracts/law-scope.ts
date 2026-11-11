@@ -23,6 +23,8 @@ interface SectorLaw {
   allowFamilies?: ReadonlyArray<PlaybookFamily>;
   /** تُحذف أسماء شركات التأمين من النص قبل مطابقة المؤشرات (قوانين قطاع التأمين). */
   stripInsurerNames?: boolean;
+  /** الجولة 84: عبارات تُحذف من النص قبل مطابقة المؤشرات (نفى سريان القانون صراحةً: «لا تخضع هذه العلاقة لقانون العمل» ليس مؤشراً على علاقة عمل). */
+  stripPatterns?: RegExp[];
   /**
    * الجولة 83: قانون عام يُحجب عن أسر بعينها ما لم يرد مؤشره فى النص (القانون 17/1999 على عقد إيجار)؛ غيرها (وأسرة مجهولة) تقبله دون مؤشر. يتميز عن allowFamilies
    * الذى يجعل غير المذكور محجوباً حتماً دون مؤشر.
@@ -74,10 +76,27 @@ const CAPITAL_MARKET_SIGNALS: RegExp[] = [/سوق راس المال|اوراق �
  * مؤشرات علاقة العمل (الجولة 83، قرار المالك «قيّد قانون العمل»): قانون العمل 14/2025 ومواد عقد العمل فى القانون المدنى (674-698) لا تُعرض إلا على عقد عمل،
  * أو على عقد آخر نصّ صراحةً على قانون العمل أو علاقة عمل بين طرفيه (لا مجرد ذكر «عامل» أو «عمالة» فى عقد خدمات أو حراسة بين شركتين).
  */
-const EMPLOYMENT_SIGNALS: RegExp[] = [/قانون (?:ال)?عمل|14\s*(?:لسنه|\/|-)\s*2025|12\s*(?:لسنه|\/|-)\s*2003|عقد (?:ال)?عمل|صاحب (?:ال)?عمل|علاقه (?:ال)?عمل|فصل تعسفي|مكافاه نهايه (?:ال)?خدمه|ساعات (?:ال)?عمل/];
+const EMPLOYMENT_SIGNALS: RegExp[] = [
+  /قانون (?:ال)?عمل(?![ء-ي])/,
+  /14\s*(?:لسنه|\/|-)\s*2025/,
+  /12\s*(?:لسنه|\/|-)\s*2003/,
+  /عقد (?:ال)?عمل(?![ء-ي])/,
+  /علاقه (?:ال)?عمل(?![ء-ي])/,
+  /فصل تعسفي/,
+  /مكافاه نهايه (?:ال)?خدمه/,
+];
+
+/**
+ * الجولة 84: نفى سريان قانون العمل لا يثبت علاقة عمل. نص حى: «لا تخضع هذه العلاقة لقانون العمل أو التأمينات الاجتماعية» فى عقد وكالة تأمين.
+ * وسقطت مؤشرات «ساعات العمل» و«صاحب العمل» لأنها ترد فى عقود حراسة وخدمات بمعنى مواعيد عمل الفرع لا علاقة عمل («ساعات العمل الرسمية وغلق الفرع»).
+ */
+const EMPLOYMENT_NEGATIONS: RegExp[] = [
+  // «لا» تُقبل نافية فقط حين يليها فعل سريان (قد تُكتب ملتصقة: «لاتخضع»)؛ أما «لأحكام» فتُطبَّع «لاحكام» ولا نفى فيها
+  /(?<![ء-ي])(?:لا\s*[تي](?:خضع|سر[يى]|نطبق|حكم)|لن|ليس|ليست|غير|دون)(?![ء-ي])\s*(?:(?![لب]?قانون)[ء-ي]+\s+){0,5}?(?:ل|ب)?(?:احكام )?قانون (?:ال)?عمل(?![ء-ي])/g,
+];
 
 const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
-  { lawNo: 14, lawYear: 2025, sector: 'العمل', signals: EMPLOYMENT_SIGNALS, allowFamilies: ['employment'] },
+  { lawNo: 14, lawYear: 2025, sector: 'العمل', signals: EMPLOYMENT_SIGNALS, allowFamilies: ['employment'], stripPatterns: EMPLOYMENT_NEGATIONS },
   { lawNo: 95, lawYear: 1992, sector: 'سوق رأس المال', signals: CAPITAL_MARKET_SIGNALS },
   { lawNo: 135, lawYear: 1993, sector: 'اللائحة التنفيذية لسوق رأس المال', signals: CAPITAL_MARKET_SIGNALS },
   // الجولة 83: قانون إيجار الأماكن القديم 49/1977 و136/1981 لا يظهران إلا على عقد إيجار أو إن ورد فى النص ما يدل على علاقة إيجار قديمة (ظهر 49/1977 «قانوناً حاكماً» لعقد بيع وحدة إدارية)
@@ -103,8 +122,16 @@ const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
 
 /** هل يحوى نص العقد مؤشراً على نشاط القانون القطاعى؟ */
 function hasSignal(law: SectorLaw, normalizedText: string): boolean {
-  const text = law.stripInsurerNames ? withoutInsurerNames(normalizedText) : normalizedText;
+  let text = law.stripInsurerNames ? withoutInsurerNames(normalizedText) : normalizedText;
+  for (const re of law.stripPatterns ?? []) text = text.replace(re, ' ');
   return law.signals.some((re) => matchesLoose(re, text));
+}
+
+/** مؤشر علاقة عمل بعد حذف عبارات نفى سريان قانون العمل. */
+function hasEmploymentSignal(normalizedText: string): boolean {
+  let text = normalizedText;
+  for (const re of EMPLOYMENT_NEGATIONS) text = text.replace(re, ' ');
+  return EMPLOYMENT_SIGNALS.some((re) => matchesLoose(re, text));
 }
 
 export interface LawScopeContext {
@@ -122,7 +149,7 @@ export function articleInLawScope(ctx: LawScopeContext, a: { lawNo: number | nul
   if (a.lawNo == null || a.lawYear == null) return true;
   // مواد عقد العمل فى القانون المدنى (674-698): تُعامل معاملة قانون العمل نفسه
   if (a.lawNo === 131 && a.lawYear === 1948 && a.articleNo !== undefined && isEmploymentRegimeArticle({ lawNo: a.lawNo, lawYear: a.lawYear, articleNo: a.articleNo })) {
-    return ctx.family === 'employment' || EMPLOYMENT_SIGNALS.some((re) => matchesLoose(re, ctx.normalizedText));
+    return ctx.family === 'employment' || hasEmploymentSignal(ctx.normalizedText);
   }
   const law = SECTOR_LAWS.find((l) => l.lawNo === a.lawNo && l.lawYear === a.lawYear);
   if (!law) return true;
