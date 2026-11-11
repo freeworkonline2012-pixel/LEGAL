@@ -104,6 +104,22 @@ const EMPLOYMENT_NEGATIONS: RegExp[] = [
  */
 const CONSUMER_FINANCE_SIGNALS: RegExp[] = [/تمويل (?:ال)?استهلاك/, /شركه (?:ال)?تمويل (?:ال)?استهلاك/, /18\s*(?:لسنه|\/|-)\s*2020/, /تنظيم نشاط (?:ال)?تمويل (?:ال)?استهلاك/];
 
+/**
+ * الجولة 89 (قرار المالك: «قيّد مواد باب الإيجار فى المدنى بنوع العقد»): باب الإيجار فى القانون المدنى هو المواد 558-634 (الفصل الأول - الإيجار: الإيجار بوجه عام
+ * 558-609، وبعض أنواع الإيجار 610-634؛ و635 أول العارية). تُعرض على عقد من أسرة الإيجار، أو على أى عقد يرد فى نصه ما يدل على علاقة إيجار (مؤجر/مستأجر/عقد إيجار/أجرة…)،
+ * ولا تُعرض على بيع أو خدمات أو وكالة أو شراكة لا يرد فى نصها ذلك. الأسرة المجهولة لا تُعفى المادة من اشتراط المؤشر (كبقية بوابات هذا الملف).
+ * مؤشر «تأجير» لا يُحسب إذا كان «تأجير تمويلى» (قانونه 176/2018)، لكن «المؤجر/المستأجر» فى عقد تأجير تمويلى مؤشر مقبول.
+ */
+const CIVIL_LEASE_FIRST = 558;
+const CIVIL_LEASE_LAST = 634;
+const LEASE_SIGNALS: RegExp[] = [
+  /عقد (?:ال)?ايجار|عقد (?:ال)?اجاره|عقد (?:ال)?تاجير(?! (?:ال)?تمويل)/,
+  /(?<![ء-ي])(?:ال)?مؤجر(?:ه|ين|ون)?(?![ء-ي])/,
+  /(?<![ء-ي])(?:ال)?مستاجر(?:ه|ين|ون)?(?![ء-ي])/,
+  /ايجار (?:ال)?(?:وحده|عين|محل|شقه|مكان|مبني|ارض|ماكينه|معدات|مخزن|مكتب)/,
+  /(?:ال)?اجره (?:ال)?(?:شهريه|سنويه|مستحقه|المتفق)/,
+];
+
 const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
   { lawNo: 14, lawYear: 2025, sector: 'العمل', signals: EMPLOYMENT_SIGNALS, allowFamilies: ['employment'], stripPatterns: EMPLOYMENT_NEGATIONS },
   { lawNo: 95, lawYear: 1992, sector: 'سوق رأس المال', signals: CAPITAL_MARKET_SIGNALS },
@@ -161,6 +177,10 @@ export function articleInLawScope(ctx: LawScopeContext, a: { lawNo: number | nul
   // مواد عقد العمل فى القانون المدنى (674-698): تُعامل معاملة قانون العمل نفسه
   if (a.lawNo === 131 && a.lawYear === 1948 && a.articleNo !== undefined && isEmploymentRegimeArticle({ lawNo: a.lawNo, lawYear: a.lawYear, articleNo: a.articleNo })) {
     return ctx.family === 'employment' || hasEmploymentSignal(ctx.normalizedText);
+  }
+  // الجولة 89: باب الإيجار فى المدنى (558-634) لعقد إيجار أو عقد يدل نصه على علاقة إيجار
+  if (a.lawNo === 131 && a.lawYear === 1948 && a.articleNo !== undefined && a.articleNo >= CIVIL_LEASE_FIRST && a.articleNo <= CIVIL_LEASE_LAST) {
+    return ctx.family === 'lease' || LEASE_SIGNALS.some((re) => matchesLoose(re, ctx.normalizedText));
   }
   const law = SECTOR_LAWS.find((l) => l.lawNo === a.lawNo && l.lawYear === a.lawYear);
   if (!law) return true;
