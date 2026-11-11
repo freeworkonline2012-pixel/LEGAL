@@ -95,6 +95,15 @@ const EMPLOYMENT_NEGATIONS: RegExp[] = [
   /(?<![ء-ي])(?:لا\s*[تي](?:خضع|سر[يى]|نطبق|حكم)|لن|ليس|ليست|غير|دون)(?![ء-ي])\s*(?:(?![لب]?قانون)[ء-ي]+\s+){0,5}?(?:ل|ب)?(?:احكام )?قانون (?:ال)?عمل(?![ء-ي])/g,
 ];
 
+/**
+ * الجولة 88 (تعريف المالك لنصّى 27/2026 و28/2026 بعد ظهورهما مرشحين فى لوج الاسترجاع على كل عقد: 27/2026#18 و28/2026#17-18 فى بنود العقود الخمسة، ولم يُختارا فى أى تقرير):
+ *  - القانون 27/2026: «ربط الحساب الختامى لموازنة هيئة النقل العام بالقاهرة للسنة المالية 2024/2025» — قانون ربط موازنة لا يحكم أى عقد؛ مادته الأخيرة «النشر والعمل به»
+ *    تشبه لغوياً بنود «سريان العقد»، فيزاحم المرشحين. يُحجب دائماً (onlyFamilies فارغة ⇒ لا أسرة تقبله).
+ *  - قرار الهيئة 28/2026: «التزام الشركات المرخص لها بمزاولة نشاط التمويل الاستهلاكى بتوفير تغطية تأمينية لعملائها ضد الوفاة والعجز الكلى المستديم ونموذج عقد التأمين»:
+ *    لا يعرض إلا على عقد يذكر التمويل الاستهلاكى (أو قانونه 18/2020).
+ */
+const CONSUMER_FINANCE_SIGNALS: RegExp[] = [/تمويل (?:ال)?استهلاك/, /شركه (?:ال)?تمويل (?:ال)?استهلاك/, /18\s*(?:لسنه|\/|-)\s*2020/, /تنظيم نشاط (?:ال)?تمويل (?:ال)?استهلاك/];
+
 const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
   { lawNo: 14, lawYear: 2025, sector: 'العمل', signals: EMPLOYMENT_SIGNALS, allowFamilies: ['employment'], stripPatterns: EMPLOYMENT_NEGATIONS },
   { lawNo: 95, lawYear: 1992, sector: 'سوق رأس المال', signals: CAPITAL_MARKET_SIGNALS },
@@ -118,6 +127,8 @@ const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
   { lawNo: 5, lawYear: 2023, sector: 'وسطاء التأمين', signals: INSURANCE_SIGNALS, stripInsurerNames: true },
   { lawNo: 199, lawYear: 2025, sector: 'إصدار وثائق التأمين رقمياً', signals: INSURANCE_SIGNALS, stripInsurerNames: true },
   { lawNo: 77, lawYear: 2025, sector: 'شكاوى قطاع التأمين', signals: INSURANCE_SIGNALS, stripInsurerNames: true },
+  { lawNo: 27, lawYear: 2026, sector: 'ربط الحساب الختامى لموازنة هيئة النقل العام (لا يحكم عقوداً)', signals: [], onlyFamilies: [] },
+  { lawNo: 28, lawYear: 2026, sector: 'التمويل الاستهلاكى: التغطية التأمينية للعملاء', signals: CONSUMER_FINANCE_SIGNALS },
 ];
 
 /** هل يحوى نص العقد مؤشراً على نشاط القانون القطاعى؟ */
