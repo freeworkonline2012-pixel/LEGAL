@@ -42,7 +42,7 @@ describe('الجولة 85 — عناوين البيع كما قُرئت فى ا�
     expect(nums(saleDense('Office Supplies', 'عضوية الاتحاد', 'الملكية'))).not.toContain(5);
   });
 
-  it('«gulalla 3¢ 11 غعشر» يحمل رقمه 11 فيُسترجع البند 11 وحده ويبقى 12 تنبيهاً', () => {
+  it('«gulalla 3¢ 11 غعشر» يحمل رقمه 11 فيُسترجع البند 11، وعنوان 12 الضائع كلياً يُحدَّد فى الجولة 87 من نهاية الفقرة المبتورة', () => {
     const t = [
       'عقد بيع',
       'البند الأول', BODY, `${BODY} ويقر`,
@@ -71,7 +71,9 @@ describe('الجولة 85 — عناوين البيع كما قُرئت فى ا�
     const r = seg(t);
     const n = r.clauses.map((c) => c.declaredNumber);
     expect(n).toContain(11);
-    expect(n).not.toContain(12);
+    expect(n).toContain(12);
+    expect(r.clauses.find((c) => c.declaredNumber === 12)?.text).toContain('يمتنع على عمال');
+    expect(r.clauses.find((c) => c.declaredNumber === 11)?.text).not.toContain('يمتنع على عمال');
     expect(r.clauses.find((c) => c.declaredNumber === 11)?.text).toContain('ألا يجرى');
     expect(r.clauses.find((c) => c.declaredNumber === 10)?.text).not.toContain('ألا يجرى');
   });

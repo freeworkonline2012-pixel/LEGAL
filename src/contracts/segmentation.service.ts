@@ -199,6 +199,8 @@ const ORD_NORM = (w: string): string =>
     .replace(/ى/g, 'ي')
     .replace(/ة/g, 'ه')
     .trim();
+/** سطر عنوان ملحق مرقَّم فى بدايته («ملحق(4) ...» أو «ملحق رقم 2») */
+const ANNEX_HEAD_RE = /^[ \t]*(?:ال)?ملحق[ \t]*(?:رقم)?[ \t]*[(\[]?[ \t]*(?<no>[0-9٠-٩]{1,2})[ \t]*[)\]]?(?=[ \t]|$)/mu;
 /** كلمات تسبق ترتيبياً فى جملة عادية («الطرف الخامس»)؛ سطر بها ليس عنوان بند. */
 const NOT_A_HEADING_PREFIX = /^(?:ال)?(?:طرف|شريك|مرحله|دفعه|قسط|جزء|فقره|نسخه|شخص|متهم|مدعي|عميل|مستند)$/;
 
@@ -434,6 +436,68 @@ export function recoverHeadsFromIsolatedShortLines<H extends { lineStart: number
   return { heads: out, recovered };
 }
 
+/**
+ * الجولة 87: عنوان بند ضاع كلياً من نص الإنتاج بلا سطر فارغ ولا سطر قصير (عقد بيع: عنوانا البندين 7 و12 كبيرا الخط لم يخرجا فى القراءة أصلاً وأرقام الأسطر متتالية).
+ * الدليل البنيوى الوحيد المتبقى: النص المسطور مضبوط العرض، فآخر سطر فى كل فقرة أقصر بوضوح من أسطره الكاملة، والعنوان الضائع لا يقع إلا بعد نهاية فقرة.
+ * شروط صارمة (أى التباس ⇒ لا تغيير): رقم ناقص واحد فقط بين عنوانين مقروءين؛ 4 أسطر متنية على الأقل (سطر < 8 أحرف ضوضاء/توقيع يُهمل)؛ وسيط طول الأسطر ≥ 45؛
+ * عدد الأسطر «الأقصر من 0.7 الوسيط» داخل النافذة (غير آخر سطر فيها) = 1 بالضبط، ويليه سطر كامل (≥ 0.8 الوسيط)، وفى كل من جانبيه متن ≥ 40 حرفاً.
+ * العنوان المسترجع تركيبى (rawLength = 0) والتنبيه الصريح يصاحبه: حدّ البند تقريبى ويلزم مقارنته بالأصل.
+ */
+export function recoverHeadsFromRaggedLines<H extends { lineStart: number; markerStart: number; marker: string; rawLength: number; declaredNumber: number | null }>(
+  text: string,
+  heads: H[],
+): { heads: H[]; recovered: number[] } {
+  const out = [...heads].sort((a, b) => a.lineStart - b.lineStart);
+  const recovered: number[] = [];
+  const known = (): Set<number> => new Set(out.map((h) => h.declaredNumber).filter((n): n is number => n !== null));
+  const max = Math.max(0, ...known());
+  for (let n = 2; n < max; n++) {
+    if (known().has(n) || !known().has(n - 1) || !known().has(n + 1)) continue;
+    const before = out.find((h) => h.declaredNumber === n - 1);
+    const after = out.find((h) => h.declaredNumber === n + 1);
+    if (!before || !after || after.lineStart <= before.lineStart) continue;
+    const lineEnd = text.indexOf('\n', before.lineStart);
+    if (lineEnd === -1) continue;
+    const lines: Array<{ at: number; t: string }> = [];
+    let pos = lineEnd + 1;
+    let blankInside = false;
+    let pendingBlank = false;
+    while (pos < after.lineStart) {
+      const nl = text.indexOf('\n', pos);
+      const end = nl === -1 || nl > after.lineStart ? after.lineStart : nl;
+      const raw = text.slice(pos, end);
+      const t = raw.trim();
+      if (t.length === 0) pendingBlank = true;
+      else if (t.length >= 8) {
+        if (pendingBlank && lines.length > 0) blankInside = true;
+        pendingBlank = false;
+        lines.push({ at: pos + (raw.length - raw.trimStart().length), t });
+      }
+      pos = end + 1;
+    }
+    // وجود فراغ بين أسطر المتن يعنى أن لبنية الفقرات الصريحة (الجولة 82) الأولوية؛ هذا الاسترجاع للنص المتصل بلا فراغ فقط
+    if (blankInside || lines.length < 4) continue;
+    const sorted = lines.map((l) => l.t.length).sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    if (median < 45) continue;
+    const ragged: number[] = [];
+    for (let i = 0; i < lines.length - 1; i++) if (lines[i].t.length < 0.7 * median) ragged.push(i);
+    if (ragged.length !== 1) continue;
+    const i = ragged[0];
+    const next = lines[i + 1];
+    if (next.t.length < 0.8 * median) continue;
+    const bodyBefore = lines.slice(0, i + 1).reduce((a, l) => a + l.t.replace(/\s+/g, '').length, 0);
+    const bodyAfter = lines.slice(i + 1).reduce((a, l) => a + l.t.replace(/\s+/g, '').length, 0);
+    if (bodyBefore < 40 || bodyAfter < 40) continue;
+    const label = canonicalHeading(n);
+    if (!label) continue;
+    out.push({ ...before, lineStart: next.at, markerStart: next.at, marker: label, rawLength: 0, declaredNumber: n, synthetic: true } as H);
+    out.sort((a, b) => a.lineStart - b.lineStart);
+    recovered.push(n);
+  }
+  return { heads: out, recovered };
+}
+
 /** تشخيص بلا نص عقد (أرقام وبداية قصيرة فقط): أسطر النافذة بين عنوانى الرقم الناقص، لمعرفة كيف قُرئ العنوان الضائع. */
 export function describeGapWindow(text: string, heads: Array<{ lineStart: number; declaredNumber: number | null }>, missing: number): string {
   const sorted = [...heads].sort((a, b) => a.lineStart - b.lineStart);
@@ -623,6 +687,18 @@ export class SegmentationService {
         }
       }
 
+      // الجولة 87: عنوان ضاع كلياً بلا فراغ ولا سطر قصير: يُحدَّد من آخر سطر مبتور (أقصر من أسطر الفقرة الكاملة) بين البندين المجاورين، بشروط صارمة وتنبيه صريح
+      if (heads.length >= 3) {
+        const rag = recoverHeadsFromRaggedLines(text, heads);
+        if (rag.recovered.length > 0) {
+          changed = true;
+          heads = rag.heads;
+          warnings.push(
+            `لم يُقرأ عنوان ${rag.recovered.length === 1 ? 'بند' : `${rag.recovered.length} بنود`} (${rag.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) إطلاقاً من القراءة الآلية؛ حُدِّد بدء ${rag.recovered.length === 1 ? 'البند' : 'كل بند'} من نهاية فقرة (سطر أقصر من أسطر الفقرة الكاملة) بين البندين المجاورين، فحدّه تقريبى — قارنه بالأصل قبل الاعتماد.`,
+          );
+        }
+      }
+
       if (!changed) break;
     }
 
@@ -689,6 +765,22 @@ export class SegmentationService {
         text: body || afterMarker,
       };
     });
+
+    // الجولة 87: ملحق مرقَّم («ملحق(4) عقد الوكالة فى الانتاج») يلى توقيع العقد التصق بآخر بند فنُسبت نسب العمولة والحوافز التى فيه إلى «البند السابع عشر» فى تقرير الوكالة؛
+    // يُفصل عن آخر بند كوحدة مستقلة بعنوانها (بلا رقم بند)، بتنبيه صريح. شرطه: سطر يبدأ بـ«ملحق» ورقمه، وقبله متن ≥ 30 حرفاً وبعده نص ≥ 60 حرفاً.
+    if (clauses.length >= 2) {
+      const lastClause = clauses[clauses.length - 1];
+      const am = ANNEX_HEAD_RE.exec(lastClause.text);
+      if (am && am.index >= 30 && lastClause.text.length - am.index >= 60) {
+        const annexText = lastClause.text.slice(am.index).trim();
+        const annexNo = am.groups?.no ?? '';
+        lastClause.text = lastClause.text.slice(0, am.index).trim();
+        clauses.push({ index: clauses.length + 1, declaredNumber: null, label: `ملحق (${annexNo})`, title: null, text: annexText });
+        warnings.push(
+          `فُصل «ملحق (${annexNo})» عن «${lastClause.label}» وأُدرج وحدة مستقلة: يلى توقيع العقد ويحمل شروطاً خاصة به (نسب/مدد/مبالغ)، فلا تُنسب إلى البند الأخير — قارن حدوده بالأصل قبل الاعتماد.`,
+        );
+      }
+    }
 
     // أول بند مُتعرَّف عليه ليس "الأول": نص ما قبله قد يحوى بنوداً لم تُقرأ عناوينها (قراءة آلية رديئة).
     // لا نُسقطه بصمت — يُدرَج كبند واحد غير مُقسَّم ليخضع للتقييم والمراجعة، مع تنبيه صريح.
