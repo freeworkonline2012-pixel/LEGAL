@@ -322,7 +322,7 @@ export function recoverHeadsFromParagraphBreaks<H extends { lineStart: number; m
  * عنوانى n-1 وما بعد آخر رقم ناقص (k ≤ 2). يُقبل فقط إن كان عدد هذه الأسطر k بالضبط (أى التباس ⇒ لا تغيير)، وليس رقم صفحة ولا ضوضاء لاتينية طويلة
  * («Office Supplies»)، ويسبقه ويليه متن (≥ 40 حرفاً). التنبيه الصريح يصاحب أى استرجاع.
  */
-const ISOLATED_MAX_LEN = 16;
+const ISOLATED_MAX_LEN = 20;
 /** الجولة 84: أقصى عدد أرقام ناقصة متتالية يُقبل استرجاعها (كانت 2؛ عقد بيع ضاعت فيه عناوين 5 و6 و7 معاً). يلازمه شرط «عدد الأسطر = العدد الناقص بالضبط». */
 const ISOLATED_MAX_MISSING = 4;
 function isIsolatedHeadingNoise(line: string): boolean {
@@ -334,9 +334,25 @@ function isIsolatedHeadingNoise(line: string): boolean {
   const letters = (compact.match(/[A-Za-z\u0621-\u064A]/g) ?? []).length;
   if (letters < compact.length * 0.7) return false; // سطر أرقام ورموز غالباً (هاتف/فاكس/ترويسة)
   const tokens = t.split(/[ \t]+/).filter(Boolean);
-  if (!/[\u0621-\u064A]/.test(t) && tokens.some((x) => /[A-Za-z]{4,}/.test(x))) return false; // ترويسة لاتينية خالصة («Office Supplies»)
+  // ترويسة لاتينية خالصة («Office Supplies») ليست عنواناً؛ أما عنوان كبير تالف قُرئ لاتينياً («T P»، «oalall o gl» فى إنتاج عقد البيع) فيحوى دائماً رمزاً من حرف أو حرفين
+  if (!/[\u0621-\u064A]/.test(t) && tokens.some((x) => /[A-Za-z]{4,}/.test(x)) && !tokens.some((x) => x.length <= 2)) return false;
   if (tokens.some((x) => x.length > 8)) return false;
   return true;
+}
+/** رقم عنوان تالف يحمل رقمه صراحةً: رمز عددى مستقل (1-2 خانة) يساوى رقماً ناقصاً، ومع الأرقام فوق 10 كلمة «عشر» فى السطر نفسه. */
+function numberCarriedByHeadingLine(line: string, missing: ReadonlySet<number>): number | null {
+  const nums = (line.match(/(?<![0-9٠-٩])[0-9٠-٩]{1,2}(?![0-9٠-٩])/g) ?? []).map((d) => Number(d.replace(/[٠-٩]/g, (x) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(x)))));
+  const hit = nums.filter((v) => missing.has(v));
+  if (hit.length !== 1) return null;
+  if (hit[0] > 10 && !/عش/.test(line)) return null;
+  return hit[0];
+}
+/** فقرة فرعية تبدأ برقم البند الناقص («5 يلتزم الطرف…» قُرئت من «1/5»): دليل أن العنوان السابق مباشرةً هو عنوان هذا البند. */
+function numberOfFollowingSubItem(nextLine: string, missing: ReadonlySet<number>): number | null {
+  const m = /^\s*([0-9٠-٩]{1,2})(?![0-9٠-٩])[\s.\-/)]*[ء-ي]/.exec(nextLine);
+  if (!m) return null;
+  const v = Number(m[1].replace(/[٠-٩]/g, (x) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(x))));
+  return missing.has(v) ? v : null;
 }
 export function recoverHeadsFromIsolatedShortLines<H extends { lineStart: number; markerStart: number; marker: string; rawLength: number; declaredNumber: number | null }>(
   text: string,
@@ -365,7 +381,7 @@ export function recoverHeadsFromIsolatedShortLines<H extends { lineStart: number
       lines.push({ at: pos + (raw.length - raw.trimStart().length), end, t: raw.trim() });
       pos = end + 1;
     }
-    const cands: Array<{ at: number; len: number }> = [];
+    const cands: Array<{ at: number; len: number; text: string; nextText: string }> = [];
     for (let i = 0; i < lines.length; i++) {
       const prevBlank = i === 0 ? false : lines[i - 1].t.length === 0;
       if (!isIsolatedHeadingNoise(lines[i].t)) continue;
@@ -378,9 +394,25 @@ export function recoverHeadsFromIsolatedShortLines<H extends { lineStart: number
       const bodyBefore = text.slice(lineEnd, lines[i].at).replace(/\s+/g, '').length;
       const bodyAfter = text.slice(lines[i].end, after.lineStart).replace(/\s+/g, '').length;
       if (bodyBefore < 40 || bodyAfter < 40) continue;
-      cands.push({ at: lines[i].at, len: lines[i].t.length });
+      cands.push({ at: lines[i].at, len: lines[i].t.length, text: lines[i].t, nextText: nextBody.t });
     }
-    if (cands.length !== k) continue;
+    if (cands.length !== k) {
+      // الجولة 85: عدد المرشحين لا يساوى عدد الأرقام الناقصة (عنوان ضاع كلياً أو سطره لا يشبه عنواناً): يُسترجع فقط المرشح الذى يحمل رقمه بنفسه
+      // («gulalla 3¢ 11 غعشر»: الرقم 11 + «عشر» فى عقد البيع) أو الذى يليه مباشرةً سطر فقرة فرعية تبدأ برقمه («5 يلتزم الطرف…» أى 1/5)؛ والباقى يبقى فى تنبيه الفجوة.
+      const missingSet = new Set(Array.from({ length: k }, (_, i) => n + i));
+      const taken = new Set<number>();
+      for (const c of cands) {
+        const own = numberCarriedByHeadingLine(c.text, missingSet) ?? numberOfFollowingSubItem(c.nextText, missingSet);
+        if (own === null || taken.has(own)) continue;
+        const label = canonicalHeading(own);
+        if (!label) continue;
+        taken.add(own);
+        out.push({ ...before, lineStart: c.at, markerStart: c.at, marker: label, rawLength: c.len, declaredNumber: own, synthetic: false } as H);
+        recovered.push(own);
+      }
+      out.sort((a, b) => a.lineStart - b.lineStart);
+      continue;
+    }
     for (let i = 0; i < k; i++) {
       const label = canonicalHeading(n + i);
       if (!label) break;
@@ -409,9 +441,10 @@ export function describeGapWindow(text: string, heads: Array<{ lineStart: number
     .forEach((l, i) => {
       const t = l.trim();
       if (t.length === 0) return;
-      out.push(`L${firstLine + 1 + i} len=${t.length} ${JSON.stringify(t.length <= 40 ? t : `${t.slice(0, 14)}...`)}`);
+      // الجولة 85: كل الأسطر القصيرة (مرشحات العناوين) كاملة، والطويلة طولها وبدايتها فقط؛ فاللوج كان يقطع عند 14 سطراً فلا تظهر عناوين البنود التالية
+      out.push(`L${firstLine + 1 + i} len=${t.length}${t.length <= 28 ? ` ${JSON.stringify(t)}` : ''}`);
     });
-  return out.slice(0, 14).join(' | ');
+  return out.slice(0, 60).join(' | ');
 }
 
 @Injectable()
