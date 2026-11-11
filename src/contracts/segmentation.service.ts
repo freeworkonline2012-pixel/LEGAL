@@ -282,10 +282,10 @@ export function recoverHeadsFromParagraphBreaks<H extends { lineStart: number; m
     if (!before || !after || k > 2 || after.lineStart <= before.lineStart) continue;
     const lineEnd = text.indexOf('\n', before.lineStart);
     if (lineEnd === -1) continue;
-    const paragraphs: Array<{ at: number; len: number }> = [];
+    const paragraphs: Array<{ at: number; len: number; endsSentence: boolean }> = [];
     let pos = lineEnd + 1;
     let blankBefore = true;
-    let cur: { at: number; len: number } | null = null;
+    let cur: { at: number; len: number; endsSentence: boolean } | null = null;
     while (pos < after.lineStart) {
       const nl = text.indexOf('\n', pos);
       const end = nl === -1 || nl > after.lineStart ? after.lineStart : nl;
@@ -295,13 +295,23 @@ export function recoverHeadsFromParagraphBreaks<H extends { lineStart: number; m
         blankBefore = true;
         cur = null;
       } else if (blankBefore || cur === null) {
-        cur = { at: pos + (raw.length - raw.trimStart().length), len: t.length };
+        cur = { at: pos + (raw.length - raw.trimStart().length), len: t.length, endsSentence: /[.:؛]$/.test(t) };
         paragraphs.push(cur);
         blankBefore = false;
       } else {
         cur.len += t.length;
+        cur.endsSentence = /[.:؛]$/.test(t);
       }
       pos = end + 1;
+    }
+    // الجولة 86: «ذيل» فقرة: سطر قصير (< 25 حرفاً) ينتهى بنقطة وقع بعد فراغ (آخر سطر من متن البند السابق انفصل عنه فى القراءة: «بصدر هذا العقد .» فى البند 15 من عقد وكالة،
+    // فصار فى نص الإنتاج «فقرة» ثالثة وامتنع الاسترجاع) يُضم إلى الفقرة التى قبله ولا يُعد فقرة مستقلة؛ العنوان لا ينتهى بنقطة ولا يقصر هذا القصر فى هذا الموضع.
+    for (let i = paragraphs.length - 1; i > 0; i--) {
+      if (paragraphs[i].len < 25 && paragraphs[i].endsSentence) {
+        paragraphs[i - 1].len += paragraphs[i].len;
+        paragraphs[i - 1].endsSentence = true;
+        paragraphs.splice(i, 1);
+      }
     }
     if (paragraphs.length !== k + 1 || paragraphs.some((p) => p.len < 25)) continue;
     for (let i = 0; i < k; i++) {
@@ -560,49 +570,60 @@ export class SegmentationService {
       }
     }
 
-    // الجولة 80: عنوان ناقص بين رقمين مقروءين وسطره «ضوضاء + ترتيبى» (لا «البند» ولا بادئة لاتينية): بحث موجَّه بالتسلسل مع تحذير صريح
-    if (heads.length >= 3) {
-      const noisy = recoverNoisyOrdinalHeads(text, heads);
-      if (noisy.recovered.length > 0) {
-        heads = noisy.heads;
-        warnings.push(
-          `قُرئ عنوان ${noisy.recovered.length === 1 ? 'بند' : `${noisy.recovered.length} بنود`} (${noisy.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) من سطر مشوَّه لم تُقرأ فيه كلمة «البند» (بحث موجَّه بالتسلسل بين البندين المجاورين) — تحقق من حدود البنود وأرقامها بالأصل قبل الاعتماد.`,
-        );
+    // الجولة 86: خطوات الاسترجاع تعتمد على بعضها (بند يُسترجع بالخطوة الثالثة هو «البند السابق» الذى تحتاجه الخطوة الأولى لتبحث عن التالى: «السادس» لم يُلتقط فى إنتاج
+    // الجولة 85 لأن «الخامس» لم يكن قد استُرجع بعد حين جرت الخطوة الأولى)؛ فتُعاد الخطوات حتى لا يتغير شىء (حد أقصى 4 دورات). كل خطوة لها شروطها وتنبيهها الصريح كما هى.
+    for (let pass = 0; pass < 4; pass++) {
+      let changed = false;
+      // الجولة 80: عنوان ناقص بين رقمين مقروءين وسطره «ضوضاء + ترتيبى» (لا «البند» ولا بادئة لاتينية): بحث موجَّه بالتسلسل مع تحذير صريح
+      if (heads.length >= 3) {
+        const noisy = recoverNoisyOrdinalHeads(text, heads);
+        if (noisy.recovered.length > 0) {
+          changed = true;
+          heads = noisy.heads;
+          warnings.push(
+            `قُرئ عنوان ${noisy.recovered.length === 1 ? 'بند' : `${noisy.recovered.length} بنود`} (${noisy.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) من سطر مشوَّه لم تُقرأ فيه كلمة «البند» (بحث موجَّه بالتسلسل بين البندين المجاورين) — تحقق من حدود البنود وأرقامها بالأصل قبل الاعتماد.`,
+          );
+        }
       }
-    }
 
-    // عناوين بنود سقطت من القراءة الآلية (مسطّرة غالباً) وبقيت فقراتها مرقمة «4-1…»: تُسترجع حدودها من الترقيم الفرعى بتحذير صريح
-    if (heads.length >= 2) {
-      const rec = recoverHeadsFromSubclauses(text, heads);
-      if (rec.recovered.length > 0) {
-        heads = rec.heads;
-        const labels = rec.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ');
-        warnings.push(
-          `لم تُقرأ عناوين ${rec.recovered.length === 1 ? 'بند' : `${rec.recovered.length} بنود`} (${labels}) فاستُرجعت حدودها من ترقيم فقراتها الفرعية (مثل «${rec.recovered[0]}-1»)؛ حدودها وعناوينها تقريبية — تحقق منها بالأصل قبل الاعتماد.`,
-        );
+      // عناوين بنود سقطت من القراءة الآلية (مسطّرة غالباً) وبقيت فقراتها مرقمة «4-1…»: تُسترجع حدودها من الترقيم الفرعى بتحذير صريح
+      if (heads.length >= 2) {
+        const rec = recoverHeadsFromSubclauses(text, heads);
+        if (rec.recovered.length > 0) {
+          changed = true;
+          heads = rec.heads;
+          const labels = rec.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ');
+          warnings.push(
+            `لم تُقرأ عناوين ${rec.recovered.length === 1 ? 'بند' : `${rec.recovered.length} بنود`} (${labels}) فاستُرجعت حدودها من ترقيم فقراتها الفرعية (مثل «${rec.recovered[0]}-1»)؛ حدودها وعناوينها تقريبية — تحقق منها بالأصل قبل الاعتماد.`,
+          );
+        }
       }
-    }
 
-    // الجولة 83: عنوان قُرئ سطراً قصيراً تالفاً معزولاً (لا يشبه ترتيبياً): يُسترجع من بنية الفقرات بتحذير صريح
-    if (heads.length >= 3) {
-      const iso = recoverHeadsFromIsolatedShortLines(text, heads);
-      if (iso.recovered.length > 0) {
-        heads = iso.heads;
-        warnings.push(
-          `عنوان ${iso.recovered.length === 1 ? 'بند' : `${iso.recovered.length} بنود`} (${iso.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) قُرئ سطراً قصيراً تالفاً لا يُقرأ ترتيبيه؛ حُدِّد من موضعه المعزول بين البندين المجاورين، فنسبة المتن إلى هذا البند تقريبية — قارنها بالأصل قبل الاعتماد.`,
-        );
+      // الجولة 83: عنوان قُرئ سطراً قصيراً تالفاً معزولاً (لا يشبه ترتيبياً): يُسترجع من بنية الفقرات بتحذير صريح
+      if (heads.length >= 3) {
+        const iso = recoverHeadsFromIsolatedShortLines(text, heads);
+        if (iso.recovered.length > 0) {
+          changed = true;
+          heads = iso.heads;
+          warnings.push(
+            `عنوان ${iso.recovered.length === 1 ? 'بند' : `${iso.recovered.length} بنود`} (${iso.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) قُرئ سطراً قصيراً تالفاً لا يُقرأ ترتيبيه؛ حُدِّد من موضعه المعزول بين البندين المجاورين، فنسبة المتن إلى هذا البند تقريبية — قارنها بالأصل قبل الاعتماد.`,
+          );
+        }
       }
-    }
 
-    // الجولة 82: عنوان ضاع كلياً من القراءة (سطره فارغ): يُسترجع حدّه من فاصل الفقرات حين يطابق عدد الفقرات عدد الأرقام الناقصة بالضبط، بتحذير صريح
-    if (heads.length >= 3) {
-      const para = recoverHeadsFromParagraphBreaks(text, heads);
-      if (para.recovered.length > 0) {
-        heads = para.heads;
-        warnings.push(
-          `لم يُقرأ عنوان ${para.recovered.length === 1 ? 'بند' : `${para.recovered.length} بنود`} (${para.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) إطلاقاً من القراءة الآلية؛ حُدِّد بدء ${para.recovered.length === 1 ? 'البند' : 'كل بند'} من فاصل الفقرات بين البندين المجاورين، فحدّه تقريبى — قارنه بالأصل قبل الاعتماد.`,
-        );
+      // الجولة 82: عنوان ضاع كلياً من القراءة (سطره فارغ): يُسترجع حدّه من فاصل الفقرات حين يطابق عدد الفقرات عدد الأرقام الناقصة بالضبط، بتحذير صريح
+      if (heads.length >= 3) {
+        const para = recoverHeadsFromParagraphBreaks(text, heads);
+        if (para.recovered.length > 0) {
+          changed = true;
+          heads = para.heads;
+          warnings.push(
+            `لم يُقرأ عنوان ${para.recovered.length === 1 ? 'بند' : `${para.recovered.length} بنود`} (${para.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ')}) إطلاقاً من القراءة الآلية؛ حُدِّد بدء ${para.recovered.length === 1 ? 'البند' : 'كل بند'} من فاصل الفقرات بين البندين المجاورين، فحدّه تقريبى — قارنه بالأصل قبل الاعتماد.`,
+          );
+        }
       }
+
+      if (!changed) break;
     }
 
     if (heads.length === 0) {
