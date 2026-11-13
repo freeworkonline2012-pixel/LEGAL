@@ -46,3 +46,18 @@ describe('الجولة 91.1: تسلسل ترتيبى ضاعت منه «أولا�
     expect(r.clauses.map((c) => c.declaredNumber)).not.toContain(2);
   });
 });
+
+describe('الجولة 91.2: سجل تشخيصى لعقد طويل خرج بعنوان أو اثنين', () => {
+  it('يسجّل بدايات الأسطر وعدّادات الترتيبى ولا يغيّر التقسيم', () => {
+    const { Logger } = jest.requireActual('@nestjs/common');
+    const spy = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    const filler = 'يلتزم الطرف المعنى بما ورد فى هذا العقد وفق ما اتفق عليه الطرفان بالشروط المبينة فيه كاملة وبلا تحفظ. '.repeat(4);
+    const text = ['عقد إيجار', filler, filler, filler, 'البند الأول', filler, filler, filler].join('\n');
+    const r = new SegmentationService().segment(text);
+    const lines = spy.mock.calls.map((c: unknown[]) => String(c[0]));
+    spy.mockRestore();
+    expect(r.clauses.length).toBeGreaterThanOrEqual(1);
+    expect(lines.some((l: string) => l.startsWith('segmentation few-heads lines:'))).toBe(true);
+    expect(lines.some((l: string) => l.startsWith('segmentation few-heads diagnostics:'))).toBe(true);
+  });
+});

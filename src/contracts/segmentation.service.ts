@@ -661,6 +661,12 @@ export class SegmentationService {
       // عقد قليل العناوين المقروءة (غالباً ممسوح): تُسجَّل الأسطر الشبيهة بعنوان فقط (≤ 34 حرفاً) لمعرفة سبب ما فاتنا
       this.logger.log(`segmentation heading-like lines: ${describeHeadingCandidates(text).join(' | ')}`);
       headingLinesLogged = true;
+      // الجولة 91.2: عقد طويل خرج بعنوان أو اثنين فقط (إيجار ممسوح خرج ببند واحد من 15): تُسجَّل بدايات أسطره (≤ 48 حرفاً) وعدّادات الكلمات الترتيبية كما فى حالة الصفر،
+      // ليُعرف ما قرأته القراءة الآلية فعلاً؛ سجل خاص بمالك المنصة على Railway، ولا يؤثر فى التقسيم.
+      if (heads.length <= 2 && text.length >= 1500) {
+        this.logger.log(`segmentation few-heads diagnostics: ${adverbialDiagnostics(text)}`);
+        this.logger.log(`segmentation few-heads lines: ${zeroHeadLinesDump(text)}`);
+      }
     }
     if (aligned.length >= 3 && aligned.length <= heads.length) {
       // الجولة 77: الكاشف الحرفى وجد عدداً مساوياً أو أكبر لكنه أسقط رقماً قرأته المطابقة التقريبية («البنك السادس») بينما التقط الحرفى رقماً لم تلتقطه هى
