@@ -331,6 +331,10 @@ function isPartyIntro(after: string): boolean {
  * عند التساوى الأخيرة (متن العقد يلى الديباجة). يُقبل التسلسل المكتمل إن بدأ بالرقم 1 (الجولة 90: كان يُشترط أن يكون 1،2،3 متصلاً فتقطعه أول كلمة تالفة).
  * قبول بحسب العدد: ≥ 3، أو اثنان مع عبارة تمهيدية/تعريف طرفين.
  */
+/** أعلى رقم يجوز أن تبدأ به سلسلة عناوين ترتيبية مقروءة (الثلاثة الأولى كانت الحد القديم) وأدنى عدد عناوين مقروءة لقبول سلسلة لا تبدأ بـ1 أو 2 */
+const MAX_LATE_START = 8;
+const LATE_START_MIN_HEADS = 5;
+
 function pickRun(text: string, cands: AltHead[]): AltHead[] {
   const cycles: AltHead[][] = [];
   let cur: AltHead[] = [];
@@ -342,7 +346,8 @@ function pickRun(text: string, cands: AltHead[]): AltHead[] {
       last = 0;
     }
     // قفزة أكبر من 3 فى الأرقام ليست تسلسلاً بل عنواناً عابراً؛ إلا الترتيبى المركّب («رابع عشر») فلا يلتبس بكلمة عادية فيُقبل بعد عدة عناوين تالفة
-    if (c.declaredNumber > last && (cur.length === 0 ? c.declaredNumber <= 3 : c.declaredNumber - last <= 3 || c.declaredNumber >= 11)) {
+    // الجولة 92: السلسلة قد تبدأ بعنوان متأخر («رابعاً») حين ضاعت الثلاثة الأولى من القراءة؛ يُحسم قبولها لاحقاً بعدد العناوين المقروءة (≥ 5 بعد الاستكمال)
+    if (c.declaredNumber > last && (cur.length === 0 ? c.declaredNumber <= MAX_LATE_START : c.declaredNumber - last <= 3 || c.declaredNumber >= 11)) {
       cur.push(c);
       last = c.declaredNumber;
     }
@@ -350,11 +355,16 @@ function pickRun(text: string, cands: AltHead[]): AltHead[] {
   if (cur.length > 0) cycles.push(cur);
   let best: AltHead[] = [];
   let startsAtTwo: AltHead[] = [];
+  let startsLater: AltHead[] = [];
   for (const chain of cycles) {
     const done = completeAdverbial(text, chain);
     if (done.length > 0 && done[0].declaredNumber === 1 && done.length >= best.length) best = done;
     if (done.length > 0 && done[0].declaredNumber === 2 && done.length >= startsAtTwo.length) startsAtTwo = done;
+    if (done.length > 0 && done[0].declaredNumber >= 3 && done.length >= startsLater.length) startsLater = done;
   }
+  // الجولة 92: عقد ممسوح ضاعت عناوينه الأولى («أولاً/ثانياً/ثالثاً» لم تُقرأ) وبقى من عناوين الإنتاج «رابعاً، خامساً، سادساً، سابعاً، عاشراً، حادى عشر، رابع عشر» (إيجار ممسوح خرج بثلاثة بنود من 15).
+  // سلسلة بدأت بعنوان متأخر لا يُقبل إلا بأدلة كثيرة: ≥ 5 عناوين مقروءة بعد الاستكمال (7 عناوين لا تأتى عرضاً فى متن عقد)، وإلا يبقى الرفض السابق.
+  if (best.length === 0 && startsAtTwo.length < 4 && startsLater.length >= LATE_START_MIN_HEADS) return startsLater;
   // الجولة 91.1: «أولاً» ضاعت كلياً من القراءة (قُرئت «Vol» مثلاً) فلا تُسترجع بالمطابقة التقريبية، لكن ثلاثة عناوين ترتيبية متتالية أو أكثر بعدها (ثانياً…)
   // يقف كل منها وحده فى سطر دليل كافٍ على التسلسل؛ فيُقبل التسلسل المبتدئ بـ2 (≥ 4 عناوين بعد الاستكمال) ويسترجع الخدمة بدء البند الأول من فقرة الأطراف (recoverFirstHead).
   if (best.length === 0 && startsAtTwo.length >= 4) best = startsAtTwo;

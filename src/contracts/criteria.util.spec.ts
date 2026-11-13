@@ -2,6 +2,7 @@ import {
   anchorArticleNumbers,
   classifyClauseCriteria,
   leaseAnchorArticleNumbers,
+  loanAnchorArticleNumbers,
   servicesAnchorArticleNumbers,
   ipAnchorArticleNumbers,
   scopedLawsForClause,
@@ -181,5 +182,30 @@ describe('ipAnchorArticleNumbers (الجولة 31)', () => {
   it('لا مراسى لبند لا صلة له بالملكية الفكرية أو البرامج', () => {
     expect(ipAnchorArticleNumbers(null, 'يسدد الطرف الثانى الأجر على ثلاث دفعات متساوية.')).toEqual([]);
     expect(ipAnchorArticleNumbers(null, 'يخضع العقد للقانون المصرى.')).toEqual([]);
+  });
+});
+
+describe('loanAnchorArticleNumbers (الجولة 92)', () => {
+  it('كفالة شخصية مطلقة فى عقد تمويل ⇒ مواد الكفالة 778 و780', () => {
+    const r = loanAnchorArticleNumbers('الضمانات', 'ويضمن السيد/ وليد سعيد شخصياً وبالتضامن جميع التزامات الشركة دون حد، ويسلم المقترض للمقرض سنداً إذنياً على بياض.', 3);
+    expect(r).toContain(778);
+    expect(r).toContain(780);
+  });
+  it('السداد المعجل بغرامة فى قرض ⇒ المادة 544', () => {
+    const r = loanAnchorArticleNumbers(null, 'إذا رغب المقترض فى السداد المعجل التزم بدفع غرامة قدرها 15% من المبلغ المسدد.', 3);
+    expect(r[0]).toBe(544);
+  });
+  it('حوالة المقرض لحقوقه بلا إخطار ⇒ المادة 305', () => {
+    expect(loanAnchorArticleNumbers(null, 'يجوز للمقرض حوالة حقوقه بموجب هذا القرض إلى الغير دون إخطار المقترض.', 3)).toContain(305);
+  });
+  it('حلول الأجل فى القرض ⇒ 273', () => {
+    expect(loanAnchorArticleNumbers(null, 'يحل أجل القرض كله فوراً دون إنذار إذا أخل المقترض بأى التزام.', 3)).toContain(273);
+  });
+  it('بند إيجار أو توريد عادى بلا قرض ولا كفالة ⇒ لا مراسى', () => {
+    expect(loanAnchorArticleNumbers(null, 'يسدد المستأجر الأجرة فى أول كل شهر ويسلم المؤجر العين خالية.', 3)).toEqual([]);
+    expect(loanAnchorArticleNumbers(null, 'يلتزم المورد بتسليم البضاعة خلال ثلاثين يوماً وصرف الفاتورة بعد الاستلام.', 3)).toEqual([]);
+  });
+  it('الكفالة تُسترجع فى أى عقد (لا يشترط سياق القرض)', () => {
+    expect(loanAnchorArticleNumbers(null, 'يضمن الكفيل المتضامن سداد الأجرة المستحقة على المستأجر.', 3)).toContain(778);
   });
 });

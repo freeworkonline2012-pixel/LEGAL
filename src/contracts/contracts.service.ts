@@ -23,6 +23,7 @@ import {
   CIVIL_CODE,
   classifyClauseCriteria,
   leaseAnchorArticleNumbers,
+  loanAnchorArticleNumbers,
   servicesAnchorArticleNumbers,
   ipAnchorArticleNumbers,
   IP_LAW,
@@ -1458,6 +1459,7 @@ export class ContractsService implements OnModuleInit {
       new Set([
         ...anchorArticleNumbers(criteria, 3),
         ...leaseAnchorArticleNumbers(clauseTitle, clauseText, 3),
+        ...loanAnchorArticleNumbers(clauseTitle, clauseText, 3),
         ...servicesAnchorArticleNumbers(clauseTitle, clauseText, 3, contractIsServices),
         ...fee.civil,
       ]),

@@ -550,6 +550,149 @@ export function recoverFirstHead<H extends { lineStart: number; markerStart: num
   return { heads: out, recovered: [1] };
 }
 
+/**
+ * الجولة 92: عقود ممسوحة يتبع فيها كل عنوان ترتيبى («رابعاً») سطر «العنوان: متن البند» («الأجرة: …»)، وضاعت عناوين بنود من القراءة الآلية (إيجار ممسوح: «أولاً/ثانياً/ثالثاً» و«ثامناً/تاسعاً»
+ * و«ثالث عشر» و«خامس عشر» لم تُقرأ، فخرج العقد بثلاثة بنود من 15 وضاعت أحكام البنود 2-3 والتنازل عن العيوب). الدليل البنيوى هو سطور العناوين القصيرة نفسها لا فواصل الفقرات
+ * (فقراء القراءة الآلية تتكسر وسط البند بفراغ زائف): يُعتمد النمط فقط إن تبعه ≥ 3 من العناوين المقروءة (وبنسبة ≥ 60% من العناوين القائمة بذاتها فى سطر)، ثم:
+ *  - بين عنوانين مقروءين a و b (أرقام ناقصة k بينهما، k ≤ 4): عدد سطور العناوين فى النافذة بعد عنوان a نفسه يطابق k بالضبط ⇒ يبدأ كل رقم ناقص عند سطر عنوان؛
+ *  - قبل أول عنوان مقروء (رقمه F ≤ 6): عدد سطور العناوين قبله (بعد فقرة الأطراف) يطابق F-1 بالضبط؛
+ *  - بعد آخر عنوان: سطر عنوان واحد زائد عن عنوانه هو، ودلالته ختامية («أحكام ختامية/عامة، متفرقات»).
+ * أى التباس (عدد مخالف) ⇒ لا تغيير. الحدّ المسترجع تقريبى (rawLength = 0) والتنبيه الصريح يصاحبه.
+ */
+const TITLE_LINE_RE = /^[ \t]*(?<title>[ء-ي][ء-ي \t/()«»-]{1,38}?)[ \t]*[:：][ \t]*(?<body>\S.{9,})$/u;
+// بداية متن لا عنوان («على المستأجر: …»، «يحق للمؤجرة: …») أو تعريف أطراف («الطرف الأول: …»)
+const TITLE_REJECT_FIRST_RE = /^(?:على|الى|إلى|إذا|اذا|فى|في|من|عن|يجب|يحق|يجوز|يلتزم|يكون|لا|ما|كل|أى|أي|اى|و|ف|ثم|حيث|مع|هذا|هذه|ذلك|السيد|السيدة|السادة|الطرف|طرف|شركة)(?![ء-ي])/u;
+const CLOSING_TITLE_RE = /ختام|ختاف|ختم|متفرق|احكام|أحكام|إحكام|عامة|عامه/u;
+
+interface TitleLine {
+  at: number;
+  end: number;
+}
+
+function titleLineAt(text: string, at: number, end: number): TitleLine | null {
+  const line = text.slice(at, end);
+  const m = TITLE_LINE_RE.exec(line);
+  if (!m?.groups) return null;
+  const title = m.groups.title.trim();
+  const words = title.split(/\s+/);
+  if (title.length < 3 || words.length > 5 || TITLE_REJECT_FIRST_RE.test(title)) return null;
+  return { at: at + (line.length - line.trimStart().length), end };
+}
+
+/** سطور العناوين فى النص بين موضعين (بداية كل سطر داخل [from, to)). */
+function titleLinesBetween(text: string, from: number, to: number): TitleLine[] {
+  const out: TitleLine[] = [];
+  let pos = from;
+  while (pos < to) {
+    const nl = text.indexOf('\n', pos);
+    const end = nl === -1 || nl > to ? to : nl;
+    const t = titleLineAt(text, pos, end);
+    if (t) out.push(t);
+    pos = end + 1;
+  }
+  return out;
+}
+
+export function recoverHeadsFromTitleLines<H extends { lineStart: number; markerStart: number; marker: string; rawLength: number; declaredNumber: number | null }>(
+  text: string,
+  heads: H[],
+): { heads: H[]; recovered: number[] } {
+  const out = [...heads].sort((a, b) => a.lineStart - b.lineStart);
+  const numbered = out.filter((h) => h.declaredNumber !== null);
+  if (numbered.length < 3) return { heads: out, recovered: [] };
+  const lineEndOf = (at: number): number => {
+    const nl = text.indexOf('\n', at);
+    return nl === -1 ? text.length : nl;
+  };
+  // العنوان القائم بذاته: لا حرف عربى بعد علامته على سطره، ويليه (أول سطر غير فارغ) سطر عنوان
+  const ownTitle = (h: H): TitleLine | null => {
+    if (h.rawLength <= 0) return null;
+    const lineEnd = lineEndOf(h.markerStart);
+    if (/[ء-ي]/u.test(text.slice(h.markerStart + h.rawLength, lineEnd))) return null;
+    let pos = lineEnd + 1;
+    while (pos < text.length) {
+      const end = lineEndOf(pos);
+      if (text.slice(pos, end).trim().length > 0) return titleLineAt(text, pos, end);
+      pos = end + 1;
+    }
+    return null;
+  };
+  const standalone = out.filter((h) => h.rawLength > 0 && h.declaredNumber !== null && !/[ء-ي]/u.test(text.slice(h.markerStart + h.rawLength, lineEndOf(h.markerStart))));
+  const withTitle = standalone.filter((h) => ownTitle(h) !== null);
+  if (withTitle.length < 3 || withTitle.length < standalone.length * 0.6) return { heads: out, recovered: [] };
+
+  const added: H[] = [];
+  const recovered: number[] = [];
+  // سطر العنوان المقروء سليماً قبل سطر العنوان القصير مباشرة («البند الثانى عشر» ثم «المسئولية…: …»): لا يُترك ذيلاً للبند السابق
+  const markerLineBefore = (t: TitleLine, n: number, floor: number): { at: number; len: number } | null => {
+    let end = t.at - 1;
+    while (end > floor && /\s/.test(text[end - 1] ?? '')) end--;
+    if (end <= floor) return null;
+    const start = text.lastIndexOf('\n', end - 1) + 1;
+    if (start <= floor) return null;
+    const raw = text.slice(start, end);
+    const body = raw.trim().replace(/^(?:البند|المادة)[ \t]*/u, '').replace(/[ \t:：.\-–—]+$/u, '');
+    if (body.length === 0 || raw.trim().length > 24 || ordinalToNumber(body) !== n) return null;
+    return { at: start + (raw.length - raw.trimStart().length), len: raw.trim().length };
+  };
+  const mk = (proto: H, t: TitleLine, n: number, floor: number): void => {
+    const label = canonicalHeading(n);
+    if (!label) return;
+    const mline = markerLineBefore(t, n, floor);
+    added.push(
+      mline
+        ? ({ ...proto, lineStart: mline.at, markerStart: mline.at, marker: label, rawLength: mline.len, declaredNumber: n, synthetic: false } as H)
+        : ({ ...proto, lineStart: t.at, markerStart: t.at, marker: label, rawLength: 0, declaredNumber: n, synthetic: true } as H),
+    );
+    recovered.push(n);
+  };
+
+  // 1) ثغرات بين عنوانين مقروءين
+  for (let i = 0; i + 1 < numbered.length; i++) {
+    const a = numbered[i];
+    const b = numbered[i + 1];
+    const an = a.declaredNumber as number;
+    const bn = b.declaredNumber as number;
+    const k = bn - an - 1;
+    if (k < 1 || k > 4 || b.lineStart <= a.lineStart) continue;
+    const own = ownTitle(a);
+    if (!own) continue;
+    const window = titleLinesBetween(text, own.end + 1, b.lineStart);
+    if (window.length !== k) continue;
+    window.forEach((t, j) => mk(a, t, an + 1 + j, j === 0 ? own.end : window[j - 1].end));
+  }
+
+  // 2) قبل أول عنوان مقروء
+  const first = numbered[0];
+  const fn = first.declaredNumber as number;
+  if (fn >= 2 && fn <= 6) {
+    const lead = text.slice(0, first.lineStart);
+    const pm = SECOND_PARTY_RE.exec(lead);
+    let from = 0;
+    if (pm) {
+      const nl = text.indexOf('\n', pm.index + pm[0].length);
+      from = nl === -1 || nl >= first.lineStart ? 0 : nl + 1;
+    }
+    const lines = titleLinesBetween(text, from, first.lineStart);
+    if (lines.length === fn - 1) lines.forEach((t, j) => mk(first, t, 1 + j, j === 0 ? from : lines[j - 1].end));
+  }
+
+  // 3) بعد آخر عنوان: بند ختامى واحد
+  const last = numbered[numbered.length - 1];
+  const ln = last.declaredNumber as number;
+  const lastOwn = ownTitle(last);
+  if (lastOwn && ln < 30) {
+    // سطر عنوان ختامى واحد هو آخر سطور العناوين فى النص (قد يسبقه سطر «كلمة: …» عابر من متن البند الأخير)
+    const tail = titleLinesBetween(text, lastOwn.end + 1, text.length);
+    const closing = tail.filter((t) => CLOSING_TITLE_RE.test(TITLE_LINE_RE.exec(text.slice(t.at, t.end))?.groups?.title ?? ''));
+    if (closing.length === 1 && closing[0] === tail[tail.length - 1]) mk(last, closing[0], ln + 1, lastOwn.end);
+  }
+
+  if (added.length === 0) return { heads: out, recovered: [] };
+  const merged = [...out, ...added].sort((a, b) => a.lineStart - b.lineStart);
+  return { heads: merged, recovered: recovered.sort((x, y) => x - y) };
+}
+
 /** تشخيص بلا نص عقد (أرقام وبداية قصيرة فقط): أسطر النافذة بين عنوانى الرقم الناقص، لمعرفة كيف قُرئ العنوان الضائع. */
 export function describeGapWindow(text: string, heads: Array<{ lineStart: number; declaredNumber: number | null }>, missing: number): string {
   const sorted = [...heads].sort((a, b) => a.lineStart - b.lineStart);
@@ -690,6 +833,19 @@ export class SegmentationService {
         warnings.push(
           `قُرئت عناوين ${fuzzy} بنداً من ${aligned.length} من قراءة آلية مشوَّهة بمطابقة تقريبية مقيَّدة بالتسلسل — تحقق من أن حدود البنود وأرقامها صحيحة قبل الاعتماد.`,
         );
+      }
+    }
+
+    // الجولة 92: بنود ضاعت عناوينها وبقيت سطور «العنوان: متن» (قبل أول عنوان مقروء، وبين عنوانين، وبعد الأخير) — تُقدَّم على فواصل الفقرات لأنها أدق منها فى القراءة الآلية
+    if (heads.length >= 3) {
+      const byTitle = recoverHeadsFromTitleLines(text, heads);
+      if (byTitle.recovered.length > 0) {
+        heads = byTitle.heads;
+        const labels = byTitle.recovered.map((n) => canonicalHeading(n)).filter(Boolean).join('، ');
+        warnings.push(
+          `لم تُقرأ عناوين ${byTitle.recovered.length === 1 ? 'بند' : `${byTitle.recovered.length} بنود`} (${labels}) من القراءة الآلية؛ حُدِّد بدء ${byTitle.recovered.length === 1 ? 'البند' : 'كل بند'} من سطر «العنوان: …» الذى تبدأ به بنود هذا العقد (عدد هذه السطور يطابق عدد البنود الناقصة تماماً)، فحدّه تقريبى — قارنه بالأصل قبل الاعتماد.`,
+        );
+        this.logger.log(`segmentation title-lines recovered: ${byTitle.recovered.join(',')}`);
       }
     }
 
