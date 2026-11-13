@@ -36,3 +36,33 @@ describe('بوابة نطاق القانون القطاعى (الجولة 60)', 
     expect(SECTOR_LAW_KEYS).toEqual(expect.arrayContaining(['176/2018', '69/2025', '5/2023', '199/2025', '77/2025']));
   });
 });
+
+describe('الجولة 90: بوابات نطاق القوانين', () => {
+  const art = (lawNo: number, lawYear: number) => ({ lawNo, lawYear, articleNo: 1 });
+  const supplyPrivate = lawScopeContext('عقد توريد عبوات بين شركة الأفق للصناعات وشركة النور للتعبئة. يلتزم المورد بتوريد الطلبات خلال عشرة أيام من أمر التوريد.', 'services');
+  const supplyPublic = lawScopeContext('عقد توريد أجهزة لوزارة الصحة بعد مناقصة عامة وفقاً لقانون التعاقدات العامة 182 لسنة 2018.', 'services');
+  const loanPrivate = lawScopeContext('عقد قرض بين السيد/ منصور وشركة الركن، مدة القرض أربعة وعشرون شهراً وفائدة 7% سنوياً.', 'finance');
+  const loanLicensed = lawScopeContext('عقد تمويل استهلاكى تبرمه شركة تمويل مرخص لها من الهيئة العامة للرقابة المالية.', 'finance');
+
+  it('182/2018 و692/2019 محجوبان عن توريد بين شركتين خاصتين ويُقبلان عند ذكر جهة عامة أو مناقصة', () => {
+    expect(articleInLawScope(supplyPrivate, art(182, 2018))).toBe(false);
+    expect(articleInLawScope(supplyPrivate, art(692, 2019))).toBe(false);
+    expect(articleInLawScope(supplyPublic, art(182, 2018))).toBe(true);
+    expect(articleInLawScope(supplyPublic, art(692, 2019))).toBe(true);
+  });
+
+  it('قرارا الهيئة 105/2021 و6/2022 محجوبان عن قرض خاص ويُقبلان عند ذكر نشاط خاضع للرقابة المالية', () => {
+    expect(articleInLawScope(loanPrivate, art(105, 2021))).toBe(false);
+    expect(articleInLawScope(loanPrivate, art(6, 2022))).toBe(false);
+    expect(articleInLawScope(loanLicensed, art(105, 2021))).toBe(true);
+    expect(articleInLawScope(loanLicensed, art(6, 2022))).toBe(true);
+  });
+
+  it('49/1977 و136/1981 لا يظهران على عقد إيجار تجارى جديد (قرار المالك: يحكمه المدنى) ويظهران عند ذكر علاقة إيجار قديمة', () => {
+    const newLease = lawScopeContext('عقد إيجار محل تجارى لمدة سنة تبدأ من 1/1/2027 بين المؤجرة والمستأجر.', 'lease');
+    const oldLease = lawScopeContext('عقد إيجار قديم خاضع للقانون 49 لسنة 1977 وامتداده القانونى.', 'lease');
+    expect(articleInLawScope(newLease, art(49, 1977))).toBe(false);
+    expect(articleInLawScope(newLease, art(136, 1981))).toBe(false);
+    expect(articleInLawScope(oldLease, art(49, 1977))).toBe(true);
+  });
+});

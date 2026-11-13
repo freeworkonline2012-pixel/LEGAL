@@ -226,38 +226,97 @@ function editDistance(a: string, b: string): number {
 const FUZZY_LINE_RE = /^[ \t]*[:：\-–—.'"’‘|!]{0,3}[ \t]*(?<tok>[ء-ي\u064b-\u0652]{4,8})(?![ء-ي])[ \t]*(?<punct>[:：\-–—.،'])?/gmu;
 
 /**
- * عنوان ترتيبى شوّهته القراءة الآلية («نالياً» بدل «ثالثاً») يُقبل فقط كالعنوان التالى المتوقَّع بعد تسلسل مقروء فعلاً، بمسافة تحرير ≤ 2،
- * وفى سطر بدايته الكلمة وبعدها نص (لا كلمة عابرة). مقيَّد بالتسلسل فلا يلتقط كلمة عادية إلا إن كانت قريبة جداً من الترتيبى المنتظر.
+ * الجولة 90 (استبدلت extendFuzzy): عنوان ترتيبى شوّهته القراءة الآلية («نالياً» بدل «ثالثاً»، «سنادننا» بدل «سادساً»، «نامنا» بدل «ثامناً») يُقرأ بمطابقة
+ * تقريبية مقيَّدة بالتسلسل فى ثلاثة مواضع: بين عنوانين مقروءين (ثغرة داخلية)، بعد آخر عنوان (امتداد)، وقبل أول عنوان مقروء (إن ضاع «أولاً»).
+ * قبل هذه الجولة كان الامتداد وحده يعمل، ويشترط نصاً بعد الكلمة فى السطر نفسه؛ فعقد إيجار ممسوح تقف فيه كل كلمة ترتيبية وحدها فى سطر (والمتن فى السطر التالى)
+ * خرج ببندين أو صفر لأن أول عنوان تالف قطع التسلسل ولم يُسترجع ما بعده.
+ * شروط القبول (أى إخفاق ⇒ لا تغيير): (1) سطر عنوان الشكل: الكلمة وحدها (≤ 12 حرفاً) يليها سطر متن ≥ 12 حرفاً، أو كلمة 4–9 أحرف يليها علامة وقف ثم نص ≥ 12 حرفاً؛
+ * (2) داخل النافذة بين العنوانين المجاورين؛ (3) مسافة التحرير إلى الترتيبى المنتظر ≤ 2 (≤ 3 لكلمة وحدها طولها ≥ 5)، ولا يقرب أى ترتيبى آخر أكثر منه؛
+ * (4) أقرب مرشح فى النافذة يفوز، فلا يُختار سطر لاحق على حساب أقرب؛ والتنبيه الصريح يصاحب التقسيم فى الخدمة.
  */
-function extendFuzzy(text: string, run: AltHead[], literal: AltHead[]): AltHead[] {
-  const out = [...run];
-  const used = new Set(literal.map((h) => h.lineStart));
-  for (;;) {
-    const want = out[out.length - 1].declaredNumber + 1;
-    const word = ADVERB_WORDS.find(([n]) => n === want)?.[1];
-    if (!word || word.includes(' ')) break;
-    const from = out[out.length - 1].lineStart + 1;
-    let found: AltHead | null = null;
-    for (const m of text.matchAll(FUZZY_LINE_RE)) {
-      const lineStart = m.index ?? 0;
-      if (lineStart <= from || used.has(lineStart)) continue;
-      const tok = normOrd(m.groups?.tok ?? '');
-      if (tok.length < 4 || editDistance(tok, word) > 2) continue;
-      const rest = text.slice(lineStart + m[0].length, lineStart + m[0].length + 60).split('\n')[0].trim();
-      if (rest.length < 12) continue;
-      const raw = m[0];
-      const trimmed = raw.replace(/^[ \t]+/, '');
-      found = {
-        lineStart,
-        markerStart: lineStart + (raw.length - trimmed.length),
-        marker: ADVERB_DISPLAY[want],
-        rawLength: trimmed.length,
-        declaredNumber: want,
-      };
-      break;
+const HEADING_SHAPE_ALONE_MAX = 12;
+const HEADING_SHAPE_INLINE_MAX = 9;
+const NEIGHBOUR_BODY_MIN = 12;
+
+function bestAdverbDistance(tok: string, want: number): number | null {
+  const own = ADVERB_WORDS.find(([n]) => n === want)?.[1];
+  if (!own) return null;
+  const d = editDistance(tok, own);
+  for (const [n, w] of ADVERB_WORDS) {
+    if (n === want) continue;
+    if (editDistance(tok, w) < d) return null;
+  }
+  return d;
+}
+
+function findFuzzyAdverb(text: string, want: number, from: number, to: number): AltHead | null {
+  const word = ADVERB_WORDS.find(([n]) => n === want)?.[1];
+  if (!word) return null;
+  let best: { d: number; head: AltHead } | null = null;
+  let pos = from;
+  while (pos < to) {
+    const nl = text.indexOf('\n', pos);
+    const lineEnd = nl === -1 || nl > to ? to : nl;
+    const raw = text.slice(pos, lineEnd);
+    const lineStart = pos;
+    pos = lineEnd + 1;
+    const trimmedLine = raw.trim();
+    if (trimmedLine.length === 0) continue;
+    const trimmed = raw.replace(/^[ \t]+/, '');
+    const lead = raw.length - trimmed.length;
+    // (أ) الكلمة وحدها فى السطر (تشمل «حادى عشر» ذات الكلمتين)، والمتن فى السطر التالى
+    const stripped = trimmedLine.replace(/^[:：\-–—.'"’‘|!]+/, '').replace(/[:：\-–—.،'"\s]+$/, '');
+    let tok = '';
+    let alone = false;
+    let rawLength = 0;
+    if (stripped.length > 0 && stripped.length <= HEADING_SHAPE_ALONE_MAX + 4 && /^[ء-ي\u064b-\u0652 ]+$/u.test(stripped)) {
+      const after = text.slice(Math.min(pos, to), to).split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? '';
+      if (after.length >= NEIGHBOUR_BODY_MIN) {
+        tok = normOrd(stripped);
+        alone = true;
+        rawLength = trimmed.trimEnd().length;
+      }
     }
-    if (!found) break;
+    // (ب) كلمة 3–9 أحرف يليها علامة وقف ثم نص فى السطر نفسه (وبها لا تُقبل الكلمتان)
+    if (!alone && !word.includes(' ')) {
+      const m = /^[:：\-–—.'"’‘|!]{0,3}[ \t]*(?<tok>[ء-ي\u064b-\u0652]{3,9})[ \t]*(?<punct>[:：\-–—.،'])[ \t]*(?<rest>.*)$/u.exec(trimmedLine);
+      if (m?.groups && m.groups.rest.trim().length >= NEIGHBOUR_BODY_MIN) {
+        tok = normOrd(m.groups.tok);
+        rawLength = lead === 0 ? m[0].length - m.groups.rest.length : trimmed.length - m.groups.rest.length;
+      }
+    }
+    if (tok.length < 3) continue;
+    const d = bestAdverbDistance(tok, want);
+    if (d === null) continue;
+    const limit = alone && tok.length >= 5 ? 3 : 2;
+    if (d > limit || d >= tok.length / 2 + 1) continue;
+    if (!best || d < best.d) {
+      best = { d, head: { lineStart, markerStart: lineStart + lead, marker: ADVERB_DISPLAY[want], rawLength: Math.max(1, rawLength), declaredNumber: want } };
+    }
+  }
+  return best ? best.head : null;
+}
+
+/** يكمل تسلسلاً مقروءاً بالمطابقة التقريبية: قبله (إن ضاع «أولاً»)، وفى ثغراته، وبعده. المدخل مرتب بالموضع ومتزايد الأرقام. */
+function completeAdverbial(text: string, anchors: AltHead[]): AltHead[] {
+  const out = [...anchors].sort((a, b) => a.lineStart - b.lineStart);
+  const MAX = 15;
+  for (let want = 1; want <= MAX; want++) {
+    if (out.some((h) => h.declaredNumber === want)) continue;
+    const prev = [...out].filter((h) => h.declaredNumber < want).pop();
+    const next = out.find((h) => h.declaredNumber > want);
+    if (!prev && !next) break;
+    const from = prev ? (text.indexOf('\n', prev.lineStart) === -1 ? text.length : text.indexOf('\n', prev.lineStart) + 1) : 0;
+    const to = next ? next.lineStart : text.length;
+    if (from >= to) continue;
+    const found = findFuzzyAdverb(text, want, from, to);
+    if (!found) {
+      // ثغرة داخلية لم تُسترجع: يتوقف الامتداد بعد الأخير فقط، أما اللاحق المقروء فيبقى
+      if (!next) break;
+      continue;
+    }
     out.push(found);
+    out.sort((a, b) => a.lineStart - b.lineStart);
   }
   return out;
 }
@@ -267,28 +326,33 @@ function isPartyIntro(after: string): boolean {
   return PARTY_AFTER_RE.test(after.slice(0, 40)) && /^[\s:：\-–—.،/]*(?:السادة|السيد|السيدة)/u.test(after);
 }
 
-/** أطول تسلسل 1،2،3… داخل أى «دورة» (الرقم يعود إلى 1 = دورة جديدة)؛ عند التساوى الأخيرة (متن العقد يلى الديباجة) ثم قبول بحسب العدد. */
+/**
+ * أطول تسلسل متزايد داخل أى «دورة» (الرقم يعود إلى ما دون السابق = دورة جديدة)، ثم يُكمَّل بالمطابقة التقريبية (completeAdverbial) قبل المفاضلة بين الدورات؛
+ * عند التساوى الأخيرة (متن العقد يلى الديباجة). يُقبل التسلسل المكتمل إن بدأ بالرقم 1 (الجولة 90: كان يُشترط أن يكون 1،2،3 متصلاً فتقطعه أول كلمة تالفة).
+ * قبول بحسب العدد: ≥ 3، أو اثنان مع عبارة تمهيدية/تعريف طرفين.
+ */
 function pickRun(text: string, cands: AltHead[]): AltHead[] {
-  const runs: AltHead[][] = [];
+  const cycles: AltHead[][] = [];
   let cur: AltHead[] = [];
-  let want = 1;
   let last = 0;
   for (const c of cands) {
     if (c.declaredNumber <= last && cur.length > 0) {
-      runs.push(cur);
+      cycles.push(cur);
       cur = [];
-      want = 1;
+      last = 0;
     }
-    last = c.declaredNumber;
-    if (c.declaredNumber === want) {
+    // قفزة أكبر من 3 فى الأرقام ليست تسلسلاً بل عنواناً عابراً؛ إلا الترتيبى المركّب («رابع عشر») فلا يلتبس بكلمة عادية فيُقبل بعد عدة عناوين تالفة
+    if (c.declaredNumber > last && (cur.length === 0 ? c.declaredNumber <= 3 : c.declaredNumber - last <= 3 || c.declaredNumber >= 11)) {
       cur.push(c);
-      want++;
+      last = c.declaredNumber;
     }
   }
-  if (cur.length > 0) runs.push(cur);
+  if (cur.length > 0) cycles.push(cur);
   let best: AltHead[] = [];
-  for (const r of runs) if (r.length >= best.length) best = r;
-  if (best.length >= 1) best = extendFuzzy(text, best, cands);
+  for (const chain of cycles) {
+    const done = completeAdverbial(text, chain);
+    if (done.length > 0 && done[0].declaredNumber === 1 && done.length >= best.length) best = done;
+  }
   if (best.length >= 3) return best;
   if (best.length === 2) {
     const before = normForAnnounce(text.slice(Math.max(0, best[0].lineStart - 300), best[0].lineStart));

@@ -156,8 +156,11 @@ describe('الجولة 83 — نوع عقد الحراسة والقانون ال
       expect(articleInLawScope(lawScopeContext(txt, 'services'), law)).toBe(false);
       expect(articleInLawScope(lawScopeContext(txt, null), law)).toBe(false);
     }
-    expect(articleInLawScope(lawScopeContext('عقد إيجار مكتب بين المؤجر والمستأجر', 'lease'), cand(49, 1977))).toBe(true);
-    expect(articleInLawScope(lawScopeContext('عقد إيجار مكتب بين المؤجر والمستأجر', 'lease'), cand(136, 1981))).toBe(true);
+    // الجولة 90 (قرار المالك): 49/1977 و136/1981 لا يسريان على عقد إيجار جديد (يحكمه المدنى بعد القانون 4/1996)؛ فلا يكفى أن يكون العقد إيجاراً، بل يلزم مؤشر علاقة قديمة فى النص
+    expect(articleInLawScope(lawScopeContext('عقد إيجار مكتب بين المؤجر والمستأجر', 'lease'), cand(49, 1977))).toBe(false);
+    expect(articleInLawScope(lawScopeContext('عقد إيجار مكتب بين المؤجر والمستأجر', 'lease'), cand(136, 1981))).toBe(false);
+    expect(articleInLawScope(lawScopeContext(txt, 'lease'), cand(49, 1977))).toBe(true);
+    expect(articleInLawScope(lawScopeContext(txt, 'lease'), cand(136, 1981))).toBe(true);
     // 164/2025 يبقى مشروطاً بمؤشر الإيجار القديم حتى على عقد الإيجار (الجولة 69)
     expect(articleInLawScope(lawScopeContext('عقد إيجار مكتب حديث', 'lease'), cand(164, 2025))).toBe(false);
     expect(articleInLawScope(lawScopeContext(txt, 'lease'), cand(164, 2025))).toBe(true);

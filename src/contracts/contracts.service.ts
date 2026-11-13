@@ -78,6 +78,7 @@ import { evaluateRules, summarizeFindings } from './clause-rules';
 import { ContractConsistencyService } from './contract-consistency.service';
 import { ClauseVerifierService } from './clause-verifier.service';
 import { articleInScopeForFamily } from './article-scope';
+import { mandatoryClausePatch, mandatoryRuleHits } from './mandatory-rules';
 import { type Verification, claimKindFromRisk, damagedNumberClauseVerification, isDismissedFindingVerification, needsVerification, pickContributionContext, pickForVerification } from './verification';
 import { compareFactsForClient, describeWeakenings } from './redraft-guard';
 import type { ClauseFacts } from './clause-facts';
@@ -425,6 +426,9 @@ export class ContractsService implements OnModuleInit {
       await this.clauseRepository.save(row);
     }
 
+    // الجولة 90: مخالفة آمرة صريحة فى نص البند (تنازل عن الضمان العشرى، فائدة فوق 227، فائدة على فائدة، منع تخفيض التعويض) لا يُسقطها دحض المدقق
+    await this.applyMandatoryRules(clauseRows);
+
     // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
     progress({ stage: 'contract_level', done: 0, total: 0 });
     const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings, segmentation.preamble, contract.originalFilename, position.clientRole);
@@ -536,6 +540,26 @@ export class ContractsService implements OnModuleInit {
         await this.clauseRepository.save(row);
       } catch (err) {
         this.logger.warn(`clause verification failed clauseIndex=${row.clauseIndex} (non-fatal): ${(err as Error).message}`);
+      }
+    }
+  }
+
+  /**
+   * الجولة 90: قواعد المواد الآمرة الحتمية بعد المدقق (راجع mandatory-rules.ts). لا ترمى استثناء: أى عطل فى بند ⇒ يبقى كما هو.
+   */
+  private async applyMandatoryRules(rows: ContractClause[]): Promise<void> {
+    for (const row of rows) {
+      try {
+        const patch = mandatoryClausePatch(row, mandatoryRuleHits(row.clauseText));
+        if (!patch) continue;
+        row.assessmentStatus = patch.assessmentStatus;
+        row.riskLevel = patch.riskLevel;
+        row.assessmentReasoning = patch.assessmentReasoning;
+        row.matchedArticles = patch.matchedArticles;
+        row.verification = patch.verification;
+        await this.clauseRepository.save(row);
+      } catch (err) {
+        this.logger.warn(`mandatory rules failed clauseIndex=${row.clauseIndex} (non-fatal): ${(err as Error).message}`);
       }
     }
   }

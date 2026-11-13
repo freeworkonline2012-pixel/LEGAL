@@ -498,6 +498,57 @@ export function recoverHeadsFromRaggedLines<H extends { lineStart: number; marke
   return { heads: out, recovered };
 }
 
+/**
+ * الجولة 90: عنوان البند الأول ضاع من القراءة الآلية (مقاولة ممسوحة: «المادة الأولى» تالفة فخرج العقد بـ14 من 15 بنداً وكتلة غير مقسَّمة قبل الثانى تضم الديباجة والبند الأول).
+ * الدليل البنيوى: أول عنوان مقروء رقمه 2 (الأول ناقص بالتحديد)، وفى النص السابق له فقرة تعريف الأطراف المنتهية بعبارة «الطرف الثانى»؛ فأول سطر يلى نهاية تلك الفقرة هو بداية البند الأول،
+ * بشرط أن يبقى بينه وبين العنوان 2 متن ≥ 60 حرفاً. إن كان السطر قصيراً (≤ 24 حرفاً، بلا نقطة ختامية) ويتلوه متن فهو عنوان البند التالف ويُستهلك؛ وإلا العنوان ضائع بلا أثر ويبدأ البند من السطر نفسه.
+ * أى التباس (لا فقرة أطراف، لا سطر تالٍ، متن قصير) ⇒ لا تغيير، فيبقى سلوك الكتلة غير المقسَّمة السابق. التنبيه الصريح يصاحب الاسترجاع.
+ */
+const SECOND_PARTY_RE = /(?:الطرف|طرف)[\s_]*(?:ال)?(?:ثان|ثاني|ثانى|ثانيه|ثانية)/u;
+export function recoverFirstHead<H extends { lineStart: number; markerStart: number; marker: string; rawLength: number; declaredNumber: number | null }>(
+  text: string,
+  heads: H[],
+): { heads: H[]; recovered: number[] } {
+  const out = [...heads].sort((a, b) => a.lineStart - b.lineStart);
+  const first = out[0];
+  if (!first || first.declaredNumber !== 2 || out.some((h) => h.declaredNumber === 1)) return { heads: out, recovered: [] };
+  const label = canonicalHeading(1);
+  if (!label) return { heads: out, recovered: [] };
+  const lines: Array<{ at: number; raw: string }> = [];
+  let pos = 0;
+  while (pos < first.lineStart) {
+    const nl = text.indexOf('\n', pos);
+    const end = nl === -1 || nl > first.lineStart ? first.lineStart : nl;
+    lines.push({ at: pos, raw: text.slice(pos, end) });
+    pos = end + 1;
+  }
+  // عبارة «الطرف الثانى» قد تنكسر بين سطرين («الطرف» / «الثانى») فيُبحث فى النص السابق كله لا فى كل سطر منفرداً
+  const leadingText = text.slice(0, first.lineStart);
+  const pm = SECOND_PARTY_RE.exec(leadingText);
+  if (!pm) return { heads: out, recovered: [] };
+  const partyEnd = pm.index + pm[0].length;
+  const partyIdx = lines.findIndex((l, k) => l.at <= partyEnd && (k === lines.length - 1 || lines[k + 1].at > partyEnd));
+  if (partyIdx === -1) return { heads: out, recovered: [] };
+  // نهاية فقرة الأطراف: أول سطر (من سطر التعريف فصاعداً) ينتهى بعلامة وقف، أو يليه سطر فارغ
+  let endIdx = partyIdx;
+  while (endIdx < lines.length - 1 && !/[.:؛)][\s\u200e\u200f]*$/.test(lines[endIdx].raw.trimEnd()) && lines[endIdx + 1].raw.trim().length > 0) endIdx++;
+  let j = endIdx + 1;
+  while (j < lines.length && lines[j].raw.trim().length === 0) j++;
+  if (j >= lines.length) return { heads: out, recovered: [] };
+  const cand = lines[j];
+  const candText = cand.raw.trim();
+  const bodyFrom = cand.at;
+  if (first.lineStart - bodyFrom < 60) return { heads: out, recovered: [] };
+  const lead = cand.raw.length - cand.raw.trimStart().length;
+  const nextLine = lines.slice(j + 1).find((l) => l.raw.trim().length > 0)?.raw.trim() ?? '';
+  const shortMarker = candText.length <= 24 && !/[.،؛]$/.test(candText) && nextLine.length >= 20;
+  const head = shortMarker
+    ? ({ ...first, lineStart: cand.at, markerStart: cand.at + lead, marker: label, rawLength: candText.length, declaredNumber: 1, synthetic: false } as H)
+    : ({ ...first, lineStart: cand.at, markerStart: cand.at + lead, marker: label, rawLength: 0, declaredNumber: 1, synthetic: true } as H);
+  out.unshift(head);
+  return { heads: out, recovered: [1] };
+}
+
 /** تشخيص بلا نص عقد (أرقام وبداية قصيرة فقط): أسطر النافذة بين عنوانى الرقم الناقص، لمعرفة كيف قُرئ العنوان الضائع. */
 export function describeGapWindow(text: string, heads: Array<{ lineStart: number; declaredNumber: number | null }>, missing: number): string {
   const sorted = [...heads].sort((a, b) => a.lineStart - b.lineStart);
@@ -586,9 +637,10 @@ export class SegmentationService {
     }
     const warnings: string[] = [];
     // الجولة 68: عقد بلا «البند»/«المادة» أصلاً، بنوده «أولاً: … ثانياً: …» (عقد أتعاب محاماة حقيقى خرج بصفر بنود وبغلاف مطمئن)
-    if (heads.length < 2) {
+    // الجولة 90: وكذلك حين التقطت الأنماط الأخرى بنداً أو اثنين من عقد ممسوح عناوينه «أولاً/ثانياً…» وعناوينه الترتيبية تكوّن تسلسلاً أطول بكثير (إيجار ممسوح خرج ببندين)
+    if (heads.length < 4) {
       const adv = findAdverbialHeads(text);
-      if (adv.length >= 2 && adv.length > heads.length) {
+      if (adv.length >= 2 && adv.length > heads.length && (heads.length < 2 || (adv.length >= 5 && adv.length >= heads.length + 3))) {
         heads = adv;
         warnings.push(
           `لا يوجد فى العقد ترقيم «البند …» أو «المادة …»؛ قُسِّم بحسب عناوينه الترتيبية («${adv.map((h) => h.marker).slice(0, 3).join('، ')}…») وعددها ${adv.length}. حدود البنود وأرقامها تقريبية — قارنها بالأصل قبل الاعتماد.`,
@@ -700,6 +752,17 @@ export class SegmentationService {
       }
 
       if (!changed) break;
+    }
+
+    // الجولة 90: العنوان الأول ضاع (أول مقروء هو الثانى) والديباجة تنتهى بتعريف الطرف الثانى
+    if (heads.length >= 3) {
+      const firstRec = recoverFirstHead(text, heads);
+      if (firstRec.recovered.length > 0) {
+        heads = firstRec.heads;
+        warnings.push(
+          'لم يُقرأ عنوان البند الأول من القراءة الآلية؛ حُدِّد بدؤه من نهاية فقرة تعريف الأطراف (بعد «الطرف الثانى»)، فحدّه تقريبى — قارنه بالأصل قبل الاعتماد.',
+        );
+      }
     }
 
     if (heads.length === 0) {

@@ -110,6 +110,26 @@ function judge(installments: PaymentInstallment[]): { sum: number; verdict: Paym
 }
 
 /** جداول الدفعات: واحد لكل بند فيه نسبتا سداد فأكثر. يُرجَع [] إن لم يُرصد شىء (لا جدول فارغ ولا استنتاج). */
+/**
+ * الجولة 90: نسب الغرامة والسقف والفائدة ليست دفعات. جملة «إذا تأخر المستأجر عن السداد التزم بغرامة 1% عن كل أسبوع بحد أقصى 5%» حوت كلمة «سداد»
+ * فصارت نسبتاها «دفعتين» ومجموعهما 6% فى جدول الدفعات (إيجار اصطناعى). تُقرأ السابقة المباشرة للنسبة (حتى 45 حرفاً): إن ذكرت غرامة/جزاء/تعويض/فائدة/عمولة/حداً أقصى أو
+ * تأخيراً فالنسبة ليست من جدول الدفعات. لا يمس هذا نسبة تحتجز ضماناً أو تدفع عند توقيع/تسليم. إن تعذّر تحديد موضع النسبة فى الاقتباس تبقى كما كانت.
+ */
+const PENALTY_LEAD = /(?:غرام[ةه]|جزاء|جزائ|تعويض|فائد[ةه]|فوائد|عمول[ةه]|بحد\s+[أا]قصى|الحد\s+[الأا]+قصى|سقف|لا\s+تتجاوز|لا\s+يتجاوز|تأخر|تاخر|تأخير|تاخير|خصم)/u;
+
+export function isPenaltyOrCapPercent(t: { value: string; quote: string }): boolean {
+  const n = t.value.replace(/%/g, '').trim();
+  if (!/^\d+(?:\.\d+)?$/.test(n)) return false;
+  const esc = n.replace('.', '\\.');
+  const re = new RegExp(`(?<![\\d.,])(?:9[06])?${esc}(?![\\d])`);
+  const m = re.exec(t.quote);
+  if (!m) return false;
+  const lead = t.quote.slice(Math.max(0, m.index - 45), m.index);
+  // سابقة تفصل بين نسبتين دفعتين («و30%») لا تتخطى الواو إلى غرامة ذُكرت قبلها فى جملة أخرى
+  const afterLastSep = lead.split(/[.؛]/u).pop() ?? lead;
+  return PENALTY_LEAD.test(afterLastSep);
+}
+
 export function buildPaymentSchedules(terms: KeyTerm[]): PaymentSchedule[] {
   const byClause = new Map<number, KeyTerm[]>();
   for (const t of terms) {
@@ -119,7 +139,7 @@ export function buildPaymentSchedules(terms: KeyTerm[]): PaymentSchedule[] {
   }
   const out: PaymentSchedule[] = [];
   for (const [clauseIndex, list] of byClause) {
-    const percents = list.filter((t) => t.kind === 'percent' && PAYMENT_WORDS.test(t.quote));
+    const percents = list.filter((t) => t.kind === 'percent' && PAYMENT_WORDS.test(t.quote) && !isPenaltyOrCapPercent(t));
     const count = percents.reduce((n, t) => n + (t.occurrences ?? 1), 0);
     if (count < 2 || count > MAX_INSTALLMENTS) continue;
     const amounts = list

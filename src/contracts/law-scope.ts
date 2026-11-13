@@ -120,13 +120,36 @@ const LEASE_SIGNALS: RegExp[] = [
   /(?:ال)?اجره (?:ال)?(?:شهريه|سنويه|مستحقه|المتفق)/,
 ];
 
+/**
+ * الجولة 90 (دفعة اصطناعية من 12 عقداً): قانون التعاقدات العامة 182/2018 ولائحته 692/2019 ظهرا حاكمين على عقد توريد بين شركتين خاصتين. لا يحكمان إلا تعاقداً تكون الجهة العامة طرفاً فيه
+ * أو يرد فى نصه ما يدل على ذلك (مناقصة/ممارسة/جهة إدارية/وزارة/هيئة عامة/المال العام/القانون نفسه). لا مؤشر ⇒ محجوب (حتى لو كانت الأسرة توريداً أو مقاولة).
+ */
+const PUBLIC_PROCUREMENT_SIGNALS: RegExp[] = [
+  /التعاقدات العامه|قانون (?:ال)?تعاقدات|182\s*(?:لسنه|\/|-)\s*2018|692\s*(?:لسنه|\/|-)\s*2019/,
+  /مناقصه|ممارسه (?:عامه|محدوده)|مزايده (?:عامه|علنيه)|الممارسه العامه/,
+  /(?:جهه|جهات)\s+(?:اداريه|حكوميه|عامه)|الجهه المتعاقده/,
+  /(?<![ء-ي])وزاره(?![ء-ي])|هيئه عامه|هيئه حكوميه|المال العام|موازنه (?:ال)?دوله|قطاع (?:ال)?اعمال (?:ال)?عام|شركه قطاع عام|شركات (?:ال)?قطاع (?:ال)?عام|الجهاز الاداري للدوله/,
+];
+
+/**
+ * الجولة 90: قرارا الهيئة العامة للرقابة المالية 105/2021 و6/2022 (التمويل غير المصرفى) ظهرا حاكمين على قرض خاص بين شركة ومقرض. لا يُعرضان إلا على عقد يذكر نشاطاً خاضعاً لرقابة الهيئة
+ * (تمويل استهلاكى/متناهى الصغر/عقارى، تأجير تمويلى، تخصيم، توريق، شركة تمويل مرخصة، الرقابة المالية). قرض عادى بين أطراف خاصة لا يحوى ذلك ⇒ محجوب.
+ */
+const NON_BANK_FINANCE_SIGNALS: RegExp[] = [
+  /تمويل (?:ال)?(?:استهلاك|متناهي الصغر|عقاري|بالتقسيط)|ائتمان استهلاك/,
+  /تاجير تمويل|ايجار تمويل|تخصيم|توريق|فاكتورينج/,
+  /الرقابه الماليه|الهيئه العامه للرقابه الماليه|شركه (?:ال)?تمويل مرخص|مرخص (?:لها )?(?:من )?(?:الهيئه|الرقابه)|تكنولوجيا ماليه|فينتك/,
+  /18\s*(?:لسنه|\/|-)\s*2020|141\s*(?:لسنه|\/|-)\s*2014|176\s*(?:لسنه|\/|-)\s*2018|105\s*(?:لسنه|\/|-)\s*2021|6\s*(?:لسنه|\/|-)\s*2022/,
+];
+
 const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
   { lawNo: 14, lawYear: 2025, sector: 'العمل', signals: EMPLOYMENT_SIGNALS, allowFamilies: ['employment'], stripPatterns: EMPLOYMENT_NEGATIONS },
   { lawNo: 95, lawYear: 1992, sector: 'سوق رأس المال', signals: CAPITAL_MARKET_SIGNALS },
   { lawNo: 135, lawYear: 1993, sector: 'اللائحة التنفيذية لسوق رأس المال', signals: CAPITAL_MARKET_SIGNALS },
   // الجولة 83: قانون إيجار الأماكن القديم 49/1977 و136/1981 لا يظهران إلا على عقد إيجار أو إن ورد فى النص ما يدل على علاقة إيجار قديمة (ظهر 49/1977 «قانوناً حاكماً» لعقد بيع وحدة إدارية)
-  { lawNo: 49, lawYear: 1977, sector: 'إيجار الأماكن', signals: OLD_RENT_SIGNALS, allowFamilies: ['lease'], onlyFamilies: ['lease'] },
-  { lawNo: 136, lawYear: 1981, sector: 'إيجار الأماكن', signals: OLD_RENT_SIGNALS, allowFamilies: ['lease'], onlyFamilies: ['lease'] },
+  // الجولة 90 (قرار المالك): 49/1977 لا يسرى على عقد إيجار جديد لمكان لم يسبق تأجيره (القانون 4/1996 أعاده إلى المدنى)؛ فلا تكفى أسرة الإيجار، يلزم مؤشر علاقة إيجار قديمة فى النص
+  { lawNo: 49, lawYear: 1977, sector: 'إيجار الأماكن', signals: OLD_RENT_SIGNALS, onlyFamilies: ['lease'] },
+  { lawNo: 136, lawYear: 1981, sector: 'إيجار الأماكن', signals: OLD_RENT_SIGNALS, onlyFamilies: ['lease'] },
   { lawNo: 17, lawYear: 1983, sector: 'المحاماة', signals: LAWYER_SIGNALS },
   { lawNo: 17, lawYear: 1999, sector: 'التجارة', signals: COMMERCIAL_SIGNALS, blockFamilies: ['lease'] },
   { lawNo: 181, lawYear: 2018, sector: 'حماية المستهلك', signals: CONSUMER_SIGNALS },
@@ -143,6 +166,10 @@ const SECTOR_LAWS: ReadonlyArray<SectorLaw> = [
   { lawNo: 5, lawYear: 2023, sector: 'وسطاء التأمين', signals: INSURANCE_SIGNALS, stripInsurerNames: true },
   { lawNo: 199, lawYear: 2025, sector: 'إصدار وثائق التأمين رقمياً', signals: INSURANCE_SIGNALS, stripInsurerNames: true },
   { lawNo: 77, lawYear: 2025, sector: 'شكاوى قطاع التأمين', signals: INSURANCE_SIGNALS, stripInsurerNames: true },
+  { lawNo: 182, lawYear: 2018, sector: 'التعاقدات العامة', signals: PUBLIC_PROCUREMENT_SIGNALS },
+  { lawNo: 692, lawYear: 2019, sector: 'اللائحة التنفيذية للتعاقدات العامة', signals: PUBLIC_PROCUREMENT_SIGNALS },
+  { lawNo: 105, lawYear: 2021, sector: 'التمويل غير المصرفى (قرار الهيئة)', signals: NON_BANK_FINANCE_SIGNALS },
+  { lawNo: 6, lawYear: 2022, sector: 'التمويل غير المصرفى (قرار الهيئة)', signals: NON_BANK_FINANCE_SIGNALS },
   { lawNo: 27, lawYear: 2026, sector: 'ربط الحساب الختامى لموازنة هيئة النقل العام (لا يحكم عقوداً)', signals: [], onlyFamilies: [] },
   { lawNo: 28, lawYear: 2026, sector: 'التمويل الاستهلاكى: التغطية التأمينية للعملاء', signals: CONSUMER_FINANCE_SIGNALS },
 ];
