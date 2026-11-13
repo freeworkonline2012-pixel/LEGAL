@@ -478,7 +478,8 @@ export const CHECKS: MissingCheck[] = [
     families: ['services', 'licence'],
     patterns: [/ملكيه فكريه|حقوق الملكيه|حقوق المؤلف|المصنفات|الشفره المصدريه|ملكا لل|يظل.{0,40}ملكا|ملكيه (?:النظام|البرنامج|المخرجات)/],
     severity: 'عالٍ',
-    bySubtype: { attorney_fees: 'na', collection: 'na', payment_gateway: 'optional', supply: 'na' },
+    // الجولة 90.1 (قرار المالك: «احذف بند الملكية الفكرية فى عقد المقاولة»): المقاولة لا تُفحص لغياب بند الملكية الفكرية (خلاف رأى المستشار فى الجولة 63؛ القرار للمالك)
+    bySubtype: { attorney_fees: 'na', collection: 'na', payment_gateway: 'optional', supply: 'na', works: 'na' },
     why: 'بلا نص صريح قد يُنازَع فى ملكية المخرجات وحق استعمالها وتعديلها بعد انتهاء العقد.',
     suggestion: 'نص يحدد مالك المخرجات ونطاق الترخيص المتاح للطرف الآخر ومدته.',
   },

@@ -109,9 +109,9 @@ describe('الجولة 63: لزوم البنود بحسب النوع الفرع�
     expect(ids).not.toContain('missing:warranty');
     expect(ids).toContain('missing:force_majeure'); // قرار المستشار: لازم فى كل الأنواع
   });
-  it('مقاولة: الملكية الفكرية والضمان لازمان بدرجتيهما المعتادتين', () => {
+  it('مقاولة: الضمان لازم بدرجته المعتادة، والملكية الفكرية لا تُفحص (قرار المالك، الجولة 90.1)', () => {
     const f = missing(works);
-    expect(f.find((x) => x.id === 'missing:intellectual_property')?.severity).toBe('عالٍ');
+    expect(f.find((x) => x.id === 'missing:intellectual_property')).toBeUndefined();
     expect(f.find((x) => x.id === 'missing:warranty')?.severity).toBe('متوسط');
   });
   it('بلا نوع فرعى بيّن: يبقى السلوك السابق', () => {

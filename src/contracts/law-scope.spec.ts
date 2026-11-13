@@ -51,11 +51,15 @@ describe('الجولة 90: بوابات نطاق القوانين', () => {
     expect(articleInLawScope(supplyPublic, art(692, 2019))).toBe(true);
   });
 
-  it('قرارا الهيئة 105/2021 و6/2022 محجوبان عن قرض خاص ويُقبلان عند ذكر نشاط خاضع للرقابة المالية', () => {
+  it('105/2021 (موازنة سنة منتهية) محجوب إلا باستشهاد صريح؛ 6/2022 (المالية العامة الموحد) لا يُعرض إلا مع جهة عامة أو استشهاد', () => {
+    const cited = lawScopeContext('عقد قرض يخضع لأحكام القانون 105 لسنة 2021.', 'finance');
     expect(articleInLawScope(loanPrivate, art(105, 2021))).toBe(false);
+    expect(articleInLawScope(loanLicensed, art(105, 2021))).toBe(false);
+    expect(articleInLawScope(supplyPublic, art(105, 2021))).toBe(false);
+    expect(articleInLawScope(cited, art(105, 2021))).toBe(true);
     expect(articleInLawScope(loanPrivate, art(6, 2022))).toBe(false);
-    expect(articleInLawScope(loanLicensed, art(105, 2021))).toBe(true);
-    expect(articleInLawScope(loanLicensed, art(6, 2022))).toBe(true);
+    expect(articleInLawScope(loanLicensed, art(6, 2022))).toBe(false);
+    expect(articleInLawScope(supplyPublic, art(6, 2022))).toBe(true);
   });
 
   it('49/1977 و136/1981 لا يظهران على عقد إيجار تجارى جديد (قرار المالك: يحكمه المدنى) ويظهران عند ذكر علاقة إيجار قديمة', () => {
