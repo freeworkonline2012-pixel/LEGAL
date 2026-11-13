@@ -559,7 +559,8 @@ export function recoverFirstHead<H extends { lineStart: number; markerStart: num
  *  - بعد آخر عنوان: سطر عنوان واحد زائد عن عنوانه هو، ودلالته ختامية («أحكام ختامية/عامة، متفرقات»).
  * أى التباس (عدد مخالف) ⇒ لا تغيير. الحدّ المسترجع تقريبى (rawLength = 0) والتنبيه الصريح يصاحبه.
  */
-const TITLE_LINE_RE = /^[ \t]*(?<title>[ء-ي][ء-ي \t/()«»-]{1,38}?)[ \t]*[:：][ \t]*(?<body>\S.{9,})$/u;
+// الجولة 92.1: القراءة الآلية تلصق أحياناً رمزاً أو رقماً قصيراً قبل عنوان البند أو بين العنوان ونقطتيه (إيجار ممسوح فى الإنتاج: «مدة الإيجار 520: …») فلا يسقط السطر من العدّ
+const TITLE_LINE_RE = /^[ \t]*(?:[^\sء-ي]{1,5}[ \t]+){0,2}(?<title>[ء-ي][ء-ي \t/()«»-]{1,38}?)(?:[ \t]+[^\sء-ي]{1,5})?[ \t]*[:：][ \t]*(?<body>\S.{9,})$/u;
 // بداية متن لا عنوان («على المستأجر: …»، «يحق للمؤجرة: …») أو تعريف أطراف («الطرف الأول: …»)
 const TITLE_REJECT_FIRST_RE = /^(?:على|الى|إلى|إذا|اذا|فى|في|من|عن|يجب|يحق|يجوز|يلتزم|يكون|لا|ما|كل|أى|أي|اى|و|ف|ثم|حيث|مع|هذا|هذه|ذلك|السيد|السيدة|السادة|الطرف|طرف|شركة)(?![ء-ي])/u;
 const CLOSING_TITLE_RE = /ختام|ختاف|ختم|متفرق|احكام|أحكام|إحكام|عامة|عامه/u;
@@ -596,10 +597,11 @@ function titleLinesBetween(text: string, from: number, to: number): TitleLine[] 
 export function recoverHeadsFromTitleLines<H extends { lineStart: number; markerStart: number; marker: string; rawLength: number; declaredNumber: number | null }>(
   text: string,
   heads: H[],
-): { heads: H[]; recovered: number[] } {
+): { heads: H[]; recovered: number[]; diagnostics: string[] } {
   const out = [...heads].sort((a, b) => a.lineStart - b.lineStart);
+  const diagnostics: string[] = [];
   const numbered = out.filter((h) => h.declaredNumber !== null);
-  if (numbered.length < 3) return { heads: out, recovered: [] };
+  if (numbered.length < 3) return { heads: out, recovered: [], diagnostics };
   const lineEndOf = (at: number): number => {
     const nl = text.indexOf('\n', at);
     return nl === -1 ? text.length : nl;
@@ -619,7 +621,10 @@ export function recoverHeadsFromTitleLines<H extends { lineStart: number; marker
   };
   const standalone = out.filter((h) => h.rawLength > 0 && h.declaredNumber !== null && !/[ء-ي]/u.test(text.slice(h.markerStart + h.rawLength, lineEndOf(h.markerStart))));
   const withTitle = standalone.filter((h) => ownTitle(h) !== null);
-  if (withTitle.length < 3 || withTitle.length < standalone.length * 0.6) return { heads: out, recovered: [] };
+  if (withTitle.length < 3 || withTitle.length < standalone.length * 0.6) {
+    diagnostics.push(`style-off standalone=${standalone.length} withTitle=${withTitle.length}`);
+    return { heads: out, recovered: [], diagnostics };
+  }
 
   const added: H[] = [];
   const recovered: number[] = [];
@@ -656,9 +661,15 @@ export function recoverHeadsFromTitleLines<H extends { lineStart: number; marker
     const k = bn - an - 1;
     if (k < 1 || k > 4 || b.lineStart <= a.lineStart) continue;
     const own = ownTitle(a);
-    if (!own) continue;
+    if (!own) {
+      diagnostics.push(`gap ${an}->${bn} k=${k} no-own-title`);
+      continue;
+    }
     const window = titleLinesBetween(text, own.end + 1, b.lineStart);
-    if (window.length !== k) continue;
+    if (window.length !== k) {
+      diagnostics.push(`gap ${an}->${bn} k=${k} titles=${window.length}`);
+      continue;
+    }
     window.forEach((t, j) => mk(a, t, an + 1 + j, j === 0 ? own.end : window[j - 1].end));
   }
 
@@ -675,6 +686,7 @@ export function recoverHeadsFromTitleLines<H extends { lineStart: number; marker
     }
     const lines = titleLinesBetween(text, from, first.lineStart);
     if (lines.length === fn - 1) lines.forEach((t, j) => mk(first, t, 1 + j, j === 0 ? from : lines[j - 1].end));
+    else diagnostics.push(`lead first=${fn} titles=${lines.length}`);
   }
 
   // 3) بعد آخر عنوان: بند ختامى واحد
@@ -688,9 +700,9 @@ export function recoverHeadsFromTitleLines<H extends { lineStart: number; marker
     if (closing.length === 1 && closing[0] === tail[tail.length - 1]) mk(last, closing[0], ln + 1, lastOwn.end);
   }
 
-  if (added.length === 0) return { heads: out, recovered: [] };
+  if (added.length === 0) return { heads: out, recovered: [], diagnostics };
   const merged = [...out, ...added].sort((a, b) => a.lineStart - b.lineStart);
-  return { heads: merged, recovered: recovered.sort((x, y) => x - y) };
+  return { heads: merged, recovered: recovered.sort((x, y) => x - y), diagnostics };
 }
 
 /** تشخيص بلا نص عقد (أرقام وبداية قصيرة فقط): أسطر النافذة بين عنوانى الرقم الناقص، لمعرفة كيف قُرئ العنوان الضائع. */
@@ -847,6 +859,9 @@ export class SegmentationService {
         );
         this.logger.log(`segmentation title-lines recovered: ${byTitle.recovered.join(',')}`);
       }
+      // الجولة 92.1: ما لم يُسترجع رغم قيام النمط (أعداد فقط بلا نص عقد)، ليُعرف سبب بقاء ثغرة ترقيم على نص الإنتاج
+      const gapAfter = byTitle.heads.map((h) => h.declaredNumber).some((n, i) => n !== i + 1);
+      if (gapAfter && byTitle.diagnostics.length > 0) this.logger.log(`segmentation title-lines unresolved: ${byTitle.diagnostics.join(' | ')}`);
     }
 
     // الجولة 86: خطوات الاسترجاع تعتمد على بعضها (بند يُسترجع بالخطوة الثالثة هو «البند السابق» الذى تحتاجه الخطوة الأولى لتبحث عن التالى: «السادس» لم يُلتقط فى إنتاج

@@ -126,3 +126,18 @@ describe('الجولة 92 — استرجاع عناوين بنود عقد ممس
     expect(r.clauses[14].text).toContain('ختافية');
   });
 });
+
+describe('الجولة 92.1 — رمز أو رقم ملصق بسطر العنوان لا يُسقط السطر من العدّ', () => {
+  const svc = new SegmentationService();
+  it('«مدة الإيجار 520: …» و«520 العين المؤجرة: …» تُعدّان سطرى عنوان', () => {
+    const lines = IJAR_A_PROD.split('\n');
+    const i2 = lines.findIndex((l) => l.startsWith('العين المؤجزة'));
+    const i3 = lines.findIndex((l) => l.startsWith('مدة الإيجار'));
+    lines[i2] = '520 ' + lines[i2];
+    lines[i3] = lines[i3].replace('مدة الإيجار:', 'مدة الإيجار 520:');
+    const r = svc.segment(lines.join('\n'));
+    expect(r.clauses.map((c) => c.declaredNumber)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+    expect(r.clauses[1].text).toContain('العين المؤجزة');
+    expect(r.clauses[2].text).toContain('مدة الإيجار');
+  });
+});
