@@ -148,7 +148,8 @@ function decennialHits(sentences: Array<{ raw: string; n: string }>): MandatoryH
 // ---------------------------------------------------------------------------------------------------------------------------------
 
 const INTEREST_CUE = /(?:فائده|فوائد|عائد تاخيري|عائد التاخير|الفائده|عائدا? (?:بواقع|بنسبه)|العائد (?:الشهري|السنوي))/;
-const PERCENT_RE = /(?<![\d/])(\d{1,4}(?:dot\d+)?)\s*(?:pct|بالمائه|بالمئه|في المائه|في المئه)/g;
+/** الجولة 91.1: النسبة قبل علامة % («7%») أو بعدها («%7» ترتيب القراءة الآلية للعربية الممسوحة)؛ الشكل الثانى لا يُقبل إن سبقه رقم («7% 12 شهراً») ولا إن تلاه ما يدل على مدة أو عدد. */
+const PERCENT_RE = /(?<![\d/])(?:(\d{1,4}(?:dot\d+)?)\s*(?:pct|بالمائه|بالمئه|في المائه|في المئه)|(?<!\d\s{0,3})pct\s*(\d{1,4}(?:dot\d+)?)(?![\d/])(?!\s*(?:شهرا?|اشهر|شهور|سنه|سنوات|سنتين|يوما?|ايام|اسبوعا?|اسابيع|قسط|اقساط|جنيه|جنيها|ج م)(?![ء-ي])))/g;
 /** علامة % قرأتها الآلة «90» أو «96» ملتصقة قبل الرقم (25% ⇒ «9625»، 5% ⇒ «905»)؛ لا تُقبل إلا بعد كلمة فائدة بمسافة قصيرة وبلا عملة بعدها. */
 const GARBLED_PERCENT_RE = /(?<![\d/a-z])9[06](\d{1,2})(?![\d/]|dot)(?!\s*(?:pct|(?:جنيه|جنيها|ج م|دولار|يورو|يوم|شهر|سنه|سنوات|متر|كجم)(?![ء-ي])))/g;
 const MONTHLY = /(?:شهري\w*|في الشهر|كل شهر|لكل شهر|عن كل شهر)/;
@@ -195,7 +196,7 @@ function interestRatesIn(n: string): RateRead[] {
   for (const m of n.matchAll(PERCENT_RE)) {
     const idx = m.index ?? 0;
     if (!bound(idx, idx + m[0].length)) continue;
-    const v = Number.parseFloat(m[1].replace('dot', '.'));
+    const v = Number.parseFloat((m[1] ?? m[2]).replace('dot', '.'));
     if (!Number.isFinite(v) || v <= 0 || v > 1000) continue;
     const p = periodOf(n, idx + m[0].length, idx);
     out.push({ value: v, annual: v * p.factor, period: p.label, repaired: false });
@@ -322,28 +323,43 @@ function fraudWaiverHits(sentences: Array<{ raw: string; n: string }>): Mandator
   return out;
 }
 
-const PERIODIC_COMMISSION = /(?:عموله|رسوم|مصروفات|مصاريف)\s+(?:[ء-ي]+\s+){0,2}?(?:شهري[ء-ي]*|سنوي[ء-ي]*|ربع سنوي[ء-ي]*|دوري[ء-ي]*)[^.\n]{0,40}?(?:بنسبه|بواقع|قدرها|تعادل)?\s*(\d{1,3}(?:dot\d+)?)\s*(?:pct|بالمائه|بالمئه|في المائه|في المئه)|(?:عموله|رسوم|مصروفات|مصاريف)[^.\n]{0,40}?(\d{1,3}(?:dot\d+)?)\s*(?:pct|بالمائه|بالمئه|في المائه|في المئه)\s*(?:شهري[ء-ي]*|سنوي[ء-ي]*|في الشهر|كل شهر|في السنه|كل سنه|عن كل شهر)/;
+const COMM_WORD = '(?:عموله|رسوم|مصروفات|مصاريف)';
+const COMM_PERIOD = '(?:شهري[ء-ي]*|سنوي[ء-ي]*|ربع سنوي[ء-ي]*|دوري[ء-ي]*)';
+const PCT_AFTER = '(?:pct|بالمائه|بالمئه|في المائه|في المئه)';
+/** نسبة بعلامة % قبل الرقم (ترتيب الـOCR العربى «%1.5») أو بعده («1.5%»). */
+const RATE_FORMS = `(?:pct\\s*(\\d{1,3}(?:dot\\d+)?)|(\\d{1,3}(?:dot\\d+)?)\\s*${PCT_AFTER})`;
+const PERIODIC_COMMISSION = new RegExp(
+  `${COMM_WORD}\\s+(?:[ء-ي]+\\s+){0,2}?${COMM_PERIOD}[^.\\n]{0,40}?(?:بنسبه|بواقع|قدرها|تعادل)?\\s*${RATE_FORMS}` +
+    `|${COMM_WORD}[^.\\n]{0,40}?${RATE_FORMS}\\s*(?:شهري[ء-ي]*|سنوي[ء-ي]*|في الشهر|كل شهر|في السنه|كل سنه|عن كل شهر)`,
+);
+/** علامة % قرأتها الآلة «90» أو «96» ملتصقة قبل الرقم (1.5% ⇒ «901.5»): تُقبل فقط بعد عمولة دورية وتُوسم «غير مؤكدة». */
+const PERIODIC_COMMISSION_GARBLED = new RegExp(`${COMM_WORD}\\s+(?:[ء-ي]+\\s+){0,2}?${COMM_PERIOD}[^.\\n]{0,40}?(?:بنسبه|بواقع|قدرها|تعادل)?\\s*9[06](\\d{1,2}(?:dot\\d+)?)(?!\\d)`);
 const BALANCE_BASE = /(?:الرصيد|رصيد|اصل الدين|اصل المبلغ|مبلغ القرض|قيمه القرض|المبلغ المتبقي|الدين القائم|القيمه القائمه)/;
 const LOAN_CONTEXT = /(?:قرض|تمويل|مقرض|مقترض|الدائن|المدين|فائده|عائد|الرصيد)/;
+/** الفائدة/العائد مذكوران فى البند نفسه: عمولة دورية بنسبة جوار فائدة القرض = مقابل للتمويل ولو ضاع (فى قراءة ممسوحة) ما تُحسب عليه. */
+const INTEREST_IN_CLAUSE = /(?:فائده|فوائد|عائد)/;
 
 function commissionHits(sentences: Array<{ raw: string; n: string }>, whole: string): MandatoryHit[] {
   if (!LOAN_CONTEXT.test(whole)) return [];
   const out: MandatoryHit[] = [];
   for (const s of sentences) {
-    const m = PERIODIC_COMMISSION.exec(s.n);
-    if (!m || !BALANCE_BASE.test(s.n)) continue;
-    const pct = m[1] ?? m[2] ?? '';
+    const firm = PERIODIC_COMMISSION.exec(s.n);
+    const garbled = firm ? null : PERIODIC_COMMISSION_GARBLED.exec(s.n);
+    if (!firm && !garbled) continue;
+    if (!BALANCE_BASE.test(s.n) && !INTEREST_IN_CLAUSE.test(whole)) continue;
+    const pct = firm ? (firm[1] ?? firm[2] ?? firm[3] ?? firm[4] ?? '') : (garbled?.[1] ?? '');
     const monthly = MONTHLY.test(s.n);
+    const withBase = BALANCE_BASE.test(s.n);
     out.push({
       ruleId: 'interest_hidden_commission',
       severity: 'عالٍ',
       articles: [227],
       quote: clipQuote(s.raw),
       explanation:
-        `يشترط البند عمولة دورية بنسبة ${pct}%${monthly ? ' شهرياً' : ''} محسوبة على الرصيد القائم فوق الفائدة المتفق عليها؛ وهى بهذه الصفة مقابل للتمويل نفسه لا لخدمة محددة. ` +
+        `يشترط البند عمولة دورية بنسبة ${pct.replace('dot', '.')}%${monthly ? ' شهرياً' : ''}${withBase ? ' محسوبة على الرصيد القائم' : ''} فوق الفائدة المتفق عليها؛ وهى بهذه الصفة مقابل للتمويل نفسه لا لخدمة محددة. ` +
         'والمادة 227/2 من القانون المدنى تقضى بأن كل عمولة أو منفعة اشترطها الدائن إذا زادت مع الفائدة المتفق عليها على الحد الأقصى «تعتبر مستترة فائدة ربوية وتكون قابلة للتخفيض» إذا ثبت أنها لا تقابلها خدمة حقيقية أداها الدائن؛ ' +
         'ويُحتسب مجموع الفائدة والعمولة سنوياً فإن جاوز 7% وجب تخفيضه.',
-      uncertainReading: false,
+      uncertainReading: !firm,
     });
   }
   return out;

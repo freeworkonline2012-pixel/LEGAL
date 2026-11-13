@@ -349,10 +349,15 @@ function pickRun(text: string, cands: AltHead[]): AltHead[] {
   }
   if (cur.length > 0) cycles.push(cur);
   let best: AltHead[] = [];
+  let startsAtTwo: AltHead[] = [];
   for (const chain of cycles) {
     const done = completeAdverbial(text, chain);
     if (done.length > 0 && done[0].declaredNumber === 1 && done.length >= best.length) best = done;
+    if (done.length > 0 && done[0].declaredNumber === 2 && done.length >= startsAtTwo.length) startsAtTwo = done;
   }
+  // الجولة 91.1: «أولاً» ضاعت كلياً من القراءة (قُرئت «Vol» مثلاً) فلا تُسترجع بالمطابقة التقريبية، لكن ثلاثة عناوين ترتيبية متتالية أو أكثر بعدها (ثانياً…)
+  // يقف كل منها وحده فى سطر دليل كافٍ على التسلسل؛ فيُقبل التسلسل المبتدئ بـ2 (≥ 4 عناوين بعد الاستكمال) ويسترجع الخدمة بدء البند الأول من فقرة الأطراف (recoverFirstHead).
+  if (best.length === 0 && startsAtTwo.length >= 4) best = startsAtTwo;
   if (best.length >= 3) return best;
   if (best.length === 2) {
     const before = normForAnnounce(text.slice(Math.max(0, best[0].lineStart - 300), best[0].lineStart));

@@ -75,4 +75,38 @@ describe('الجولة 91: المواد الآمرة الإضافية (217/2 و2
       expect(ids('يلتزم المتأخر بغرامة 1% عن كل أسبوع تأخير على المبلغ المتأخر وحده بحد أقصى 10%.')).not.toContain('penalty_compounding');
     });
   });
+
+  describe('العمولة الدورية بقراءة الممسوح (الجولة 91.1)', () => {
+    it('«%1.5» بعلامة قبل الرقم مع الرصيد ⇒ عالٍ مؤكدة', () => {
+      const h = mandatoryRuleHits('الفائدة: يستحق المقرض عائداً بواقع %7 سنوياً على الرصيد القائم، ويستحق فوق ذلك عمولة إدارة شهرية قدرها %1.5 من الرصيد القائم.');
+      const f = h.find((x) => x.ruleId === 'interest_hidden_commission')!;
+      expect(f.severity).toBe('عالٍ');
+      expect(f.uncertainReading).toBe(false);
+    });
+    it('قراءة ممسوحة تالفة «901.5» وضاع ما تُحسب عليه ⇒ عالٍ لكن غير مؤكدة', () => {
+      const h = mandatoryRuleHits('الفائدة: يستحق المقرض عائدا بواقع 967 سنوياً على الرصيد القائم كل شهر بعد إضافة العائد المستحق عن الشهر السابق ويستحق فوق ذلك عمولة إدارة شهرية قدرها 901.5 من');
+      const f = h.find((x) => x.ruleId === 'interest_hidden_commission')!;
+      expect(f).toBeDefined();
+      expect(f.uncertainReading).toBe(true);
+      expect(h.map((x) => x.ruleId)).toContain('interest_compounding');
+    });
+    it('عمولة شهرية بلا ذكر فائدة ولا رصيد ⇒ لا مخالفة', () => {
+      expect(ids('يلتزم المقترض بسداد القرض على أقساط، ويستحق الوكيل عمولة شهرية قدرها %5 من المبيعات.')).not.toContain('interest_hidden_commission');
+    });
+  });
+
+  describe('نسبة الفائدة بترتيب القراءة الآلية «%7» (الجولة 91.1)', () => {
+    it('«فائدة بواقع %3 شهرياً (%36 سنوياً)» ⇒ interest_cap + interest_compounding', () => {
+      const r = ids('الفائدة: يستحق المقرض فائدة بواقع %3 شهرياً (%36 سنوياً) على الرصيد. وتضاف الفوائد المستحقة كل شهر إلى أصل الدين وتحسب عليها فوائد الشهر التالى.');
+      expect(r).toContain('interest_cap');
+      expect(r).toContain('interest_compounding');
+    });
+    it('«فائدة تأخير %2 شهرياً» (24% سنوياً) ⇒ interest_cap', () => {
+      expect(ids('إذا تأخر المقترض التزم بفائدة تأخير %2 شهرياً مضافة إلى المبلغ كله.')).toContain('interest_cap');
+    });
+    it('«%7 سنوياً» وحدها ⇒ لا مخالفة، و«7% 12 شهراً» لا تُقرأ 12%', () => {
+      expect(ids('يستحق المقرض فائدة بواقع %7 سنوياً على الرصيد المتبقى.')).not.toContain('interest_cap');
+      expect(ids('يستحق المقرض فائدة 7% 12 شهراً من تاريخ الصرف.')).not.toContain('interest_cap');
+    });
+  });
 });
