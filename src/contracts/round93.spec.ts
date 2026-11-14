@@ -1,4 +1,4 @@
-import { SegmentationService } from './segmentation.service';
+import { SegmentationService, recoverHeadsFromTitleLines, skeletonOfWindow } from './segmentation.service';
 
 // الجولة 93: إيجار ممسوح فى الإنتاج بقيت فيه ثغرة بندين (2 و3): عدّت المطابقة الصارمة لسطور العناوين سطراً واحداً فقط من اثنين
 // (القراءة الآلية تدمج الأسطر فتقع العناوين وسط السطر، أو يلتصق بها ترتيبى، أو تتخللها حركات، أو تنكسر بين سطرين).
@@ -128,5 +128,43 @@ describe('الجولة 93 — عناوين ضائعة الترتيبى لا تن
     const r = nums(t);
     expect(r).not.toContain(2);
     expect(r).not.toContain(3);
+  });
+});
+
+describe('الجولة 93.1 — هيكل النافذة بلا نص عقد', () => {
+  it('الهيكل يحفظ أطوال الكلمات وعلامات الترقيم ولا يحوى حرفاً عربياً', () => {
+    const sk = skeletonOfWindow('العين المؤجرة: أجرت المؤجرة 15000 جنيه, abc.\n\nمدة الإيجار: x', 0, 200);
+    expect(sk).toBe('0:a5 a7: a4 a7 d5 a4, l3. ¶ 1:· ¶ 2:a3 a7: l1');
+    expect(/[ء-ي]/u.test(sk)).toBe(false);
+  });
+
+  it('عند بقاء الثغرة يُسجَّل هيكل النافذة فى تشخيص الاسترجاع بلا نص', () => {
+    const text = [
+      'أولاً',
+      'التمهيد: تمتلك المؤجرة المحل التجارى رقم 6 بالعقار',
+      'متن بلا عنوان فى الوسط ولا نقطتين هنا أبداً ولا شىء يشبه عنواناً',
+      'رابعاً',
+      'الأجرة: الأجرة الشهرية خمسة عشر ألف جنيه تدفع مقدماً',
+      'خامساً',
+      'السداد: يسدد المستأجر فى الخامس من كل شهر دون تأخير',
+      'سادساً',
+      'التأمين: يدفع المستأجر تأميناً قدره شهران أجرة كاملة',
+      'سابعاً',
+      'الصيانة: يتحمل المستأجر الصيانة اللازمة للانتفاع بالمحل',
+    ].join('\n');
+    const offs = (needle: string) => text.indexOf(needle);
+    const heads = [
+      { lineStart: offs('أولاً'), markerStart: offs('أولاً'), marker: 'أولاً', rawLength: 5, declaredNumber: 1 },
+      { lineStart: offs('رابعاً'), markerStart: offs('رابعاً'), marker: 'رابعاً', rawLength: 6, declaredNumber: 4 },
+      { lineStart: offs('خامساً'), markerStart: offs('خامساً'), marker: 'خامساً', rawLength: 6, declaredNumber: 5 },
+      { lineStart: offs('سادساً'), markerStart: offs('سادساً'), marker: 'سادساً', rawLength: 6, declaredNumber: 6 },
+      { lineStart: offs('سابعاً'), markerStart: offs('سابعاً'), marker: 'سابعاً', rawLength: 6, declaredNumber: 7 },
+    ];
+    const r = recoverHeadsFromTitleLines(text, heads);
+    expect(r.recovered).toEqual([]);
+    const d = r.diagnostics.find((x) => x.startsWith('gap 1->4'));
+    expect(d).toBeDefined();
+    expect(d).toContain('skeleton[');
+    expect(/[ء-ي]/u.test(d ?? '')).toBe(false);
   });
 });

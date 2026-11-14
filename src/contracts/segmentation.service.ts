@@ -748,7 +748,7 @@ export function recoverHeadsFromTitleLines<H extends { lineStart: number; marker
       if (tolerant.length === k) window = tolerant;
       else if (loose.length === k) window = loose;
       else {
-        diagnostics.push(`gap ${an}->${bn} k=${k} titles=${window.length}/${tolerant.length}/${loose.length} lines[${describeTitleWindow(text, own.end + 1, b.lineStart)}]`);
+        diagnostics.push(`gap ${an}->${bn} k=${k} titles=${window.length}/${tolerant.length}/${loose.length} lines[${describeTitleWindow(text, own.end + 1, b.lineStart)}] skeleton[${skeletonOfWindow(text, text.lastIndexOf('\n', own.end - 1) + 1, b.lineStart)}]`);
         continue;
       }
     }
@@ -814,6 +814,33 @@ export function describeGapWindow(text: string, heads: Array<{ lineStart: number
       out.push(`L${firstLine + 1 + i} len=${t.length}${t.length <= 28 ? ` ${JSON.stringify(t)}` : ''}`);
     });
   return out.slice(0, 60).join(' | ');
+}
+
+/**
+ * الجولة 93.1: هيكل نص النافذة بلا محتوى: كل كلمة عربية تُختزل إلى «a» وطولها، واللاتينية «l» وطولها، والأرقام «d» وطولها، وتبقى علامات الترقيم كما هى؛
+ * فيظهر فى اللوج أين وقعت العناوين وما قُرئ علامةً لنقطتيها دون تسريب نص العقد. السطر الفارغ «·».
+ */
+export function skeletonOfWindow(text: string, from: number, to: number, maxChars = 1800): string {
+  const out: string[] = [];
+  text
+    .slice(from, to)
+    .split('\n')
+    .forEach((l, i) => {
+      const t = l.trim();
+      if (t.length === 0) {
+        out.push(`${i}:·`);
+        return;
+      }
+      const sk = t
+        .replace(/[‎‏‪-‮⁦-⁩]/g, '')
+        .replace(/([ء-ي\u064B-\u0652]+)|([A-Za-z]+)|([0-9٠-٩]+)/gu, (w: string, ar?: string, la?: string) =>
+          ar ? `a${ar.replace(/[\u064B-\u0652]/g, '').length}` : la ? `l${la.length}` : `d${w.length}`,
+        )
+        .replace(/[ \t]+/g, ' ');
+      out.push(`${i}:${sk}`);
+    });
+  const joined = out.join(' ¶ ');
+  return joined.length > maxChars ? `${joined.slice(0, maxChars)}…` : joined;
 }
 
 @Injectable()
