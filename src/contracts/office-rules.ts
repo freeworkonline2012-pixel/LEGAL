@@ -11,6 +11,7 @@ import {
   type LevelClause,
 } from './contract-level';
 import { eachSentence, firstPerClause, norm, type OfficeRule, type OfficeRuleHit } from './office-rules-kit';
+import { R95_OFFICE_RULES } from './office-rules-r95';
 import { SERVICES_OFFICE_RULES } from './office-rules-services';
 import { clientSideOf } from './client-side';
 
@@ -229,6 +230,7 @@ export const DEFAULT_OFFICE_PROFILE: OfficeProfile = {
     RULE_GENERIC_LIABILITY_LIMIT,
     RULE_ECONOMIC_COURTS,
     ...SERVICES_OFFICE_RULES,
+    ...R95_OFFICE_RULES,
   ],
 };
 
