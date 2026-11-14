@@ -570,13 +570,18 @@ interface TitleLine {
   end: number;
 }
 
+// الجولة 94: القراءة الآلية تبدأ بعض الأسطر بعلامة اتجاه غير مرئية (U+200F ونحوها) فيسقط السطر من مطابقة العنوان؛ تُستبدل بمسافة (الأطوال والمواضع تبقى كما هى)
+const BIDI_MARKS_RE = /[\u200e\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g;
+
 function titleLineAt(text: string, at: number, end: number): TitleLine | null {
-  const line = text.slice(at, end);
+  const line = text.slice(at, end).replace(BIDI_MARKS_RE, ' ');
   const m = TITLE_LINE_RE.exec(line);
   if (!m?.groups) return null;
   const title = m.groups.title.trim();
   const words = title.split(/\s+/);
   if (title.length < 3 || words.length > 5 || TITLE_REJECT_FIRST_RE.test(title)) return null;
+  // عنوان من كلمة واحدة بلا «ال» ليس عنواناً بل كلمة متن قُرئت فاصلتها نقطتين («لنشاطه: ولا تضمن…» وسط البند)
+  if (words.length === 1 && !/^ال/u.test(title)) return null;
   return { at: at + (line.length - line.trimStart().length), end };
 }
 
@@ -595,6 +600,53 @@ function titleLinesBetween(text: string, from: number, to: number): TitleLine[] 
 }
 
 /**
+ * الجولة 94: عنوان البند الضائع قد لا يترك أى أثر عربى: قرأته الآلية رموزاً (إيجار ممسوح فى الإنتاج: «22,1925x ab أجرت المؤجرة للمستأجر…» مكان «العين المؤجرة:»).
+ * السطر الذى يبدأ برمز أو أكثر بلا حرف عربى (يحوى حرفاً لاتينياً) ثم متن عربى طويل مرشَّح لبداية بند؛ لا يُعتد به إلا بشرط العدد = الناقص بالضبط.
+ */
+const JUNK_PREFIX_RE = /^((?:[^\sء-ي\u064B-\u0652]{1,10}[ \t]+){1,3})(?=[ء-ي])/u;
+
+function junkLedLineAt(text: string, at: number, end: number): TitleLine | null {
+  const raw = text.slice(at, end).replace(BIDI_MARKS_RE, ' ');
+  const lead = raw.length - raw.trimStart().length;
+  const line = raw.slice(lead);
+  const m = JUNK_PREFIX_RE.exec(line);
+  if (!m || !/[A-Za-z]/.test(m[1])) return null;
+  const rest = line.slice(m[1].length);
+  const compact = rest.replace(/\s/g, '');
+  if (compact.length < 30 || (rest.match(/[ء-ي]/gu) ?? []).length / compact.length < 0.7) return null;
+  return { at: at + lead, end };
+}
+
+function junkLedLinesBetween(text: string, from: number, to: number): TitleLine[] {
+  const out: TitleLine[] = [];
+  let pos = from;
+  while (pos < to) {
+    const nl = text.indexOf('\n', pos);
+    const end = nl === -1 || nl > to ? to : nl;
+    const t = junkLedLineAt(text, pos, end);
+    if (t) out.push(t);
+    pos = end + 1;
+  }
+  return out;
+}
+
+/** يختار عناوين نافذة بعدد k بالضبط على مستويات: صارم ← صارم + سطر رموز ← متسامح ← أوسع؛ وإلا null مع أعداد كل مستوى للتشخيص. */
+function pickTitles(text: string, from: number, to: number, k: number): { picked: TitleLine[] | null; counts: string } {
+  const strict = titleLinesBetween(text, from, to);
+  if (strict.length === k) return { picked: strict, counts: `${strict.length}` };
+  const byAt = new Map<number, TitleLine>();
+  for (const t of strict) byAt.set(t.at, t);
+  for (const t of junkLedLinesBetween(text, from, to)) if (!byAt.has(t.at)) byAt.set(t.at, t);
+  const withJunk = [...byAt.values()].sort((a, b) => a.at - b.at);
+  if (withJunk.length === k) return { picked: withJunk, counts: `${strict.length}/${withJunk.length}` };
+  const tolerant = titlesBetweenTolerant(text, from, to);
+  if (tolerant.length === k) return { picked: tolerant, counts: `${strict.length}/${withJunk.length}/${tolerant.length}` };
+  const loose = titlesBetweenTolerant(text, from, to, true);
+  if (loose.length === k) return { picked: loose, counts: `${strict.length}/${withJunk.length}/${tolerant.length}/${loose.length}` };
+  return { picked: null, counts: `${strict.length}/${withJunk.length}/${tolerant.length}/${loose.length}` };
+}
+
+/**
  * الجولة 93: مطابقة متسامحة تُستعمل فقط حين لا يطابق عدد سطور العناوين الصارمة عدد البنود الناقصة (إيجار ممسوح فى الإنتاج: عدّ سطر واحد من اثنين).
  * تُلتقط العناوين: فى بداية السطر أو بعد نهاية جملة ( . ؟ ! ) وسط السطر (القراءة الآلية تدمج الأسطر)، ويجوز أن ينكسر العنوان بين سطرين،
  * وأن يسبقه ترتيبى ملتصق («ثانيا العين المؤجرة: …») أو تتخلله حركات. الضمان الوحيد هنا عدد النتائج = k بالضبط؛ أى التباس ⇒ لا تغيير.
@@ -605,7 +657,7 @@ const TITLE_TOLERANT_RE =
 const ORD_PREFIX_RE = /[ \t]*(?<ord>[ء-ي\u064B-\u0652]{3,14})[ \t]*[:.\-–—]?[ \t]+/uy;
 
 function titlesBetweenTolerant(text: string, from: number, to: number, loose = false): TitleLine[] {
-  const flat = text.slice(from, to).replace(/\r?\n/g, (m) => ' '.repeat(m.length));
+  const flat = text.slice(from, to).replace(BIDI_MARKS_RE, ' ').replace(/\r?\n/g, (m) => ' '.repeat(m.length));
   const candidates: number[] = [];
   for (let i = 0; i < flat.length; i++) {
     const prevOrig = text[from + i - 1];
@@ -645,6 +697,7 @@ function titlesBetweenTolerant(text: string, from: number, to: number, loose = f
     const title = m.groups.title.replace(/[\u064B-\u0652]/g, '').trim();
     const words = title.split(/\s+/);
     if (title.length < 3 || words.length > 5 || TITLE_REJECT_FIRST_RE.test(title)) continue;
+    if (words.length === 1 && !/^ال/u.test(title)) continue;
     if (midLine && /^و[ء-ي]{3,}/u.test(title)) continue;
     const nl = text.indexOf('\n', from + m.index + m[0].length - m.groups.body.length);
     out.push({ at: from + at, end: nl === -1 || nl > to ? to : nl });
@@ -741,17 +794,12 @@ export function recoverHeadsFromTitleLines<H extends { lineStart: number; marker
       diagnostics.push(`gap ${an}->${bn} k=${k} no-own-title`);
       continue;
     }
-    let window = titleLinesBetween(text, own.end + 1, b.lineStart);
-    if (window.length !== k) {
-      const tolerant = titlesBetweenTolerant(text, own.end + 1, b.lineStart);
-      const loose = tolerant.length === k ? tolerant : titlesBetweenTolerant(text, own.end + 1, b.lineStart, true);
-      if (tolerant.length === k) window = tolerant;
-      else if (loose.length === k) window = loose;
-      else {
-        diagnostics.push(`gap ${an}->${bn} k=${k} titles=${window.length}/${tolerant.length}/${loose.length} lines[${describeTitleWindow(text, own.end + 1, b.lineStart)}] skeleton[${skeletonOfWindow(text, text.lastIndexOf('\n', own.end - 1) + 1, b.lineStart)}]`);
-        continue;
-      }
+    const sel = pickTitles(text, own.end + 1, b.lineStart, k);
+    if (!sel.picked) {
+      diagnostics.push(`gap ${an}->${bn} k=${k} titles=${sel.counts} lines[${describeTitleWindow(text, own.end + 1, b.lineStart)}] skeleton[${skeletonOfWindow(text, text.lastIndexOf('\n', own.end - 1) + 1, b.lineStart)}]`);
+      continue;
     }
+    const window = sel.picked;
     window.forEach((t, j) => mk(a, t, an + 1 + j, j === 0 ? own.end : window[j - 1].end));
   }
 
@@ -766,15 +814,11 @@ export function recoverHeadsFromTitleLines<H extends { lineStart: number; marker
       const nl = text.indexOf('\n', pm.index + pm[0].length);
       from = nl === -1 || nl >= first.lineStart ? 0 : nl + 1;
     }
-    let lines = titleLinesBetween(text, from, first.lineStart);
-    if (lines.length !== fn - 1) {
-      const tolerant = titlesBetweenTolerant(text, from, first.lineStart);
-      const loose = tolerant.length === fn - 1 ? tolerant : titlesBetweenTolerant(text, from, first.lineStart, true);
-      if (tolerant.length === fn - 1) lines = tolerant;
-      else if (loose.length === fn - 1) lines = loose;
-    }
-    if (lines.length === fn - 1) lines.forEach((t, j) => mk(first, t, 1 + j, j === 0 ? from : lines[j - 1].end));
-    else diagnostics.push(`lead first=${fn} titles=${lines.length}`);
+    const sel = pickTitles(text, from, first.lineStart, fn - 1);
+    if (sel.picked) {
+      const lines = sel.picked;
+      lines.forEach((t, j) => mk(first, t, 1 + j, j === 0 ? from : lines[j - 1].end));
+    } else diagnostics.push(`lead first=${fn} titles=${sel.counts}`);
   }
 
   // 3) بعد آخر عنوان: بند ختامى واحد
