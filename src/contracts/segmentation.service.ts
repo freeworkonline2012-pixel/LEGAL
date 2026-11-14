@@ -594,6 +594,82 @@ function titleLinesBetween(text: string, from: number, to: number): TitleLine[] 
   return out;
 }
 
+/**
+ * الجولة 93: مطابقة متسامحة تُستعمل فقط حين لا يطابق عدد سطور العناوين الصارمة عدد البنود الناقصة (إيجار ممسوح فى الإنتاج: عدّ سطر واحد من اثنين).
+ * تُلتقط العناوين: فى بداية السطر أو بعد نهاية جملة ( . ؟ ! ) وسط السطر (القراءة الآلية تدمج الأسطر)، ويجوز أن ينكسر العنوان بين سطرين،
+ * وأن يسبقه ترتيبى ملتصق («ثانيا العين المؤجرة: …») أو تتخلله حركات. الضمان الوحيد هنا عدد النتائج = k بالضبط؛ أى التباس ⇒ لا تغيير.
+ */
+const ORD_WORDS = new Set(ORDINALS.flatMap(([, spellings]) => spellings.filter((x) => !/\s/.test(x)).map((x) => ORD_NORM(x).replace(/^ال/, ''))));
+const TITLE_TOLERANT_RE =
+  /[ \t]*(?:[^\sء-ي\u064B-\u0652]{1,5}[ \t]+){0,2}(?<title>[ء-ي][ء-ي\u064B-\u0652 /()«»-]{1,38}?)(?:[ \t]+[^\sء-ي\u064B-\u0652]{1,5})?[ \t]*[:：][ \t]*(?<body>\S.{9})/uy;
+const ORD_PREFIX_RE = /[ \t]*(?<ord>[ء-ي\u064B-\u0652]{3,14})[ \t]*[:.\-–—]?[ \t]+/uy;
+
+function titlesBetweenTolerant(text: string, from: number, to: number, loose = false): TitleLine[] {
+  const flat = text.slice(from, to).replace(/\r?\n/g, (m) => ' '.repeat(m.length));
+  const candidates: number[] = [];
+  for (let i = 0; i < flat.length; i++) {
+    const prevOrig = text[from + i - 1];
+    const atLineStart = i === 0 || prevOrig === '\n';
+    if (atLineStart) {
+      candidates.push(i);
+      continue;
+    }
+    // بعد نهاية جملة وسط السطر: «… على الآتى. العين المؤجرة: …»
+    // (loose: القراءة الآلية تقرأ النقطة أحياناً فاصلة أو لا تقرؤها، فتُقبل الفاصلة أيضاً حين لا يطابق العدّ بدونها)
+    const end = loose ? /[.؟!,،؛;]/ : /[.؟!]/;
+    if (flat[i - 1] === ' ' && end.test(flat[i - 2] ?? '') && /[ء-ي]/u.test(flat[i] ?? '')) candidates.push(i);
+  }
+  const out: TitleLine[] = [];
+  let lastEnd = -1;
+  for (const c of candidates) {
+    if (c < lastEnd) continue;
+    let start = c;
+    while (flat[start] === ' ') start++;
+    if (start >= flat.length || start < lastEnd) continue;
+    const midLine = !(c === 0 || text[from + c - 1] === '\n');
+    let m: RegExpExecArray | null = null;
+    let at = start;
+    // ترتيبى ملتصق بالعنوان: يُضم إلى بداية البند
+    ORD_PREFIX_RE.lastIndex = start;
+    const op = ORD_PREFIX_RE.exec(flat);
+    if (op?.groups && ORD_WORDS.has(ORD_NORM(op.groups.ord).replace(/^ال/, ''))) {
+      TITLE_TOLERANT_RE.lastIndex = ORD_PREFIX_RE.lastIndex;
+      m = TITLE_TOLERANT_RE.exec(flat);
+    }
+    if (!m) {
+      TITLE_TOLERANT_RE.lastIndex = start;
+      m = TITLE_TOLERANT_RE.exec(flat);
+      at = start;
+    }
+    if (!m?.groups) continue;
+    const title = m.groups.title.replace(/[\u064B-\u0652]/g, '').trim();
+    const words = title.split(/\s+/);
+    if (title.length < 3 || words.length > 5 || TITLE_REJECT_FIRST_RE.test(title)) continue;
+    if (midLine && /^و[ء-ي]{3,}/u.test(title)) continue;
+    const nl = text.indexOf('\n', from + m.index + m[0].length - m.groups.body.length);
+    out.push({ at: from + at, end: nl === -1 || nl > to ? to : nl });
+    lastEnd = TITLE_TOLERANT_RE.lastIndex;
+  }
+  return out;
+}
+
+/** تشخيص بلا نص عقد: أطوال أسطر النافذة ومواضع النقطتين وعدد كلمات ما قبلهما، لمعرفة سبب بقاء الثغرة دون تسريب المتن إلى اللوج. */
+function describeTitleWindow(text: string, from: number, to: number): string {
+  const out: string[] = [];
+  text
+    .slice(from, to)
+    .split('\n')
+    .forEach((l, i) => {
+      const t = l.trim();
+      if (t.length === 0) return;
+      const colon = t.search(/[:：؛;]/);
+      const pre = colon > 0 ? t.slice(0, colon).trim().split(/\s+/).length : 0;
+      const sentenceMid = (t.match(/[.؟!] (?=[ء-ي])/gu) ?? []).length;
+      out.push(`#${i} len=${t.length} colon@${colon} w=${pre} mid=${sentenceMid}`);
+    });
+  return out.slice(0, 12).join(';');
+}
+
 export function recoverHeadsFromTitleLines<H extends { lineStart: number; markerStart: number; marker: string; rawLength: number; declaredNumber: number | null }>(
   text: string,
   heads: H[],
@@ -665,10 +741,16 @@ export function recoverHeadsFromTitleLines<H extends { lineStart: number; marker
       diagnostics.push(`gap ${an}->${bn} k=${k} no-own-title`);
       continue;
     }
-    const window = titleLinesBetween(text, own.end + 1, b.lineStart);
+    let window = titleLinesBetween(text, own.end + 1, b.lineStart);
     if (window.length !== k) {
-      diagnostics.push(`gap ${an}->${bn} k=${k} titles=${window.length}`);
-      continue;
+      const tolerant = titlesBetweenTolerant(text, own.end + 1, b.lineStart);
+      const loose = tolerant.length === k ? tolerant : titlesBetweenTolerant(text, own.end + 1, b.lineStart, true);
+      if (tolerant.length === k) window = tolerant;
+      else if (loose.length === k) window = loose;
+      else {
+        diagnostics.push(`gap ${an}->${bn} k=${k} titles=${window.length}/${tolerant.length}/${loose.length} lines[${describeTitleWindow(text, own.end + 1, b.lineStart)}]`);
+        continue;
+      }
     }
     window.forEach((t, j) => mk(a, t, an + 1 + j, j === 0 ? own.end : window[j - 1].end));
   }
@@ -684,7 +766,13 @@ export function recoverHeadsFromTitleLines<H extends { lineStart: number; marker
       const nl = text.indexOf('\n', pm.index + pm[0].length);
       from = nl === -1 || nl >= first.lineStart ? 0 : nl + 1;
     }
-    const lines = titleLinesBetween(text, from, first.lineStart);
+    let lines = titleLinesBetween(text, from, first.lineStart);
+    if (lines.length !== fn - 1) {
+      const tolerant = titlesBetweenTolerant(text, from, first.lineStart);
+      const loose = tolerant.length === fn - 1 ? tolerant : titlesBetweenTolerant(text, from, first.lineStart, true);
+      if (tolerant.length === fn - 1) lines = tolerant;
+      else if (loose.length === fn - 1) lines = loose;
+    }
     if (lines.length === fn - 1) lines.forEach((t, j) => mk(first, t, 1 + j, j === 0 ? from : lines[j - 1].end));
     else diagnostics.push(`lead first=${fn} titles=${lines.length}`);
   }
