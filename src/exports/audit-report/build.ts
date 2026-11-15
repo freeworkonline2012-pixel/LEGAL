@@ -249,12 +249,17 @@ const PRIORITY_NOTE: Record<Severity, string> = {
   'غير مصنَّف': '—',
 };
 
+/** الجولة 99: أدنى عدد وحدات مؤكدة (متوسطة فأعلى) وأدنى نسبة منها من البنود المقروءة ليُرفع المستوى العام بالتراكم. */
+export const DENSITY_MIN_UNITS = 6;
+export const DENSITY_MIN_SHARE = 0.4;
+
 /** أثقل درجة بين بنود العقد وملاحظاته ككل (غير المؤكدة لا ترفع المستوى العام؛ تُعرض موسومة فقط). */
 function overallRisk(
   counts: Record<Severity, number>,
   findingCounts: { critical: number; high: number; medium: number; officeHigh?: number },
   incomplete: { readCount: number; gapOnly: boolean; whole?: boolean } | null,
   noClauses = false,
+  density: { units: number; readCount: number } | null = null,
 ): { text: string; tone: Tone } {
   // تقسيم غير مكتمل: غياب الملاحظات لا يدل على سلامة ما لم يُقرأ، فلا يُقدَّر مستوى «لا بنود تحتاج مراجعة» (وقع على عقد ممسوح قُرئ نصف بنوده).
   // قفزة الترقيم وحدها لا تُثبت نقص بنود: قد تكون كلمة ترتيبية مشوَّهة («الرابعة عشر» قُرئت «الثامنة عشر») والبنود كلها مقروءة، فلا يُجزم بأن بنوداً لم تُقرأ.
@@ -266,6 +271,15 @@ function overallRisk(
       : ' — التقسيم غير مكتمل: قد توجد بنود لم تُحلَّل'
     : '';
   if (counts['حرج'] > 0 || findingCounts.critical > 0) return { text: `مخاطرة مرتفعة — يستوجب التفاوض الفوري${caveat}`, tone: 'critical' };
+  // الجولة 99: تراكم الاختلال. عقد إيجار فيه 13 عيباً (12 منها ملتقطة بدرجات متوسطة وملاحظة مكتب واحدة عالية) خرج «متوسطة» كعقد سليم عليه ملاحظة واحدة،
+  // لأن لا أحد من بنوده بلغ «عالٍ» بمفرده. الكثرة نفسها إشارة: عقد تميل أغلب بنوده ضد العميل يستوجب مراجعة قبل التوقيع ولو لم يبلغ بند منه درجة عالية.
+  // العتبتان مقيستان على عقود التطوير (النظيفة الأربع: حتى 4 وحدات و27% من البنود؛ نسخ «أ» المعيبة: 8 وحدات و57% فأكثر) وقابلتان للتعديل بعد قياس الـHoldout.
+  if (density && density.units >= DENSITY_MIN_UNITS && density.units >= DENSITY_MIN_SHARE * density.readCount) {
+    return {
+      text: `مخاطرة مرتفعة نسبياً — يستوجب المراجعة قبل التوقيع؛ تراكم ${density.units} ملاحظة مؤكدة (متوسطة فأعلى) على عقد من ${density.readCount} بنداً${caveat}`,
+      tone: 'high',
+    };
+  }
   // الجولة 59: ما ارتفع إلى «عالٍ» بقاعدة مكتب وحدها (لا بند مقيَّم عالٍ ولا ملاحظة عالية أخرى) لا يُرفع به العقد إلى «مرتفعة نسبياً»:
   // قاعدة المكتب ممارسة تعاقدية لا مخالفة قانونية مؤكدة، فيظهر أثرها صريحاً ويبقى المستوى العام متوسطاً. هكذا يتميز عقد سليم عليه ملاحظة مكتب عن عقد فيه مخالفة مؤكدة.
   const officeOnlyHigh = counts['عالٍ'] === 0 && findingCounts.high > 0 && findingCounts.high === (findingCounts.officeHigh ?? 0);
@@ -432,7 +446,6 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
       ? { readCount: baseClauses.length, gapOnly: unsegmentedBlocks.length === 0 && hardSegWarnings.length === 0, whole: wholeTextOnly }
       : null;
   const noClauses = baseClauses.length === 0 && unsegmentedBlocks.length === 0;
-  const overall = overallRisk(counts, findingCounts, segIncomplete, noClauses);
   // ملاحظات العقد ككل المؤكدة غير المدمجة فى بند: تدخل العدّاد بدرجتها (ملاحظة المكتب بدرجة «عالٍ» تُعدّ عالية)
   const standalone = findings.map((f, i) => ({ f, i })).filter((x) => !isUnconfirmedFinding(x.f) && !absorbedInto.has(x.i));
   const standaloneBy = (sev: string): number => standalone.filter((x) => x.f.severity === sev).length;
@@ -445,6 +458,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     low: standaloneLow,
   };
   const totalUnits = totalRisky + standalone.length;
+  const overall = overallRisk(counts, findingCounts, segIncomplete, noClauses, { units: unit.critical + unit.high + unit.medium, readCount: baseClauses.length });
   const noteMode = standalone.length > 0;
   /** رقم الملاحظة (ع…) المُحال إليها من وحدة البند. */
   const absorbedRefs = (label: string): string => (absorbedBy.get(label) ?? []).map((i) => `ع${i + 1}`).join('، ');

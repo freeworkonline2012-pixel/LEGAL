@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { type ClaimKind, type ContextClause, type Verification, validateVerdict } from './verification';
+import { resolveVerifierVotes, verifierSampleCount } from './verifier-vote';
 
 export type VerifierOutcome =
   | { status: 'ok'; verification: Verification }
@@ -133,7 +134,23 @@ export class ClauseVerifierService {
     return this.run(SYSTEM_FINDING, user, [...input.clauseTexts, ...(input.contractClauses ?? []).map((c) => c.text)].join('\n'), []);
   }
 
+  /**
+   * الجولة 99: تصويت أغلبية على عيّنات مستقلة متوازية (راجع verifier-vote.ts). CONTRACT_VERIFIER_SAMPLES=1 يعيد السلوك السابق (عيّنة واحدة).
+   * الزمن لا يتضاعف (النداءات متوازية)، والنداءات تتضاعف بعدد العيّنات.
+   */
   private async run(system: string, user: string, clauseText: string, articleTexts: string[], relatedTexts: string[] = []): Promise<VerifierOutcome> {
+    if (!this.isConfigured) return { status: 'not_configured' };
+    const n = verifierSampleCount();
+    if (n <= 1) return this.runOnce(system, user, clauseText, articleTexts, relatedTexts);
+    const samples = await Promise.all(Array.from({ length: n }, () => this.runOnce(system, user, clauseText, articleTexts, relatedTexts)));
+    const { outcome, tally } = resolveVerifierVotes(samples);
+    if (tally.errors > 0 || (tally.confirmed + tally.reclassified > 0 && tally.refuted + tally.uncertain > 0) || (tally.refuted > 0 && tally.uncertain > 0)) {
+      this.logger.log(`verifier vote samples=${n} confirmed=${tally.confirmed} reclassified=${tally.reclassified} refuted=${tally.refuted} uncertain=${tally.uncertain} errors=${tally.errors} decision=${outcome.status === 'ok' ? `${outcome.verification.status}/${outcome.verification.basis}` : outcome.status}`);
+    }
+    return outcome;
+  }
+
+  private async runOnce(system: string, user: string, clauseText: string, articleTexts: string[], relatedTexts: string[] = []): Promise<VerifierOutcome> {
     if (!this.isConfigured) return { status: 'not_configured' };
     try {
       const res = await fetch('https://api.deepseek.com/chat/completions', {
