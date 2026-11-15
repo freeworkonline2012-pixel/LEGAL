@@ -87,6 +87,46 @@ export function quoteReducesLiability(quote: string): boolean {
   return matchesLoose(LIABILITY_REDUCTION_CUE, normalizeArabicForMatch(quote));
 }
 
+/**
+ * الجولة 100: «لا يسأل عن الهلاك بسبب أجنبى لا يد له فيه أو بسبب عيب بالعقار» تكرار للأصل القانونى (المادة 165: لا تعويض عن السبب الأجنبى) وليست إعفاءً
+ * تحدّه المادة 217(2). على عقد إيجار نظيف (بند 12: «يسأل المستأجر عن الحريق والتلف الناشئ بخطئه، ولا يسأل عن الهلاك بسبب أجنبى…») استخرجها النموذج «إعفاء»
+ * فخرجت ملاحظة متوسطة بأن البند «يعفى من المسئولية»، وهو فى الحقيقة يحمّل المستأجر مسئولية خطئه. فلا تُقبل واقعة الإعفاء إن كانت كل عباراتها الدالة على نفى
+ * المسئولية استثناءً للسبب الأجنبى/القوة القاهرة/فعل الغير مما يقرره القانون ذاته. الإطلاق («أى خسارة»، «ولو»، «حتى») يُبقيها إعفاءً حقيقياً.
+ */
+const LEGAL_DEFAULT_CARVE_OUT =
+  /(?:^| )[وف]?لا (?:ي|ت)سال (?:[ء-ي]+ ){0,2}?عن (?:[ء-ي]+ ){0,8}?(?:سبب اجنبي|قوه قاهره|حادث (?:فجائي|مفاجئ)|فعل الغير|خطا الغير|لا يد (?:له|لها))/;
+const BROAD_EXCLUSION_CUE = /(?:^| )(?:اي|ايه|كل|جميع) (?:[ء-ي]+ ){0,2}?(?:خساره|خسائر|ضرر|اضرار|عيب|تعويض|مسئوليه)|(?:^| )(?:حتي|ولو|مطلقا|بحال)(?: |$)/;
+
+function splitClauses(quote: string): string[] {
+  return quote.split(/[،,؛;.\n]+/).map((x) => x.trim()).filter((x) => x.length > 0);
+}
+
+export function quoteIsLegalDefaultOnly(quote: string): boolean {
+  const parts = splitClauses(quote);
+  let sawCarveOut = false;
+  const rest: string[] = [];
+  for (const part of parts) {
+    const n = normalizeArabicForMatch(part);
+    if (matchesLoose(LEGAL_DEFAULT_CARVE_OUT, n) && !matchesLoose(BROAD_EXCLUSION_CUE, n)) sawCarveOut = true;
+    else rest.push(part);
+  }
+  return sawCarveOut && !quoteReducesLiability(rest.join(' ، '));
+}
+
+/**
+ * الجولة 100: «تعويض يتفق عليه» مقابل تحسينات تبقى للمؤجر (إيجار ب بند 13) ثمن أو عوض لا تعويض عن ضرر؛ المادة 221 تحكم تقدير التعويض عن الضرر
+ * فلا تنطبق عليه، وكانت قاعدة «تعويض دون تحديد قيمته» تُخرج ملاحظة متوسطة على عقد نظيف. لا تُقبل واقعة تعويض «غير محدد الطريقة» إن كان اقتباسها
+ * مقابلاً أو عوضاً بلا أى لفظ ضرر أو إخلال أو تأخير أو جزاء.
+ */
+const CONSIDERATION_COMPENSATION_CUE =
+  /(?:^| )(?:لقاء|مقابل|عوضا عن|بدل) تعويض|(?:^| )تعويض (?:ي|ت)تفق عليه|(?:^| )تعويض (?:عن|مقابل) (?:تحسين|منشا|مبان|بناء|غراس|تجهيز|اضاف|ترميم|ملكيه|نزع)/;
+const DAMAGE_CUE = /ضرر|اضرار|اخلال|اخل |تاخير|تاخر|مخالف|خساره|خسائر|شرط جزائي|غرامه|فسخ|تقصير|اهمال|خطا|عيب|تلف|هلاك|اتلاف/;
+
+export function quoteIsConsiderationNotDamages(quote: string): boolean {
+  const n = normalizeArabicForMatch(quote);
+  return matchesLoose(CONSIDERATION_COMPENSATION_CUE, n) && !matchesLoose(DAMAGE_CUE, n);
+}
+
 function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T | null {
   return typeof value === 'string' && (allowed as readonly string[]).includes(value) ? (value as T) : null;
 }
@@ -125,7 +165,7 @@ export function validateClauseFacts(raw: unknown, clauseText: string): ClauseFac
     const kind = oneOf(l.kind, ['exclusion', 'cap', 'none'] as const);
     const grossFault = oneOf(l.gross_fault, ['reserved', 'covered', 'unspecified'] as const);
     const beneficiary = oneOf(l.beneficiary, PARTIES);
-    if (kind && grossFault && beneficiary && quoteInText(l.quote, clauseText) && (kind === 'none' || quoteReducesLiability(String(l.quote)))) {
+    if (kind && grossFault && beneficiary && quoteInText(l.quote, clauseText) && (kind === 'none' || (quoteReducesLiability(String(l.quote)) && !quoteIsLegalDefaultOnly(String(l.quote))))) {
       out.liability = { kind, grossFault, beneficiary, quote: String(l.quote).trim() };
     }
   }
@@ -160,7 +200,8 @@ export function validateClauseFacts(raw: unknown, clauseText: string): ClauseFac
       payer &&
       typeof c.waives_proof_of_damage === 'boolean' &&
       typeof c.has_cap === 'boolean' &&
-      quoteInText(c.quote, clauseText)
+      quoteInText(c.quote, clauseText) &&
+      !(method === 'unspecified' && quoteIsConsiderationNotDamages(String(c.quote)))
     ) {
       out.compensation = {
         method,

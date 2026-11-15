@@ -59,9 +59,12 @@ export function resolveVerifierVotes(
   }
   if (tally.refuted >= quorum) return { outcome: pick('refuted')!, tally };
 
+  // الجولة 100: إجماع العيّنات على الشك اتفاق لا خلاف؛ كانت العبارة «لم يتفق المدقق» تُقال حتى عند شك 3 من 3 (مضلِّلة للمحامى القارئ).
   const reason =
-    `لم يتفق المدقق المستقل فى عيّناته (تأكيد ${tally.confirmed + tally.reclassified}، دحض ${tally.refuted}، شك ${tally.uncertain}) ` +
-    'فلا يُحسم حكمه، وبقيت الملاحظة مرشحة للمراجعة البشرية.';
+    tally.uncertain === oks.length
+      ? `اتفقت عيّنات المدقق المستقل على الشك (شك ${tally.uncertain} من ${oks.length}) فلم تُؤكَّد الملاحظة ولم تُدحض، وبقيت مرشحة للمراجعة البشرية.`
+      : `انقسمت عيّنات المدقق المستقل (تأكيد ${tally.confirmed + tally.reclassified}، دحض ${tally.refuted}، شك ${tally.uncertain}) ` +
+        'فلا أغلبية تحسم حكمها، وبقيت الملاحظة مرشحة للمراجعة البشرية.';
   return {
     outcome: { status: 'ok', verification: { status: 'unconfirmed', basis: 'uncertain', reason, quote: null, quoteSource: null, verifiedAt: now.toISOString() } },
     tally,

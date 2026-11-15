@@ -1143,9 +1143,13 @@ export function checkUndefinedTerms(clauses: LevelClause[]): ContractFinding[] {
   const fullOriginal = clauses.map((c) => c.clauseText).join('\n');
   if (!ATTACHMENT_HEADING.test(fullOriginal)) {
     const ev: FindingEvidence[] = [];
+    // الجولة 100: غياب المرفق عن الملف المرفوع قيد على اكتمال المراجعة لا عيب فى العقد نفسه. على عقود «ب» النظيفة الأربعة كانت الملاحظة بدرجة متوسطة
+    // ترفع مستوى عقد سليم إلى «متوسطة». تبقى «متوسطة» فقط إن كان المرفق المُحال إليه يحدد مبلغاً أو مقابلاً مالياً (سعر، أجرة، غرامة…) إذ يتعذر عندها تقدير الالتزام المالى.
+    let financialRef = false;
     for (const c of clauses) {
       for (const s of sentencesOf(c.clauseText)) {
         if (ATTACHMENT_REF.test(norm(s)) && !isGenericAttachmentBoilerplate(norm(s))) {
+          if (MONEY_WORD.test(norm(s))) financialRef = true;
           const e = evidenceOf(c, s);
           if (e && ev.length < 3) ev.push(e);
         }
@@ -1155,7 +1159,7 @@ export function checkUndefinedTerms(clauses: LevelClause[]): ContractFinding[] {
       out.push({
         id: 'undefined:attachment',
         kind: 'undefined_term',
-        severity: 'متوسط',
+        severity: financialRef ? 'متوسط' : 'منخفض',
         title: 'إحالة إلى مرفق أو جدول لم يظهر نصه فى الملف المرفوع',
         explanation:
           'يحيل العقد إلى مرفق أو جدول أو ملحق يُحدد نطاقاً أو التزاماً، ولم يظهر نصه فى الملف المرفوع؛ فلا يمكن مراجعة ما أُحيل إليه، ولا التأكد من أنه مرفق وموقّع مع العقد.',
