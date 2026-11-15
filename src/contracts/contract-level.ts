@@ -1,5 +1,5 @@
 import { quoteInText } from './clause-facts';
-import { damagedEscalationNumber } from './numeric-checks.util';
+import { damagedEscalationNumber, damagedPercentFigure } from './numeric-checks.util';
 import type { Verification } from './verification';
 import { normalizeArabicForMatch, stripDefiniteArticle } from './reasoning.util';
 
@@ -1174,12 +1174,17 @@ const MONEY_WORD = /رسوم|اجر|اجره|ثمن|سعر|مقابل|مبلغ|�
 const DEFERRED = /(?:تحدد|يحدد|تقدر|يقدر|تقرر|يقرر)[ء-ي]*\s+(?:ب|ال)?(?:اخطار|خطاب|اشعار)\s+(?:لاحق|مستقبل)[ء-ي]*|(?:تحدد|يحدد|تقدر|يقدر|يتفق (?:عليه|عليها|عليهما)|تتفق|يتم الاتفاق|تقرر|يقرر)[^.\n]{0,40}(?:لاحقا|فيما بعد|بعد (?:انتهاء|اتمام|التنفيذ|التعاقد|التسليم|الاطلاق))|(?:لاحقا|فيما بعد)[^.\n]{0,30}(?:تحدد|يحدد|يتفق)/;
 const UNILATERAL = /(?:يحدده|تحدده|يقدره|تقدره|يقرره|تقرره)\s+(?:الطرف (?:الاول|الثاني)|المؤجر|المالك|الشركه)\s*(?:وحده|منفردا|بارادته المنفرده)?|حسب (?:ما )?(?:يراه|تراه) (?:الطرف|المؤجر|الشركه)|وفق تقديره (?:المنفرد|الخاص)|بمعرفه الطرف (?:الاول|الثاني) وحده/;
 
+const OWED_VERB = /يستحق[ء-ي]*|تستحق[ء-ي]*|يخصم|تخصم|يسدد|تسدد|يدفع|تدفع|يلتزم بدفع|تلتزم بدفع/;
+const NOTICE_DEFERRED = /(?:تحدد|يحدد|تقدر|يقدر|تقرر|يقرر)[ء-ي]*\s+(?:ب|ال)?(?:اخطار|خطاب|اشعار)\s+(?:لاحق|مستقبل)[ء-ي]*/;
+
 export function checkOpenTerms(clauses: LevelClause[]): ContractFinding[] {
   const out: ContractFinding[] = [];
   for (const c of clauses) {
     for (const s of sentencesOf(c.clauseText)) {
       const n = norm(s);
-      if (!MONEY_WORD.test(n)) continue;
+      // الجولة 96: القراءة الآلية قد تُسقط كلمة المبلغ نفسها («ما يستحقه المقرض من [مصروفات دراسة] ومتابعة وإدارة يحددها بإخطار لاحق»)؛
+      // فيكفى فعل استحقاق/خصم/سداد مع صيغة «يحددها بإخطار لاحق» الصريحة
+      if (!MONEY_WORD.test(n) && !(OWED_VERB.test(n) && NOTICE_DEFERRED.test(n))) continue;
       const deferred = DEFERRED.test(n);
       const unilateral = UNILATERAL.test(n);
       if (!deferred && !unilateral) continue;
@@ -1220,6 +1225,18 @@ export function markDamagedNumberUnconfirmed<T extends ContractFinding>(f: T): T
   return {
     ...f,
     verification: { status: 'unconfirmed', basis: 'uncertain', reason: DAMAGED_NUMBER_REASON, quote: null, quoteSource: null, verifiedAt: new Date().toISOString() },
+  };
+}
+
+/** الجولة 96: ملاحظة تعارض/عدم اتساق يستند اقتباسها إلى نسبة مئوية تالفة القراءة («%300» و«9630» بدل «30%») تُوسم «غير مؤكدة» بسبب صريح */
+const DAMAGED_PERCENT_REASON =
+  'يستند اقتباس الملاحظة إلى نسب مئوية قُرئت تالفة من الصورة الممسوحة (مثل «%300» أو «9630» بدل «30%»)، فقد يكون مجموع النسب فى الأصل سليماً؛ ' +
+  'فلا تُعدّ الملاحظة مؤكدة حتى يطابَق الأصل. (وُسم آلياً: ليس اعتراضاً من المدقق المستقل.)';
+
+export function markDamagedPercentUnconfirmed<T extends ContractFinding>(f: T): T {
+  return {
+    ...f,
+    verification: { status: 'unconfirmed', basis: 'uncertain', reason: DAMAGED_PERCENT_REASON, quote: null, quoteSource: null, verifiedAt: new Date().toISOString() },
   };
 }
 
@@ -1384,7 +1401,8 @@ export function validateModelFindings(raw: unknown, clauses: LevelClause[]): Con
       source: 'model',
       ...(severityNote ? { severityNote } : {}),
     };
-    out.push(damagedNumber ? markDamagedNumberUnconfirmed(built) : built);
+    const damagedPercent = NEEDS_TWO.has(kind) && evidence.some((e) => damagedPercentFigure(e.quote) !== null);
+    out.push(damagedNumber ? markDamagedNumberUnconfirmed(built) : damagedPercent ? markDamagedPercentUnconfirmed(built) : built);
   }
   return out;
 }
