@@ -123,6 +123,8 @@ export interface ClauseVerdictDiag {
   violationType: string;
   confidence: number;
   contextGiven: boolean;
+  /** الجولة 103.1: أى سياق للعقد كله أُعطى للنموذج: attorney | company | none (ctx وحده كان يعكس الأتعاب فقط) */
+  contextKind?: 'attorney' | 'company' | 'none';
 }
 
 /** يحوّل الحكم العربى إلى رمز ASCII ثابت قابل للبحث فى سجلات Railway. */
@@ -135,7 +137,7 @@ export function verdictCode(label: string): string {
 
 export function formatClauseVerdict(v: ClauseVerdictDiag): string {
   const conf = Number.isFinite(v.confidence) ? v.confidence.toFixed(2) : '-';
-  return ` verdict=${verdictCode(v.label)} rawSelected=${v.rawSelected} validSelected=${v.validSelected} violation=${v.violationType} conf=${conf} ctx=${v.contextGiven}`;
+  return ` verdict=${verdictCode(v.label)} rawSelected=${v.rawSelected} validSelected=${v.validSelected} violation=${v.violationType} conf=${conf} ctx=${v.contextGiven}${v.contextKind ? ` ctxKind=${v.contextKind}` : ''}`;
 }
 
 export function formatClauseOutcome(o: ClauseOutcomeDiag): string {
@@ -184,4 +186,9 @@ export function formatOcrStage(d: OcrStageDiag): string {
     `pages=${d.pages ?? '-'} truncated=${d.truncated ?? '-'} pageChars=[${per}]` +
     (d.vision ? ` vision=${d.vision.adopted}/${d.vision.attempted}` : '')
   );
+}
+
+/** الجولة 103.1: سطر واحد لكل عقد: ما كشفه الكاشفان (أعداد وقيم منطقية فقط، بلا نص). */
+export function formatContextStage(d: { contractId: string; attorney: boolean; founding: boolean; foundingHead: boolean; foundingBody: number; foundingBodyTotal: number; chars: number }): string {
+  return `[retrieval-diag] stage=context contract=${d.contractId} chars=${d.chars} attorney=${d.attorney} founding=${d.founding} foundingHead=${d.foundingHead} foundingBody=${d.foundingBody}/${d.foundingBodyTotal}`;
 }

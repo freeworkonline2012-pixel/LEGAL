@@ -438,12 +438,26 @@ const FOUNDING_HEAD_SIGNAL = /عقد (?:ال)?تاسيس|تاسيس (?:ال)?ش�
 /** مؤشرات بنية عقد الشركة فى متنه، يلزم ثلاثة منها على الأقل. */
 const FOUNDING_BODY_SIGNALS: RegExp[] = [/جماعه (?:ال)?شركاء|الجمعيه العامه/, /(?:ال)?حصص/, /مراقب (?:ال)?حسابات/, /راس مال (?:ال)?شركه/, /قانون (?:ال)?شركات/, /مديري (?:ال)?شركه|مجلس (?:ال)?اداره|مدير (?:ال)?شركه/];
 
+/** أعداد (لا نص) لقرار كاشف عقد التأسيس: للتشخيص فى لوج الإنتاج (الجولة 103.1). */
+export interface FoundingDiag {
+  headSignal: boolean;
+  bodySignals: number;
+  bodySignalsTotal: number;
+  founding: boolean;
+}
+
+export function companyFoundingDiag(contractText: string): FoundingDiag {
+  const h = normalizeArabicForMatch(contractText ?? '');
+  const total = FOUNDING_BODY_SIGNALS.length;
+  if (h.length === 0) return { headSignal: false, bodySignals: 0, bodySignalsTotal: total, founding: false };
+  const headSignal = matchesLoose(FOUNDING_HEAD_SIGNAL, headOf(h));
+  const bodySignals = FOUNDING_BODY_SIGNALS.filter((re) => matchesLoose(re, h)).length;
+  return { headSignal, bodySignals, bodySignalsTotal: total, founding: headSignal && bodySignals >= 3 };
+}
+
 /** هل العقد عقد تأسيس شركة (ذات مسئولية محدودة/مساهمة/شخص واحد)؟ حتمى من نص العقد كله؛ يُحسب لكل بند من نص العقد نفسه. */
 export function isCompanyFoundingContract(contractText: string): boolean {
-  const h = normalizeArabicForMatch(contractText ?? '');
-  if (h.length === 0) return false;
-  if (!matchesLoose(FOUNDING_HEAD_SIGNAL, headOf(h))) return false;
-  return FOUNDING_BODY_SIGNALS.filter((re) => matchesLoose(re, h)).length >= 3;
+  return companyFoundingDiag(contractText).founding;
 }
 
 /**

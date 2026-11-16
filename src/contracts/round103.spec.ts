@@ -74,3 +74,30 @@ describe('round 103: سياق العقد للنموذج', () => {
     expect(contractContextFor(false, false)).toBeNull();
   });
 });
+
+describe('round 103.1: تشخيص ما كشفه الكاشفان وسطر ctxKind', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { companyFoundingDiag } = require('./criteria.util');
+  const { formatContextStage, formatClauseVerdict } = require('./retrieval-diagnostic');
+
+  it('companyFoundingDiag: أعداد وقيم منطقية على النموذج الحقيقى', () => {
+    const d = companyFoundingDiag(LLC);
+    expect(d.headSignal).toBe(true);
+    expect(d.bodySignals).toBeGreaterThanOrEqual(3);
+    expect(d.bodySignalsTotal).toBe(6);
+    expect(d.founding).toBe(true);
+    expect(companyFoundingDiag('')).toEqual({ headSignal: false, bodySignals: 0, bodySignalsTotal: 6, founding: false });
+  });
+
+  it('سطر السياق بلا نص عقد: أعداد وقيم فقط', () => {
+    const line = formatContextStage({ contractId: 'c1', attorney: false, founding: true, foundingHead: true, foundingBody: 5, foundingBodyTotal: 6, chars: 24107 });
+    expect(line).toBe('[retrieval-diag] stage=context contract=c1 chars=24107 attorney=false founding=true foundingHead=true foundingBody=5/6');
+  });
+
+  it('سطر الحكم يعلن نوع السياق ctxKind ويبقى ctx كما كان', () => {
+    const base = { label: 'سليم', rawSelected: 1, validSelected: 1, violationType: 'none', confidence: 0.8 };
+    expect(formatClauseVerdict({ ...base, contextGiven: true, contextKind: 'company' })).toContain('ctx=true ctxKind=company');
+    expect(formatClauseVerdict({ ...base, contextGiven: false, contextKind: 'none' })).toContain('ctx=false ctxKind=none');
+    expect(formatClauseVerdict({ ...base, contextGiven: true })).toMatch(/ctx=true$/);
+  });
+});

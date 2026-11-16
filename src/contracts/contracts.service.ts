@@ -33,6 +33,7 @@ import {
   ATTORNEY_FEE_CONTRACT_LABEL,
   isAttorneyFeeContract,
   isCompanyFoundingContract,
+  companyFoundingDiag,
   scopedLawsForClause,
   serializeCriteria,
 } from './criteria.util';
@@ -56,6 +57,7 @@ import { playbookFamily, toPlaybookFamily } from './playbook';
 import { articleInLawScope, lawScopeContext, type LawScopeContext } from './law-scope';
 import {
   formatClauseOutcome,
+  formatContextStage,
   formatContractShape,
   formatOcrStage,
   formatRetrievalStage,
@@ -407,6 +409,19 @@ export class ContractsService implements OnModuleInit {
       fileName: contract.originalFilename,
     });
     const lawScope = lawScopeContext(extraction.text, toPlaybookFamily(earlyFamily.family));
+    // الجولة 103.1: ما كشفه كاشفا عقد الأتعاب وعقد التأسيس لهذا العقد (أعداد فقط) — ctx فى سطور البنود كان يعكس الأتعاب وحدها
+    this.safeDiag(() => {
+      const f = companyFoundingDiag(extraction.text);
+      return formatContextStage({
+        contractId: contract.id,
+        attorney: isAttorneyFeeContract(extraction.text),
+        founding: f.founding,
+        foundingHead: f.headSignal,
+        foundingBody: f.bodySignals,
+        foundingBodyTotal: f.bodySignalsTotal,
+        chars: extraction.text.length,
+      });
+    });
     for (let i = 0; i < clauseRows.length; i++) {
       progress({ stage: 'assessing', done: i, total: clauseRows.length });
       await this.assessAndPersistClause(clauseRows[i], context, position, lawScope);
@@ -1197,7 +1212,8 @@ export class ContractsService implements OnModuleInit {
                   validSelected: assessment.selectedIndices.filter((i) => topCandidates[i] !== undefined).length,
                   violationType: assessment.violationType,
                   confidence: assessment.confidence,
-                  contextGiven: attorneyFeeContract,
+                  contextGiven: attorneyFeeContract || companyFoundingContract,
+                  contextKind: attorneyFeeContract ? ('attorney' as const) : companyFoundingContract ? ('company' as const) : ('none' as const),
                 }
               : undefined,
         });
