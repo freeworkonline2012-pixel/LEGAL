@@ -100,6 +100,7 @@ import {
   sortFindings,
 } from './contract-level';
 import { internalConsistencyFindings } from './internal-checks';
+import { bestRestated, noTextDiagnosis, type PoolEntry } from './restatement';
 import { articleFitsCompanyForm, chapterKindMap, companyFormDiag, llcArticleScope, type ChapterKind, type CompanyForm } from './company-form-scope';
 import { blankTemplateDiag, findBlankSlots, isBlankSlotText, reclassifyBlankTemplate } from './blank-template';
 import { officeRuleFindings } from './office-rules';
@@ -1149,9 +1150,13 @@ export class ContractsService implements OnModuleInit {
         : merged;
 
       const topGeneral = ordered.slice(0, 3);
-      const seen = new Set(topGeneral.map((c) => this.candidateKey(c)));
+      // الجولة 105.3: مادة صالحة للعقد يكاد البند ينقل نصها (تغطية ثلاثيات ≥ 0.4) لا تُحجب عن النموذج بترتيب إعادة الترتيب: تُضاف مرشحاً رابعاً إن لم تكن بين الثلاثة
+      const topKeys = new Set(topGeneral.map((c) => this.candidateKey(c)));
+      const restated = bestRestated(row.clauseText, merged.map((c) => ({ c, text: c.citation.snippet })));
+      const restatedExtra: ClauseCandidate[] = restated && !topKeys.has(this.candidateKey(restated.article.c)) ? [restated.article.c] : [];
+      const seen = new Set([...topGeneral, ...restatedExtra].map((c) => this.candidateKey(c)));
       // المواد المرجعية تُضاف بعد أفضل 3 نتائج عامة (لا تحلّ محلها)، بلا تكرار
-      const topCandidates = [...topGeneral, ...anchors.filter((a) => !seen.has(this.candidateKey(a)))];
+      const topCandidates = [...topGeneral, ...restatedExtra, ...anchors.filter((a) => !seen.has(this.candidateKey(a)))];
 
       const assessRequest = {
         clauseText: row.clauseText,
@@ -1284,10 +1289,26 @@ export class ContractsService implements OnModuleInit {
         });
       });
 
+      // الجولة 105.3: تشخيص كل بند انتهى «لا يوجد نص» (معرّفات ونسب فقط): هل يقابل نصاً أسقطته بوابة المساهمة (رفض مشروع) أم مادة صالحة عُرضت/لم تُعرض
+      if (row.assessmentStatus === 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة') {
+        this.safeDiag(() => {
+          const shownKeys = new Set(topCandidates.map((c) => this.candidateKey(c)));
+          const gateOf = (c: ClauseCandidate): PoolEntry['gate'] =>
+            !inFamily(c) ? 'dropped-family' : !inCompanyForm(c) ? 'dropped-company' : !inLaw(c) ? 'dropped-law' : 'kept';
+          const pool: PoolEntry[] = mergedRaw.map((c) => ({
+            id: `${c.citation.lawNo}/${c.citation.lawYear}#${c.citation.articleNo}`,
+            text: c.citation.snippet,
+            shown: shownKeys.has(this.candidateKey(c)),
+            gate: gateOf(c),
+          }));
+          return `[retrieval-diag] stage=no-text-diag clause=${row.clauseIndex} pool=${pool.length} shown=${topCandidates.length} ${noTextDiagnosis(row.clauseText, pool).line}`;
+        });
+      }
+
       await this.audit(context, 'contracts.clause_assessed', row.contractId, {
         clauseIndex: row.clauseIndex,
         candidateCount: topCandidates.length,
-        anchorCount: topCandidates.length - topGeneral.length,
+        anchorCount: topCandidates.length - topGeneral.length - restatedExtra.length,
         criteria: row.clauseTypeGuess,
         status: row.assessmentStatus,
         confidence: row.assessmentConfidence,
