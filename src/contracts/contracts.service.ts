@@ -78,6 +78,7 @@ import { hasAnyFact, neutralizeDirections } from './clause-facts';
 import { evaluateRules, summarizeFindings } from './clause-rules';
 import { ContractConsistencyService } from './contract-consistency.service';
 import { ClauseVerifierService } from './clause-verifier.service';
+import { assessSampleCount, resolveAssessmentVotes, type AssessSample } from './assess-vote';
 import { articleInScopeForFamily } from './article-scope';
 import { mandatoryClausePatch, mandatoryRuleHits } from './mandatory-rules';
 import { type Verification, claimKindFromRisk, damagedNumberClauseVerification, isDismissedFindingVerification, needsVerification, pickContributionContext, pickForVerification } from './verification';
@@ -1084,11 +1085,11 @@ export class ContractsService implements OnModuleInit {
           articleText: c.citation.snippet,
         })),
       };
-      let assessment = await this.generationService.assessClause(assessRequest);
+      let assessment = await this.assessWithVote(assessRequest, row.clauseIndex);
       if (assessment.status === 'error') {
         // عطل عابر أو رد غير مقروء: محاولة ثانية واحدة قبل الإقرار بالفشل (يبقى fail-closed بعدها)
         this.logger.warn(`assessClause retry clauseIndex=${row.clauseIndex} detail=${assessment.detail}`);
-        assessment = await this.generationService.assessClause(assessRequest);
+        assessment = await this.assessWithVote(assessRequest, row.clauseIndex);
       }
 
       if (assessment.status === 'not_configured' || assessment.status === 'error') {
@@ -1222,6 +1223,26 @@ export class ContractsService implements OnModuleInit {
         formatClauseOutcome({ clauseIndex: row.clauseIndex, outcome: `exception:${(err as Error)?.name ?? 'Error'}`, reranked: null, topCandidates: 0, selected: 0, assessmentStatus: row.assessmentStatus, topIds: '-' }),
       );
     }
+  }
+
+  /**
+   * الجولة 101: تقييم البند بتصويت أغلبية على عيّنات متوازية (راجع assess-vote.ts). CONTRACT_ASSESS_SAMPLES=1 يعيد السلوك السابق (نداء واحد).
+   * الزمن لا يتضاعف (النداءات متوازية) والنداءات تتضاعف بعدد العيّنات. السطر المسجَّل أعداد وقرار فقط، بلا نص عقد.
+   */
+  private async assessWithVote(
+    request: Parameters<DeepseekGenerationService['assessClause']>[0],
+    clauseIndex: number,
+  ): Promise<Awaited<ReturnType<DeepseekGenerationService['assessClause']>>> {
+    const n = assessSampleCount();
+    if (n <= 1) return this.generationService.assessClause(request);
+    const samples = await Promise.all(Array.from({ length: n }, () => this.generationService.assessClause(request)));
+    const { outcome, tally, decision } = resolveAssessmentVotes(samples as AssessSample[]);
+    if (samples.length > 1) {
+      this.logger.log(
+        `assess vote clauseIndex=${clauseIndex} samples=${n} review=${tally.review} sound=${tally.sound} noText=${tally.noText} errors=${tally.errors} decision=${decision}`,
+      );
+    }
+    return outcome as Awaited<ReturnType<DeepseekGenerationService['assessClause']>>;
   }
 
   /** تسجيل تشخيصى لا يُسقط المعالجة أبداً: أى عطل فى بناء السطر يُبتلع. */
