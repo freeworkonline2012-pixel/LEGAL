@@ -141,49 +141,75 @@ function tolerantChain(cands: Candidate[], text: string): Candidate[] {
 }
 
 /**
- * الجولة 102: عناوين «مادة (N)» التى تلفت أرقامها فى القراءة الآلية. نموذج رسمى (عقد تأسيس شركة ذات مسئولية محدودة، 47 مادة) خرج بصفر بنود
- * لأن القراءة حوّلت «مادة (١)» إلى «مادة )١(» و«مادة (؟)» و«مادة )™» و«مادة (M)» و«مادة )٠١(» (ثُنّيت الأقواس وتلفت الأرقام)، فلم يطابق أى نمط رقمى.
- * العلّة الجذرية: الكاشف يشترط قراءة الرقم، بينما الكلمة «مادة» وحدها على سطر قصير (مع أقواس وحرف أو حرفين تالفين) علامة عنوان كافية.
- * يُقبل التسلسل بشروط: (1) السطر كله «مادة» + أقواس + رمز ≤ 3 أحرف (لا نص بعده ولا قبله) فلا تُلتقط إحالة داخل جملة («المادة (114) من قانون…»)؛
- * (2) ثلاثة عناوين فأكثر؛ (3) الأرقام المقروءة فعلاً (أو معكوسة «٠١»=10) توافق ترتيبها فى الغالب (تلف الرقم نفسه يُحتمل حتى 40%)؛
- * (4) لا يُستعمل إلا حين لم يجد أى نمط آخر ثلاثة بنود، فلا يمس عقداً سليم الترقيم. الأرقام تُسنَد بالتسلسل ويُعلَّم الاسترجاع للتنبيه.
+ * الجولة 102: عناوين «مادة (N)» التى تلفت فى القراءة الآلية. نموذج رسمى (عقد تأسيس شركة ذات مسئولية محدودة، 47 مادة) خرج بصفر بنود فى الإنتاج، وأعدتُ قراءته
+ * بالمحرك نفسه فوجدت أن العنوان يصل بأشكال: «مادة )١(» و«مادة (؟)» و«مادة (ad)» و«مادة (VY)» و«Baka )2(» و«(A) Baka» و«bale )15(» و«١ مادة (VY)» و«مادة 59 )»
+ (الأقواس معكوسة، والرقم تالف، والكلمة نفسها قد تتحول إلى كلمة لاتينية من 4 أحرف). كل أنماط الكشف الرقمية تشترط رقماً مقروءاً فلم يطابق أى منها.
+ * العلّة الجذرية: الكاشف يشترط قراءة الرقم، بينما «شكل» العنوان (سطر قصير مستقل: كلمة «مادة» أو ما تشوّه منها + قوس + رمز أو رمزان) كافٍ لتحديد بداية المادة.
+ * شروط القبول: (1) السطر مستقل قصير (≤ 24 حرفاً) ليس فيه حرف عربى غير كلمة «مادة»، وفيه قوس، وما عدا الكلمة ≤ 14 حرفاً و≤ 3 حروف لاتينية؛
+ * (2) لا يتبعه سطر يبدأ بـ«من/لسنة/بشأن» (إحالة ملفوفة: «المادة (5)» ثم «من القانون…»)؛ (3) ثلاثة عناوين فأكثر، منها ثلاثة على الأقل بكلمة «مادة» نفسها (لا «Page (1)»)؛
+ * (4) الأرقام المقروءة بوضوح (1–3 خانات) لا تبتعد عن ترتيبها بأكثر من 6 فى نصف الحالات على الأقل (يسمح بقفزات سببها عنوان ضائع)؛
+ * (5) لا يُستعمل إلا حين لم يجد أى نمط آخر ثلاثة بنود، فلا يمس عقداً سليم الترقيم. الأرقام تُسنَد بالتسلسل (فقد تنزاح إن ضاع عنوان) ويُعلَّم الاسترجاع للتنبيه.
  */
-const GARBLED_BRACKETS = '[()\\[\\]{}]*';
-const GARBLED_TOKEN = '[^\\s()\\[\\]{}]{0,3}';
-const GARBLED_ARTICLE_RES = [
-  new RegExp(`^[ \\t]*(?:ال)?مادة[ \\t]*${GARBLED_BRACKETS}[ \\t]*(?<tok>${GARBLED_TOKEN})[ \\t]*${GARBLED_BRACKETS}[ \\t]*$`, 'gmu'),
-  new RegExp(`^[ \\t]*${GARBLED_BRACKETS}[ \\t]*(?<tok>${GARBLED_TOKEN})[ \\t]*${GARBLED_BRACKETS}[ \\t]*(?:ال)?مادة[ \\t]*$`, 'gmu'),
-];
+const TRUE_ARTICLE_WORD_RE = /(?:إ|ا)?(?:ال)?مادة/u;
+const LATIN_KEYWORD_RE = /(?<![A-Za-z])[A-Za-z]{4}(?![A-Za-z])/u;
+const ARABIC_LETTER_RE = /[\u0621-\u064A]/u;
+const CONTINUATION_NEXT_RE = /^(?:من|ومن|لسنة|بشأن)(?:\s|$)/u;
+const GARBLED_MAX_LINE = 24;
+const GARBLED_MAX_REST = 14;
+const GARBLED_NEIGHBOUR_SPAN = 6;
 
-function tokenMatchesIndex(tok: string, index: number): boolean | null {
-  if (!/^[0-9٠-٩]{1,3}$/u.test(tok)) return null;
-  const forward = toInt(tok);
-  const reversed = toInt([...tok].reverse().join(''));
-  return forward === index || reversed === index;
+function readableNumber(rest: string): number | null {
+  const m = /^[\s()[\]{}]*([0-9٠-٩]{1,3})[\s()[\]{}]*$/u.exec(rest);
+  return m ? toInt(m[1]) : null;
 }
 
 export function findGarbledNumberHeads(text: string): AltHead[] {
-  const found = new Map<number, { raw: string; tok: string }>();
-  for (const re of GARBLED_ARTICLE_RES) {
-    for (const m of text.matchAll(re)) {
-      const raw = m[0].replace(/^[ \t]+/, '');
-      const lineStart = m.index ?? 0;
-      if (!found.has(lineStart)) found.set(lineStart, { raw, tok: (m.groups?.tok ?? '').trim() });
-    }
+  const lines: Array<{ start: number; raw: string }> = [];
+  let pos = 0;
+  for (const raw of text.split('\n')) {
+    lines.push({ start: pos, raw });
+    pos += raw.length + 1;
   }
-  const ordered = [...found.entries()].sort((a, b) => a[0] - b[0]);
-  if (ordered.length < 3) return [];
-  let mismatched = 0;
-  ordered.forEach(([, v], i) => {
-    const ok = tokenMatchesIndex(v.tok, i + 1);
-    if (ok === false) mismatched++;
+  const nextNonEmpty = (i: number): string => {
+    for (let j = i + 1; j < lines.length && j <= i + 3; j++) {
+      const t = lines[j].raw.trim();
+      if (t) return t;
+    }
+    return '';
+  };
+  const found: Array<{ start: number; len: number; rest: string; trueWord: boolean }> = [];
+  lines.forEach((ln, i) => {
+    const t = ln.raw.trim();
+    if (t.length === 0 || t.length > GARBLED_MAX_LINE) return;
+    let word = TRUE_ARTICLE_WORD_RE.exec(t);
+    let trueWord = true;
+    if (!word) {
+      word = LATIN_KEYWORD_RE.exec(t);
+      trueWord = false;
+    }
+    if (!word) return;
+    const rest = (t.slice(0, word.index) + ' ' + t.slice(word.index + word[0].length)).trim();
+    if (rest.length > GARBLED_MAX_REST || !/[()[\]]/u.test(rest) || ARABIC_LETTER_RE.test(rest)) return;
+    if ((rest.match(/[A-Za-z]/g) ?? []).length > 3) return;
+    if (CONTINUATION_NEXT_RE.test(nextNonEmpty(i))) return;
+    found.push({ start: ln.start + (ln.raw.length - ln.raw.trimStart().length), len: t.length, rest, trueWord });
   });
-  if (mismatched > Math.floor(ordered.length * 0.4)) return [];
-  return ordered.map(([lineStart, v], i) => ({
-    lineStart,
-    markerStart: lineStart,
+  if (found.length < 3 || found.filter((f) => f.trueWord).length < 3) return [];
+  let readable = 0;
+  let near = 0;
+  found.forEach((f, i) => {
+    const n = readableNumber(f.rest);
+    if (n === null) return;
+    readable++;
+    const rev = readableNumber([...f.rest].reverse().join(''));
+    if (Math.abs(n - (i + 1)) <= GARBLED_NEIGHBOUR_SPAN || (rev !== null && Math.abs(rev - (i + 1)) <= GARBLED_NEIGHBOUR_SPAN)) near++;
+  });
+  if (readable >= 3 && near < Math.ceil(readable / 2)) return [];
+  return found.map((f, i) => ({
+    lineStart: f.start,
+    markerStart: f.start,
     marker: `المادة ${i + 1}`,
-    rawLength: v.raw.length,
+    rawLength: f.len,
     declaredNumber: i + 1,
     numberRecovered: true,
   }));

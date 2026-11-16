@@ -33,8 +33,8 @@ describe('الجولة 102: عناوين «مادة» التالفة الأرق�
     expect(findGarbledNumberHeads('مادة )١(\nنص طويل.\nمادة (؟)\nنص.\n')).toEqual([]);
   });
 
-  it('أرقام مقروءة تخالف الترتيب كثيراً ⇒ يُرفض (ليست تسلسل مواد)', () => {
-    const t = 'مادة (9)\nنص.\nمادة (7)\nنص.\nمادة (4)\nنص.\nمادة (2)\nنص.\n';
+  it('أرقام مقروءة تبتعد كثيراً عن ترتيبها ⇒ يُرفض (ليست تسلسل مواد)', () => {
+    const t = 'مادة (41)\nنص.\nمادة (52)\nنص.\nمادة (63)\nنص.\nمادة (74)\nنص.\n';
     expect(findGarbledNumberHeads(t)).toEqual([]);
   });
 
@@ -44,5 +44,38 @@ describe('الجولة 102: عناوين «مادة» التالفة الأرق�
     expect(h.map((x) => x.declaredNumber)).toEqual([1, 2, 3]);
     expect(h.some((x) => x.numberRecovered)).toBe(false);
     expect(svc.segment(t).warnings.join(' ')).not.toContain('أرقام عناوين «المادة» تالفة');
+  });
+
+  describe('قراءة محلية كاملة للنموذج الرسمى (11 صفحة) بنفس محرك OCR', () => {
+    const real = fx('llc_template_local_ocr.txt');
+
+    it('الكلمة نفسها قد تتشوّه («Baka»، «bale») والأقواس تنعكس والأرقام تتلف: يخرج العقد بنحو 39 مادة بدل صفر', () => {
+      const r = svc.segment(real);
+      expect(r.clauses.length).toBeGreaterThanOrEqual(36);
+      const nums = r.clauses.map((c) => c.declaredNumber);
+      expect(nums).toEqual(nums.map((_, i) => i + 1));
+      expect(r.warnings.join(' ')).toContain('أرقام عناوين «المادة» تالفة');
+    });
+
+    it('المتون لا تلتصق ببند واحد: أطول بند أقل من 15% من النص', () => {
+      const r = svc.segment(real);
+      const total = r.clauses.reduce((n, c) => n + c.text.length, 0);
+      expect(Math.max(...r.clauses.map((c) => c.text.length))).toBeLessThan(total * 0.15);
+    });
+
+    it('الأشكال المشوّهة المسجَّلة تُلتقط كلها: «Baka )2(» و«(A) Baka» و«١ مادة (VY)» و«مادة 59 )»', () => {
+      const t = ['مادة (1)', 'نص', 'Baka )2(', 'نص', '(A) Baka', 'نص', '١ مادة (VY)', 'نص', 'مادة 59 )', 'نص'].join('\n');
+      expect(findGarbledNumberHeads(t)).toHaveLength(5);
+    });
+
+    it('كلمة لاتينية بأقواس لا تكفى وحدها: «Page (1)» بلا «مادة» لا تُعدّ عناوين', () => {
+      const t = ['Page (1)', 'نص', 'Page (2)', 'نص', 'Page (3)', 'نص', 'Page (4)', 'نص'].join('\n');
+      expect(findGarbledNumberHeads(t)).toEqual([]);
+    });
+
+    it('إحالة ملفوفة («المادة (5)» ثم سطر «من القانون…») ليست عنواناً', () => {
+      const t = ['مادة (1)', 'نص', 'مادة (2)', 'نص', 'مادة (3)', 'نص', 'المادة (5)', 'من القانون المدنى'].join('\n');
+      expect(findGarbledNumberHeads(t)).toHaveLength(3);
+    });
   });
 });
