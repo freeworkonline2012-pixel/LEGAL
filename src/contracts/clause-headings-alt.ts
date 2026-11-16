@@ -11,6 +11,8 @@ export interface AltHead {
   marker: string;
   rawLength: number;
   declaredNumber: number;
+  /** الرقم لم يُقرأ من العقد بل رُتِّب بالتسلسل لأن قراءته الآلية تالفة («مادة )™»): يلزم تنبيه المراجع */
+  numberRecovered?: boolean;
 }
 
 const UNITS_F = ['الاولى', 'الثانية', 'الثالثة', 'الرابعة', 'الخامسة', 'السادسة', 'السابعة', 'الثامنة', 'التاسعة'];
@@ -138,6 +140,55 @@ function tolerantChain(cands: Candidate[], text: string): Candidate[] {
   return out;
 }
 
+/**
+ * الجولة 102: عناوين «مادة (N)» التى تلفت أرقامها فى القراءة الآلية. نموذج رسمى (عقد تأسيس شركة ذات مسئولية محدودة، 47 مادة) خرج بصفر بنود
+ * لأن القراءة حوّلت «مادة (١)» إلى «مادة )١(» و«مادة (؟)» و«مادة )™» و«مادة (M)» و«مادة )٠١(» (ثُنّيت الأقواس وتلفت الأرقام)، فلم يطابق أى نمط رقمى.
+ * العلّة الجذرية: الكاشف يشترط قراءة الرقم، بينما الكلمة «مادة» وحدها على سطر قصير (مع أقواس وحرف أو حرفين تالفين) علامة عنوان كافية.
+ * يُقبل التسلسل بشروط: (1) السطر كله «مادة» + أقواس + رمز ≤ 3 أحرف (لا نص بعده ولا قبله) فلا تُلتقط إحالة داخل جملة («المادة (114) من قانون…»)؛
+ * (2) ثلاثة عناوين فأكثر؛ (3) الأرقام المقروءة فعلاً (أو معكوسة «٠١»=10) توافق ترتيبها فى الغالب (تلف الرقم نفسه يُحتمل حتى 40%)؛
+ * (4) لا يُستعمل إلا حين لم يجد أى نمط آخر ثلاثة بنود، فلا يمس عقداً سليم الترقيم. الأرقام تُسنَد بالتسلسل ويُعلَّم الاسترجاع للتنبيه.
+ */
+const GARBLED_BRACKETS = '[()\\[\\]{}]*';
+const GARBLED_TOKEN = '[^\\s()\\[\\]{}]{0,3}';
+const GARBLED_ARTICLE_RES = [
+  new RegExp(`^[ \\t]*(?:ال)?مادة[ \\t]*${GARBLED_BRACKETS}[ \\t]*(?<tok>${GARBLED_TOKEN})[ \\t]*${GARBLED_BRACKETS}[ \\t]*$`, 'gmu'),
+  new RegExp(`^[ \\t]*${GARBLED_BRACKETS}[ \\t]*(?<tok>${GARBLED_TOKEN})[ \\t]*${GARBLED_BRACKETS}[ \\t]*(?:ال)?مادة[ \\t]*$`, 'gmu'),
+];
+
+function tokenMatchesIndex(tok: string, index: number): boolean | null {
+  if (!/^[0-9٠-٩]{1,3}$/u.test(tok)) return null;
+  const forward = toInt(tok);
+  const reversed = toInt([...tok].reverse().join(''));
+  return forward === index || reversed === index;
+}
+
+export function findGarbledNumberHeads(text: string): AltHead[] {
+  const found = new Map<number, { raw: string; tok: string }>();
+  for (const re of GARBLED_ARTICLE_RES) {
+    for (const m of text.matchAll(re)) {
+      const raw = m[0].replace(/^[ \t]+/, '');
+      const lineStart = m.index ?? 0;
+      if (!found.has(lineStart)) found.set(lineStart, { raw, tok: (m.groups?.tok ?? '').trim() });
+    }
+  }
+  const ordered = [...found.entries()].sort((a, b) => a[0] - b[0]);
+  if (ordered.length < 3) return [];
+  let mismatched = 0;
+  ordered.forEach(([, v], i) => {
+    const ok = tokenMatchesIndex(v.tok, i + 1);
+    if (ok === false) mismatched++;
+  });
+  if (mismatched > Math.floor(ordered.length * 0.4)) return [];
+  return ordered.map(([lineStart, v], i) => ({
+    lineStart,
+    markerStart: lineStart,
+    marker: `المادة ${i + 1}`,
+    rawLength: v.raw.length,
+    declaredNumber: i + 1,
+    numberRecovered: true,
+  }));
+}
+
 export function findAlternativeHeads(text: string): AltHead[] {
   const options = [
     tolerantChain(toCandidates(text, KEYWORD_NUMBER_RE, 'number'), text),
@@ -146,7 +197,7 @@ export function findAlternativeHeads(text: string): AltHead[] {
   ];
   // الأطول تسلسلاً، وعند التساوى الأوضح (بكلمة مفتاحية قبل الرقم المجرد)؛ أقل من 3 بنود لا يُعدّ ترقيماً
   const best = options.reduce((a, b) => (b.length > a.length ? b : a), options[0]);
-  if (best.length < 3) return [];
+  if (best.length < 3) return findGarbledNumberHeads(text);
   return best.map(({ punct: _p, ...h }) => h);
 }
 
