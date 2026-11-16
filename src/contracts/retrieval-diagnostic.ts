@@ -125,6 +125,8 @@ export interface ClauseVerdictDiag {
   contextGiven: boolean;
   /** الجولة 103.1: أى سياق للعقد كله أُعطى للنموذج: attorney | company | none (ctx وحده كان يعكس الأتعاب فقط) */
   contextKind?: 'attorney' | 'company' | 'none';
+  /** الجولة 104: البند حمل خانة فارغة فى عقد نموذج غير مكتمل فأُضيف له سياق النموذج */
+  blankSlot?: boolean;
 }
 
 /** يحوّل الحكم العربى إلى رمز ASCII ثابت قابل للبحث فى سجلات Railway. */
@@ -137,7 +139,7 @@ export function verdictCode(label: string): string {
 
 export function formatClauseVerdict(v: ClauseVerdictDiag): string {
   const conf = Number.isFinite(v.confidence) ? v.confidence.toFixed(2) : '-';
-  return ` verdict=${verdictCode(v.label)} rawSelected=${v.rawSelected} validSelected=${v.validSelected} violation=${v.violationType} conf=${conf} ctx=${v.contextGiven}${v.contextKind ? ` ctxKind=${v.contextKind}` : ''}`;
+  return ` verdict=${verdictCode(v.label)} rawSelected=${v.rawSelected} validSelected=${v.validSelected} violation=${v.violationType} conf=${conf} ctx=${v.contextGiven}${v.contextKind ? ` ctxKind=${v.contextKind}` : ''}${v.blankSlot ? ' blankSlot=true' : ''}`;
 }
 
 export function formatClauseOutcome(o: ClauseOutcomeDiag): string {

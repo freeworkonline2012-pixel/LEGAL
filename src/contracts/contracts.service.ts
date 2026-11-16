@@ -100,6 +100,7 @@ import {
   sortFindings,
 } from './contract-level';
 import { internalConsistencyFindings } from './internal-checks';
+import { blankTemplateDiag, findBlankSlots, isBlankSlotText, reclassifyBlankTemplate } from './blank-template';
 import { officeRuleFindings } from './office-rules';
 import { isBenignNumberingGapWarning } from './numbering-gap';
 
@@ -422,9 +423,20 @@ export class ContractsService implements OnModuleInit {
         chars: extraction.text.length,
       });
     });
+    // الجولة 104: هل العقد نموذج غير مكتمل (≥ 4 خانات فارغة فى ≥ 3 بنود)؟ إن كان فالبند الحامل لخانة فارغة يُقيَّم بما كُتب فيه فقط
+    let blankTemplate = false;
+    try {
+      const diag = blankTemplateDiag(
+        findBlankSlots(clauseRows.map((c) => ({ clauseIndex: c.clauseIndex, clauseLabel: c.clauseLabel, clauseTitle: c.clauseTitle, clauseText: c.clauseText }))),
+      );
+      blankTemplate = diag.template;
+      this.safeDiag(() => `[retrieval-diag] stage=blank-template phase=clauses contract=${contract.id} slots=${diag.slots} clauses=${diag.clauses} template=${diag.template}`);
+    } catch {
+      /* فشل آمن: يُقيَّم العقد كما كان */
+    }
     for (let i = 0; i < clauseRows.length; i++) {
       progress({ stage: 'assessing', done: i, total: clauseRows.length });
-      await this.assessAndPersistClause(clauseRows[i], context, position, lawScope);
+      await this.assessAndPersistClause(clauseRows[i], context, position, lawScope, blankTemplate);
     }
     progress({ stage: 'assessing', done: clauseRows.length, total: clauseRows.length });
 
@@ -529,7 +541,10 @@ export class ContractsService implements OnModuleInit {
     } catch (err) {
       this.logger.warn(`contract consistency failed (non-fatal): ${(err as Error).message}`);
     }
-    return { version: 1, findings: mergeFindings(rules, modelFindings), model, generatedAt: new Date().toISOString() };
+    // الجولة 104: خانات النموذج الفارغة لا تُعدّ «شروطاً مفتوحة»؛ تُجمع فى ملاحظة «نموذج غير مكتمل» واحدة بدرجة منخفضة (blank-template.ts)
+    const reclass = reclassifyBlankTemplate(mergeFindings(rules, modelFindings), clauses);
+    this.safeDiag(() => `[retrieval-diag] stage=blank-template slots=${reclass.diag.slots} clauses=${reclass.diag.clauses} template=${reclass.diag.template} absorbed=${reclass.absorbed}`);
+    return { version: 1, findings: reclass.findings, model, generatedAt: new Date().toISOString() };
   }
 
   /**
@@ -994,8 +1009,10 @@ export class ContractsService implements OnModuleInit {
     context: { userId: string; ipAddress: string | null; userAgent: string | null },
     position: ClientPosition,
     lawScope?: LawScopeContext,
+    blankTemplate = false,
   ): Promise<void> {
     try {
+      const blankTemplateClause = blankTemplate && isBlankSlotText(row.clauseText);
       // تصنيف البند إلى معايير المراجعة العشرة (حتمى، بكلمات مفتاحية) + جلب المواد
       // المرجعية للمعيار (مثل 224 للتعويض الاتفاقى و217 للإعفاء من المسؤولية) التى
       // لا يلتقطها البحث العام لأن صياغة البند التعاقدى لا تشبه صياغة النص القانونى.
@@ -1093,7 +1110,7 @@ export class ContractsService implements OnModuleInit {
         clauseText: row.clauseText,
         clientPosition: describePosition(position),
         // الجولة 76: نوع العقد كله حتى لا تصل الفقرة المقتطعة للنموذج بلا سياق علاقتها (محامٍ/موكل)
-        contractContext: contractContextFor(attorneyFeeContract, companyFoundingContract),
+        contractContext: contractContextFor(attorneyFeeContract, companyFoundingContract, blankTemplateClause),
         candidates: topCandidates.map((c) => ({
           lawTitle: c.citation.law,
           lawNo: c.citation.lawNo,
@@ -1212,7 +1229,8 @@ export class ContractsService implements OnModuleInit {
                   validSelected: assessment.selectedIndices.filter((i) => topCandidates[i] !== undefined).length,
                   violationType: assessment.violationType,
                   confidence: assessment.confidence,
-                  contextGiven: attorneyFeeContract || companyFoundingContract,
+                  contextGiven: attorneyFeeContract || companyFoundingContract || blankTemplateClause,
+                  blankSlot: blankTemplateClause,
                   contextKind: attorneyFeeContract ? ('attorney' as const) : companyFoundingContract ? ('company' as const) : ('none' as const),
                 }
               : undefined,

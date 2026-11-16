@@ -475,9 +475,17 @@ export const ATTORNEY_FEE_CONTRACT_CONTEXT =
 export const COMPANY_FOUNDING_CONTRACT_CONTEXT =
   'عقد تأسيس شركة (ذات مسئولية محدودة أو مساهمة أو شخص واحد): علاقة بين الشركاء/المؤسسين وإدارة الشركة وجمعيتها العامة؛ يحكمها قانون الشركات 159 لسنة 1981 ولائحته التنفيذية (قرار وزير الاستثمار 96 لسنة 1982) وأحكام القانون المدنى المكملة.';
 
-export function contractContextFor(attorneyFeeContract: boolean, companyFoundingContract = false): string | null {
-  if (attorneyFeeContract) return ATTORNEY_FEE_CONTRACT_CONTEXT;
-  return companyFoundingContract ? COMPANY_FOUNDING_CONTRACT_CONTEXT : null;
+/**
+ * الجولة 104: نموذج عقد لم تُملأ خاناته (blank-template.ts). على نموذج رسمى لعقد تأسيس قُيِّم البند 23 «متوسط» لأن نسبة النصاب فيه «% من رأس المال» بلا رقم:
+ * الخانة الفارغة هى ما سيملؤه الأطراف لا عيب صياغة، وتُجمع كلها فى ملاحظة واحدة منخفضة على مستوى العقد. فيُقيَّم البند بما كُتب فيه فقط.
+ */
+export const BLANK_TEMPLATE_CONTEXT =
+  'نموذج عقد غير مكتمل: يحمل البند خانات فارغة لم تُملأ بعد (مثل «( )» أو «____» أو «%» بلا رقم). الخانة الفارغة ليست عيباً فى الصياغة ولا مخالفة لنص؛ لا تبنِ حكماً ولا ملاحظة على غياب رقم أو نسبة أو مبلغ أو مدة تُركت للملء (يغطيها تقرير مستقل على العقد كله)، وقيّم ما كُتب فى البند فعلاً فقط.';
+
+export function contractContextFor(attorneyFeeContract: boolean, companyFoundingContract = false, blankTemplateClause = false): string | null {
+  const base = attorneyFeeContract ? ATTORNEY_FEE_CONTRACT_CONTEXT : companyFoundingContract ? COMPANY_FOUNDING_CONTRACT_CONTEXT : null;
+  if (!blankTemplateClause) return base;
+  return base ? `${base} ${BLANK_TEMPLATE_CONTEXT}` : BLANK_TEMPLATE_CONTEXT;
 }
 
 const ATTORNEY_TOPICS: ReadonlyArray<{ pattern: RegExp; law17: number[]; civil: number[] }> = [

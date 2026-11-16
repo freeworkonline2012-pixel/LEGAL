@@ -14,7 +14,7 @@ export { stripDefiniteArticle };
  * أو يكون الحكم فى مرفق لم يُرفع. المحامى هو من يقطع.
  */
 
-export type ContractFindingKind = 'missing_clause' | 'undefined_term' | 'open_term' | 'conflict' | 'scope_mismatch' | 'office_rule';
+export type ContractFindingKind = 'missing_clause' | 'undefined_term' | 'open_term' | 'conflict' | 'scope_mismatch' | 'office_rule' | 'blank_field';
 export type FindingSeverity = 'حرج' | 'عالٍ' | 'متوسط' | 'منخفض';
 
 export const FINDING_KIND_LABEL: Record<ContractFindingKind, string> = {
@@ -24,6 +24,7 @@ export const FINDING_KIND_LABEL: Record<ContractFindingKind, string> = {
   conflict: 'تعارض محتمل بين بندين',
   scope_mismatch: 'عدم اتساق فى النطاق',
   office_rule: 'قاعدة المكتب',
+  blank_field: 'نموذج غير مكتمل',
 };
 
 export interface FindingEvidence {

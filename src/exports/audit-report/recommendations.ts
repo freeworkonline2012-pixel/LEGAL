@@ -63,6 +63,9 @@ export function findingAction(f: ActionFinding): ExtraAction {
     case 'open_term':
       text = `تحديد الشرط المفتوح: ${clip(title.replace(/^شرط مفتوح:\s*/, ''), 110)}`;
       break;
+    case 'blank_field':
+      text = 'استكمال الخانات الفارغة فى النموذج قبل التوقيع (المدة والنسب والمبالغ وعدد الحصص) ثم إعادة التدقيق';
+      break;
     case 'office_rule':
       text = `تعديل وفق قاعدة المكتب: ${clip(title, 110)}`;
       break;
