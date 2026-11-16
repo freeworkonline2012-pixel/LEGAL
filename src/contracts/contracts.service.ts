@@ -100,7 +100,7 @@ import {
   sortFindings,
 } from './contract-level';
 import { internalConsistencyFindings } from './internal-checks';
-import { articleFitsCompanyForm, chapterKindMap, companyFormDiag, type ChapterKind, type CompanyForm } from './company-form-scope';
+import { articleFitsCompanyForm, chapterKindMap, companyFormDiag, llcArticleScope, type ChapterKind, type CompanyForm } from './company-form-scope';
 import { blankTemplateDiag, findBlankSlots, isBlankSlotText, reclassifyBlankTemplate } from './blank-template';
 import { officeRuleFindings } from './office-rules';
 import { isBenignNumberingGapWarning } from './numbering-gap';
@@ -1076,7 +1076,20 @@ export class ContractsService implements OnModuleInit {
       const inLaw = (c: ClauseCandidate): boolean =>
         inCompanyForm(c) && (!lawScope || articleInLawScope(lawScope, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo }));
       const inScope = (c: ClauseCandidate): boolean => inFamily(c) && inLaw(c);
-      const mergedRaw = this.mergeCandidates(ftsCandidates, semanticCandidates);
+      // الجولة 105.2: عقد LLC ⇒ مرشحون نصيون من مواد فصول المسئولية المحدودة وحدها يدخلون المجمّع قبل البوابات وإعادة الترتيب
+      let companyCandidates: ClauseCandidate[] = [];
+      if (companyForm === 'llc' && chapterKinds) {
+        try {
+          companyCandidates = await this.ftsCandidates(row.clauseText, 6, undefined, llcArticleScope(chapterKinds));
+          this.safeDiag(
+            () =>
+              `[retrieval-diag] stage=company-fts clause=${row.clauseIndex} added=${companyCandidates.length} ids=${companyCandidates.map((c) => `${c.citation.lawNo}/${c.citation.lawYear}#${c.citation.articleNo}`).join(',') || '-'}`,
+          );
+        } catch (err) {
+          this.logger.warn(`company fts failed clauseIndex=${row.clauseIndex} (non-fatal): ${(err as Error).message}`);
+        }
+      }
+      const mergedRaw = this.mergeCandidates([...ftsCandidates, ...companyCandidates], semanticCandidates);
       const mergedFamily = mergedRaw.filter(inFamily);
       const merged = mergedFamily.filter(inLaw);
 
@@ -1394,6 +1407,7 @@ export class ContractsService implements OnModuleInit {
     clauseText: string,
     limit: number,
     lawFilter?: { lawNo: number; lawYear: number },
+    articleScope?: Array<{ lawNo: number; lawYear: number; articleNos: number[] }>,
   ): Promise<ClauseCandidate[]> {
     const query = buildFtsQuery(clauseText);
     if (!query) {
@@ -1420,6 +1434,18 @@ export class ContractsService implements OnModuleInit {
         scopeLawNo: lawFilter.lawNo,
         scopeLawYear: lawFilter.lawYear,
       });
+    }
+
+    // الجولة 105.2: حصر البحث فى مواد بعينها (مواد فصول الشركات ذات المسئولية المحدودة)
+    if (articleScope && articleScope.length > 0) {
+      const params: Record<string, unknown> = {};
+      const parts = articleScope.map((s, i) => {
+        params[`sl${i}`] = s.lawNo;
+        params[`sy${i}`] = s.lawYear;
+        params[`sn${i}`] = s.articleNos;
+        return `(law.law_no = :sl${i} AND law.law_year = :sy${i} AND article.article_no IN (:...sn${i}))`;
+      });
+      qb.andWhere(`(${parts.join(' OR ')})`, params);
     }
 
     const { entities, raw } = await qb.getRawAndEntities();

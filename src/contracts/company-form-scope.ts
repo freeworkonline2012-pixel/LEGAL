@@ -83,6 +83,8 @@ export function chapterKindOf(lawNo: number | null, lawYear: number | null, loca
 }
 
 const EXPLICIT_LLC = /ذات المسئوليه المحدوده|ذات مسئوليه محدوده/;
+/** الجولة 105.2: مفردات أشكال أخرى تُعدّ دليل مساهمة/توصية بالأسهم داخل فصول المساهمة (م257 الشركاء المتضامنون، م261 مجلس المراقبة، م214 حملة السندات) */
+const STOCK_CHAPTER_MARKERS = /سندات|متضامن|مجلس المراقبه|مجلس اداره|التوصيه بالاسهم|شركه المساهمه|شركات المساهمه/;
 
 /**
  * true = المادة تصلح مرشحة لعقد من هذا الشكل. شكل مجهول ⇒ تصلح.
@@ -100,7 +102,7 @@ export function articleFitsCompanyForm(
   if (kind === 'llc') return true;
   if (kind === 'stock') {
     const t = normalizeArabicForMatch(a.snippet);
-    return !ART_STOCK.test(t) || EXPLICIT_LLC.test(t);
+    return !(ART_STOCK.test(t) || STOCK_CHAPTER_MARKERS.test(t)) || EXPLICIT_LLC.test(t);
   }
   return !isJointStockOnlyArticle(a);
 }
@@ -124,4 +126,23 @@ export function chapterKindMap(rows: ReadonlyArray<{ lawNo: number; lawYear: num
     if (only !== 'unknown') out.set(key, only);
   }
   return out;
+}
+
+/**
+ * الجولة 105.2: مواد فصول الشركات ذات المسئولية المحدودة (من خريطة الفصول) مجمَّعة لكل قانون، لتُضاف إلى بحث البند نصاً كمرشحين مباشرين.
+ * السبب: البوابة تُطبَّق بعد أعلى 8 نتائج، ومواد المساهمة (216 مادة فى القانون و264 فى اللائحة) تزاحم 47 مادة LLC فتُستبعد ولا يظهر بديلها (التغطية 45 ← 33).
+ */
+export function llcArticleScope(kinds: ReadonlyMap<string, ChapterKind> | null): Array<{ lawNo: number; lawYear: number; articleNos: number[] }> {
+  if (!kinds) return [];
+  const byLaw = new Map<string, { lawNo: number; lawYear: number; articleNos: number[] }>();
+  for (const [key, kind] of kinds) {
+    if (kind !== 'llc') continue;
+    const [lawNo, lawYear, articleNo] = key.split('-').map(Number);
+    if (![lawNo, lawYear, articleNo].every(Number.isFinite)) continue;
+    const k = `${lawNo}-${lawYear}`;
+    const entry = byLaw.get(k) ?? { lawNo, lawYear, articleNos: [] };
+    entry.articleNos.push(articleNo);
+    byLaw.set(k, entry);
+  }
+  return [...byLaw.values()].map((e) => ({ ...e, articleNos: e.articleNos.sort((a, b) => a - b) }));
 }
