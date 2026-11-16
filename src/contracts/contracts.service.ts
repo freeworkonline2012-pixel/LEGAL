@@ -100,6 +100,7 @@ import {
   sortFindings,
 } from './contract-level';
 import { internalConsistencyFindings } from './internal-checks';
+import { articleFitsCompanyForm, companyFormDiag, type CompanyForm } from './company-form-scope';
 import { blankTemplateDiag, findBlankSlots, isBlankSlotText, reclassifyBlankTemplate } from './blank-template';
 import { officeRuleFindings } from './office-rules';
 import { isBenignNumberingGapWarning } from './numbering-gap';
@@ -434,9 +435,18 @@ export class ContractsService implements OnModuleInit {
     } catch {
       /* فشل آمن: يُقيَّم العقد كما كان */
     }
+    // الجولة 105: شكل الشركة من متن العقد (LLC ⇒ تُستبعد مواد المساهمة الخالصة من المرشحين)
+    let companyForm: CompanyForm | null = null;
+    try {
+      const cf = companyFormDiag(extraction.text);
+      companyForm = cf.form;
+      this.safeDiag(() => `[retrieval-diag] stage=company-form contract=${contract.id} form=${cf.form ?? 'none'} llcTerm=${cf.llcTerm} partnerWords=${cf.partnerWords} stockWords=${cf.stockWords}`);
+    } catch {
+      /* فشل آمن: بلا بوابة */
+    }
     for (let i = 0; i < clauseRows.length; i++) {
       progress({ stage: 'assessing', done: i, total: clauseRows.length });
-      await this.assessAndPersistClause(clauseRows[i], context, position, lawScope, blankTemplate);
+      await this.assessAndPersistClause(clauseRows[i], context, position, lawScope, blankTemplate, companyForm);
     }
     progress({ stage: 'assessing', done: clauseRows.length, total: clauseRows.length });
 
@@ -1010,6 +1020,7 @@ export class ContractsService implements OnModuleInit {
     position: ClientPosition,
     lawScope?: LawScopeContext,
     blankTemplate = false,
+    companyForm: CompanyForm | null = null,
   ): Promise<void> {
     try {
       const blankTemplateClause = blankTemplate && isBlankSlotText(row.clauseText);
@@ -1040,7 +1051,11 @@ export class ContractsService implements OnModuleInit {
       const gateFamily = lawScope?.family ?? scopeFamily;
       const inFamily = (c: ClauseCandidate): boolean =>
         articleInScopeForFamily(gateFamily, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo });
-      const inLaw = (c: ClauseCandidate): boolean => !lawScope || articleInLawScope(lawScope, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo });
+      // الجولة 105: مواد المساهمة (تخاطب «المساهم») لا تُعرض على عقد شركة ذات مسئولية محدودة؛ انظر company-form-scope.ts
+      const inCompanyForm = (c: ClauseCandidate): boolean =>
+        articleFitsCompanyForm(companyForm, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, snippet: c.citation.snippet });
+      const inLaw = (c: ClauseCandidate): boolean =>
+        inCompanyForm(c) && (!lawScope || articleInLawScope(lawScope, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo }));
       const inScope = (c: ClauseCandidate): boolean => inFamily(c) && inLaw(c);
       const mergedRaw = this.mergeCandidates(ftsCandidates, semanticCandidates);
       const mergedFamily = mergedRaw.filter(inFamily);
