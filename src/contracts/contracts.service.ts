@@ -100,7 +100,7 @@ import {
   sortFindings,
 } from './contract-level';
 import { internalConsistencyFindings } from './internal-checks';
-import { articleFitsCompanyForm, companyFormDiag, type CompanyForm } from './company-form-scope';
+import { articleFitsCompanyForm, chapterKindMap, companyFormDiag, type ChapterKind, type CompanyForm } from './company-form-scope';
 import { blankTemplateDiag, findBlankSlots, isBlankSlotText, reclassifyBlankTemplate } from './blank-template';
 import { officeRuleFindings } from './office-rules';
 import { isBenignNumberingGapWarning } from './numbering-gap';
@@ -444,9 +444,23 @@ export class ContractsService implements OnModuleInit {
     } catch {
       /* فشل آمن: بلا بوابة */
     }
+    // الجولة 105.1: باب/فصل كل مادة من قانون الشركات ولائحته (من المكتبة) يحسم هل تخاطب المساهمة أم المسئولية المحدودة
+    let chapterKinds: ReadonlyMap<string, ChapterKind> | null = null;
+    if (companyForm === 'llc') {
+      try {
+        chapterKinds = await this.companyChapterKinds();
+        this.safeDiag(() => {
+          const n = { stock: 0, llc: 0, other: 0 };
+          for (const k of chapterKinds?.values() ?? []) n[k]++;
+          return `[retrieval-diag] stage=company-chapters contract=${contract.id} articles=${chapterKinds?.size ?? 0} stock=${n.stock} llc=${n.llc} other=${n.other}`;
+        });
+      } catch (err) {
+        this.logger.warn(`company chapter lookup failed (non-fatal, vocabulary gate only): ${(err as Error).message}`);
+      }
+    }
     for (let i = 0; i < clauseRows.length; i++) {
       progress({ stage: 'assessing', done: i, total: clauseRows.length });
-      await this.assessAndPersistClause(clauseRows[i], context, position, lawScope, blankTemplate, companyForm);
+      await this.assessAndPersistClause(clauseRows[i], context, position, lawScope, blankTemplate, companyForm, chapterKinds);
     }
     progress({ stage: 'assessing', done: clauseRows.length, total: clauseRows.length });
 
@@ -1021,6 +1035,7 @@ export class ContractsService implements OnModuleInit {
     lawScope?: LawScopeContext,
     blankTemplate = false,
     companyForm: CompanyForm | null = null,
+    chapterKinds: ReadonlyMap<string, ChapterKind> | null = null,
   ): Promise<void> {
     try {
       const blankTemplateClause = blankTemplate && isBlankSlotText(row.clauseText);
@@ -1053,7 +1068,11 @@ export class ContractsService implements OnModuleInit {
         articleInScopeForFamily(gateFamily, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo });
       // الجولة 105: مواد المساهمة (تخاطب «المساهم») لا تُعرض على عقد شركة ذات مسئولية محدودة؛ انظر company-form-scope.ts
       const inCompanyForm = (c: ClauseCandidate): boolean =>
-        articleFitsCompanyForm(companyForm, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, snippet: c.citation.snippet });
+        articleFitsCompanyForm(
+          companyForm,
+          { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, snippet: c.citation.snippet },
+          chapterKinds?.get(this.candidateKey(c)) ?? null,
+        );
       const inLaw = (c: ClauseCandidate): boolean =>
         inCompanyForm(c) && (!lawScope || articleInLawScope(lawScope, { lawNo: c.citation.lawNo, lawYear: c.citation.lawYear, articleNo: c.citation.articleNo }));
       const inScope = (c: ClauseCandidate): boolean => inFamily(c) && inLaw(c);
@@ -1460,6 +1479,20 @@ export class ContractsService implements OnModuleInit {
       confidence: Math.min(1, Math.max(0, Number(row.similarity))),
       source: 'semantic' as const,
     }));
+  }
+
+  /**
+   * الجولة 105.1: نوع الفصل (مساهمة/مسئولية محدودة/غيرها) لكل مادة من قانون 159/1981 ولائحته 96/1982 حسب hierarchical_location المخزَّن.
+   * المفتاح كمفتاح المرشح (قانون-سنة-رقم المادة). رقم مادة مكرر بين نوعين مختلفين (مواد الإصدار مقابل مواد القانون) ⇒ يُهمل فيعود القرار للمفردات.
+   */
+  private async companyChapterKinds(): Promise<Map<string, ChapterKind>> {
+    const rows: Array<{ law_no: number; law_year: number; article_no: number; loc: string | null }> = await this.dataSource.query(
+      `SELECT l.law_no, l.law_year, a.article_no, a.hierarchical_location AS loc
+       FROM articles a
+       JOIN laws l ON l.id = a.law_id
+       WHERE (l.law_no = 159 AND l.law_year = 1981) OR (l.law_no = 96 AND l.law_year = 1982)`,
+    );
+    return chapterKindMap(rows.map((r) => ({ lawNo: r.law_no, lawYear: r.law_year, articleNo: r.article_no, location: r.loc })));
   }
 
   private candidateKey(c: ClauseCandidate): string {

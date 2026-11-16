@@ -49,8 +49,79 @@ export function isJointStockOnlyArticle(a: { lawNo: number | null; lawYear: numb
   return ART_STOCK.test(t) && !ART_PARTNER.test(t);
 }
 
-/** true = المادة تصلح مرشحة لعقد من هذا الشكل. شكل مجهول ⇒ تصلح. */
-export function articleFitsCompanyForm(form: CompanyForm | null, a: { lawNo: number | null; lawYear: number | null; snippet: string }): boolean {
+/**
+ * الجولة 105.1: باب/فصل المادة المخزَّن فى المكتبة (articles.hierarchical_location) هو المرجع القاطع لشكل الشركة التى تخاطبها المادة؛
+ * المفردات وحدها مقياس ضعيف (م229 من اللائحة تخاطب «مساهمون أو أصحاب حصص رأس مال» فمرّت من بوابة R105 لأن «حصص» عُدّت مفردة شركاء).
+ * - قانون 159/1981: فصل «شركات المساهمة» و«التوصية بالأسهم» ⇒ stock؛ فصل «الشركات ذات المسئولية المحدودة» ⇒ llc؛ غيرهما other.
+ * - اللائحة 96/1982 (عناوين الفصول فيها مختصرة بالترتيب): الباب الأول/الثانى × الفصل الأول ⇒ stock؛ × الفصل الثانى ⇒ llc؛ غيرها other.
+ * موقع مجهول (فارغ/غير مفهوم) ⇒ null فيعود القرار إلى قاعدة المفردات القديمة (R105).
+ */
+export type ChapterKind = 'stock' | 'llc' | 'other';
+
+const ORDINALS: Record<string, number> = { الاول: 1, الثاني: 2, الثالث: 3, الرابع: 4, الخامس: 5, السادس: 6, السابع: 7 };
+
+export function chapterKindOf(lawNo: number | null, lawYear: number | null, location: string | null | undefined): ChapterKind | null {
+  if (!location || !location.trim()) return null;
+  const t = normalizeArabicForMatch(location);
+  if (lawNo === 159 && lawYear === 1981) {
+    if (/ذات المسئوليه المحدوده/.test(t)) return 'llc';
+    if (/شركات المساهمه|التوصيه بالاسهم/.test(t)) return 'stock';
+    return /^الباب/.test(t) || /مواد الاصدار/.test(t) ? 'other' : null;
+  }
+  if (lawNo === 96 && lawYear === 1982) {
+    const part = t.match(/^الباب (\S+)/);
+    const chapter = t.match(/الفصل (\S+)/);
+    if (!part || !chapter) return /^مواد الاصدار/.test(t) ? 'other' : null;
+    const p = ORDINALS[part[1]];
+    const c = ORDINALS[chapter[1]];
+    if (!p || !c) return null;
+    if ((p === 1 || p === 2) && c === 1) return 'stock';
+    if ((p === 1 || p === 2) && c === 2) return 'llc';
+    return 'other';
+  }
+  return null;
+}
+
+const EXPLICIT_LLC = /ذات المسئوليه المحدوده|ذات مسئوليه محدوده/;
+
+/**
+ * true = المادة تصلح مرشحة لعقد من هذا الشكل. شكل مجهول ⇒ تصلح.
+ * عند عقد LLC: مادة فى فصل LLC تبقى دائماً؛ مادة فى فصل المساهمة/التوصية بالأسهم وتتكلم بمفردات المساهمة (مساهم/أسهم/مجلس إدارة) تُستبعد ما لم تذكر
+ * «ذات المسئولية المحدودة» صراحة؛ ما سوى ذلك (أحكام عامة/اندماج/تصفية/موقع مجهول) يُحكم عليه بقاعدة المفردات القديمة.
+ */
+export function articleFitsCompanyForm(
+  form: CompanyForm | null,
+  a: { lawNo: number | null; lawYear: number | null; snippet: string },
+  kind?: ChapterKind | null,
+): boolean {
   if (form !== 'llc') return true;
+  const company = (a.lawNo === 159 && a.lawYear === 1981) || (a.lawNo === 96 && a.lawYear === 1982);
+  if (!company) return true;
+  if (kind === 'llc') return true;
+  if (kind === 'stock') {
+    const t = normalizeArabicForMatch(a.snippet);
+    return !ART_STOCK.test(t) || EXPLICIT_LLC.test(t);
+  }
   return !isJointStockOnlyArticle(a);
+}
+
+/**
+ * خريطة (قانون-سنة-رقم المادة) ⇒ نوع الفصل من صفوف المكتبة. رقم مادة مكرر بين نوعين مختلفين (مواد الإصدار مقابل مواد القانون) أو موقع مجهول ⇒ يُهمل المفتاح
+ * فيعود القرار لقاعدة المفردات (لا استبعاد بلا يقين).
+ */
+export function chapterKindMap(rows: ReadonlyArray<{ lawNo: number; lawYear: number; articleNo: number; location: string | null }>): Map<string, ChapterKind> {
+  const seen = new Map<string, Set<ChapterKind | 'unknown'>>();
+  for (const r of rows) {
+    const key = `${r.lawNo}-${r.lawYear}-${r.articleNo}`;
+    const set = seen.get(key) ?? new Set<ChapterKind | 'unknown'>();
+    set.add(chapterKindOf(r.lawNo, r.lawYear, r.location) ?? 'unknown');
+    seen.set(key, set);
+  }
+  const out = new Map<string, ChapterKind>();
+  for (const [key, set] of seen) {
+    if (set.size !== 1) continue;
+    const only = [...set][0];
+    if (only !== 'unknown') out.set(key, only);
+  }
+  return out;
 }
