@@ -32,6 +32,7 @@ import {
   contractContextFor,
   ATTORNEY_FEE_CONTRACT_LABEL,
   isAttorneyFeeContract,
+  isCompanyFoundingContract,
   scopedLawsForClause,
   serializeCriteria,
 } from './criteria.util';
@@ -984,6 +985,7 @@ export class ContractsService implements OnModuleInit {
       // المرجعية للمعيار (مثل 224 للتعويض الاتفاقى و217 للإعفاء من المسؤولية) التى
       // لا يلتقطها البحث العام لأن صياغة البند التعاقدى لا تشبه صياغة النص القانونى.
       const attorneyFeeContract = lawScope ? isAttorneyFeeContract(lawScope.normalizedText) : false;
+      const companyFoundingContract = lawScope && !attorneyFeeContract ? isCompanyFoundingContract(lawScope.normalizedText) : false;
       const criteria = classifyClauseCriteria(row.clauseTitle, row.clauseText, { attorneyFeeContract });
       row.clauseTypeGuess = serializeCriteria(criteria);
       try {
@@ -1076,7 +1078,7 @@ export class ContractsService implements OnModuleInit {
         clauseText: row.clauseText,
         clientPosition: describePosition(position),
         // الجولة 76: نوع العقد كله حتى لا تصل الفقرة المقتطعة للنموذج بلا سياق علاقتها (محامٍ/موكل)
-        contractContext: contractContextFor(attorneyFeeContract),
+        contractContext: contractContextFor(attorneyFeeContract, companyFoundingContract),
         candidates: topCandidates.map((c) => ({
           lawTitle: c.citation.law,
           lawNo: c.citation.lawNo,

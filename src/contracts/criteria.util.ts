@@ -403,10 +403,47 @@ const ATTORNEY_CLAUSE_SIGNAL = /(?:اتعاب|الاتعاب).{0,80}(?:محام|
  */
 export const ATTORNEY_FEE_CONTRACT_LABEL = 'عقد أتعاب محاماة';
 
-/** هل نص العقد كله عقد أتعاب محاماة؟ (محامٍ + أتعاب/موكل/توكيل/دعوى). يُحسب مرة واحدة لكل عقد. */
+/** مدى «رأس العقد» (العنوان والأطراف والتمهيد) بالحروف بعد التوحيد: العلاقة التى هى موضوع العقد تُعلَن فيه لا فى بند عرضى. */
+const CONTRACT_HEAD_CHARS = 2500;
+/** نص أقصر من هذا لا يُعدّ عقداً كاملاً يُميَّز رأسه من متنه: يُقرأ كله رأساً (سلوك ما قبل الجولة 103). */
+const SHORT_TEXT_CHARS = 1000;
+/** نسبة الرأس من النص حين يقصر عن ضعف المدى (لا يبتلع الرأس نصف عقد متوسط). */
+const HEAD_FRACTION = 0.4;
+const headOf = (h: string): string => (h.length < SHORT_TEXT_CHARS ? h : h.slice(0, Math.min(CONTRACT_HEAD_CHARS, Math.floor(h.length * HEAD_FRACTION))));
+/** كثافة دنيا لألفاظ المحاماة/الأتعاب (لكل 1000 حرف) تُقبل بديلاً عن ظهورها فى رأس العقد (نسخة ممسوحة ضاع رأسها). */
+const ATTORNEY_MIN_DENSITY_PER_1000 = 1.5;
+const ATTORNEY_TERM_G = /محام|موكل|اتعاب|توكيل/g;
+
+/**
+ * هل العقد كله اتفاق أتعاب محاماة؟ (محامٍ + أتعاب/موكل/توكيل/دعوى).
+ *
+ * الجولة 103: كانت الألفاظ الثلاثة تكفى «فى أى موضع» من العقد؛ فوُسم نموذج عقد تأسيس ش.ذ.م.م رسمى «عقد أتعاب محاماة» لأن فيه بند المستشار
+ * القانونى (محامٍ) وأتعاب مراقب الحسابات وتوكيل الإنابة، فصارت كل بنوده (50) تُقيَّم بسياق «أتعاب محاماة» ومراسى 17/1983 وم704 فرُدّت كلها «لا يوجد نص
+ * مفهرس» رغم أن قانون الشركات ولائحته كانا بين المرشحين. وهذا النمط (بند أتعاب محاماة فى خاتمة أى عقد تجارى) شائع. فالقاعدة الآن: العلاقة موضوع العقد،
+ * أى تظهر ألفاظها فى رأس العقد، أو تبلغ كثافتها حداً يدل على أنها غالب النص.
+ */
 export function isAttorneyFeeContract(contractText: string): boolean {
   const h = normalizeArabicForMatch(contractText ?? '');
-  return matchesLoose(ATTORNEY_ANY, h) && matchesLoose(ATTORNEY_FEE_SIGNAL, h) && matchesLoose(/اتعاب|موكل|توكيل/, h);
+  const whole = matchesLoose(ATTORNEY_ANY, h) && matchesLoose(ATTORNEY_FEE_SIGNAL, h) && matchesLoose(/اتعاب|موكل|توكيل/, h);
+  if (!whole) return false;
+  const head = headOf(h);
+  const inHead = matchesLoose(ATTORNEY_ANY, head) && matchesLoose(ATTORNEY_FEE_SIGNAL, head) && matchesLoose(/اتعاب|موكل|توكيل/, head);
+  if (inHead) return true;
+  const hits = (h.match(ATTORNEY_TERM_G) ?? []).length;
+  return h.length > 0 && (hits * 1000) / h.length >= ATTORNEY_MIN_DENSITY_PER_1000;
+}
+
+/** إعلان التأسيس فى رأس العقد: «عقد تأسيس» أو «تأسيس شركة» أو «المؤسسون» (لا مجرد وصف طرف بأنه «شركة ذات مسئولية محدودة»). */
+const FOUNDING_HEAD_SIGNAL = /عقد (?:ال)?تاسيس|تاسيس (?:ال)?شركه|(?:ال)?مؤسسون|نظام (?:ال)?اساسي لل?شركه/;
+/** مؤشرات بنية عقد الشركة فى متنه، يلزم ثلاثة منها على الأقل. */
+const FOUNDING_BODY_SIGNALS: RegExp[] = [/جماعه (?:ال)?شركاء|الجمعيه العامه/, /(?:ال)?حصص/, /مراقب (?:ال)?حسابات/, /راس مال (?:ال)?شركه/, /قانون (?:ال)?شركات/, /مديري (?:ال)?شركه|مجلس (?:ال)?اداره|مدير (?:ال)?شركه/];
+
+/** هل العقد عقد تأسيس شركة (ذات مسئولية محدودة/مساهمة/شخص واحد)؟ حتمى من نص العقد كله؛ يُحسب لكل بند من نص العقد نفسه. */
+export function isCompanyFoundingContract(contractText: string): boolean {
+  const h = normalizeArabicForMatch(contractText ?? '');
+  if (h.length === 0) return false;
+  if (!matchesLoose(FOUNDING_HEAD_SIGNAL, headOf(h))) return false;
+  return FOUNDING_BODY_SIGNALS.filter((re) => matchesLoose(re, h)).length >= 3;
 }
 
 /**
@@ -417,8 +454,16 @@ export function isAttorneyFeeContract(contractText: string): boolean {
 export const ATTORNEY_FEE_CONTRACT_CONTEXT =
   'اتفاق أتعاب محاماة: علاقة وكالة بأجر بين موكل (عميل) ومحامٍ أو مكتب محاماة؛ يحكمها قانون المحاماة 17 لسنة 1983 (الأتعاب والمصروفات وإنهاء الوكالة) وأحكام الوكالة فى القانون المدنى.';
 
-export function contractContextFor(attorneyFeeContract: boolean): string | null {
-  return attorneyFeeContract ? ATTORNEY_FEE_CONTRACT_CONTEXT : null;
+/**
+ * الجولة 103: سياق عقد تأسيس الشركة (بيانات وصفية حتمية لا حكم). بلا سياق تصل الفقرة المقتطعة («مدة الشركة»، «حصة الشريك»…) للنموذج بلا علاقتها
+ * فيرفض مواد قانون الشركات بحجة اختلاف نوع العلاقة (خطوة 1)، كما حدث فى الجولة 76 لعقد الأتعاب. وتبقى ضوابط الخطوات الأربع كما هى.
+ */
+export const COMPANY_FOUNDING_CONTRACT_CONTEXT =
+  'عقد تأسيس شركة (ذات مسئولية محدودة أو مساهمة أو شخص واحد): علاقة بين الشركاء/المؤسسين وإدارة الشركة وجمعيتها العامة؛ يحكمها قانون الشركات 159 لسنة 1981 ولائحته التنفيذية (قرار وزير الاستثمار 96 لسنة 1982) وأحكام القانون المدنى المكملة.';
+
+export function contractContextFor(attorneyFeeContract: boolean, companyFoundingContract = false): string | null {
+  if (attorneyFeeContract) return ATTORNEY_FEE_CONTRACT_CONTEXT;
+  return companyFoundingContract ? COMPANY_FOUNDING_CONTRACT_CONTEXT : null;
 }
 
 const ATTORNEY_TOPICS: ReadonlyArray<{ pattern: RegExp; law17: number[]; civil: number[] }> = [
