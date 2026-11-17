@@ -84,11 +84,10 @@ describe('الجولة 105.5 — أرقام عربية قُرئت حروفاً �
     clauseText: q28,
     assessmentStatus: 'يحتاج مراجعة',
     riskLevel: 'متوسط',
-    assessmentReasoning: 'البند يورد نسباً متعددة (ثلاثة أرباع ونصف وربع) دون ربطها بالجهة.',
     ...over,
   });
 
-  it('بند متوسط شرحه على نسب ونصه فيه أرقام مشوهة فى جملة النسبة ⇒ غير مؤكد بسبب صريح', () => {
+  it('بند متوسط نصه فيه أرقام مشوهة ⇒ غير مؤكد بسبب صريح', () => {
     const v = garbledDigitClauseVerification(row());
     expect(v?.status).toBe('unconfirmed');
     expect(v?.basis).toBe('uncertain');
@@ -96,15 +95,29 @@ describe('الجولة 105.5 — أرقام عربية قُرئت حروفاً �
     expect(v?.reason).toContain('ليس اعتراضاً من المدقق المستقل');
   });
 
-  it('لا ينطبق: بند سليم، درجة منخفضة، شرح بلا مقدار، أو نص بلا رموز مشوهة', () => {
+  it('الجولة 105.7: الحكم لا يتوقف على صياغة الملاحظة — نصاب أو رقم مادة أو مدة، والرمز فى أى جملة من البند', () => {
+    // الرمز التالف فى جملة لا كلام فيها عن مقدار، والملاحظة عن أمر آخر تماماً: يُوسم أيضاً (القاعدة على نص البند لا على كلمات الشرح)
+    const t = 'يوقع الشركاء VYY على السجل. تنظر الجمعية فى عزل المدير.';
+    expect(garbledDigitClauseVerification(row({ clauseText: t, riskLevel: 'عالٍ' }))?.status).toBe('unconfirmed');
+    expect(garbledDigitClauseVerification(row({ clauseText: t, riskLevel: 'حرج' }))?.status).toBe('unconfirmed');
+  });
+
+  it('لا ينطبق: بند سليم، درجة منخفضة، أو نص بلا رموز مشوهة', () => {
     expect(garbledDigitClauseVerification(row({ assessmentStatus: 'سليم' }))).toBeNull();
     expect(garbledDigitClauseVerification(row({ riskLevel: 'منخفض' }))).toBeNull();
-    expect(garbledDigitClauseVerification(row({ assessmentReasoning: 'البند يخلط بين التسجيل والتوقيع.' }))).toBeNull();
+    expect(garbledDigitClauseVerification(row({ riskLevel: null }))).toBeNull();
     expect(garbledDigitClauseVerification(row({ clauseText: 'تصدر القرارات بأغلبية ثلاثة أرباع رأس المال.' }))).toBeNull();
   });
 
-  it('شرح المادة 126 بأرقام المواد وحدها لا يُعدّ كلاماً عن مقدار', () => {
-    expect(garbledDigitClauseVerification(row({ assessmentReasoning: 'مخالف للمادة 126 والمادة 27 من القانون 159 لسنة 1981.' }))).toBeNull();
+  it('لا ينطبق: ختم WL أو اختصار VAT أو أرقام المواد الصحيحة', () => {
+    expect(garbledDigitClauseVerification(row({ clauseText: 'الطرف الأول WL والطرف الثانى يتفقان على المادة 126 من القانون 159 لسنة 1981.' }))).toBeNull();
+    expect(garbledDigitClauseVerification(row({ clauseText: 'تضاف ضريبة VAT على الثمن.' }))).toBeNull();
+  });
+
+  it('ثبات الحكم: نفس النص يعطى نفس الوسم أياً كان الادعاء (قابلية التكرار)', () => {
+    const a = garbledDigitClauseVerification(row());
+    const b = garbledDigitClauseVerification(row());
+    expect(a?.reason).toBe(b?.reason);
   });
 });
 

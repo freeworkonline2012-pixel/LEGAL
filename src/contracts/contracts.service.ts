@@ -508,7 +508,7 @@ export class ContractsService implements OnModuleInit {
       await this.clauseRepository.save(row);
     }
 
-    // الجولة 105.5: وكذلك بند يبنى حكمه على نسب/نصاب وفى جملة المقدار من نصه أرقام قُرئت حروفاً لاتينية («Vo» بدل ٧٥)
+    // الجولة 105.7: وكذلك أى بند فى نصه أرقام قُرئت حروفاً لاتينية («Vo» بدل ٧٥): لا حكم مؤكداً على نص قراءته تالفة، أياً كانت صياغة الملاحظة
     for (const row of clauseRows) {
       const v = garbledDigitClauseVerification(row);
       if (!v || row.verification?.['status'] === 'unconfirmed') continue;
