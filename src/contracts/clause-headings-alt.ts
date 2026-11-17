@@ -223,8 +223,97 @@ export function findAlternativeHeads(text: string): AltHead[] {
   ];
   // الأطول تسلسلاً، وعند التساوى الأوضح (بكلمة مفتاحية قبل الرقم المجرد)؛ أقل من 3 بنود لا يُعدّ ترقيماً
   const best = options.reduce((a, b) => (b.length > a.length ? b : a), options[0]);
-  if (best.length < 3) return findGarbledNumberHeads(text);
+  if (best.length < 3) {
+    // الجولة 106: «1. العنوان» الذى ضاع منه رقم واحد فى القراءة الآلية (1، 3، 4، 5…) كانت السلسلة الصارمة تتوقف عنده فيخرج العقد بصفر بنود
+    const tolerant = findTolerantBareHeads(text);
+    if (tolerant.length >= TOLERANT_BARE_MIN) return tolerant;
+    return findGarbledNumberHeads(text);
+  }
   return best.map(({ punct: _p, ...h }) => h);
+}
+
+/**
+ * الجولة 106: عناوين «N. العنوان» بترقيم رقمى مجرد حين ضاع من القراءة الآلية رقم أو اثنان من التسلسل.
+ * مقياس الإنتاج (اتفاقية خدمات ممسوحة، 4 صفحات، عناوينها 1، 3، 4، 5، 6، 7، 8 بعد ضياع العنوان 2): السلسلة الصارمة 1، 2، 3… تقف عند الرقم المفقود
+ * فتجد عنواناً واحداً (< 3) فيسقط التقسيم كله إلى «14 فقرة تقريبية»: كتلة تعريف الأطراف تُقيَّم كبنود، والديباجة صفر حرف فلا تُقرأ أسماء الطرفين،
+ * والتغطية 3 من 14. العلة الجذرية: عناوين «المادة/البند» لها سلسلة متسامحة (tolerantChain) بينما الترقيم المجرد صارم دائماً بلا أى حالة فقد.
+ * لا يُستعمل إلا حين لم يجد أى نمط آخر ثلاثة بنود (فلا يغيّر تقسيم أى عقد يُقسَّم اليوم). شروط القبول:
+ *  - رقم من خانة أو خانتين على بداية السطر، بعده نقطة أو قوس («1.» «1)») وبعدها نص؛ أو بلا علامة (عنوان ممسوح فقد نقطته: «7 الملكية الفكرية») بشرط أن يكون
+ *    الرقم هو التالى مباشرة وأن يكون السطر عنواناً قصيراً (≤ 40 حرفاً، ≤ 6 كلمات، يبدأ بحرف عربى، ولا تتبع الرقمَ كلمةُ وحدة أو مقدار: «10 أيام»).
+ *  - التسلسل تصاعدى؛ يُقبل التالى مباشرة، ويُقبل تخطّى رقم واحد فقط إن لم يظهر الرقم المتخطّى فى أى موضع لاحق (فلا تُلتقط قائمة داخل متن بدل العنوان الحقيقى).
+ *  - لا يبدأ العنوان بتعريف طرف (السادة/شركة/السيد…): «1 - شركة…» فى الديباجة ليست بنداً (والشرطة لا تُقبل علامة هنا أصلاً).
+ *  - أربعة عناوين فأكثر، والمفقود من التسلسل لا يتجاوز ربع آخر رقم (وواحداً على الأقل).
+ * الأرقام المفقودة تبقى مفقودة (لا تُسنَد)، وتظهر فى تحذير «ترقيم البنود المُعلَن غير متسلسل» القائم فيراجعها الإنسان.
+ */
+export const TOLERANT_BARE_MIN = 4;
+const TOLERANT_BARE_RE = /^[ \t]*(?<num>[0-9٠-٩]{1,2})[ \t]*(?<punct>[.)])?(?![0-9٠-٩.])[ \t]*(?<title>[^\n]*?)[ \t]*$/gmu;
+const UNIT_OR_PARTICLE_AFTER_NUMBER_RE =
+  /^(?:يوم|يوما|أيام|ايام|شهر|شهرا|أشهر|اشهر|شهور|سنة|سنه|سنوات|سنين|ساعة|ساعات|اسبوع|أسبوع|أسابيع|اسابيع|%|٪|بالمائة|بالمئة|جنيه|جنيها|دولار|دولارا|ريال|درهم|يورو|الف|ألف|مليون|على|في|فى|من|عن|الى|إلى|او|أو|و)(?![ء-ي])/u;
+const ARABIC_START_RE = /^[ء-ي]/u;
+
+interface BareLoose {
+  n: number;
+  hasPunct: boolean;
+  lineStart: number;
+  markerStart: number;
+  rawLength: number;
+  punct: string;
+}
+
+function looseBareCandidates(text: string): BareLoose[] {
+  const out: BareLoose[] = [];
+  for (const m of text.matchAll(TOLERANT_BARE_RE)) {
+    const g = m.groups ?? {};
+    const title = (g.title ?? '').trim();
+    if (title.length < 2 || !ARABIC_START_RE.test(title)) continue;
+    if (PARTY_AFTER_RE.test(title)) continue;
+    const hasPunct = !!g.punct;
+    const words = title.split(/\s+/).length;
+    if (hasPunct) {
+      if (words > 60) continue;
+    } else if (title.length > 40 || words > 6 || UNIT_OR_PARTICLE_AFTER_NUMBER_RE.test(title)) {
+      continue;
+    }
+    const n = toInt(g.num ?? '');
+    if (!Number.isFinite(n) || n < 1) continue;
+    const idx = m.index ?? 0;
+    const raw = m[0];
+    const lead = raw.length - raw.trimStart().length;
+    const markerPart = raw.trimStart().slice(0, raw.trimStart().length - title.length - (raw.length - raw.trimEnd().length)).trimEnd();
+    out.push({ n, hasPunct, lineStart: idx, markerStart: idx + lead, rawLength: Math.max(markerPart.length, 1), punct: g.punct ?? '' });
+  }
+  return out;
+}
+
+export function findTolerantBareHeads(text: string): AltHead[] {
+  const cands = looseBareCandidates(text);
+  const accepted: BareLoose[] = [];
+  let last = 0;
+  for (let i = 0; i < cands.length; i++) {
+    const c = cands[i];
+    if (c.n === last + 1) {
+      accepted.push(c);
+      last = c.n;
+    } else if (c.hasPunct && c.n === last + 2 && (last >= 1 || c.n === 2)) {
+      const skipped = last + 1;
+      if (!cands.slice(i + 1).some((x) => x.n === skipped)) {
+        accepted.push(c);
+        last = c.n;
+      }
+    }
+  }
+  if (accepted.length < TOLERANT_BARE_MIN) return [];
+  // البدء من 1 أو 2 فقط، والمفقود لا يتجاوز ربع آخر رقم (وواحداً على الأقل)
+  if (accepted[0].n > 2) return [];
+  const missing = last - accepted.length;
+  if (missing > Math.max(1, Math.floor(last / 4))) return [];
+  return accepted.map((c) => ({
+    lineStart: c.lineStart,
+    markerStart: c.markerStart,
+    marker: `البند ${c.n}${c.punct === '.' ? '.' : ''}`,
+    rawLength: c.rawLength,
+    declaredNumber: c.n,
+  }));
 }
 
 
