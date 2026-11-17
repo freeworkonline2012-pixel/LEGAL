@@ -2,6 +2,7 @@ import { createHash } from 'crypto';
 import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortReference } from '../document-model';
 import { findOcrNoiseTokens, focusOfQuote, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
 import { isBlankSlotText } from '../../contracts/blank-template';
+import { isAssessmentTechnicalFailure } from '../../contracts/provider-failure';
 import { extractStockChapterNote } from '../../contracts/no-text-note';
 import { extractKeyTerms, KEY_TERM_KIND_LABEL, OCR_UNVERIFIED_LABEL, OCR_UNVERIFIED_NOTE, type KeyTerm } from '../../contracts/key-terms';
 import { isBenignNumberingGapWarning } from '../../contracts/numbering-gap';
@@ -519,13 +520,22 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   const warnings = (input.extractionWarnings ?? []).filter((w) => w.trim().length > 0);
   const ocrRead = warnings.some((w) => w.includes('OCR'));
   const realClauses = baseClauses;
-  const assessedCount = realClauses.filter((c) => c.assessmentStatus === 'سليم' || c.assessmentStatus === NEEDS_REVIEW).length;
-  const notAssessedCount = realClauses.length - assessedCount;
+  // الجولة 105.6: بند تعذّر تقييمه تقنياً (عطل خدمة التقييم) ليس «قُيِّم»: يُعدّ على حدة ولا يُخلط بالبند الذى لا نص مفهرس يحكمه
+  const failedCount = realClauses.filter((c) => c.assessmentStatus === NEEDS_REVIEW && isAssessmentTechnicalFailure(c.assessmentReasoning)).length;
+  const assessedCount = realClauses.filter((c) => (c.assessmentStatus === 'سليم' || c.assessmentStatus === NEEDS_REVIEW) && !isAssessmentTechnicalFailure(c.assessmentReasoning)).length;
+  const notAssessedCount = realClauses.length - assessedCount - failedCount;
   coverRows.push({
     label: 'نطاق التغطية',
     value: noClauses ? 'لم يُحلَّل أى بند — لا تغطية' : `${assessedCount} من ${realClauses.length} بنداً قُيِّمت مقابل نصوص قانونية مفهرسة`,
-    ...(notAssessedCount > 0 || noClauses ? { tone: 'high' as Tone } : {}),
+    ...(notAssessedCount > 0 || failedCount > 0 || noClauses ? { tone: 'high' as Tone } : {}),
   });
+  if (failedCount > 0) {
+    coverRows.push({
+      label: 'بنود تعذّر تقييمها تقنياً',
+      value: `${failedCount} من ${realClauses.length} بنداً لم تُقيَّم لعطل تقنى فى خدمة التقييم الآلى (لا لغياب نص قانونى). غياب نتيجة عنها لا يدل على سلامتها؛ أعد تحليل العقد أو راجعها بشرياً.`,
+      tone: 'high',
+    });
+  }
   if (warnings.length > 0) {
     coverRows.push({ label: 'تنبيه الاستخراج', value: 'يحتوى تحذيرات قراءة/تقسيم — راجع القسم 1', tone: 'medium' });
   }
@@ -565,6 +575,13 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   // ---------- 1. الملخص التنفيذى ----------
   blocks.push({ t: 'pagebreak' });
   banner('الملخص التنفيذى');
+  if (failedCount > 0) {
+    blocks.push({
+      t: 'note',
+      label: 'تعذّر تقنى:',
+      text: `تعذّر تقييم ${bands(failedCount)} من أصل ${bands(realClauses.length)} لعطل تقنى فى خدمة التقييم الآلى، وليس لغياب نص قانونى يحكمها؛ فلم تُقيَّم ولا يدل غياب نتيجة عنها على سلامتها. أعد تحليل العقد أو راجعها مراجعة بشرية كاملة.`,
+    });
+  }
   if (notAssessedCount > 0) {
     blocks.push({
       t: 'note',
@@ -1174,7 +1191,7 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     ...extraActions(standalone.map((x) => x.f), keptPlaybook),
     // مرشّحات غير مؤكدة: إجراء «تحقق بشرى» لا «تعديل»، بأولوية أدنى (الجولة 34)
     ...candidateRisky.map((r) => candidateAction(`${r.c.clauseLabel}${r.c.clauseTitle ? ` (${r.c.clauseTitle})` : ''}`, r.sev, r.c.verification?.reason ?? '')),
-    ...candidateFindings.map(({ f }) => candidateAction(f.title, f.severity, f.verification?.reason ?? '')),
+    ...candidateFindings.map(({ f }) => candidateAction(f.title, f.severity, f.verification?.reason ?? '', readingDefectLabels(f).length > 0)),
   ]
     .map((a, i) => ({ a, i }))
     .sort((x, y) => (PRIORITY_RANK[x.a.priority as ActionPriority] ?? 2) - (PRIORITY_RANK[y.a.priority as ActionPriority] ?? 2) || x.i - y.i)

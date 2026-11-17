@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { type ClaimKind, type ContextClause, type Verification, validateVerdict } from './verification';
 import { resolveVerifierVotes, verifierExtraSampleCount, verifierNeedsExtra, verifierSampleCount } from './verifier-vote';
+import { ProviderFatalError, fatalProviderDetail } from './provider-failure';
 
 export type VerifierOutcome =
   | { status: 'ok'; verification: Verification }
@@ -141,8 +142,16 @@ export class ClauseVerifierService {
   private async run(system: string, user: string, clauseText: string, articleTexts: string[], relatedTexts: string[] = []): Promise<VerifierOutcome> {
     if (!this.isConfigured) return { status: 'not_configured' };
     const n = verifierSampleCount();
-    if (n <= 1) return this.runOnce(system, user, clauseText, articleTexts, relatedTexts);
+    if (n <= 1) {
+      const single = await this.runOnce(system, user, clauseText, articleTexts, relatedTexts);
+      const fatalSingle = fatalProviderDetail([single as { status: string; detail?: string }]);
+      if (fatalSingle) throw new ProviderFatalError(fatalSingle, 'verifier');
+      return single;
+    }
     const samples = await Promise.all(Array.from({ length: n }, () => this.runOnce(system, user, clauseText, articleTexts, relatedTexts)));
+    // الجولة 105.6: 401/402 ⇒ عطل قاتل يوقف التحليل (راجع provider-failure.ts)
+    const fatal = fatalProviderDetail(samples as Array<{ status: string; detail?: string }>);
+    if (fatal) throw new ProviderFatalError(fatal, 'verifier');
     // الجولة 105.5: لم تُجمع العيّنات على نوع حكم واحد ⇒ عيّنتان إضافيتان (أغلبية من 5)
     const extraN = n >= 3 && verifierNeedsExtra(samples) ? verifierExtraSampleCount() : 0;
     if (extraN > 0) samples.push(...(await Promise.all(Array.from({ length: extraN }, () => this.runOnce(system, user, clauseText, articleTexts, relatedTexts)))));

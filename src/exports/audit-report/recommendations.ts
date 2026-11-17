@@ -97,9 +97,14 @@ export function playbookAction(row: PlaybookRow, sideKnown: boolean): ExtraActio
  * مرشّحة للمراجعة البشرية: لم يؤكدها المدقق المستقل المعاكس (اعترض أو لم يجزم). الإجراء هنا «تحقق» لا «تعديل»، وأولويته أدنى
  * من المؤكدة (متوسطة إن كانت الدرجة المرشّحة حرجة أو عالية كى لا تضيع، وإلا منخفضة). لا تدخل فى مستوى المخاطرة العام.
  */
-export function candidateAction(subject: string, candidateSeverity: string, reason: string): ExtraAction {
-  const priority: ActionPriority = candidateSeverity === 'حرج' || candidateSeverity === 'عالٍ' ? 'متوسطة' : 'منخفضة';
-  return make(`التحقق البشرى من مرشّحة غير مؤكدة: ${clip(subject, 110)}`, priority, `لم يؤكدها المدقق المستقل: ${clip(reason, 110)}`);
+export function candidateAction(subject: string, candidateSeverity: string, reason: string, readingDefect = false): ExtraAction {
+  // الجولة 105.6: مرشحة مبنية على نص فيه خانات فارغة أو رموز مشوّهة من القراءة الآلية تُعامَل كما فى الغلاف (R105.4: لا تُحسب «مرشحة عالية لم تُحسم»):
+  // الإجراء مقارنتها بالأصل، وأولويته منخفضة لا متوسطة، فلا يتصدر جدول التوصيات إجراءً قد ينشأ من القراءة لا من العقد.
+  const priority: ActionPriority = !readingDefect && (candidateSeverity === 'حرج' || candidateSeverity === 'عالٍ') ? 'متوسطة' : 'منخفضة';
+  const note = readingDefect
+    ? `قابل المقتطفين بالأصل: أحد البندين فيه خانات فارغة أو رموز مشوّهة من القراءة الآلية. لم يؤكدها المدقق المستقل: ${clip(reason, 90)}`
+    : `لم يؤكدها المدقق المستقل: ${clip(reason, 110)}`;
+  return make(`التحقق البشرى من مرشّحة غير مؤكدة: ${clip(subject, 110)}`, priority, note);
 }
 
 export function extraActions(confirmedFindings: ActionFinding[], playbook: PlaybookResult | null): ExtraAction[] {

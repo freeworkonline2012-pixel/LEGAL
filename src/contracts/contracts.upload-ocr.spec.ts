@@ -137,7 +137,9 @@ describe('ContractsService — الطبقة 4 (المدقق المستقل) وح
     await s.verifyClauseFlags(rows, { contractType: null, clientRole: null, clientParty: null });
     expect(verifyAssessment).toHaveBeenCalledTimes(2);
     expect((rows[1] as unknown as { verification: { status: string } }).verification.status).toBe('unconfirmed');
-    expect((rows[0] as { verification: unknown }).verification).toBeNull();
+    // الجولة 105.6: العطل لا يترك الملاحظة بلا وسم؛ تُوسم غير مؤكدة بسبب تعذّر المدقق
+    expect((rows[0] as unknown as { verification: { status: string; reason: string } }).verification).toMatchObject({ status: 'unconfirmed', basis: 'uncertain' });
+    expect((rows[0] as unknown as { verification: { reason: string } }).verification.reason).toContain('تعذّر التحقق المستقل');
     expect((rows[2] as { verification: unknown }).verification).toBeNull();
   });
 

@@ -84,7 +84,8 @@ import { ClauseVerifierService } from './clause-verifier.service';
 import { assessExtraSampleCount, assessNeedsExtra, assessSampleCount, resolveAssessmentVotes, type AssessSample } from './assess-vote';
 import { articleInScopeForFamily } from './article-scope';
 import { mandatoryClausePatch, mandatoryRuleHits } from './mandatory-rules';
-import { type Verification, claimKindFromRisk, damagedNumberClauseVerification, garbledDigitClauseVerification, isDismissedFindingVerification, needsVerification, pickContributionContext, pickForVerification } from './verification';
+import { type Verification, claimKindFromRisk, damagedNumberClauseVerification, garbledDigitClauseVerification, isDismissedFindingVerification, needsVerification, pickContributionContext, pickForVerification, verifierFailedVerification } from './verification';
+import { ASSESSMENT_FAILED_REASONING, ASSESSMENT_NOT_CONFIGURED_REASONING, PROVIDER_FATAL_USER_MESSAGE, ProviderFatalError, fatalProviderDetail, isFatalProviderDetail, rethrowIfFatal } from './provider-failure';
 import { compareFactsForClient, describeWeakenings } from './redraft-guard';
 import type { ClauseFacts } from './clause-facts';
 import type { Weakening } from './redraft-guard';
@@ -262,7 +263,32 @@ export class ContractsService implements OnModuleInit {
     }
   }
 
+  /**
+   * الجولة 105.6: عطل قاتل فى مزود الذكاء الاصطناعى (401/402) يوقف التحليل بحالة صريحة مقروءة ولا يصدر تقرير ناقص
+   * (التصدير يشترط processed). الأعطال العابرة لا تصل هنا: تبقى fail-closed للبند وحده.
+   */
   private async processUpload(
+    contract: Contract,
+    file: { buffer: Buffer; mimetype: string; originalname: string },
+    context: { userId: string; ipAddress: string | null; userAgent: string | null },
+    position: ClientPosition,
+    background: boolean,
+  ): Promise<ContractResponseDto> {
+    try {
+      return await this.analyzeUpload(contract, file, context, position, background);
+    } catch (err) {
+      if (!(err instanceof ProviderFatalError)) throw err;
+      this.logger.error(`analysis aborted contract=${contract.id} stage=${err.stage} detail=${err.detail}`);
+      const fresh = (await this.contractRepository.findOne({ where: { id: contract.id } })) ?? contract;
+      fresh.status = 'extraction_failed' as ContractStatus;
+      fresh.extractionError = PROVIDER_FATAL_USER_MESSAGE;
+      const saved = await this.contractRepository.save(fresh);
+      await this.audit(context, 'contracts.provider_fatal', contract.id, { stage: err.stage, detail: err.detail });
+      return this.toResponseDto(saved, [], []);
+    }
+  }
+
+  private async analyzeUpload(
     contract: Contract,
     file: { buffer: Buffer; mimetype: string; originalname: string },
     context: { userId: string; ipAddress: string | null; userAgent: string | null },
@@ -570,9 +596,11 @@ export class ContractsService implements OnModuleInit {
         model = 'ok';
         modelFindings = outcome.findings;
       } else {
+        if (outcome.status === 'error' && isFatalProviderDetail(outcome.detail)) throw new ProviderFatalError(outcome.detail, 'contract-level');
         model = outcome.status;
       }
     } catch (err) {
+      rethrowIfFatal(err);
       this.logger.warn(`contract consistency failed (non-fatal): ${(err as Error).message}`);
     }
     // الجولة 104: خانات النموذج الفارغة لا تُعدّ «شروطاً مفتوحة»؛ تُجمع فى ملاحظة «نموذج غير مكتمل» واحدة بدرجة منخفضة (blank-template.ts)
@@ -600,13 +628,26 @@ export class ContractsService implements OnModuleInit {
           claimKind: claimKindFromRisk(row.riskLevel),
           contextClauses: pickContributionContext(row, rows),
         });
+        if (out.status === 'error') {
+          // الجولة 105.6: عطل عابر فى المدقق لا يترك الملاحظة محسوبة بلا وسم؛ تُوسم غير مؤكدة بسبب صريح (مرشحة، لا تدخل الأعداد)
+          row.verification = verifierFailedVerification() as unknown as Record<string, unknown>;
+          await this.clauseRepository.save(row);
+          continue;
+        }
         if (out.status !== 'ok') continue;
         row.verification = out.verification as unknown as Record<string, unknown>;
         // دُحض وصف «آمرة» وثبت الانحراف عن قاعدة مكملة ضد العميل: تُعاد الدرجة إلى «متوسط» (اختلال لا بطلان) وتُحتسب مؤكَّدة
         if (out.verification.reclassified === 'deviation' && (row.riskLevel === 'حرج' || row.riskLevel === 'عالٍ')) row.riskLevel = 'متوسط';
         await this.clauseRepository.save(row);
       } catch (err) {
+        rethrowIfFatal(err);
         this.logger.warn(`clause verification failed clauseIndex=${row.clauseIndex} (non-fatal): ${(err as Error).message}`);
+        row.verification = verifierFailedVerification() as unknown as Record<string, unknown>;
+        try {
+          await this.clauseRepository.save(row);
+        } catch {
+          /* حفظ الوسم نفسه فشل: يبقى فى الذاكرة لهذه المعالجة ولا يُسقطها */
+        }
       }
     }
   }
@@ -648,13 +689,16 @@ export class ContractsService implements OnModuleInit {
           contractClauses: rows.map((r) => ({ clauseLabel: r.clauseLabel, text: r.clauseText })),
         });
         if (out.status === 'ok') f.verification = out.verification;
+        else if (out.status === 'error') f.verification = verifierFailedVerification();
         // الجولة 63 (قرار المستشار): ملاحظة عالية/حرجة لا تُستبعد بدحض واحد؛ يلزم دحض ثان مستقل (صياغة وترتيب مختلفان) يوافق الأول
         // وإلا بقيت مرشحة للمراجعة. العطل فى المراجعة الثانية ⇒ تبقى مرشحة أيضاً (الأمان أولاً: ملاحظة صحيحة تضيع أخطر من زائدة موسومة).
         if ((f.severity === 'حرج' || f.severity === 'عالٍ') && isDismissedFindingVerification(f.kind, f.verification)) {
           f.verification = await this.confirmDismissal(f, rows, byIndex, f.verification);
         }
       } catch (err) {
+        rethrowIfFatal(err);
         this.logger.warn(`finding verification failed id=${f.id} (non-fatal): ${(err as Error).message}`);
+        f.verification = verifierFailedVerification();
       }
     }
   }
@@ -685,7 +729,8 @@ export class ContractsService implements OnModuleInit {
       });
       if (second.status === 'ok' && isDismissedFindingVerification(f.kind, second.verification)) return first;
       return keepAsCandidate('لم يثبت الدحض فى مراجعة ثانية مستقلة، فبقيت الملاحظة مرشحة للمراجعة البشرية.');
-    } catch {
+    } catch (err) {
+      rethrowIfFatal(err);
       return keepAsCandidate('تعذرت المراجعة الثانية للدحض، فبقيت الملاحظة مرشحة للمراجعة البشرية.');
     }
   }
@@ -748,7 +793,9 @@ export class ContractsService implements OnModuleInit {
     });
     // أثناء المعالجة تُعرض الحالة والتقدم فقط (بنود نصف مقيَّمة لا تُعرض كنتيجة)
     const running = contract.status === 'processing' || contract.status === 'uploaded';
-    return this.toResponseDto(contract, running ? [] : clauses, [], running ? this.jobs.get(id) : null);
+    // بنود نصف مقيَّمة لا تُعرض كنتيجة لا أثناء المعالجة ولا بعد توقفها (عطل مزود، انقطاع الخادم)
+    const partial = running || contract.status === 'extraction_failed';
+    return this.toResponseDto(contract, partial ? [] : clauses, [], running ? this.jobs.get(id) : null);
   }
 
   /**
@@ -1194,8 +1241,8 @@ export class ContractsService implements OnModuleInit {
         row.assessmentStatus = 'يحتاج مراجعة';
         row.assessmentReasoning =
           assessment.status === 'not_configured'
-            ? 'خدمة التقييم الآلى غير مُفعَّلة حالياً على هذه البيئة — يلزم مراجعة قانونية بشرية.'
-            : 'تعذَّر إجراء التقييم الآلى تقنياً — يلزم مراجعة قانونية بشرية.';
+            ? `${ASSESSMENT_NOT_CONFIGURED_REASONING} حالياً على هذه البيئة — يلزم مراجعة قانونية بشرية.`
+            : `${ASSESSMENT_FAILED_REASONING} — يلزم مراجعة قانونية بشرية.`;
         row.matchedArticles = [];
         row.assessmentConfidence = 0;
         row.riskLevel = null;
@@ -1346,11 +1393,12 @@ export class ContractsService implements OnModuleInit {
         confidence: row.assessmentConfidence,
       });
     } catch (err) {
+      rethrowIfFatal(err);
       this.logger.warn(
         `clause assessment failed contractId=${row.contractId} clauseIndex=${row.clauseIndex}: ${(err as Error).message}`,
       );
       row.assessmentStatus = 'يحتاج مراجعة';
-      row.assessmentReasoning = 'تعذَّر إجراء التقييم الآلى تقنياً لهذا البند — يلزم مراجعة قانونية بشرية.';
+      row.assessmentReasoning = `${ASSESSMENT_FAILED_REASONING} لهذا البند — يلزم مراجعة قانونية بشرية.`;
       row.matchedArticles = [];
       row.assessmentConfidence = 0;
       row.riskLevel = null;
@@ -1370,8 +1418,16 @@ export class ContractsService implements OnModuleInit {
     clauseIndex: number,
   ): Promise<Awaited<ReturnType<DeepseekGenerationService['assessClause']>>> {
     const n = assessSampleCount();
-    if (n <= 1) return this.generationService.assessClause(request);
+    if (n <= 1) {
+      const single = await this.generationService.assessClause(request);
+      const fatalSingle = fatalProviderDetail([single as { status: string; detail?: string }]);
+      if (fatalSingle) throw new ProviderFatalError(fatalSingle, `assess clause=${clauseIndex}`);
+      return single;
+    }
     const samples = await Promise.all(Array.from({ length: n }, () => this.generationService.assessClause(request)));
+    // الجولة 105.6: 401/402 فى أى عيّنة ⇒ كل ما بعدها سيفشل: إيقاف التحليل فوراً لا إكماله بنداءات مرفوضة
+    const fatal = fatalProviderDetail(samples as Array<{ status: string; detail?: string }>);
+    if (fatal) throw new ProviderFatalError(fatal, `assess clause=${clauseIndex}`);
     // الجولة 105.5: لم تُجمع العيّنات على حكم واحد ⇒ عيّنتان إضافيتان (أغلبية من 5)؛ الإجماع لا يكلّف نداءً إضافياً
     const extraN = n >= 3 && assessNeedsExtra(samples as AssessSample[]) ? assessExtraSampleCount() : 0;
     if (extraN > 0) samples.push(...(await Promise.all(Array.from({ length: extraN }, () => this.generationService.assessClause(request)))));

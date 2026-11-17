@@ -1,6 +1,7 @@
 import { quoteInText } from './clause-facts';
 import { damagedEscalationNumber } from './numeric-checks.util';
 import { garbledDigitsInQuantitySentences, hasQuantityTalk } from './ocr-noise.util';
+import { VERIFIER_FAILED_REASON } from './provider-failure';
 
 /**
  * نتيجة المدقق المستقل (الطبقة 4): مدقق ثانٍ بتعليمات معاكسة يبحث عن سبب يجعل الملاحظة خاطئة. لا تُعرض الملاحظة «مؤكدة» إلا إن اجتازته؛
@@ -225,4 +226,9 @@ export function garbledDigitClauseVerification(c: {
   const tokens = garbledDigitsInQuantitySentences(c.clauseText);
   if (tokens.length === 0) return null;
   return { status: 'unconfirmed', basis: 'uncertain', reason: GARBLED_DIGIT_CLAUSE_REASON(tokens), quote: null, quoteSource: null, verifiedAt: new Date().toISOString() };
+}
+
+/** الجولة 105.6: تعذّر المدقق تقنياً (عطل عابر) ⇒ الملاحظة غير مؤكدة بسبب صريح، لا محسوبة بصمت كأنها اجتازت التحقق. */
+export function verifierFailedVerification(): Verification {
+  return { status: 'unconfirmed', basis: 'uncertain', reason: VERIFIER_FAILED_REASON, quote: null, quoteSource: null, verifiedAt: new Date().toISOString() };
 }
