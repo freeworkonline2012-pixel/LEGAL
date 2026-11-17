@@ -20,6 +20,9 @@ import { Law } from '../database/entities/law.entity';
 import { buildFtsQuery, confidenceFromRank } from '../questions/retrieval';
 import {
   anchorArticleNumbers,
+  confidentialityAnchorArticleNumbers,
+  governingLawAnchorArticleNumbers,
+  ECON_COURTS_LAW,
   CIVIL_CODE,
   classifyClauseCriteria,
   leaseAnchorArticleNumbers,
@@ -1698,18 +1701,22 @@ export class ContractsService implements OnModuleInit {
     const out: ClauseCandidate[] = [];
     // عقود أتعاب المحاماة (الجولة 74): م82/83 من 17/1983 ومواد الوكالة بالمدنى بحسب موضوع البند
     const fee = attorneyFeeAnchorArticleNumbers(clauseTitle, clauseText, attorneyFeeContract);
+    const governing = governingLawAnchorArticleNumbers(clauseTitle, clauseText);
     const articleNos = Array.from(
       new Set([
         ...anchorArticleNumbers(criteria, 3),
         ...leaseAnchorArticleNumbers(clauseTitle, clauseText, 3),
         ...loanAnchorArticleNumbers(clauseTitle, clauseText, 3),
         ...servicesAnchorArticleNumbers(clauseTitle, clauseText, 3, contractIsServices),
+        ...governing.civil,
         ...fee.civil,
       ]),
     );
     out.push(...(await this.civilCodeCandidates(articleNos)));
-    const ipNos = ipAnchorArticleNumbers(clauseTitle, clauseText, 3);
+    // الجولة 113: السرية ← م57 وم55 من 82/2002 (المعلومات غير المفصح عنها) مع مراسى الملكية الفكرية إن وُجدت، بلا تكرار
+    const ipNos = Array.from(new Set([...ipAnchorArticleNumbers(clauseTitle, clauseText, 3), ...confidentialityAnchorArticleNumbers(clauseTitle, clauseText)]));
     if (ipNos.length > 0) out.push(...(await this.lawArticleCandidates(IP_LAW, ipNos)));
+    if (governing.econ.length > 0) out.push(...(await this.lawArticleCandidates(ECON_COURTS_LAW, governing.econ)));
     if (fee.law17.length > 0) out.push(...(await this.lawArticleCandidates(ADVOCACY_LAW, fee.law17)));
     for (const scope of scopedLawsForClause(criteria, clauseTitle, clauseText)) {
       const scoped = await this.ftsCandidates(`${scope.seed ?? ''} ${clauseText}`.trim(), 2, scope);
