@@ -1231,6 +1231,11 @@ export class SegmentationService {
         this.logger.log(`segmentation gap window n=${g}: ${describeGapWindow(text, heads, g)}`);
       }
     }
+    // الجولة 109: آخر بند طويل (> 450 حرفاً) قد يضم بنداً أخيراً ضاع عنوانه (عاشر «0. متفرقات» التصق بالتاسع): تُسجَّل أسطره القصيرة بعد آخر عنوان (تشخيص فقط)
+    if (declared.length >= 4 && clauses.length > 0 && clauses[clauses.length - 1].text.length > 450) {
+      const lastDeclared = declared[declared.length - 1];
+      this.logger.log(`segmentation tail window after n=${lastDeclared}: ${describeGapWindow(text, heads, lastDeclared + 1)}`);
+    }
     for (let i = 0; i < declared.length; i++) {
       if (declared[i] !== i + 1) {
         // قفزة إلى الأمام: تُفحص أدلة النقص فى النص (إحالة/فقرات فرعية/بند متضخم)؛ التكرار والرجوع يبقيان بصيغتهما (الجولة 67)

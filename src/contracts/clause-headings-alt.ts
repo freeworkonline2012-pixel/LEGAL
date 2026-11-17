@@ -244,6 +244,11 @@ export function findAlternativeHeads(text: string): AltHead[] {
  *  - لا يبدأ العنوان بتعريف طرف (السادة/شركة/السيد…): «1 - شركة…» فى الديباجة ليست بنداً (والشرطة لا تُقبل علامة هنا أصلاً).
  *  - أربعة عناوين فأكثر، والمفقود من التسلسل لا يتجاوز ربع آخر رقم (وواحداً على الأقل).
  * الأرقام المفقودة تبقى مفقودة (لا تُسنَد)، وتظهر فى تحذير «ترقيم البنود المُعلَن غير متسلسل» القائم فيراجعها الإنسان.
+ *
+ * الجولة 109: عنوان العاشر (أو العشرين…) تفقد القراءة الآلية رقمه الأول فيُقرأ «0. متفرقات». ظهر ذلك فى مسح الأصل نفسه (عقد خدمات 4 صفحات، البند 10 «متفرقات» لم يُعدّ
+ * فخرج العقد بـ8 بنود بدل 9 والتصق العاشر بالتاسع، فادّعى التقرير غياب بند تعديل العقد كتابةً وهو فى العاشر). الصفر المفرد لا يكون رقم بند أبداً، فهو إما نقطة قائمة
+ * (بلا علامة وقف عادة) وإما رقم بند ضاع أول خانتيه. يُقبل «0.» أو «0)» عنواناً للرقم التالى فى السلسلة فقط إن كان هذا الرقم من مضاعفات العشرة (10، 20…) وسبقه الرقم
+ * قبله مباشرة (9، 19…)، والسطر عنوان قصير (≤ 40 حرفاً، ≤ 6 كلمات) لا جملة.
  */
 export const TOLERANT_BARE_MIN = 4;
 const TOLERANT_BARE_RE = /^[ \t]*(?<num>[0-9٠-٩]{1,2})[ \t]*(?<punct>[.)])?(?![0-9٠-٩.])[ \t]*(?<title>[^\n]*?)[ \t]*$/gmu;
@@ -253,6 +258,8 @@ const ARABIC_START_RE = /^[ء-ي]/u;
 
 interface BareLoose {
   n: number;
+  /** الجولة 109: «0.» قُرئ عنواناً قصيراً؛ رقمه يُستنتج (مضاعف العشرة التالى) عند التسلسل */
+  zeroTens?: boolean;
   hasPunct: boolean;
   lineStart: number;
   markerStart: number;
@@ -275,12 +282,18 @@ function looseBareCandidates(text: string): BareLoose[] {
       continue;
     }
     const n = toInt(g.num ?? '');
-    if (!Number.isFinite(n) || n < 1) continue;
+    if (!Number.isFinite(n) || n < 0) continue;
+    let zeroTens = false;
+    if (n === 0) {
+      // الجولة 109: صفر مفرد بعلامة وقف وعنوان قصير فقط (انظر تعليق الدالة)
+      if (!hasPunct || title.length > 40 || words > 6 || (g.num ?? '').length !== 1) continue;
+      zeroTens = true;
+    }
     const idx = m.index ?? 0;
     const raw = m[0];
     const lead = raw.length - raw.trimStart().length;
     const markerPart = raw.trimStart().slice(0, raw.trimStart().length - title.length - (raw.length - raw.trimEnd().length)).trimEnd();
-    out.push({ n, hasPunct, lineStart: idx, markerStart: idx + lead, rawLength: Math.max(markerPart.length, 1), punct: g.punct ?? '' });
+    out.push({ n, zeroTens, hasPunct, lineStart: idx, markerStart: idx + lead, rawLength: Math.max(markerPart.length, 1), punct: g.punct ?? '' });
   }
   return out;
 }
@@ -291,7 +304,13 @@ export function findTolerantBareHeads(text: string): AltHead[] {
   let last = 0;
   for (let i = 0; i < cands.length; i++) {
     const c = cands[i];
-    if (c.n === last + 1) {
+    if (c.zeroTens) {
+      // «0.» عنوان للرقم التالى إن كان مضاعف عشرة والسلسلة بلغت ما قبله مباشرة (9→10، 19→20)
+      if (last >= 9 && (last + 1) % 10 === 0) {
+        accepted.push({ ...c, n: last + 1 });
+        last += 1;
+      }
+    } else if (c.n === last + 1) {
       accepted.push(c);
       last = c.n;
     } else if (c.hasPunct && c.n === last + 2 && (last >= 1 || c.n === 2)) {
