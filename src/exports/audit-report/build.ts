@@ -1,6 +1,8 @@
 import { createHash } from 'crypto';
 import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortReference } from '../document-model';
 import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
+import { isBlankSlotText } from '../../contracts/blank-template';
+import { extractStockChapterNote } from '../../contracts/no-text-note';
 import { extractKeyTerms, KEY_TERM_KIND_LABEL, OCR_UNVERIFIED_LABEL, OCR_UNVERIFIED_NOTE, type KeyTerm } from '../../contracts/key-terms';
 import { isBenignNumberingGapWarning } from '../../contracts/numbering-gap';
 import { groupKeyTerms } from './key-terms-display';
@@ -350,6 +352,18 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   const isDismissedFinding = (f: AuditContractFinding): boolean => isDismissedFindingVerification(f.kind, f.verification);
   const candidateFindings = findings.map((f, i) => ({ f, i })).filter((x) => isUnconfirmedFinding(x.f) && !isDismissedFinding(x.f));
   const dismissedFindings = findings.map((f, i) => ({ f, i })).filter((x) => isDismissedFinding(x.f));
+  // الجولة 105.4: مرشّح تعارض بين بندين أحدهما فيه خانات فارغة أو رموز مشوَّهة من القراءة الآلية قد ينشأ تعارضه المزعوم من القراءة لا من العقد؛
+  // لا يُحذف ولا تُخفَّض درجته (تبقى فى قسم المرشّحات)، لكنه لا يُحسب بين «المرشحات العالية لم تُحسم» على الغلاف: يُعدّ على حدة بسببه.
+  const ocrReadEarly = (input.extractionWarnings ?? []).some((w) => w.includes('OCR'));
+  const readingDefectLabels = (f: AuditContractFinding): string[] => {
+    const labels = new Set<string>();
+    for (const e of f.evidence) {
+      const c = clauses.find((x) => x.clauseLabel === e.clauseLabel);
+      const text = c?.clauseText ?? e.quote;
+      if (isBlankSlotText(text) || isBlankSlotText(e.quote) || (ocrReadEarly && findOcrNoiseTokens(text).length > 0)) labels.add(e.clauseLabel);
+    }
+    return [...labels];
+  };
   const confirmedClauseLabels = new Set(clauses.filter((c) => severityOf(c) !== null && !isUnconfirmed(c)).map((c) => c.clauseLabel));
   const absorbedBy = new Map<string, number[]>();
   const absorbedInto = new Map<number, string>();
@@ -520,14 +534,22 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     value: approved ? 'معتمد بعد مراجعة بشرية' : 'مسودة آلية — بانتظار المراجعة البشرية',
   });
   // مرشحات عالية/حرجة لم يؤكدها المدقق المستقل لا ترفع المستوى لكن لا تُخفى: المستوى «مؤقت» حتى تُحسم بمراجعة بشرية
-  const highCandidates =
-    candidateRisky.filter((r) => r.sev === 'حرج' || r.sev === 'عالٍ').length +
-    candidateFindings.filter((x) => x.f.severity === 'حرج' || x.f.severity === 'عالٍ').length;
+  const isHighSev = (s: string): boolean => s === 'حرج' || s === 'عالٍ';
+  const highFindingCandidates = candidateFindings.filter((x) => isHighSev(x.f.severity));
+  const defectiveHigh = highFindingCandidates.filter((x) => readingDefectLabels(x.f).length > 0).length;
+  const highCandidates = candidateRisky.filter((r) => r.sev === 'حرج' || r.sev === 'عالٍ').length + highFindingCandidates.length - defectiveHigh;
   if (highCandidates > 0) {
     coverRows.push({
       label: 'مرشحات عالية لم تُحسم',
       value: `${highCandidates} ملاحظة بدرجة عالية/حرجة لم يؤكدها المدقق المستقل ولم تدخل المستوى أعلاه؛ المستوى مؤقت إلى أن يحسمها مراجع بشرى (القسم الخاص بالمرشحات).`,
       tone: 'high',
+    });
+  }
+  if (defectiveHigh > 0) {
+    coverRows.push({
+      label: 'مرشحات من نص مقروء بخلل',
+      value: `${defectiveHigh} مرشّحة تعارض بين بندين أحدهما فيه خانات فارغة أو رموز مشوّهة من القراءة الآلية؛ قد ينشأ التعارض من القراءة لا من العقد. لم تدخل المستوى وهى مذكورة بدرجتها فى القسم الخاص بالمرشحات لمقارنتها بالأصل.`,
+      tone: 'medium',
     });
   }
   coverRows.push({ label: 'مستوى المخاطرة العام', value: overall.text, tone: overall.tone });
@@ -1045,6 +1067,9 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
             ...(f.verification
               ? [{ label: 'التحقق المستقل', tone: (f.verification.status === 'confirmed' ? 'info' : 'high') as Tone, value: verificationText(f.verification) }]
               : []),
+            ...(f.verification?.status === 'unconfirmed' && readingDefectLabels(f).length > 0
+              ? [{ label: 'تنبيه قراءة', tone: 'medium' as Tone, value: `أحد البندين المستشهد بهما (${readingDefectLabels(f).join('، ')}) فيه خانات فارغة أو رموز مشوّهة من القراءة الآلية؛ قد ينشأ التعارض المزعوم من القراءة لا من العقد — قارن بالأصل قبل الأخذ بهذه الملاحظة.` }]
+              : []),
             ...(f.suggestion ? [{ label: 'المعالجة المقترحة', tone: 'medium' as Tone, value: f.suggestion }] : []),
           ],
         });
@@ -1256,6 +1281,14 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
   if (restRows.length > 0) {
     blocks.push({ t: 'sub', text: `${LETTERS[lawList.length] ?? ''}. حالة بقية البنود`.replace(/^\. /, ''), tone: 'navy' });
     blocks.push({ t: 'grid', columns: ['الحالة', 'البند'], rows: restRows, widths: [38, 62] });
+  }
+  // الجولة 105.4: بنود «لا يوجد نص» التى تقارب مادة من فصل المساهمة غير المعروضة على عقد الشركة ذات المسئولية المحدودة: السبب معلومة للمحامى لا حكم
+  const stockNotes = noTextClauses
+    .map((c) => ({ c, note: extractStockChapterNote(c.assessmentReasoning) }))
+    .filter((x): x is { c: AuditClause; note: string } => x.note !== null);
+  if (stockNotes.length > 0) {
+    blocks.push({ t: 'p', text: 'من بنود «لا يوجد نص مفهرس» ما يقارب نصه مادة من فصل شركات المساهمة؛ هذه المواد لم تُعرض على هذا العقد (شركة ذات مسئولية محدودة) فلا تُعدّ تقييماً له، وتُذكر هنا للمراجعة:' });
+    blocks.push({ t: 'grid', columns: ['الملاحظة', 'البند'], rows: stockNotes.map((x) => [{ text: x.note.replace(/^ملاحظة النطاق:\s*/, '') }, { text: clauseHeading(x.c) }]), widths: [70, 30] });
   }
 
   // ---------- 9. التوقيعات ----------

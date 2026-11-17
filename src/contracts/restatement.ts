@@ -112,3 +112,18 @@ export function noTextDiagnosis(clauseText: string, pool: PoolEntry[]): { cls: N
   }
   return { cls, line: `tokens=${tok} class=${cls} top=${items}` };
 }
+
+/**
+ * الجولة 105.4: معرّفات مواد فصل المساهمة (التى أسقطتها بوابة شكل الشركة) التى يقاربها البند نصاً، لتُذكر فى التقرير سبباً لـ«لا يوجد نص».
+ * حتمى ومحافظ: مادة أسقطتها البوابة فقط، تغطية ثلاثيات ≥ 0.3، بند ≥ 12 كلمة، ولا أكثر من اثنتين (الأقرب أولاً).
+ */
+export function stockChapterCounterparts(clauseText: string, pool: PoolEntry[], limit = 2): string[] {
+  if (tokens(clauseText).length < MIN_CLAUSE_TOKENS) return [];
+  return pool
+    .filter((p) => p.gate === 'dropped-company')
+    .map((p) => ({ id: p.id, cov: restatementOf(clauseText, p.text).coverage }))
+    .filter((x) => x.cov >= RESTATEMENT_DIAG_COVERAGE)
+    .sort((a, b) => b.cov - a.cov)
+    .slice(0, limit)
+    .map((x) => x.id);
+}

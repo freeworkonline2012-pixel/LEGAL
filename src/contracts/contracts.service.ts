@@ -100,7 +100,8 @@ import {
   sortFindings,
 } from './contract-level';
 import { internalConsistencyFindings } from './internal-checks';
-import { bestRestated, noTextDiagnosis, type PoolEntry } from './restatement';
+import { bestRestated, noTextDiagnosis, stockChapterCounterparts, type PoolEntry } from './restatement';
+import { buildStockChapterNote } from './no-text-note';
 import { articleFitsCompanyForm, chapterKindMap, companyFormDiag, llcArticleScope, type ChapterKind, type CompanyForm } from './company-form-scope';
 import { blankTemplateDiag, findBlankSlots, isBlankSlotText, reclassifyBlankTemplate } from './blank-template';
 import { officeRuleFindings } from './office-rules';
@@ -1303,6 +1304,29 @@ export class ContractsService implements OnModuleInit {
           }));
           return `[retrieval-diag] stage=no-text-diag clause=${row.clauseIndex} pool=${pool.length} shown=${topCandidates.length} ${noTextDiagnosis(row.clauseText, pool).line}`;
         });
+        // الجولة 105.4: إن قارب البند مادة من فصل المساهمة أسقطتها البوابة تُذكر فى التقرير بصيغة محايدة (حقل التعليل، بلا عمود جديد)
+        if (companyForm === 'llc') {
+          try {
+            const shownKeys2 = new Set(topCandidates.map((c) => this.candidateKey(c)));
+            const note = buildStockChapterNote(
+              stockChapterCounterparts(
+                row.clauseText,
+                mergedRaw.map((c) => ({
+                  id: `${c.citation.lawNo}/${c.citation.lawYear}#${c.citation.articleNo}`,
+                  text: c.citation.snippet,
+                  shown: shownKeys2.has(this.candidateKey(c)),
+                  gate: !inFamily(c) ? 'dropped-family' : !inCompanyForm(c) ? 'dropped-company' : !inLaw(c) ? 'dropped-law' : 'kept',
+                })),
+              ),
+            );
+            if (note) {
+              row.assessmentReasoning = `${row.assessmentReasoning ?? ''} ${note}`.trim();
+              await this.clauseRepository.save(row);
+            }
+          } catch (err) {
+            this.logger.warn(`no-text note skipped clauseIndex=${row.clauseIndex} (non-fatal): ${(err as Error).message}`);
+          }
+        }
       }
 
       await this.audit(context, 'contracts.clause_assessed', row.contractId, {
