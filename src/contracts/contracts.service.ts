@@ -1429,9 +1429,9 @@ export class ContractsService implements OnModuleInit {
     const fatal = fatalProviderDetail(samples as Array<{ status: string; detail?: string }>);
     if (fatal) throw new ProviderFatalError(fatal, `assess clause=${clauseIndex}`);
     // الجولة 105.5: لم تُجمع العيّنات على حكم واحد ⇒ عيّنتان إضافيتان (أغلبية من 5)؛ الإجماع لا يكلّف نداءً إضافياً
-    const extraN = n >= 3 && assessNeedsExtra(samples as AssessSample[]) ? assessExtraSampleCount() : 0;
+    const extraN = n >= 3 && assessNeedsExtra(samples as AssessSample[], request.candidates.length) ? assessExtraSampleCount() : 0;
     if (extraN > 0) samples.push(...(await Promise.all(Array.from({ length: extraN }, () => this.generationService.assessClause(request)))));
-    const { outcome, tally, decision } = resolveAssessmentVotes(samples as AssessSample[]);
+    const { outcome, tally, decision } = resolveAssessmentVotes(samples as AssessSample[], request.candidates.length);
     if (samples.length > 1) {
       this.logger.log(
         `assess vote clauseIndex=${clauseIndex} samples=${samples.length} extra=${extraN} review=${tally.review} sound=${tally.sound} noText=${tally.noText} errors=${tally.errors} decision=${decision}`,
