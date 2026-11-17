@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { ExtractionService } from '../contracts/extraction.service';
 import { imageDimensions, MAX_IMAGE_PIXELS, sniffFileType, type SniffedType } from './file-sniff';
+import { numberWarnings, type NumberPassStats } from './ocr-numeric';
 import { OcrRecognizeOptions, OcrService, OCR_MAX_PAGES } from './ocr.service';
 
 /**
@@ -61,7 +62,7 @@ export interface ReadDocumentResult {
   usedOcr: boolean;
   warnings: string[];
   /** تشخيص القراءة الآلية (أعداد فقط)، موجود فقط إن استُعملت القراءة الآلية. */
-  ocr?: { pages: number; truncated: boolean; pageChars: number[]; vision?: { attempted: number; adopted: number } };
+  ocr?: { pages: number; truncated: boolean; pageChars: number[]; vision?: { attempted: number; adopted: number }; numbers?: NumberPassStats };
 }
 
 /**
@@ -159,6 +160,7 @@ export class DocumentReaderService {
         `قُرئت ${r.vision.adopted} من ${r.pages} صفحة بنموذج رؤية لتحسين دقة الأرقام والعناوين؛ ما زال لازماً مطابقة المبالغ والنسب والتواريخ بالأصل قبل أى اعتماد.`,
       );
     }
+    warnings.push(...numberWarnings(r.numbers));
     return {
       text: r.text,
       info: {
@@ -166,6 +168,7 @@ export class DocumentReaderService {
         truncated: r.truncatedPages,
         pageChars: r.pageChars ?? [],
         ...(r.vision ? { vision: { attempted: r.vision.attempted, adopted: r.vision.adopted } } : {}),
+        ...(r.numbers ? { numbers: r.numbers } : {}),
       },
     };
   }

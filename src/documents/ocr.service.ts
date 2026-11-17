@@ -7,6 +7,7 @@ import { join } from 'path';
 import { promisify } from 'util';
 import { VisionOcrService, type VisionApplyStats } from './vision-ocr.service';
 import { insertLinesByPosition, linesToText, OcrLine, parseTsvLines } from './ocr-recovery.util';
+import { alignDigitTokens, applyNumberFixes, decideNumber, emptyNumberStats, hasIndicDigit, isPureNumeric, parseTsvWords, type NumberFix, type NumberPassStats } from './ocr-numeric';
 
 const execFileAsync = promisify(execFile);
 
@@ -48,6 +49,11 @@ export interface OcrRecognizeOptions {
    * استرجاع أسطر ضائعة: إن وُجدت أرقام ناقصة فى النص (فجوة فى ترقيم البنود) تُقرأ الصفحات قراءة متناثرة (psm 11) التى تلتقط
    * العناوين القصيرة المنفردة، وتُدرج الأسطر المطابقة للأرقام الناقصة فى موضعها الرأسى من الصفحة.
    */
+  /**
+   * الجولة 112: إعادة قراءة الأرقام والنسب بقص منطقة كل رقم بدقة 400 وقراءتها بنموذج eng بقائمة أحرف رقمية (يُصلح قراءة «%» كـ«96»).
+   * افتراضياً مفعّلة لمستندات PDF؛ تُعطَّل بـfalse أو بمتغير OCR_NUMBER_PASS=off.
+   */
+  numberPass?: boolean;
   recoverMissing?: {
     missingNumbers: (fullText: string) => number[];
     /** أرقام العناوين الموجودة فى النص؛ إن وُجدت فلا يُقبل تغيير صفحة إلا إن أضاف رقماً ولم يُسقط أى رقم موجود */
@@ -62,9 +68,21 @@ export interface OcrRecognizeOptions {
 }
 
 export type OcrOutcome =
-  | { status: 'ok'; text: string; pages: number; truncatedPages: boolean; pageChars?: number[]; vision?: VisionApplyStats }
+  | { status: 'ok'; text: string; pages: number; truncatedPages: boolean; pageChars?: number[]; vision?: VisionApplyStats; numbers?: NumberPassStats }
   | { status: 'unavailable' }
   | { status: 'error'; detail: string };
+
+/** الصورة (والنموذج) التى جاء منها نص الصفحة المعتمد، لتُقرأ أرقامها من المصدر نفسه. */
+interface PageSource {
+  image: string;
+  dpi: number;
+  tessdata?: string;
+}
+
+/** قراءة الرقم المقصوص بدقة 400 (بكسل/بوصة) */
+const NUMBER_CROP_DPI = 400;
+/** هامش القص حول الكلمة بالبكسل عند دقة القص */
+const NUMBER_CROP_PAD = 14;
 
 /**
  * قراءة آلية (OCR) للمستندات الممسوحة ضوئياً والصور — Tesseract (ara+eng) وpdftoppm عبر execFile بوسائط
@@ -139,6 +157,7 @@ export class OcrService {
     score: (t: string) => number,
     report?: (done: number, total: number) => void,
     deadline?: number,
+    srcs?: PageSource[],
   ): Promise<string[]> {
     const out = [...first];
     try {
@@ -150,7 +169,10 @@ export class OcrService {
         if (deadline !== undefined && Date.now() > deadline) break; // نكتفى بما قُرئ (القراءة الثانية تحسين لا شرط)
         try {
           const alt = await this.recognizeFile(join(dir, hi[i]));
-          if (score(alt) > score(out[i])) out[i] = alt;
+          if (score(alt) > score(out[i])) {
+            out[i] = alt;
+            if (srcs) srcs[i] = { image: join(dir, hi[i]), dpi: 300 };
+          }
         } catch {
           // نُبقى القراءة الأولى لهذه الصفحة
         }
@@ -191,6 +213,7 @@ export class OcrService {
     score: (t: string) => number,
     report?: (done: number, total: number) => void,
     deadline?: number,
+    srcs?: PageSource[],
   ): Promise<void> {
     if (!(await this.isAltAvailable())) return;
     let adopted = 0;
@@ -200,6 +223,7 @@ export class OcrService {
         const alt = await this.recognizeFile(images[i], this.altTessdata as string);
         if (score(alt) > score(texts[i])) {
           texts[i] = alt;
+          if (srcs) srcs[i] = { image: images[i], dpi: 200, tessdata: this.altTessdata as string };
           adopted++;
         }
       } catch {
@@ -298,6 +322,117 @@ export class OcrService {
     }
   }
 
+  /** TSV صفحة من مصدرها نفسه (الصورة والنموذج اللذان أنتجا نصها المعتمد) بالإعداد نفسه الذى قرأ نصها. */
+  private async pageTsv(src: PageSource): Promise<string> {
+    const args = [src.image, 'stdout', '-l', this.lang, '--psm', '3', ...(src.tessdata ? ['--tessdata-dir', src.tessdata] : []), '-c', 'tessedit_create_tsv=1'];
+    const { stdout } = await execFileAsync(this.tesseract, args, { timeout: PAGE_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024 });
+    return stdout;
+  }
+
+  /** قص منطقة من صفحة PDF بدقة {@link NUMBER_CROP_DPI} فى ملف PNG رمادى ثابت الاسم داخل المجلد المؤقت. */
+  private async cropNumber(pdfPath: string, dir: string, page: number, w: { left: number; top: number; width: number; height: number }, srcDpi: number): Promise<string> {
+    const k = NUMBER_CROP_DPI / srcDpi;
+    const x = Math.max(0, Math.round(w.left * k) - NUMBER_CROP_PAD);
+    const y = Math.max(0, Math.round(w.top * k) - NUMBER_CROP_PAD);
+    const W = Math.round(w.width * k) + 2 * NUMBER_CROP_PAD;
+    const H = Math.round(w.height * k) + 2 * NUMBER_CROP_PAD;
+    const base = join(dir, 'nc');
+    await execFileAsync(
+      this.pdftoppm,
+      ['-r', String(NUMBER_CROP_DPI), '-png', '-gray', '-singlefile', '-f', String(page), '-l', String(page), '-x', String(x), '-y', String(y), '-W', String(W), '-H', String(H), pdfPath, base],
+      { timeout: 30_000 },
+    );
+    return `${base}.png`;
+  }
+
+  private async readNumberCrop(file: string, psm: 7 | 8 | 13): Promise<string | null> {
+    try {
+      const { stdout } = await execFileAsync(
+        this.tesseract,
+        [file, 'stdout', '-l', 'eng', '--psm', String(psm), '-c', 'tessedit_char_whitelist=0123456789,.%'],
+        { timeout: 20_000, maxBuffer: 1024 * 1024 },
+      );
+      const t = stdout.trim();
+      return t || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * الجولة 112: إعادة قراءة الأرقام والنسب فى نص كل صفحة من مصدرها نفسه. لكل رمز رقمى صرف يُقصّ موضعه من الصفحة بدقة 400 ويُقرأ بقراءتين
+   * مستقلتين (psm 7 وpsm 8) بنموذج eng وقائمة أحرف رقمية؛ لا يُغيَّر الرقم إلا باتفاق القراءتين، وما لم يتفقا يبقى كما هو ويُعدّ «غير مؤكد».
+   * الأرقام الهندية تُعدّ ولا تُصحَّح. أى خلل فى تقابل رموز النص مع رموز الصورة يُسقط الصفحة كلها من هذه الخطوة (فشل مغلق).
+   */
+  private async rereadNumbers(
+    pdfPath: string,
+    dir: string,
+    texts: string[],
+    srcs: PageSource[],
+    report?: (done: number, total: number) => void,
+    deadline?: number,
+  ): Promise<NumberPassStats> {
+    const stats = emptyNumberStats();
+    for (let i = 0; i < texts.length; i++) {
+      if (deadline !== undefined && Date.now() > deadline) {
+        stats.pagesSkipped += texts.length - i;
+        break;
+      }
+      try {
+        const src = srcs[i];
+        const tokens = alignDigitTokens(texts[i], parseTsvWords(await this.pageTsv(src)));
+        if (!tokens) {
+          stats.pagesSkipped++;
+          continue;
+        }
+        const fixes: NumberFix[] = [];
+        let pageChecked = 0;
+        let pageUncertain = 0;
+        for (const t of tokens) {
+          if (deadline !== undefined && Date.now() > deadline) break;
+          if (hasIndicDigit(t.text)) {
+            stats.checked++;
+            stats.indic++;
+            continue;
+          }
+          if (!isPureNumeric(t.text)) continue;
+          stats.checked++;
+          pageChecked++;
+          const crop = await this.cropNumber(pdfPath, dir, i + 1, t.word, src.dpi);
+          const a = await this.readNumberCrop(crop, 7);
+          if (a !== null && decideNumber(t.text, [a, a]).kind === 'verified') {
+            stats.verified++;
+            continue;
+          }
+          const b = await this.readNumberCrop(crop, 8);
+          const reads = [a, b];
+          let v = decideNumber(t.text, reads);
+          // القراءة الثالثة (psm 13) لا تُجرى إلا إن لم تُحسم الحالة بقراءتين، فتكلفتها على المختلف فيه وحده
+          if (v.kind === 'uncertain' || (v.kind === 'corrected' && !/%/.test(v.text))) {
+            reads.push(await this.readNumberCrop(crop, 13));
+            v = decideNumber(t.text, reads);
+          }
+          if (v.kind === 'corrected') {
+            stats.corrected++;
+            fixes.push({ start: t.start, end: t.end, text: v.text });
+          } else if (v.kind === 'verified') stats.verified++;
+          else {
+            stats.uncertain++;
+            pageUncertain++;
+          }
+        }
+        if (pageChecked >= 5 && pageUncertain * 2 > pageChecked) stats.weakPages++;
+        if (fixes.length > 0) texts[i] = applyNumberFixes(texts[i], fixes);
+      } catch (err) {
+        stats.pagesSkipped++;
+        this.logger.warn(`OCR number pass skipped page ${i + 1}: ${(err as Error).message.slice(0, 100)}`);
+      }
+      report?.(i + 1, texts.length);
+    }
+    this.logger.log(`OCR number pass: checked=${stats.checked} verified=${stats.verified} corrected=${stats.corrected} uncertain=${stats.uncertain} indic=${stats.indic} weakPages=${stats.weakPages} skippedPages=${stats.pagesSkipped}`);
+    return stats;
+  }
+
   async recognize(buffer: Buffer, kind: 'pdf' | 'png' | 'jpeg', options: OcrRecognizeOptions = {}): Promise<OcrOutcome> {
     if (!(await this.isAvailable())) return { status: 'unavailable' };
     const maxPages = Math.max(1, Math.floor(options.maxPages ?? OCR_MAX_PAGES));
@@ -331,6 +466,7 @@ export class OcrService {
           texts.push(await this.recognizeFile(join(dir, f)));
           report({ stage: 'read', done: texts.length, total: used.length });
         }
+        const srcs: PageSource[] = used.map((f) => ({ image: join(dir as string, f), dpi: 200 }));
         if (options.pageScore) {
           const better = await this.rereadWithHigherDpi(
             pdfPath,
@@ -340,6 +476,7 @@ export class OcrService {
             options.pageScore,
             (done, total) => report({ stage: 'reread', done, total }),
             deadline,
+            srcs,
           );
           for (let i = 0; i < better.length; i++) texts[i] = better[i];
           await this.rereadWithAlternateModel(
@@ -348,8 +485,14 @@ export class OcrService {
             options.pageScore,
             (done, total) => report({ stage: 'reread', done, total }),
             deadline,
+            srcs,
           );
         }
+        // الجولة 112: إعادة قراءة الأرقام والنسب قبل استرجاع العناوين (الاسترجاع يُدرج أسطراً فيفسد تقابل النص بالصورة)
+        const numbers =
+          options.numberPass !== false && process.env.OCR_NUMBER_PASS !== 'off'
+            ? await this.rereadNumbers(pdfPath, dir, texts, srcs, (done, total) => report({ stage: 'reread', done, total }), deadline)
+            : undefined;
         if (options.recoverMissing) {
           const lows = used.map((f) => join(dir as string, f));
           const hi = (await readdir(dir)).filter((f) => /^h-\d+\.png$/.test(f)).sort();
@@ -379,6 +522,7 @@ export class OcrService {
           // الجولة 75 (تشخيص): أحرف غير بيضاء لكل صفحة، أعداد فقط
           pageChars: texts.map((t) => t.replace(/\s+/g, '').length),
           ...(vision ? { vision } : {}),
+          ...(numbers ? { numbers } : {}),
         };
       }
       const imgPath = join(dir, kind === 'png' ? 'in.png' : 'in.jpg');
