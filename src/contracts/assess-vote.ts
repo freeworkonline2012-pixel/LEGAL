@@ -44,6 +44,28 @@ export function assessSampleCount(raw: string | undefined = process.env.CONTRACT
   return Math.min(n, MAX_ASSESS_SAMPLES);
 }
 
+/**
+ * الجولة 105.5: تصويت تكيفى. قياس الجولة 105.4 على الإنتاج: بند بتصويت 1 سليم / 2 لا نص (البند 34) انقلب إلى «لا يوجد نص» بعيّنة واحدة بين تشغيلتين،
+ * وملاحظة (م28) انقلبت من مرشحة إلى مؤكدة بتأكيد 2 من 3. الأغلبية من 3 عند الحدود هشّة. فإذا لم تُجمع العيّنات الثلاث على حكم واحد تُسحب عيّنتان
+ * إضافيتان (أغلبية من 5)؛ وإن أجمعت (الأغلب الأعم) فلا نداء إضافى. CONTRACT_ASSESS_EXTRA_SAMPLES (افتراضى 2، 0 يعطّله، أقصاه 2).
+ */
+export const DEFAULT_ASSESS_EXTRA_SAMPLES = 2;
+
+export function assessExtraSampleCount(raw: string | undefined = process.env.CONTRACT_ASSESS_EXTRA_SAMPLES): number {
+  if (raw === undefined || raw.trim() === '') return DEFAULT_ASSESS_EXTRA_SAMPLES;
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 0) return DEFAULT_ASSESS_EXTRA_SAMPLES;
+  return Math.min(n, 2);
+}
+
+/** هل تحتاج العيّنات الأولى عيّنات إضافية؟ نعم إذا انقسمت العيّنات السليمة (عيّنتان فأكثر) بين حكمين فأكثر. الأعطال وحدها لا تستدعى إضافية (تُعاد المحاولة بمسارها). */
+export function assessNeedsExtra(samples: AssessSample[]): boolean {
+  const oks = samples.filter((s): s is Extract<AssessSample, { status: 'ok' }> => s.status === 'ok');
+  if (oks.length < 2) return false;
+  const kinds = new Set(oks.map((s) => (s.assessment === REVIEW ? 'review' : s.assessment === NO_TEXT ? 'noText' : 'sound')));
+  return kinds.size > 1;
+}
+
 const REVIEW: AssessLabel = 'يحتاج مراجعة';
 const SOUND: AssessLabel = 'سليم';
 const NO_TEXT: AssessLabel = 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة';

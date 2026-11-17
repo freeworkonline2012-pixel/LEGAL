@@ -81,10 +81,10 @@ import { hasAnyFact, neutralizeDirections } from './clause-facts';
 import { evaluateRules, summarizeFindings } from './clause-rules';
 import { ContractConsistencyService } from './contract-consistency.service';
 import { ClauseVerifierService } from './clause-verifier.service';
-import { assessSampleCount, resolveAssessmentVotes, type AssessSample } from './assess-vote';
+import { assessExtraSampleCount, assessNeedsExtra, assessSampleCount, resolveAssessmentVotes, type AssessSample } from './assess-vote';
 import { articleInScopeForFamily } from './article-scope';
 import { mandatoryClausePatch, mandatoryRuleHits } from './mandatory-rules';
-import { type Verification, claimKindFromRisk, damagedNumberClauseVerification, isDismissedFindingVerification, needsVerification, pickContributionContext, pickForVerification } from './verification';
+import { type Verification, claimKindFromRisk, damagedNumberClauseVerification, garbledDigitClauseVerification, isDismissedFindingVerification, needsVerification, pickContributionContext, pickForVerification } from './verification';
 import { compareFactsForClient, describeWeakenings } from './redraft-guard';
 import type { ClauseFacts } from './clause-facts';
 import type { Weakening } from './redraft-guard';
@@ -477,6 +477,14 @@ export class ContractsService implements OnModuleInit {
     // الجولة 69: حارس حتمى بعد المدقق — بند يبنى حكمه على رقم زيادة تالف القراءة لا يبقى «مؤكداً»
     for (const row of clauseRows) {
       const v = damagedNumberClauseVerification(row);
+      if (!v || row.verification?.['status'] === 'unconfirmed') continue;
+      row.verification = v as unknown as Record<string, unknown>;
+      await this.clauseRepository.save(row);
+    }
+
+    // الجولة 105.5: وكذلك بند يبنى حكمه على نسب/نصاب وفى جملة المقدار من نصه أرقام قُرئت حروفاً لاتينية («Vo» بدل ٧٥)
+    for (const row of clauseRows) {
+      const v = garbledDigitClauseVerification(row);
       if (!v || row.verification?.['status'] === 'unconfirmed') continue;
       row.verification = v as unknown as Record<string, unknown>;
       await this.clauseRepository.save(row);
@@ -1364,10 +1372,13 @@ export class ContractsService implements OnModuleInit {
     const n = assessSampleCount();
     if (n <= 1) return this.generationService.assessClause(request);
     const samples = await Promise.all(Array.from({ length: n }, () => this.generationService.assessClause(request)));
+    // الجولة 105.5: لم تُجمع العيّنات على حكم واحد ⇒ عيّنتان إضافيتان (أغلبية من 5)؛ الإجماع لا يكلّف نداءً إضافياً
+    const extraN = n >= 3 && assessNeedsExtra(samples as AssessSample[]) ? assessExtraSampleCount() : 0;
+    if (extraN > 0) samples.push(...(await Promise.all(Array.from({ length: extraN }, () => this.generationService.assessClause(request)))));
     const { outcome, tally, decision } = resolveAssessmentVotes(samples as AssessSample[]);
     if (samples.length > 1) {
       this.logger.log(
-        `assess vote clauseIndex=${clauseIndex} samples=${n} review=${tally.review} sound=${tally.sound} noText=${tally.noText} errors=${tally.errors} decision=${decision}`,
+        `assess vote clauseIndex=${clauseIndex} samples=${samples.length} extra=${extraN} review=${tally.review} sound=${tally.sound} noText=${tally.noText} errors=${tally.errors} decision=${decision}`,
       );
     }
     return outcome as Awaited<ReturnType<DeepseekGenerationService['assessClause']>>;

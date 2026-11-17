@@ -93,15 +93,29 @@ describe('الجولة 99: ربط التصويت بخدمة المدقق (fetch 
     return { out, calls: spy.mock.calls.length };
   };
 
-  it('افتراضياً ثلاث نداءات والأغلبية تحسم (تأكيدان ودحض بلا اقتباس موثَّق = شك ⇒ مؤكدة)', async () => {
-    const r = await run(['confirmed', 'refuted', 'confirmed']);
+  it('افتراضياً ثلاث نداءات عند الإجماع (الجولة 105.5: لا عيّنات إضافية)', async () => {
+    const r = await run(['confirmed', 'confirmed', 'confirmed']);
     expect(r.calls).toBe(3);
     expect(r.out.status === 'ok' && `${r.out.verification.status}/${r.out.verification.basis}`).toBe('confirmed/confirmed');
   });
 
+  it('الجولة 105.5: انقسام العيّنات الثلاث ⇒ خمس نداءات والأغلبية من 5 (3 تأكيدات)', async () => {
+    const r = await run(['confirmed', 'refuted', 'confirmed']);
+    expect(r.calls).toBe(5);
+    expect(r.out.status === 'ok' && `${r.out.verification.status}/${r.out.verification.basis}`).toBe('confirmed/confirmed');
+  });
+
+  it('الجولة 105.5: CONTRACT_VERIFIER_EXTRA_SAMPLES=0 ⇒ ثلاث نداءات رغم الانقسام', async () => {
+    process.env.CONTRACT_VERIFIER_EXTRA_SAMPLES = '0';
+    const r = await run(['confirmed', 'refuted', 'confirmed']);
+    delete process.env.CONTRACT_VERIFIER_EXTRA_SAMPLES;
+    expect(r.calls).toBe(3);
+    expect(r.out.status === 'ok' && r.out.verification.status).toBe('confirmed');
+  });
+
   it('لا أغلبية ⇒ مرشحة', async () => {
     const r = await run(['confirmed', 'uncertain', 'refuted']);
-    expect(r.calls).toBe(3);
+    expect(r.calls).toBe(5);
     expect(r.out.status === 'ok' && r.out.verification.basis).toBe('uncertain');
     expect(r.out.status === 'ok' && r.out.verification.status).toBe('unconfirmed');
   });

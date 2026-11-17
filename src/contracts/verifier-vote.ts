@@ -35,6 +35,25 @@ export function verifierSampleCount(raw: string | undefined = process.env.CONTRA
   return Math.min(n, MAX_VERIFIER_SAMPLES);
 }
 
+/**
+ * الجولة 105.5: تصويت تكيفى للمدقق (راجع assess-vote.ts). تأكيد 2 من 3 قلب ملاحظة (م28) من مرشحة إلى مؤكدة بين تشغيلتين فتغيّر المستوى العام.
+ * إن لم تُجمع العيّنات الثلاث على نوع حكم واحد تُسحب عيّنتان إضافيتان (أغلبية من 5). CONTRACT_VERIFIER_EXTRA_SAMPLES (افتراضى 2، 0 يعطّله، أقصاه 2).
+ */
+export const DEFAULT_VERIFIER_EXTRA_SAMPLES = 2;
+
+export function verifierExtraSampleCount(raw: string | undefined = process.env.CONTRACT_VERIFIER_EXTRA_SAMPLES): number {
+  if (raw === undefined || raw.trim() === '') return DEFAULT_VERIFIER_EXTRA_SAMPLES;
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 0) return DEFAULT_VERIFIER_EXTRA_SAMPLES;
+  return Math.min(n, 2);
+}
+
+export function verifierNeedsExtra(outcomes: VerifierSampleOutcome[]): boolean {
+  const oks = outcomes.filter((o): o is Extract<VerifierSampleOutcome, { status: 'ok' }> => o.status === 'ok');
+  if (oks.length < 2) return false;
+  return new Set(oks.map((o) => kindOf(o.verification))).size > 1;
+}
+
 function kindOf(v: Verification): 'confirmed' | 'reclassified' | 'refuted' | 'uncertain' {
   if (v.status === 'confirmed') return v.basis === 'reclassified' ? 'reclassified' : 'confirmed';
   return v.basis === 'refuted' ? 'refuted' : 'uncertain';

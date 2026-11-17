@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { DEFAULT_BRAND, STANDARD_DISCLAIMER, formatCairoDate, safeUrl, shortReference } from '../document-model';
-import { findOcrNoiseTokens, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
+import { findOcrNoiseTokens, focusOfQuote, OCR_NOISE_NOTE } from '../../contracts/ocr-noise.util';
 import { isBlankSlotText } from '../../contracts/blank-template';
 import { extractStockChapterNote } from '../../contracts/no-text-note';
 import { extractKeyTerms, KEY_TERM_KIND_LABEL, OCR_UNVERIFIED_LABEL, OCR_UNVERIFIED_NOTE, type KeyTerm } from '../../contracts/key-terms';
@@ -359,7 +359,8 @@ export function buildContractAuditReport(input: AuditReportInput): { report: Aud
     const labels = new Set<string>();
     for (const e of f.evidence) {
       const c = clauses.find((x) => x.clauseLabel === e.clauseLabel);
-      const text = c?.clauseText ?? e.quote;
+      // الجولة 105.5: عيب القراءة يُفحص فى جملة الاقتباس نفسها لا فى البند كله (رمز مشوَّه فى موضع بعيد من الاقتباس لا يجعل التعارض ناشئاً من القراءة)
+      const text = c ? focusOfQuote(c.clauseText, e.quote) : e.quote;
       if (isBlankSlotText(text) || isBlankSlotText(e.quote) || (ocrReadEarly && findOcrNoiseTokens(text).length > 0)) labels.add(e.clauseLabel);
     }
     return [...labels];

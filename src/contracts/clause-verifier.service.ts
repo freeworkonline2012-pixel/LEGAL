@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { type ClaimKind, type ContextClause, type Verification, validateVerdict } from './verification';
-import { resolveVerifierVotes, verifierSampleCount } from './verifier-vote';
+import { resolveVerifierVotes, verifierExtraSampleCount, verifierNeedsExtra, verifierSampleCount } from './verifier-vote';
 
 export type VerifierOutcome =
   | { status: 'ok'; verification: Verification }
@@ -143,9 +143,12 @@ export class ClauseVerifierService {
     const n = verifierSampleCount();
     if (n <= 1) return this.runOnce(system, user, clauseText, articleTexts, relatedTexts);
     const samples = await Promise.all(Array.from({ length: n }, () => this.runOnce(system, user, clauseText, articleTexts, relatedTexts)));
+    // الجولة 105.5: لم تُجمع العيّنات على نوع حكم واحد ⇒ عيّنتان إضافيتان (أغلبية من 5)
+    const extraN = n >= 3 && verifierNeedsExtra(samples) ? verifierExtraSampleCount() : 0;
+    if (extraN > 0) samples.push(...(await Promise.all(Array.from({ length: extraN }, () => this.runOnce(system, user, clauseText, articleTexts, relatedTexts)))));
     const { outcome, tally } = resolveVerifierVotes(samples);
     if (tally.errors > 0 || (tally.confirmed + tally.reclassified > 0 && tally.refuted + tally.uncertain > 0) || (tally.refuted > 0 && tally.uncertain > 0)) {
-      this.logger.log(`verifier vote samples=${n} confirmed=${tally.confirmed} reclassified=${tally.reclassified} refuted=${tally.refuted} uncertain=${tally.uncertain} errors=${tally.errors} decision=${outcome.status === 'ok' ? `${outcome.verification.status}/${outcome.verification.basis}` : outcome.status}`);
+      this.logger.log(`verifier vote samples=${samples.length} extra=${extraN} confirmed=${tally.confirmed} reclassified=${tally.reclassified} refuted=${tally.refuted} uncertain=${tally.uncertain} errors=${tally.errors} decision=${outcome.status === 'ok' ? `${outcome.verification.status}/${outcome.verification.basis}` : outcome.status}`);
     }
     return outcome;
   }

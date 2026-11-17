@@ -1,5 +1,6 @@
 import { quoteInText } from './clause-facts';
 import { damagedEscalationNumber } from './numeric-checks.util';
+import { garbledDigitsInQuantitySentences, hasQuantityTalk } from './ocr-noise.util';
 
 /**
  * نتيجة المدقق المستقل (الطبقة 4): مدقق ثانٍ بتعليمات معاكسة يبحث عن سبب يجعل الملاحظة خاطئة. لا تُعرض الملاحظة «مؤكدة» إلا إن اجتازته؛
@@ -201,4 +202,27 @@ export function damagedNumberClauseVerification(c: {
   const builtOnIt = r.includes(d) || /(?:زياد|تزاد|يزاد)/.test(r);
   if (!builtOnIt) return null;
   return { status: 'unconfirmed', basis: 'uncertain', reason: DAMAGED_CLAUSE_NUMBER_REASON, quote: null, quoteSource: null, verifiedAt: new Date().toISOString() };
+}
+
+/**
+ * الجولة 105.5: بند قيّمه النموذج «يحتاج مراجعة» بدرجة متوسطة فأعلى وشرحه يبنى على مقادير/نسب/نصاب، وفى جملة المقدار من نصه رمز لاتينى يشبه رقماً
+ * (V/Y/A/o... بجوار كلمة عربية: أرقام عربية-هندية قُرئت خطأً) لا يصح أن يبقى «مؤكداً»: الأرقام الأصلية قد تكون غير ما قُرئ. يُوسم «غير مؤكد» حتمياً
+ * ولو أجازه المدقق، ويبقى ظاهراً فى قسم المرشحات بسبب صريح؛ لا يُحذف ولا تُخفَّض درجته. ما دُحض أو وُسم غير مؤكد سلفاً لا يُمس (تتولى ذلك حلقة الاستدعاء).
+ */
+export const GARBLED_DIGIT_CLAUSE_REASON = (tokens: string[]): string =>
+  `يستند تقييم هذا البند إلى مقادير أو نسب أو نصاب، وفى جملة المقدار من نصه رموز قُرئت تالفة من الصورة الممسوحة (${tokens.map((t) => `«${t}»`).join('، ')} وهى فى الأرجح أرقام عربية قُرئت حروفاً لاتينية)؛ ` +
+  'فقد تكون الأرقام الأصلية غير ما قُرئ، فلا يُعدّ الحكم مؤكداً حتى يطابَق الأصل. (وُسم آلياً: ليس اعتراضاً من المدقق المستقل.)';
+
+export function garbledDigitClauseVerification(c: {
+  clauseText: string;
+  assessmentStatus: string | null;
+  riskLevel: string | null;
+  assessmentReasoning: string | null;
+}): Verification | null {
+  if (c.assessmentStatus !== 'يحتاج مراجعة') return null;
+  if (c.riskLevel !== 'حرج' && c.riskLevel !== 'عالٍ' && c.riskLevel !== 'متوسط') return null;
+  if (!hasQuantityTalk(c.assessmentReasoning ?? '')) return null;
+  const tokens = garbledDigitsInQuantitySentences(c.clauseText);
+  if (tokens.length === 0) return null;
+  return { status: 'unconfirmed', basis: 'uncertain', reason: GARBLED_DIGIT_CLAUSE_REASON(tokens), quote: null, quoteSource: null, verifiedAt: new Date().toISOString() };
 }

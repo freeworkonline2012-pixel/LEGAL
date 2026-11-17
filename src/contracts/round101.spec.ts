@@ -117,13 +117,33 @@ describe('الجولة 101: ContractsService.assessWithVote', () => {
 
   it('افتراضياً 3 نداءات متوازية والقرار بالأغلبية مع سطر سجل أعداد بلا نص عقد', async () => {
     delete process.env.CONTRACT_ASSESS_SAMPLES;
-    const s = makeService([review(), sound(), review()]);
+    // الجولة 105.5: إجماع العيّنات الثلاث ⇒ لا عيّنات إضافية
+    const s = makeService([review(), review(), review()]);
     const out = await s.assessWithVote({ clauseText: 'نص', candidates: [] }, 5);
     expect(s.generationService.assessClause).toHaveBeenCalledTimes(3);
     expect(label(out)).toBe('يحتاج مراجعة');
     const line = s.logger.log.mock.calls[0][0] as string;
-    expect(line).toBe('assess vote clauseIndex=5 samples=3 review=2 sound=1 noText=0 errors=0 decision=review');
+    expect(line).toBe('assess vote clauseIndex=5 samples=3 extra=0 review=3 sound=0 noText=0 errors=0 decision=review');
     expect(line).not.toMatch(/[؀-ۿ]/);
+  });
+
+  it('الجولة 105.5: انقسام العيّنات الثلاث ⇒ عيّنتان إضافيتان والأغلبية من 5', async () => {
+    delete process.env.CONTRACT_ASSESS_SAMPLES;
+    delete process.env.CONTRACT_ASSESS_EXTRA_SAMPLES;
+    const s = makeService([review(), sound(), review(), sound(), sound()]);
+    const out = await s.assessWithVote({ clauseText: 'نص', candidates: [] }, 5);
+    expect(s.generationService.assessClause).toHaveBeenCalledTimes(5);
+    expect(label(out)).toBe('سليم');
+    expect(s.logger.log.mock.calls[0][0]).toBe('assess vote clauseIndex=5 samples=5 extra=2 review=2 sound=3 noText=0 errors=0 decision=sound');
+  });
+
+  it('الجولة 105.5: CONTRACT_ASSESS_EXTRA_SAMPLES=0 يعطّل التوسعة (3 نداءات رغم الانقسام)', async () => {
+    delete process.env.CONTRACT_ASSESS_SAMPLES;
+    process.env.CONTRACT_ASSESS_EXTRA_SAMPLES = '0';
+    const s = makeService([review(), sound(), review()]);
+    await s.assessWithVote({ clauseText: 'نص', candidates: [] }, 5);
+    expect(s.generationService.assessClause).toHaveBeenCalledTimes(3);
+    delete process.env.CONTRACT_ASSESS_EXTRA_SAMPLES;
   });
 
   it('CONTRACT_ASSESS_SAMPLES=1 يعيد السلوك السابق: نداء واحد بلا سطر تصويت', async () => {
