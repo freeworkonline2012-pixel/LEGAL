@@ -72,6 +72,22 @@ export function buildDraftDocument(input: DraftExportInput): LegalDocument {
     });
   }
 
+  const officeNotes = draft.quality.officeNotes ?? [];
+  if (officeNotes.length > 0) {
+    blocks.push({ type: 'heading', text: 'ملاحظات قواعد المكتب' });
+    blocks.push({
+      type: 'callout',
+      tone: 'info',
+      title: 'مواضع تختلف فيها المسودة عن ممارسة المكتب',
+      text: 'هذه ليست عيوباً فى المسودة ولا تؤثر فى نتيجة الفحص؛ هى مواقف تعاقدية للمكتب تُعرض ليقرر المحامى إدراجها أو تركها. النص المقترح للاسترشاد ولا يُدرج تلقائياً.',
+    });
+    blocks.push({
+      type: 'table',
+      columns: ['الدرجة', 'الموقف', 'التفصيل', 'نص مقترح للنظر'],
+      rows: officeNotes.map((n) => [n.severity, n.title, n.detail, n.suggestion]),
+    });
+  }
+
   return {
     kind: 'contract_draft',
     brand: input.brand ?? DEFAULT_BRAND,

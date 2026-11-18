@@ -59,4 +59,8 @@ export class LegalTranslation {
 
   @Column({ name: 'expires_at', type: 'timestamptz' })
   expiresAt: Date;
+
+  /** الخادم يكمل الخطوات بنفسه (migrations/266) ويستأنفها بعد إعادة التشغيل؛ false = العميل يقود الخطوات */
+  @Column({ name: 'background_run', type: 'boolean', default: false })
+  backgroundRun: boolean;
 }

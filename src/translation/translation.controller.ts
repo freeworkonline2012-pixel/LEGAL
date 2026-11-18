@@ -119,7 +119,16 @@ export class TranslationController {
       { buffer: file.buffer, originalname: file.originalname, size: file.size },
       dto.target_lang,
       actorOf(request),
+      { background: dto.background === 'true' },
     );
+  }
+
+  /** يطلب من الخادم إكمال الترجمة فى الخلفية (استئناف بعد توقف، أو تحويل مهمة يقودها العميل). 429 = طابور الخلفية ممتلئ. */
+  @Post(':id/run')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  run(@Param('id', new ParseUUIDPipe()) id: string, @Req() request: RequestWithUser): Promise<TranslationView> {
+    return this.service.runInBackground(id, actorOf(request));
   }
 
   @Post(':id/step')
@@ -127,6 +136,13 @@ export class TranslationController {
   @Throttle({ default: { limit: 40, ttl: 60_000 } })
   step(@Param('id', new ParseUUIDPipe()) id: string, @Req() request: RequestWithUser): Promise<TranslationView> {
     return this.service.step(id, actorOf(request));
+  }
+
+  /** ترجماتى الحية (بيانات وصفية فقط): للعودة إلى ترجمة جارية فى الخلفية بعد إغلاق الصفحة. */
+  @Get()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  list(@Req() request: RequestWithUser) {
+    return this.service.list(actorOf(request));
   }
 
   @Get(':id')

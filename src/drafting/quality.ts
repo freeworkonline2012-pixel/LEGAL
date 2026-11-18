@@ -4,6 +4,8 @@
  *  2) مخالفة المواد الآمرة (mandatory-rules): شرط باطل لا يجوز أن يخرج فى مسودة.
  *  3) الاتساق الداخلى (أعداد مفقودة، إحالات داخلية خاطئة).
  *  4) الدليل التفاوضى (playbook) للأنواع التى لها دليل: لا موضوع ناقص ولا ملاحظة ضد صفة المستخدم.
+ *  4-ب) قواعد المكتب (office-rules): مواقف المكتب نفسها التى يُفحص بها العقد المُدقَّق، فتعرف أين تختلف المسودة عن ممارسة المكتب.
+ *       تُعرض فى quality.officeNotes منفصلة عن findings ولا تُسقط passed: هى موقف تعاقدى يقرره المحامى لا عيب فى القالب (تغيير نص قالب بسبب قاعدة مصدرها عقود قليلة قرار قانونى لا آلى).
  *  5) سلامة الترقيم (البنود 1..N متصلة) وخلو النص من فراغات أو أقواس نموذجية.
  * أى ملاحظة تظهر فى حقل quality.findings وتُعرض للمستخدم؛ والاختبارات تفرض أن الإجابات الافتراضية لا تُنتج أى ملاحظة.
  */
@@ -12,8 +14,9 @@ import { headingNumbers } from '../contracts/clause-headings';
 import { deterministicFindings, type LevelClause } from '../contracts/contract-level';
 import { internalConsistencyFindings } from '../contracts/internal-checks';
 import { mandatoryRuleHits } from '../contracts/mandatory-rules';
+import { officeRuleFindings } from '../contracts/office-rules';
 import { buildPlaybook } from '../contracts/playbook';
-import type { AnyDraftTypeId, DraftClause, DraftQuality, QualityFinding } from './drafting.types';
+import type { AnyDraftTypeId, DraftClause, DraftQuality, OfficeNote, QualityFinding } from './drafting.types';
 
 export interface AssessInput {
   contractTypePhrase: string;
@@ -68,6 +71,18 @@ export function assessDraft(input: AssessInput): DraftQuality {
   }
 
   const playbookClientRole = CLIENT_ROLE_TEXT[input.role] ?? null;
+  // قواعد المكتب على القوالب الحتمية فقط (النوع الحر بنوده من نموذج لغوى وله حراسه ومراجعة المحامى)
+  let officeNotes: OfficeNote[] | undefined;
+  if (input.typeId !== 'custom') {
+    checked.push('قواعد المكتب (مواقف تعاقدية موحدة بين الصياغة والتدقيق) — تُعرض ملاحظاتها منفصلة ولا تُسقط الفحص');
+    officeNotes = officeRuleFindings(withPreamble, {
+      contractType: input.contractTypePhrase,
+      titleText: input.title,
+      clientRole: playbookClientRole,
+      textMayBeIncomplete: false,
+    }).map((f) => ({ severity: f.severity, title: f.title, detail: f.explanation, suggestion: f.suggestion ?? '' }));
+  }
+
   if (input.typeId === 'services' || input.typeId === 'lease') {
     checked.push('الدليل التفاوضى لنوع العقد (كل المحاور مغطاة وبلا ملاحظة ضد صفتك)');
     const pb = buildPlaybook({ contractType: input.contractTypePhrase, clientRole: playbookClientRole, clientParty: null, clauses: withPreamble });
@@ -95,5 +110,5 @@ export function assessDraft(input: AssessInput): DraftQuality {
   const ph = PLACEHOLDER.exec(phText);
   if (ph) findings.push({ severity: 'عالٍ', title: 'فراغ أو قيمة نموذجية متبقية فى النص', detail: ph[0] });
 
-  return { passed: findings.length === 0, checked, findings };
+  return { passed: findings.length === 0, checked, findings, ...(officeNotes ? { officeNotes } : {}) };
 }

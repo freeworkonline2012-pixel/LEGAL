@@ -70,11 +70,24 @@ export interface QualityFinding {
   detail: string;
 }
 
+/**
+ * ملاحظة من قواعد المكتب على المسودة: موقف تعاقدى للمكتب يختلف عن صياغة القالب (ليس عيباً فى المسودة ولا يُسقط فحص الجودة).
+ * تُعرض للمستخدم ومحاميه ليقرر؛ والنص المقترح اقتراح لا يُدرج تلقائياً.
+ */
+export interface OfficeNote {
+  severity: QualitySeverity;
+  title: string;
+  detail: string;
+  suggestion: string;
+}
+
 export interface DraftQuality {
-  /** true = اجتازت كل فحوص البوابة بلا ملاحظات */
+  /** true = اجتازت كل فحوص البوابة بلا ملاحظات (ملاحظات المكتب لا تُحسب هنا: انظر officeNotes) */
   passed: boolean;
   checked: string[];
   findings: QualityFinding[];
+  /** ملاحظات قواعد المكتب (للقوالب الحتمية فقط). غياب الحقل = لم تُفحص؛ مصفوفة فارغة = فُحصت ولا ملاحظة. */
+  officeNotes?: OfficeNote[];
 }
 
 export interface DraftResult {

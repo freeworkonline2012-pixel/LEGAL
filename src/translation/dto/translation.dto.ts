@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsIn, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 /** multipart: كل الحقول نصوص. الموافقة الصريحة شرط وتُسجَّل نسختها فى سجل التدقيق. */
 export class CreateTranslationDto {
@@ -8,6 +8,11 @@ export class CreateTranslationDto {
 
   @IsIn(['true'], { message: 'الموافقة الصريحة على إرسال نص العقد لمزوّد الذكاء الاصطناعى شرط' })
   consent: string;
+
+  /** اختيارى: 'true' = يكمل الخادم الترجمة بنفسه دون بقاء المتصفح مفتوحاً. غيابه = السلوك القديم (العميل يقود الخطوات). */
+  @IsOptional()
+  @IsIn(['true', 'false'], { message: 'background يجب أن تكون true أو false' })
+  background?: string;
 }
 
 export class EditUnitDto {

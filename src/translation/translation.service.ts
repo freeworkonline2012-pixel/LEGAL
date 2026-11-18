@@ -7,11 +7,12 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnApplicationBootstrap,
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThan, Repository } from 'typeorm';
+import { In, MoreThan, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { DocumentReaderService } from '../documents/document-reader.service';
 import { LegalTranslation } from '../database/entities/legal-translation.entity';
@@ -32,6 +33,7 @@ import {
 import { renderTranslationDocx } from './translation-docx.renderer';
 import { renderTranslationHtml } from './translation-html.renderer';
 import { TranslationModelService } from './translation-model.service';
+import { TranslationBackgroundRunner, runnerLimitsFromEnv, type EnqueueOutcome, type RunnerStopReason } from './translation-background';
 import {
   buildBatchUserMessage,
   buildSystemPrompt,
@@ -96,6 +98,21 @@ export interface TranslationView {
   notes: Array<{ n: number; term: string; note: string }>;
   expires_at: string;
   created_at: string;
+  /** running = الخادم يكمل الترجمة بنفسه الآن؛ idle = لا مشغِّل (العميل يقود الخطوات أو المهمة مكتملة/متوقفة) */
+  background: 'running' | 'idle';
+}
+
+/** عنصر قائمة «ترجماتى»: بيانات وصفية فقط بلا فقرات العقد (لا نفك تشفير الحمولة لقائمة). */
+export interface TranslationListItem {
+  id: string;
+  status: 'ready' | 'translating' | 'completed';
+  source_lang: ContractLang;
+  target_lang: ContractLang;
+  title: string;
+  progress: { done_units: number; total_units: number; done_batches: number; total_batches: number };
+  background: 'running' | 'idle';
+  expires_at: string;
+  created_at: string;
 }
 
 export interface UnitsPage {
@@ -140,8 +157,11 @@ function excerpt(t: string | null, n = 400): string {
  * الخادم فقط من سجل مملوك للمستخدم (لا يُقبل نص من العميل)؛ التدقيق يسجل أعداداً بلا أى محتوى.
  */
 @Injectable()
-export class TranslationService {
+export class TranslationService implements OnApplicationBootstrap {
   private readonly logger = new Logger(TranslationService.name);
+  /** مُشغِّل الخلفية: الحالة الحقيقية فى قاعدة البيانات، وهو مجرد عميل آخر يستدعى step (انظر translation-background.ts) */
+  private readonly runner: TranslationBackgroundRunner;
+  private readonly runActors = new Map<string, TranslationActor>();
 
   constructor(
     @InjectRepository(LegalTranslation) private readonly repository: Repository<LegalTranslation>,
@@ -150,7 +170,14 @@ export class TranslationService {
     private readonly glossary: GlossaryService,
     private readonly audit: AuditService,
     private readonly pdfRenderer: PdfRenderer,
-  ) {}
+  ) {
+    const limits = runnerLimitsFromEnv();
+    this.runner = new TranslationBackgroundRunner({
+      step: (id) => this.stepInBackground(id),
+      onStop: (id, reason, err) => this.onRunnerStop(id, reason, err),
+      ...limits,
+    });
+  }
 
   private get brand(): string {
     return process.env.EXPORT_BRAND_NAME?.trim() || DEFAULT_BRAND;
@@ -167,6 +194,7 @@ export class TranslationService {
     file: { buffer: Buffer; originalname: string; size: number },
     targetLang: ContractLang,
     actor: TranslationActor,
+    options: { background?: boolean } = {},
   ): Promise<TranslationView> {
     if (!this.model.isConfigured) {
       throw new ServiceUnavailableException('خدمة الترجمة غير متاحة مؤقتاً — حاول لاحقاً.');
@@ -249,6 +277,7 @@ export class TranslationService {
         stepLockUntil: null,
         completedAt: null,
         expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+        backgroundRun: options.background === true,
       }),
     );
 
@@ -263,8 +292,94 @@ export class TranslationService {
       ocr: read.usedOcr,
       contract_type: profile.contractType,
       consent_version: TRANSLATION_CONSENT_VERSION,
+      background: options.background === true,
     });
+    if (options.background === true) {
+      // امتلاء طابور الخلفية ليس خطأ: تبقى المهمة جاهزة ويقودها العميل كالمعتاد
+      const outcome = this.enqueueBackground(row.id, actor);
+      if (outcome === 'full') {
+        row.backgroundRun = false;
+        await this.repository.update({ id: row.id }, { backgroundRun: false });
+      }
+    }
     return this.toView(row, payload);
+  }
+
+  // ───────────────────────── التشغيل فى الخلفية ─────────────────────────
+
+  private enqueueBackground(id: string, actor: TranslationActor): EnqueueOutcome {
+    // الفاعل يُسجَّل قبل enqueue: المشغِّل يبدأ أول خطوة بشكل متزامن داخل enqueue نفسها
+    const hadActor = this.runActors.has(id);
+    this.runActors.set(id, actor);
+    const outcome = this.runner.enqueue(id);
+    if ((outcome === 'duplicate' || outcome === 'full') && !hadActor) this.runActors.delete(id);
+    return outcome;
+  }
+
+  /** خطوة المشغِّل: نفس step التى يستدعيها العميل (القفل الذرى يمنع التداخل معه). */
+  private async stepInBackground(id: string): Promise<{ status: 'ready' | 'translating' | 'completed' }> {
+    const actor = this.runActors.get(id);
+    if (!actor) throw new NotFoundException('لا مشغِّل لهذه المهمة');
+    return this.step(id, actor);
+  }
+
+  private onRunnerStop(id: string, reason: RunnerStopReason, err?: unknown): void {
+    this.runActors.delete(id);
+    if (reason === 'completed') {
+      this.logger.log(`[background] اكتملت الترجمة ${id}`);
+    } else {
+      this.logger.warn(`[background] توقفت الترجمة ${id}: ${reason}${err ? ` — ${(err as Error).message ?? String(err)}` : ''}`);
+    }
+    // مهمة اكتملت أو توقفت أو حُذفت لا تُعاد محاولتها مع كل إقلاع؛ المستخدم يستأنفها بزر الاستئناف (يقود العميل أو يعيد التشغيل بالخلفية)
+    if (reason !== 'not_found') {
+      this.repository
+        .update({ id }, { backgroundRun: false })
+        .catch((e) => this.logger.warn(`failed to clear background flag: ${(e as Error).message}`));
+    }
+  }
+
+  /** يطلب من الخادم إكمال مهمة موجودة (مثلاً بعد توقفها): مملوكة للمستخدم، وغير مكتملة. */
+  async runInBackground(id: string, actor: TranslationActor): Promise<TranslationView> {
+    const row = await this.owned(id, actor);
+    const payload = row.payload as Payload;
+    if (row.status === 'completed') return this.toView(row, payload);
+    if (!this.model.isConfigured) {
+      throw new ServiceUnavailableException('خدمة الترجمة غير متاحة مؤقتاً — حاول لاحقاً.');
+    }
+    if (!this.runner.isActive(id)) {
+      await this.repository.update({ id }, { backgroundRun: true });
+      row.backgroundRun = true;
+      const outcome = this.enqueueBackground(id, actor);
+      if (outcome === 'full') {
+        await this.repository.update({ id }, { backgroundRun: false });
+        row.backgroundRun = false;
+        throw new HttpException('طابور الترجمة فى الخلفية ممتلئ حالياً — حاول بعد قليل أو أكمل الترجمة من الصفحة.', HttpStatus.TOO_MANY_REQUESTS);
+      }
+      await this.recordAudit(actor, 'translation.background_started', id, { resumed: row.nextBatch > 0 });
+    }
+    return this.toView(row, payload);
+  }
+
+  /** بعد إعادة تشغيل الخادم: تُستأنف المهام التى كانت تعمل فى الخلفية من آخر دفعة محفوظة (لا تُعاد دفعة اكتملت). */
+  async onApplicationBootstrap(): Promise<void> {
+    if (process.env.TRANSLATION_RESUME_ON_BOOT === 'false') return;
+    try {
+      const rows = await this.repository.find({
+        where: { backgroundRun: true, status: In(['ready', 'translating']), expiresAt: MoreThan(new Date()) },
+        order: { createdAt: 'ASC' },
+        take: 50,
+      });
+      let resumed = 0;
+      for (const row of rows) {
+        if (!row.userId) continue;
+        const outcome = this.enqueueBackground(row.id, { userId: row.userId, role: 'user', ipAddress: null, userAgent: null });
+        if (outcome === 'started' || outcome === 'queued') resumed++;
+      }
+      if (resumed > 0) this.logger.log(`[background] استُؤنفت ${resumed} ترجمة بعد الإقلاع`);
+    } catch (err) {
+      // فشل الاستئناف لا يمنع إقلاع الخادم؛ المستخدم يستأنف يدوياً
+      this.logger.error(`[background] تعذر استئناف الترجمات بعد الإقلاع: ${(err as Error).message}`);
+    }
   }
 
   // ───────────────────────── الخطوات ─────────────────────────
@@ -306,7 +421,13 @@ export class TranslationService {
       fresh.status = 'translating';
       fresh.payload = payload;
       fresh.stepLockUntil = null;
-      await this.repository.save(fresh);
+      await this.persistProgress(fresh, {
+        nextBatch: fresh.nextBatch,
+        doneUnits: fresh.doneUnits,
+        status: 'translating',
+        payload,
+        stepLockUntil: null,
+      });
       if (done) return await this.finish(fresh, payload, actor);
       return this.toView(fresh, payload);
     } catch (err) {
@@ -317,6 +438,17 @@ export class TranslationService {
     }
   }
 
+  /**
+   * حفظ تقدم الخطوة بـUPDATE لا save: إن حذف المستخدم المهمة أثناء الخطوة (وارد جداً مع تشغيل الخلفية) فsave كانت ستعيد إدراج
+   * الصف المحذوف بعقده كاملاً (TypeORM يُدرج إن لم يجد المعرّف)، أما UPDATE فلا يمس صفاً غير موجود ونرمى 404 فيتوقف كل شىء.
+   */
+  private async persistProgress(row: LegalTranslation, patch: Partial<LegalTranslation>): Promise<void> {
+    const res = await this.repository.update({ id: row.id }, patch as never);
+    if (res && res.affected === 0) {
+      throw new NotFoundException('الترجمة غير موجودة أو انتهت صلاحيتها');
+    }
+  }
+
   private async finish(row: LegalTranslation, payload: Payload, actor: TranslationActor): Promise<TranslationView> {
     row.status = 'completed';
     row.completedAt = new Date();
@@ -324,7 +456,14 @@ export class TranslationService {
     row.expiresAt = new Date(Date.now() + COMPLETED_RETENTION_HOURS * 60 * 60 * 1000);
     row.stepLockUntil = null;
     row.payload = payload;
-    await this.repository.save(row);
+    await this.persistProgress(row, {
+      status: 'completed',
+      completedAt: row.completedAt,
+      doneUnits: row.doneUnits,
+      expiresAt: row.expiresAt,
+      stepLockUntil: null,
+      payload,
+    });
     const flagged = payload.units.filter((u) => u.flags.length > 0).length;
     await this.recordAudit(actor, 'translation.completed', row.id, {
       from: row.sourceLang,
@@ -434,6 +573,27 @@ export class TranslationService {
   }
 
   // ───────────────────────── القراءة والتحرير والحذف ─────────────────────────
+
+  /** ترجمات المستخدم الحية (غير المنتهية) للعودة إليها بعد إغلاق الصفحة؛ بلا حمولة (لا فك تشفير ولا نص عقد). */
+  async list(actor: TranslationActor): Promise<TranslationListItem[]> {
+    const rows = await this.repository.find({
+      where: { userId: actor.userId, expiresAt: MoreThan(new Date()) },
+      select: ['id', 'status', 'sourceLang', 'targetLang', 'title', 'doneUnits', 'totalUnits', 'nextBatch', 'totalBatches', 'expiresAt', 'createdAt'],
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      status: row.status,
+      source_lang: row.sourceLang,
+      target_lang: row.targetLang,
+      title: row.title,
+      progress: { done_units: row.doneUnits, total_units: row.totalUnits, done_batches: row.nextBatch, total_batches: row.totalBatches },
+      background: this.runner.isActive(row.id) ? 'running' : 'idle',
+      expires_at: row.expiresAt.toISOString(),
+      created_at: row.createdAt.toISOString(),
+    }));
+  }
 
   async get(id: string, actor: TranslationActor): Promise<TranslationView> {
     const row = await this.owned(id, actor);
@@ -578,6 +738,7 @@ export class TranslationService {
       notes: payload.notes.slice(0, 100).map((n) => ({ n: n.i + 1, term: n.term, note: n.note })),
       expires_at: row.expiresAt.toISOString(),
       created_at: row.createdAt.toISOString(),
+      background: this.runner.isActive(row.id) ? 'running' : 'idle',
     };
   }
 

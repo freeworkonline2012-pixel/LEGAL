@@ -38,11 +38,18 @@ function fakeRepo() {
       return r;
     }),
     findOne: jest.fn(async ({ where }: any) => rows.get(where.id) ?? null),
+    // استعلام استئناف الخلفية عند الإقلاع: الصفوف التى علمها background_run ولم تكتمل (الشرط الزمنى يُختبر فى SQL لا هنا)
+    find: jest.fn(async (q?: any) =>
+      q?.where?.userId
+        ? [...rows.values()].filter((r) => r.userId === q.where.userId).sort((a, b) => b.createdAt - a.createdAt)
+        : [...rows.values()].filter((r) => r.backgroundRun === true && r.status !== 'completed'),
+    ),
     count: jest.fn(async ({ where }: any) => [...rows.values()].filter((r) => r.userId === where.userId).length),
     update: jest.fn(async ({ id }: any, patch: any) => {
       const r = rows.get(id);
       if (r) Object.assign(r, patch);
       lockedIds.delete(id);
+      return { affected: r ? 1 : 0 };
     }),
     delete: jest.fn(async ({ id }: any) => {
       rows.delete(id);
@@ -283,5 +290,140 @@ describe('translation renderers', () => {
       expect(buf.subarray(0, 2).toString()).toBe('PK');
       expect(buf.length).toBeGreaterThan(2000);
     }
+  });
+});
+
+async function waitUntil(check: () => boolean | Promise<boolean>): Promise<void> {
+  for (let i = 0; i < 2000; i++) {
+    if (await check()) return;
+    await new Promise((r) => setImmediate(r));
+  }
+  throw new Error('waitUntil: timed out');
+}
+
+describe('TranslationService — تشغيل الخلفية (بند التشغيل 4)', () => {
+  it('create مع background=true: الخادم يكمل الترجمة بلا أى استدعاء step من العميل ثم يصفّر العلم', async () => {
+    const { service, repo, audit } = build();
+    const created = await service.create(FILE, 'en', ACTOR, { background: true });
+    expect(created.background).toBe('running');
+    expect(repo.rows.get(created.id).backgroundRun).toBe(true);
+    await waitUntil(async () => (await service.get(created.id, ACTOR)).status === 'completed');
+    await waitUntil(() => repo.rows.get(created.id).backgroundRun === false);
+    const done = await service.get(created.id, ACTOR);
+    expect(done.background).toBe('idle');
+    expect(done.progress.done_units).toBe(done.progress.total_units);
+    const page = await service.units(created.id, 0, 50, ACTOR);
+    expect(page.items.some((u) => u.tgt.includes('12000'))).toBe(true);
+    // التدقيق: لا محتوى، وبداية/اكتمال مسجلان
+    expect(audit.record.mock.calls.some((c) => c[0].action === 'translation.completed')).toBe(true);
+    expect(JSON.stringify(audit.record.mock.calls)).not.toContain('يتقاضى');
+  });
+
+  it('بلا background: السلوك القديم كما هو (لا مشغِّل ولا نداء للنموذج حتى يقود العميل الخطوات)', async () => {
+    const { service, repo, model } = build();
+    const created = await service.create(FILE, 'en', ACTOR);
+    expect(created.background).toBe('idle');
+    expect(repo.rows.get(created.id).backgroundRun).toBe(false);
+    await new Promise((r) => setImmediate(r));
+    expect(model.translateBatch).not.toHaveBeenCalled();
+    const done = await runAll(service, created.id);
+    expect(done.status).toBe('completed');
+  });
+
+  it('runInBackground يكمل مهمة يقودها العميل، ويرفض مالكاً آخر (404) ولا يعيد تشغيل المكتملة', async () => {
+    const { service, repo, model } = build();
+    const created = await service.create(FILE, 'en', ACTOR);
+    await expect(service.runInBackground(created.id, OTHER)).rejects.toBeInstanceOf(NotFoundException);
+    const started = await service.runInBackground(created.id, ACTOR);
+    expect(started.background).toBe('running');
+    // استدعاء ثانٍ أثناء العمل لا يضاعف المشغِّل
+    const again = await service.runInBackground(created.id, ACTOR);
+    expect(again.background).toBe('running');
+    await waitUntil(async () => (await service.get(created.id, ACTOR)).status === 'completed');
+    await waitUntil(() => repo.rows.get(created.id).backgroundRun === false);
+    const calls = model.translateBatch.mock.calls.length;
+    const after = await service.runInBackground(created.id, ACTOR);
+    expect(after.status).toBe('completed');
+    expect(model.translateBatch.mock.calls.length).toBe(calls);
+  });
+
+  it('توقف النموذج (503) يوقف المشغِّل ويصفّر العلم فلا تُعاد المحاولة مع كل إقلاع، والعميل يستطيع الاستئناف', async () => {
+    const { service, repo, model } = build();
+    const created = await service.create(FILE, 'en', ACTOR);
+    model.isConfigured = false;
+    await expect(service.runInBackground(created.id, ACTOR)).rejects.toBeInstanceOf(ServiceUnavailableException);
+    model.isConfigured = true;
+    // مشغِّل بدأ ثم أُطفئ المزوّد: يفشل فوراً ويصفّر العلم
+    const started = await service.runInBackground(created.id, ACTOR);
+    expect(started.background).toBe('running');
+    model.isConfigured = false;
+    await waitUntil(() => repo.rows.get(created.id).backgroundRun === false);
+    model.isConfigured = true;
+    const v = await service.get(created.id, ACTOR);
+    expect(v.background).toBe('idle');
+    // العميل يكمل بنفسه من حيث وقفت المهمة
+    const done = await runAll(service, created.id);
+    expect(done.status).toBe('completed');
+  });
+
+  it('onApplicationBootstrap يستأنف المهام العاملة فى الخلفية من آخر دفعة محفوظة بعد إعادة التشغيل', async () => {
+    const long = AR_TEXT.split('\n').slice(1).join('\n');
+    const { service, repo } = build({ text: 'عقد عمل\n' + Array.from({ length: 40 }, () => long).join('\n') });
+    const created = await service.create(FILE, 'en', ACTOR);
+    expect(created.progress.total_batches).toBeGreaterThan(1);
+    await service.step(created.id, ACTOR); // دفعة واحدة ثم «يموت» الخادم
+    const row = repo.rows.get(created.id);
+    expect(row.status).toBe('translating');
+    row.backgroundRun = true;
+    const nextBefore = row.nextBatch;
+
+    await service.onApplicationBootstrap();
+    await waitUntil(async () => (await service.get(created.id, ACTOR)).status === 'completed');
+    expect(repo.rows.get(created.id).nextBatch).toBeGreaterThanOrEqual(nextBefore);
+    await waitUntil(() => repo.rows.get(created.id).backgroundRun === false);
+  });
+
+  it('TRANSLATION_RESUME_ON_BOOT=false يعطل الاستئناف، وفشل الاستعلام لا يُسقط الإقلاع', async () => {
+    const { service, repo } = build();
+    const created = await service.create(FILE, 'en', ACTOR);
+    repo.rows.get(created.id).backgroundRun = true;
+    const prev = process.env.TRANSLATION_RESUME_ON_BOOT;
+    process.env.TRANSLATION_RESUME_ON_BOOT = 'false';
+    try {
+      await service.onApplicationBootstrap();
+      expect(repo.find).not.toHaveBeenCalled();
+    } finally {
+      if (prev === undefined) delete process.env.TRANSLATION_RESUME_ON_BOOT;
+      else process.env.TRANSLATION_RESUME_ON_BOOT = prev;
+    }
+    repo.find.mockRejectedValueOnce(new Error('db down'));
+    await expect(service.onApplicationBootstrap()).resolves.toBeUndefined();
+  });
+
+  it('حذف المهمة أثناء الخلفية يوقف المشغِّل بهدوء (404) دون تصفير علم صف محذوف', async () => {
+    const { service, repo } = build();
+    const created = await service.create(FILE, 'en', ACTOR, { background: true });
+    await service.remove(created.id, ACTOR);
+    await waitUntil(async () => (await service.get(created.id, ACTOR).catch(() => null)) === null);
+    // انتظر توقف المشغِّل نفسه: لو كانت الخطوة تحفظ بـsave لعاد الصف المحذوف (عقد كامل) بعد الحذف
+    await waitUntil(() => !(service as unknown as { runner: { isActive(id: string): boolean } }).runner.isActive(created.id));
+    expect(repo.rows.has(created.id)).toBe(false);
+  });
+
+  it('list: ترجمات المستخدم فقط، بلا حمولة ولا نص عقد، مع حالة الخلفية', async () => {
+    const { service, repo } = build();
+    const mine = await service.create(FILE, 'en', ACTOR, { background: true });
+    await service.create(FILE, 'en', OTHER);
+    const items = await service.list(ACTOR);
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ id: mine.id, source_lang: 'ar', target_lang: 'en', background: 'running' });
+    expect(JSON.stringify(items)).not.toContain('يتقاضى');
+    expect(Object.keys(items[0]).sort()).toEqual(
+      ['background', 'created_at', 'expires_at', 'id', 'progress', 'source_lang', 'status', 'target_lang', 'title'],
+    );
+    // الاستعلام لا يطلب عمود payload (لا فك تشفير لقائمة)
+    const q = (repo.find as jest.Mock).mock.calls.at(-1)![0];
+    expect(q.select).not.toContain('payload');
+    await waitUntil(async () => (await service.get(mine.id, ACTOR)).status === 'completed');
   });
 });
