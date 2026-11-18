@@ -62,10 +62,28 @@ function trimAtBreaker(name: string | null): string | null {
   return (cut > 0 ? words.slice(0, cut) : words).join(' ');
 }
 
+// صفات ووظائف تلى اللقب وليست أسماء («المستشار القانونى»، «المحاسب القانونى»): تُستبعد من أسماء الأشخاص
+const GENERIC_AFTER_TITLE = new Set(
+  ['قانونى', 'قانوني', 'القانونى', 'القانوني', 'المختص', 'المسئول', 'المسؤول', 'الفنى', 'الفني', 'المالى', 'المالي', 'الاقتصادى', 'الاقتصادي', 'العام', 'الخاص', 'المعتمد', 'القضائى', 'القضائي', 'الإدارى', 'الإداري'],
+);
+
+/**
+ * اسم الشخص بعد اللقب يلزم أن يكون كلمتين فأكثر وأولهما لا تبدأ بـ«ال»: الأسماء الأولى مجردة لا تُسجَّل، لأن كلمة واحدة عامة بعد لقب
+ * (تحديداً «المستشار القانونى») كانت تُحجب فى كل نداء وتشوّش على النموذج (قياس الإنتاج: رمز واحد 2210 مرة من 2223 استبدال).
+ * وهذه ثغرة معلنة: اسم أول وحده بعد لقب لا يُحجب، لكن اسمه الكامل حين يرد فى مكان آخر من الصدر يُحجب ويُمسك كل صيغه.
+ */
+function plausiblePersonName(name: string): boolean {
+  const words = name.split(' ');
+  if (words.length < 2) return false;
+  if (words[0].startsWith('ال')) return false;
+  if (words.some((w) => GENERIC_AFTER_TITLE.has(w))) return false;
+  return true;
+}
+
 /** اسم شخص من 3 كلمات فأكثر يُذكر فى البنود غالباً بأول كلمتين؛ تُسجَّل الصيغتان. */
 function addPerson(out: DetectedEntity[], raw: string | null): void {
   const name = trimAtBreaker(raw);
-  if (!name) return;
+  if (!name || !plausiblePersonName(name)) return;
   pushUnique(out, 'PER', name);
   const words = name.split(' ');
   if (words.length >= 3) pushUnique(out, 'PER', words.slice(0, 2).join(' '));

@@ -76,3 +76,29 @@ describe('تفاصيل إضافية', () => {
     expect(f.some((e) => e.kind === 'ORG' && e.surface === 'مصرية')).toBe(false);
   });
 });
+
+describe('الجولة 114.2: لا اسم شخص من كلمة عامة', () => {
+  it('«المستشار القانونى» و«المحاسب القانونى للشركة» و«السيد/ عمرو» لا تُسجَّل أسماء', () => {
+    const text = 'يستعين الطرف الأول بالمستشار القانونى، ويراجع المحاسب القانونى للشركة الحسابات، ويمثله السيد/ عمرو في التوقيع.';
+    const per = collectContractEntities(text, null).filter((e) => e.kind === 'PER');
+    expect(per).toEqual([]);
+  });
+
+  it('الاسم الكامل بعد اللقب ما زال يُكشف ويُحجب', () => {
+    const text = 'ويمثله السيد/ عمرو خالد منصور بصفته المدير، وقد استعان بالمستشار القانونى.';
+    const per = collectContractEntities(text, null).filter((e) => e.kind === 'PER').map((e) => e.surface);
+    expect(per).toContain('عمرو خالد منصور');
+    const s = new ShieldSession();
+    registerContractEntities(s, text, null);
+    const out = s.shield('يلتزم عمرو خالد منصور بالتنفيذ وفقاً لرأى المستشار القانونى');
+    expect(out).not.toContain('عمرو');
+    expect(out).toContain('المستشار القانونى');
+  });
+
+  it('الجلسة ترفض تسجيل اسم شخص من كلمة واحدة', () => {
+    const s = new ShieldSession();
+    s.registerEntity('PER', 'القانونى');
+    expect(s.entityCount).toBe(0);
+    expect(s.shield('الرأى القانونى')).toBe('الرأى القانونى');
+  });
+});

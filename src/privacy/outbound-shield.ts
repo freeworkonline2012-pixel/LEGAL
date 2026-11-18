@@ -130,6 +130,8 @@ export class ShieldSession {
   registerEntity(kind: EntityKind, surface: string | null | undefined): void {
     const s = (surface ?? '').replace(/\s+/g, ' ').trim();
     if (s.length < 3 || (kind !== 'REF' && /^[\d\s\-/.]+$/.test(s))) return;
+    // اسم شخص بكلمة واحدة يطابق كلمة عامة فى نصوص المنصة كلها ويُفرط فى الحجب: لا يُسجَّل (الجولة 114.2)
+    if (kind === 'PER' && !s.includes(' ')) return;
     const key = `${kind}\u0000${s}`;
     if (this.known.has(key)) return;
     this.known.add(key);
