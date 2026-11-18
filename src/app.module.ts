@@ -16,6 +16,7 @@ import { buildTypeOrmOptions, createResilientDataSource } from './config/typeorm
 import { ExportsModule } from './exports/exports.module';
 import { MemosModule } from './memos/memos.module';
 import { DocumentsModule } from './documents/documents.module';
+import { DraftingModule } from './drafting/drafting.module';
 import { TranslationModule } from './translation/translation.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { GovernanceModule } from './governance/governance.module';
@@ -77,6 +78,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     PrivacyModule,
     ExportsModule,
     MemosModule,
+    DraftingModule,
     DocumentsModule,
     TranslationModule,
   ],

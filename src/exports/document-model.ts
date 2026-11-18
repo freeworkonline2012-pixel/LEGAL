@@ -9,7 +9,7 @@
 
 import type { AuditReport } from './audit-report/model';
 
-export type DocumentKind = 'answer' | 'governance' | 'contract_report' | 'memo' | 'legal_report';
+export type DocumentKind = 'answer' | 'governance' | 'contract_report' | 'memo' | 'legal_report' | 'contract_draft';
 
 export type CalloutTone = 'warning' | 'info' | 'note';
 

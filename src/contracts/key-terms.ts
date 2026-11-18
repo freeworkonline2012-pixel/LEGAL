@@ -179,8 +179,17 @@ function wordsBefore(text: string, end: number): { value: number; start: number;
  * بعد رقم المبلغ: هل تتبعه كتابته بالحروف ثم العملة؟ (قوس اختيارى ثم كلمات كلها عددية أو ضجيج مسح ثم العملة).
  * يُرجَع موضع نهاية العملة، وإلا null؛ فلا نلتقط مبلغاً لمجرد وجود عملة بعيدة.
  */
+// الجولة 116: التعبير أدناه يُجزّئ الكلمة الواحدة بطرق كثيرة، فيتضخم زمن فشله أسياً (حتى ثانية لجملة واحدة) على كل رقم بلا عملة. شرطان ضروريان
+// (لا يغيّران أى نتيجة) يُفحصان أولاً بكلفة خطية: (1) ما قبل أول ظهور للعملة حروف عربية وفواصل وأقواس فقط، (2) لا تزيد كلماته على 14 قطعة (كل قطعة
+// لا تتجاوز كلمة واحدة). فإن لم يتحققا فالتعبير لا يمكن أن يطابق أصلاً.
+const FIRST_CURRENCY = new RegExp(CURRENCY, 'u');
 function amountWordsTail(text: string, from: number): { currency: string; end: number; words: number | null } | null {
   const tail = text.slice(from, from + 200);
+  const first = FIRST_CURRENCY.exec(tail);
+  if (!first) return null;
+  const before = tail.slice(0, first.index);
+  if (!/^[\s)）(（ء-ي]*$/u.test(before)) return null;
+  if ((before.match(/[ء-ي]+/g)?.length ?? 0) > 14) return null;
   const m = tail.match(new RegExp(`^[\\s]*[)）(（]?[\\s]*((?:[ء-ي]+[\\s)）(（]*){1,14}?)(${CURRENCY})`, 'u'));
   if (!m) return null;
   const words = [...m[1].matchAll(/[ء-ي]+/g)].map((x) => x[0]);
