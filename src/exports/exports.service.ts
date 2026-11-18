@@ -207,7 +207,7 @@ export class ExportsService {
 
   /**
    * تحميل العقد وبنوده لأى تصدير: الملكية، اكتمال المعالجة، ثم (للتنزيل النهائى فقط) السداد المؤكَّد والاعتماد البشرى.
-   * purpose='preliminary' = النسخة الأولية PDF: متاحة للمالك دائماً بعد اكتمال المعالجة (بعلامة «نسخة أولية»).
+   * purpose='preliminary' = النسخة الأولية PDF: للمالك/admin فقط (معاينة داخلية بعلامة «نسخة أولية»)؛ العميل لا يستلم أى ملف قبل السداد.
    * admin بلا مقابل ولا مراحل.
    */
   private async loadContractForExport(
@@ -223,6 +223,10 @@ export class ExportsService {
       throw new ConflictException('لم تكتمل معالجة العقد بعد، فلا يتوفر تقرير للتنزيل.');
     }
     const approved = contract.reportApprovedAt !== null;
+    if (purpose === 'preliminary' && actor.role !== 'admin') {
+      // قرار المنتج: لا تسليم ملفات (PDF/Word) قبل سداد مقابل الخدمة؛ العميل يعاين على الشاشة فقط
+      throw new HttpException('تنزيل الملفات (PDF أو Word) يتاح بعد سداد مقابل الخدمة.', HttpStatus.PAYMENT_REQUIRED);
+    }
     if (purpose === 'final' && actor.role !== 'admin') {
       if (!isPaid(contract)) {
         throw new HttpException(this.paymentRequiredMessage(stageOf(contract)), HttpStatus.PAYMENT_REQUIRED);
@@ -290,8 +294,8 @@ export class ExportsService {
   }
 
   /**
-   * النسخة الأولية PDF: نسخة العميل المبسطة بعلامة مائية «نسخة أولية — غير نهائية»، متاحة للمالك دائماً بعد اكتمال المعالجة
-   * (قبل الموافقة والسداد). لا تحمل اعتماداً بشرياً مهما كانت حالة العقد، وصيغتها PDF فقط.
+   * النسخة الأولية PDF: نسخة العميل المبسطة بعلامة مائية «نسخة أولية — غير نهائية»، للمالك/admin فقط بعد اكتمال المعالجة
+   * (غير المالك يتلقى 402: لا ملفات قبل السداد). لا تحمل اعتماداً بشرياً مهما كانت حالة العقد، وصيغتها PDF فقط.
    */
   async exportContractPreliminary(contractId: string, actor: ExportActor): Promise<ExportedFile> {
     const { contract, clauses } = await this.loadContractForExport(contractId, actor, 'preliminary');
@@ -450,7 +454,7 @@ export class ExportsService {
       payment_reference: contract.paymentReference ?? null,
       approved_at: contract.clientApprovedAt ? contract.clientApprovedAt.toISOString() : null,
       paid_at: contract.paidAt ? contract.paidAt.toISOString() : null,
-      can_download_preliminary: contract.status === 'processed',
+      can_download_preliminary: free && contract.status === 'processed',
       can_download_final: contract.status === 'processed' && (free || (paid && (!approvalRequired || humanApproved))),
       awaiting_human_review: !free && paid && approvalRequired && !humanApproved,
       details_locked: !free && !paid,

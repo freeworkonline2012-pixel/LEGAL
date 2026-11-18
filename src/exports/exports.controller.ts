@@ -174,7 +174,7 @@ export class ExportsController {
 
   @Get('contracts/:id/preliminary')
   @ApiProduces('application/pdf')
-  @ApiOkResponse({ description: 'النسخة الأولية PDF بعلامة «نسخة أولية — غير نهائية» (قبل الموافقة والسداد)' })
+  @ApiOkResponse({ description: 'النسخة الأولية PDF بعلامة «نسخة أولية — غير نهائية» — للمالك/admin فقط؛ العميل يتلقى 402 قبل السداد' })
   async contractPreliminary(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Req() request: RequestWithUser,

@@ -266,9 +266,9 @@ describe('ExportsService — طلب المراجعة: الموافقة والس�
   afterEach(() => { delete process.env.CONTRACT_REVIEW_FEE_EGP; delete process.env.CONTRACT_PAYMENT_INSTRUCTIONS; delete process.env.CONTRACT_REPORT_REQUIRES_APPROVAL; });
 
   describe('النسخة الأولية PDF', () => {
-    it('المالك يحصل عليها قبل الموافقة والسداد والاعتماد، بعلامة «نسخة أولية» واسم -preliminary', async () => {
+    it('المالك (admin) يحصل عليها قبل الموافقة والسداد والاعتماد، بعلامة «نسخة أولية» واسم -preliminary', async () => {
       const { service, pdf, audit } = setup({ contract: unpaid(), clauses: [clause] });
-      const file = await service.exportContractPreliminary('c', OWNER);
+      const file = await service.exportContractPreliminary('c', ADMIN);
       expect(file.contentType).toBe('application/pdf');
       expect(file.filename).toMatch(/-client-preliminary\.pdf$/);
       expect(file.filename).not.toContain('-draft');
@@ -278,13 +278,22 @@ describe('ExportsService — طلب المراجعة: الموافقة والس�
       expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({ preliminary: true }) }));
     });
 
-    it('لا تحمل اعتماداً حتى لو اعتُمد التقرير؛ ولغير المالك 404؛ وقبل اكتمال المعالجة 409', async () => {
+    it('العميل العادى: 402 قبل السداد حتى لو وافق وأعلن السداد واعتُمد التقرير (لا ملفات قبل السداد)، ولا تدقيق تنزيل', async () => {
+      for (const over of [{}, { clientApprovedAt: NOW }, { clientApprovedAt: NOW, paymentStatus: 'submitted', reportApprovedAt: NOW }]) {
+        const { service, pdf, audit } = setup({ contract: unpaid(over), clauses: [clause] });
+        await expect(service.exportContractPreliminary('c', OWNER)).rejects.toMatchObject({ status: 402 });
+        expect(pdf.render).not.toHaveBeenCalled();
+        expect(audit.record).not.toHaveBeenCalled();
+      }
+    });
+
+    it('لا تحمل اعتماداً حتى لو اعتُمد التقرير؛ ولغير صاحب العقد 404؛ وقبل اكتمال المعالجة 409', async () => {
       const { service, pdf } = setup({ contract: unpaid({ reportApprovedAt: NOW }), clauses: [clause] });
-      await service.exportContractPreliminary('c', OWNER);
+      await service.exportContractPreliminary('c', ADMIN);
       expect(pdf.render.mock.calls[0][0].watermark).toBeTruthy();
       await expect(service.exportContractPreliminary('c', OTHER)).rejects.toBeInstanceOf(NotFoundException);
       const pending = setup({ contract: unpaid({ status: 'processing' }) });
-      await expect(pending.service.exportContractPreliminary('c', OWNER)).rejects.toBeInstanceOf(ConflictException);
+      await expect(pending.service.exportContractPreliminary('c', ADMIN)).rejects.toBeInstanceOf(ConflictException);
     });
   });
 
@@ -336,7 +345,7 @@ describe('ExportsService — طلب المراجعة: الموافقة والس�
     it('عرض المرحلة: السعر والتعليمات والمتاح، وlocked قبل السداد', async () => {
       const { service } = setup({ contract: unpaid() });
       const v = await service.getContractOrder('c', OWNER);
-      expect(v).toMatchObject({ stage: 'preview', free_access: false, fee_amount: 250, fee_currency: 'EGP', payment_instructions: 'حوّل إلى المحفظة 0100', can_download_preliminary: true, can_download_final: false, details_locked: true, awaiting_human_review: false });
+      expect(v).toMatchObject({ stage: 'preview', free_access: false, fee_amount: 250, fee_currency: 'EGP', payment_instructions: 'حوّل إلى المحفظة 0100', can_download_preliminary: false, can_download_final: false, details_locked: true, awaiting_human_review: false });
     });
 
     it('غير المالك 404 على كل عمليات الطلب', async () => {
