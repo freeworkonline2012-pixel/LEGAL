@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { type ClaimKind, type ContextClause, type Verification, validateVerdict } from './verification';
 import { resolveVerifierVotes, verifierExtraSampleCount, verifierNeedsExtra, verifierSampleCount } from './verifier-vote';
 import { ProviderFatalError, fatalProviderDetail } from './provider-failure';
+import { outboundFetch } from '../privacy/outbound-shield';
 
 export type VerifierOutcome =
   | { status: 'ok'; verification: Verification }
@@ -165,7 +166,7 @@ export class ClauseVerifierService {
   private async runOnce(system: string, user: string, clauseText: string, articleTexts: string[], relatedTexts: string[] = []): Promise<VerifierOutcome> {
     if (!this.isConfigured) return { status: 'not_configured' };
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
         body: JSON.stringify({

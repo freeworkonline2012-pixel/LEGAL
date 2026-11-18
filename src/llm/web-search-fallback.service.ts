@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { outboundFetch } from '../privacy/outbound-shield';
 
 /**
  * WebSearchFallbackService — طبقة احتياطية (Tier 2) تُستدعى فقط عندما يفشل
@@ -227,7 +228,7 @@ export class WebSearchFallbackService {
     // Tavily API الرسمى: تصفية النطاقات مطبَّقة من طرف المزوّد نفسه
     // (include_domains) كطبقة أولى، ثم isAllowedUrl أدناه كطبقة ثانية مستقلة
     // (دفاع متعدد الطبقات — لا نثق بتصفية أى طرف ثالث وحدها).
-    const res = await fetch('https://api.tavily.com/search', {
+    const res = await outboundFetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiKey as string}`,

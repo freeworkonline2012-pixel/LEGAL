@@ -20,6 +20,7 @@ import {
   toRawSchema,
   type StructuredAnswer,
 } from '../questions/structured-answer';
+import { outboundFetch } from '../privacy/outbound-shield';
 
 export interface GroundedGenerationInput {
   question: string;
@@ -497,7 +498,7 @@ export class DeepseekGenerationService {
       'المادة والقانون داخل الشرح نفسه.';
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -696,7 +697,7 @@ export class DeepseekGenerationService {
     const maxTokens = Math.min(2500, 700 + input.articles.length * 260);
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -896,7 +897,7 @@ export class DeepseekGenerationService {
     const maxTokens = Math.min(4000, 1400 + input.articles.length * 300 + (factsMode ? 400 : 0));
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -1096,7 +1097,7 @@ export class DeepseekGenerationService {
       'أو {"inapplicable": []}.';
     const userMsg = `سؤال المستخدم مع وقائعه:\n${input.question}\n\nبنود الإجابة:\n${lines.join('\n')}\n\nأخرِج JSON المعرّفات.`;
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
         signal: AbortSignal.timeout(25_000),
@@ -1203,7 +1204,7 @@ export class DeepseekGenerationService {
       `سؤال المستخدم مع وقائعه:\n${input.question}\n\nالنصوص المرفقة:\n${articlesText}\n\n` +
       `مسودة الإجابة:\n${JSON.stringify(toRawSchema(draft))}\n\nأخرِج JSON العيوب.`;
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
         signal: AbortSignal.timeout(30_000),
@@ -1292,7 +1293,7 @@ export class DeepseekGenerationService {
       'لا تحذف حكماً أو تنبيهاً سليماً لمجرد الإيجاز (خاصة أحكام المستحقات والإجراءات وشهادة نهاية الخدمة ورصيد الإجازات)؛ ' +
       'احذف فقط ما كان معيباً أو لا ينطبق على وقائع السائل.';
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
         signal: AbortSignal.timeout(60_000),
@@ -1410,7 +1411,7 @@ export class DeepseekGenerationService {
     const maxTokens = Math.min(3500, 1200 + uncovered.length * 350);
     const articleMeta = input.articles.map((a) => ({ text: a.articleText, articleNo: a.articleNo }));
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -1516,7 +1517,7 @@ export class DeepseekGenerationService {
       'المناسب بين قوسين مربعين.';
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -1654,7 +1655,7 @@ export class DeepseekGenerationService {
       'فى السؤال. رد بـJSON فقط، السبب 15 كلمة كحد أقصى.';
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -1792,7 +1793,7 @@ export class DeepseekGenerationService {
       'أولاً هل فى أى مرشح شرط استثنائي ضيق غير وارد فى السؤال. رد بـJSON فقط.';
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -1950,7 +1951,7 @@ export class DeepseekGenerationService {
       'يوجد أى نص ذو صلة حقيقية. رد بـJSON فقط.';
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -2098,7 +2099,7 @@ export class DeepseekGenerationService {
       'لو لا يوجد أى نص ذو صلة حقيقية. رد بـJSON فقط.';
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -2227,7 +2228,7 @@ export class DeepseekGenerationService {
       `النصوص القانونية المسترجَعة لهذا السؤال:\n${articlesText}\n\nقرّر وأجب بصيغة JSON فقط.`;
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -2327,7 +2328,7 @@ export class DeepseekGenerationService {
     const userMsg = `السؤال: ${question}\n\nحلّله وأجب بصيغة JSON فقط كما هو موضَّح.`;
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -2660,7 +2661,7 @@ export class DeepseekGenerationService {
     const maxAttempts = 2;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -2853,7 +2854,7 @@ export class DeepseekGenerationService {
       'أصدر توصيتك بناءً على هذه المقتطفات فقط. رد بـJSON فقط كما هو محدد.';
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -3035,7 +3036,7 @@ export class DeepseekGenerationService {
       'بـJSON فقط كما هو محدد.';
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -3219,7 +3220,7 @@ export class DeepseekGenerationService {
       'الحكم. رد بـJSON فقط كما هو محدد.';
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -3318,7 +3319,7 @@ export class DeepseekGenerationService {
     let lastDetail = 'unparseable_json';
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const res = await fetch('https://api.deepseek.com/chat/completions', {
+        const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
           method: 'POST',
           headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
           body: JSON.stringify({
@@ -3442,7 +3443,7 @@ export class DeepseekGenerationService {
       `المواد المعتمَدة:\n${articlesText}\n\nاكتب الصياغة البديلة. رد بـJSON فقط كما هو محدد.`;
 
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',

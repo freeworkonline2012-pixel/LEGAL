@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { type ContractFinding, type LevelClause, validateModelFindings } from './contract-level';
+import { outboundFetch } from '../privacy/outbound-shield';
 
 export type ConsistencyOutcome =
   | { status: 'ok'; findings: ContractFinding[] }
@@ -67,7 +68,7 @@ export class ContractConsistencyService {
     const payload = blocks.join('\n\n');
     if (payload.length > MAX_TOTAL_CHARS) return { status: 'skipped', detail: 'too_long' };
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
         body: JSON.stringify({

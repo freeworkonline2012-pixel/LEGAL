@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { outboundFetch } from '../privacy/outbound-shield';
 
 /**
  * تكامل Voyage AI للـ embeddings الدلالية (EP-04 — تفعيل الذكاء الاصطناعي، 2026-08-21).
@@ -84,7 +85,7 @@ export class VoyageEmbeddingsService {
   private async fetchWithRetry429(url: string, body: unknown): Promise<Response> {
     let attempt = 0;
     for (;;) {
-      const res = await fetch(url, {
+      const res = await outboundFetch(url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',

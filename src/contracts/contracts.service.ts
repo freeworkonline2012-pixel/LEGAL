@@ -55,6 +55,8 @@ import {
 } from './reasoning.util';
 import { ClientPosition, describePosition } from './position.util';
 import { clientRoleConflictWarning, directionResolvable, extractPartyNames } from './parties.util';
+import { ShieldSession, currentShield, privacyModeFromEnv, runWithShield } from '../privacy/outbound-shield';
+import { registerContractEntities } from '../privacy/contract-entities';
 import { bodyDirectionWarning } from './client-side';
 import { playbookFamily, toPlaybookFamily } from './playbook';
 import { articleInLawScope, lawScopeContext, type LawScopeContext } from './law-scope';
@@ -278,7 +280,9 @@ export class ContractsService implements OnModuleInit {
     background: boolean,
   ): Promise<ContractResponseDto> {
     try {
-      return await this.analyzeUpload(contract, file, context, position, background);
+      // الجولة 114: كل نداء خارجى أثناء تحليل العقد يمر ببوابة الخصوصية (حجب عكوس للبيانات الشخصية والأسماء). CONTRACT_PRIVACY_MODE=off يعطلها.
+      const run = () => this.analyzeUpload(contract, file, context, position, background);
+      return await (privacyModeFromEnv() === 'off' ? run() : runWithShield(new ShieldSession(), run));
     } catch (err) {
       if (!(err instanceof ProviderFatalError)) throw err;
       this.logger.error(`analysis aborted contract=${contract.id} stage=${err.stage} detail=${err.detail}`);
@@ -396,6 +400,9 @@ export class ContractsService implements OnModuleInit {
     // اسما الطرفين من الديباجة: يربطان الأسماء الواردة فى البنود بالطرف الأول/الثانى فلا يخمّن النموذج اتجاه الحق والالتزام
     const partyNames = extractPartyNames(segmentation.preamble);
     position = { ...position, partyNames };
+    // الجولة 114: أسماء الطرفين والممثلين والعناوين تُسجَّل للحجب قبل أى نداء خارجى (تحليل البنود، التحقق، التضمين)
+    const shield = currentShield();
+    if (shield) registerContractEntities(shield, extraction.text, partyNames);
     if (!partyNames.first || !partyNames.second) {
       // تشخيص بلا نص العقد (سرى): أطوال وعدادات فقط، لنعرف سبب تعذر قراءة طرف دون تسجيل محتوى الديباجة
       const pre = segmentation.preamble;
@@ -549,6 +556,19 @@ export class ContractsService implements OnModuleInit {
     } as unknown as Record<string, unknown>;
 
     await this.verifyContractFindings(contract.contractFindings as unknown as ContractLevelResult | null, clauseRows);
+
+    // الجولة 114: إن وجدت البوابة بيانات شخصية أو أسماء فى النص تُعلَن للمستخدم (إشارة أن التجهيل قبل الرفع لم يكتمل). أرقام فقط، لا قيم.
+    // النص يتجنب كلمات تفعّل فحوص التحذيرات الأخرى (القراءة الضوئية، الترقيم، البنود).
+    if (shield && shield.counts.pii + shield.counts.names > 0) {
+      const privacyWarning = `خصوصية: حُجب قبل الإرسال للنموذج الخارجى ${shield.counts.pii} رقماً شخصياً و${shield.counts.names} موضع اسم أو عنوان. الكشف استدلالى فقد تبقى أسماء بصيغ غير مألوفة، فجهّز العقد قبل الرفع.`;
+      contractWarnings.push(privacyWarning);
+      contract.extractionWarnings = contractWarnings;
+    }
+    if (shield) {
+      this.logger.log(
+        `contract ${contract.id}: privacy shield calls=${shield.shieldedCalls} pii=${shield.counts.pii} names=${shield.counts.names} entities=${shield.entityCount} unresolvedTokens=${shield.unresolvedTokens} blocked=${shield.blockedImageCalls}`,
+      );
+    }
 
     contract.status = 'processed';
     contract = await this.contractRepository.save(contract);
@@ -812,6 +832,16 @@ export class ContractsService implements OnModuleInit {
     clauseId: string,
     context: { userId: string; role: string; ipAddress: string | null; userAgent: string | null },
   ): Promise<ContractClauseResponseDto> {
+    // الجولة 114: نداءات الصياغة البديلة تمر ببوابة الخصوصية أيضاً
+    const run = () => this.proposeRedraftShielded(contractId, clauseId, context);
+    return privacyModeFromEnv() === 'off' ? run() : runWithShield(new ShieldSession(), run);
+  }
+
+  private async proposeRedraftShielded(
+    contractId: string,
+    clauseId: string,
+    context: { userId: string; role: string; ipAddress: string | null; userAgent: string | null },
+  ): Promise<ContractClauseResponseDto> {
     const contract = await this.contractRepository.findOne({ where: { id: contractId } });
     if (!contract) {
       throw new NotFoundException('العقد غير موجود');
@@ -822,6 +852,11 @@ export class ContractsService implements OnModuleInit {
     const clause = await this.clauseRepository.findOne({ where: { id: clauseId, contractId } });
     if (!clause) {
       throw new NotFoundException('البند غير موجود');
+    }
+    const redraftShield = currentShield();
+    if (redraftShield) {
+      const storedParties = (contract.contractFindings as { parties?: { first: string | null; second: string | null } } | null)?.parties ?? null;
+      registerContractEntities(redraftShield, clause.clauseText, storedParties);
     }
     const matched = clause.matchedArticles ?? [];
     if (clause.assessmentStatus !== 'يحتاج مراجعة' || matched.length === 0) {

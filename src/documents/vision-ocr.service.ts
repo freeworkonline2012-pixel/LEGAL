@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { Logger } from '@nestjs/common';
+import { outboundFetch } from '../privacy/outbound-shield';
 
 /**
  * الجولة 78: قراءة صفحات العقود الممسوحة بنموذج رؤية (Anthropic) بدل Tesseract وحده.
@@ -100,7 +101,7 @@ export class VisionOcrService {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), PAGE_TIMEOUT_MS);
       try {
-        const res = await fetch('https://api.anthropic.com/v1/messages', {
+        const res = await outboundFetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           signal: ctrl.signal,
           headers: {

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ClauseFacts, validateClauseFacts } from './clause-facts';
 import type { PartyNames } from './parties.util';
+import { outboundFetch } from '../privacy/outbound-shield';
 
 export type FactsOutcome =
   | { status: 'ok'; facts: ClauseFacts }
@@ -73,7 +74,7 @@ export class ClauseFactsService {
   async extract(input: { clauseText: string; parties?: PartyNames | null }): Promise<FactsOutcome> {
     if (!this.isConfigured) return { status: 'not_configured' };
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
         body: JSON.stringify({

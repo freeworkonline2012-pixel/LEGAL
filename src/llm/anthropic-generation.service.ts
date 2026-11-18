@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { outboundFetch } from '../privacy/outbound-shield';
 
 export interface GroundedGenerationInput {
   question: string;
@@ -53,7 +54,7 @@ export class AnthropicGenerationService {
       'المادة والقانون داخل الشرح نفسه.';
 
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await outboundFetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',

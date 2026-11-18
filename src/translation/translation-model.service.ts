@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { buildProfileSystemPrompt, MODEL_MAX_TOKENS } from './translation-prompt';
+import { outboundFetch } from '../privacy/outbound-shield';
 
 export type ModelOutcome =
   | { status: 'ok'; raw: unknown }
@@ -43,7 +44,7 @@ export class TranslationModelService {
     if (!this.isConfigured) return { status: 'not_configured' };
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const res = await fetch(ENDPOINT, {
+        const res = await outboundFetch(ENDPOINT, {
           method: 'POST',
           headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
           signal: AbortSignal.timeout(TIMEOUT_MS),

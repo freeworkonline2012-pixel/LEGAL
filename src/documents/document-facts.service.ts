@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { buildFactsUserMessage, FACTS_SYSTEM_PROMPT } from './document-facts';
+import { outboundFetch } from '../privacy/outbound-shield';
 
 export type FactsModelOutcome =
   | { status: 'ok'; raw: unknown }
@@ -24,7 +25,7 @@ export class DocumentFactsService {
   async extract(documentText: string, question?: string): Promise<FactsModelOutcome> {
     if (!this.isConfigured) return { status: 'not_configured' };
     try {
-      const res = await fetch('https://api.deepseek.com/chat/completions', {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
         signal: AbortSignal.timeout(45_000),

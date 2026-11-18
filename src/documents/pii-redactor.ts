@@ -101,7 +101,11 @@ const RULES: Array<{ kind: RedactionKind; re: RegExp; accept?: (match: string) =
   { kind: 'long_number', re: /(?<!\d)\d{10,}(?!\d)/g },
 ];
 
-export function redactPersonalData(input: string): RedactionResult {
+/**
+ * مواضع البيانات الشخصية فى النص (بلا تعديله). تُستخدم فى الإخفاء غير العكوس هنا وفى بوابة الخصوصية العكوسة
+ * (src/privacy/outbound-shield.ts) كى تبقى قواعد الكشف قاعدة واحدة لا نسختين.
+ */
+export function detectPersonalDataSpans(input: string): Array<{ start: number; end: number; kind: RedactionKind }> {
   const ascii = toAsciiDigitsSameLength(input);
   const spans: Span[] = [];
 
@@ -121,6 +125,11 @@ export function redactPersonalData(input: string): RedactionResult {
       spans.push({ start, end, kind: rule.kind });
     }
   }
+  return spans.sort((a, b) => a.start - b.start);
+}
+
+export function redactPersonalData(input: string): RedactionResult {
+  const spans: Span[] = detectPersonalDataSpans(input);
 
   const counts: Record<RedactionKind, number> = {
     national_id: 0,
