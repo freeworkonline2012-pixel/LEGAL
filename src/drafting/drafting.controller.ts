@@ -39,8 +39,8 @@ export class DraftingController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiOkResponse({ description: 'مسودة العقد مع نتيجة فحص الجودة (أو 400 بأخطاء الحقول)' })
-  generate(@Body() dto: GenerateDraftDto): DraftResult {
-    return this.draftingService.generate(dto.type, dto.role, dto.answers);
+  async generate(@Body() dto: GenerateDraftDto, @Req() request: RequestWithUser): Promise<DraftResult> {
+    return this.draftingService.generate(dto.type, dto.role, dto.answers, await this.draftingService.officeProfileFor(actorOf(request).userId));
   }
 
   @Post('export')

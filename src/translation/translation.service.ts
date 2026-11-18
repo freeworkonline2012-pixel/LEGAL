@@ -8,6 +8,7 @@ import {
   Logger,
   NotFoundException,
   OnApplicationBootstrap,
+  Optional,
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -21,11 +22,14 @@ import { DEFAULT_BRAND, compactCairoDate, shortReference } from '../exports/docu
 import { GlossaryService } from './glossary.service';
 import { matchGlossary } from './glossary';
 import { detectLanguage, type ContractLang } from './language-detect';
-import { MAX_TOTAL_CHARS, MAX_UNITS, planBatches, splitIntoUnits } from './paragraph-splitter';
+import { MAX_TOTAL_CHARS, MAX_UNITS, planBatches, splitIntoUnits, splitLongUnit } from './paragraph-splitter';
+import { DocxLayoutError, applyDocxTranslation, extractDocxParagraphs, type DocxParagraphRef } from './docx-layout';
+import { TranslationSourceService } from './translation-source.service';
 import { checkUnit, type UnitFlag } from './translation-checks';
 import {
   buildNotesAndFlags,
   toParagraphs,
+  WATERMARK,
   type StoredUnitView,
   type TranslationDocument,
   type TranslationLayout,
@@ -59,9 +63,14 @@ export interface TranslationActor {
   userAgent: string | null;
 }
 
+/** layout=original يضيف 'original': كتابة الترجمة داخل ملف Word الأصلى (يتطلب خيار الاحتفاظ بالتنسيق عند الإنشاء) */
+export type DownloadLayout = TranslationLayout | 'original';
+
 interface StoredUnit {
   src: string;
   cont: boolean;
+  /** رقم الفقرة فى ملف Word الأصلى (docx-layout ordinal) — فقط عند الاحتفاظ بالتنسيق؛ قطع الفقرة الطويلة تتشارك الرقم */
+  p?: number;
   tgt: string | null;
   flags: UnitFlag[];
   edited?: boolean;
@@ -82,6 +91,8 @@ interface Payload extends Record<string, unknown> {
   warnings: string[];
   ocr: boolean;
   detection: { lang: ContractLang; dominant_share: number };
+  /** true = وحدات الترجمة مقابلة لفقرات ملف Word الأصلى المحفوظ (لتنزيل بتنسيق الأصل) */
+  docx?: boolean;
 }
 
 export interface TranslationView {
@@ -100,6 +111,8 @@ export interface TranslationView {
   created_at: string;
   /** running = الخادم يكمل الترجمة بنفسه الآن؛ idle = لا مشغِّل (العميل يقود الخطوات أو المهمة مكتملة/متوقفة) */
   background: 'running' | 'idle';
+  /** الترجمة محفوظة مع ملف Word الأصلى: التنزيل بتنسيق الأصل متاح */
+  original_layout: boolean;
 }
 
 /** عنصر قائمة «ترجماتى»: بيانات وصفية فقط بلا فقرات العقد (لا نفك تشفير الحمولة لقائمة). */
@@ -170,6 +183,8 @@ export class TranslationService implements OnApplicationBootstrap {
     private readonly glossary: GlossaryService,
     private readonly audit: AuditService,
     private readonly pdfRenderer: PdfRenderer,
+    /** اختيارى: غيابه = خيار الاحتفاظ بتنسيق Word غير متاح */
+    @Optional() private readonly sources?: TranslationSourceService,
   ) {
     const limits = runnerLimitsFromEnv();
     this.runner = new TranslationBackgroundRunner({
@@ -194,7 +209,7 @@ export class TranslationService implements OnApplicationBootstrap {
     file: { buffer: Buffer; originalname: string; size: number },
     targetLang: ContractLang,
     actor: TranslationActor,
-    options: { background?: boolean } = {},
+    options: { background?: boolean; preserveFormat?: boolean } = {},
   ): Promise<TranslationView> {
     if (!this.model.isConfigured) {
       throw new ServiceUnavailableException('خدمة الترجمة غير متاحة مؤقتاً — حاول لاحقاً.');
@@ -214,6 +229,13 @@ export class TranslationService implements OnApplicationBootstrap {
       minChars: 80,
     });
 
+    if (options.preserveFormat === true && read.type !== 'docx') {
+      throw new BadRequestException('الاحتفاظ بتنسيق الملف الأصلى متاح لملفات Word (docx) فقط.');
+    }
+    if (options.preserveFormat === true && !this.sources) {
+      throw new ServiceUnavailableException('الاحتفاظ بتنسيق الملف الأصلى غير متاح مؤقتاً — أعد المحاولة بدونه.');
+    }
+
     const detection = detectLanguage(read.text);
     if (!detection.lang) {
       throw new UnprocessableEntityException('لم نتمكن من تحديد لغة العقد — النص المقروء قصير جداً أو غير لغوى.');
@@ -230,7 +252,22 @@ export class TranslationService implements OnApplicationBootstrap {
       );
     }
 
-    const split = splitIntoUnits(read.text);
+    // الاحتفاظ بالتنسيق: وحدات الترجمة هى فقرات ملف Word نفسها (لا إعادة تجزئة للنص)؛ تعذّر قراءة بنية الملف ⇒ المسار القياسى بتنبيه
+    let docxRefs: DocxParagraphRef[] | null = null;
+    let formatFallbackWarning: string | null = null;
+    if (options.preserveFormat === true) {
+      try {
+        docxRefs = await extractDocxParagraphs(file.buffer);
+        if (docxRefs.length === 0) docxRefs = null;
+      } catch (err) {
+        docxRefs = null;
+        if (!(err instanceof DocxLayoutError)) throw err;
+      }
+      if (!docxRefs) formatFallbackWarning = 'تعذّر الاحتفاظ بتنسيق ملف Word الأصلى (بنية الملف غير قابلة للقراءة)؛ ستُنتَج الترجمة بالتنسيق القياسى.';
+    }
+    const split = docxRefs
+      ? this.unitsFromDocx(docxRefs)
+      : splitIntoUnits(read.text);
     if (split.totalChars > MAX_TOTAL_CHARS || split.units.length > MAX_UNITS) {
       throw new UnprocessableEntityException(
         'العقد أطول من الحد المسموح للترجمة الآلية فى طلب واحد — قسّمه إلى أجزاء (مثلاً: العقد وملاحقه كل على حدة).',
@@ -241,6 +278,8 @@ export class TranslationService implements OnApplicationBootstrap {
     }
 
     const warnings = [...read.warnings];
+    if (formatFallbackWarning) warnings.push(formatFallbackWarning);
+    if (docxRefs) warnings.push('الترجمة تُكتب داخل ملف Word الأصلى بتنسيقه: تنسيق الكلمات داخل الفقرة (عريض/رابط وسط الجملة) يتوحّد على تنسيق أول مقطع، والفقرات التى فيها حقول (فهرس/أرقام صفحات) لا تُترجَم. افتح الملف فى Word وراجعه.');
     if (read.usedOcr) warnings.push('قُرئ العقد آلياً من صورة — راجع الأرقام والتواريخ والأسماء فى الترجمة بعناية.');
     if (detection.mixedMinority) {
       warnings.push('يحوى العقد نصوصاً بلغة أخرى (أسماء أو مصطلحات)؛ تُنقل الأسماء كما هى حيثما أمكن.');
@@ -251,7 +290,7 @@ export class TranslationService implements OnApplicationBootstrap {
 
     const batches = planBatches(split.units.map((u) => u.text.length));
     const payload: Payload = {
-      units: split.units.map((u) => ({ src: u.text, cont: u.cont, tgt: null, flags: [] })),
+      units: split.units.map((u) => ({ src: u.text, cont: u.cont, tgt: null, flags: [], ...(u.p !== undefined ? { p: u.p } : {}) })),
       batches,
       notes: [],
       knownTerms: [],
@@ -259,6 +298,7 @@ export class TranslationService implements OnApplicationBootstrap {
       warnings,
       ocr: read.usedOcr,
       detection: { lang: sourceLang, dominant_share: Math.round(detection.dominantShare * 1000) / 1000 },
+      ...(docxRefs ? { docx: true } : {}),
     };
 
     const title = this.titleFromFilename(file.originalname);
@@ -281,6 +321,15 @@ export class TranslationService implements OnApplicationBootstrap {
       }),
     );
 
+    if (docxRefs) {
+      // الملف الأصلى يُحفظ مشفَّراً بعمر المهمة نفسه؛ تعذّر الحفظ ⇒ لا مهمة نصف معدّة (تُحذف) ويُطلب إعادة المحاولة
+      const saved = await this.sources!.save(row.id, file.buffer);
+      if (!saved) {
+        await this.repository.delete({ id: row.id });
+        throw new ServiceUnavailableException('تعذّر حفظ الملف الأصلى مؤقتاً لكتابة الترجمة بتنسيقه — أعد المحاولة، أو ابدأ الترجمة دون خيار الاحتفاظ بالتنسيق.');
+      }
+    }
+
     await this.recordAudit(actor, 'translation.created', row.id, {
       from: sourceLang,
       to: targetLang,
@@ -293,6 +342,7 @@ export class TranslationService implements OnApplicationBootstrap {
       contract_type: profile.contractType,
       consent_version: TRANSLATION_CONSENT_VERSION,
       background: options.background === true,
+      preserve_format: docxRefs !== null,
     });
     if (options.background === true) {
       // امتلاء طابور الخلفية ليس خطأ: تبقى المهمة جاهزة ويقودها العميل كالمعتاد
@@ -661,12 +711,13 @@ export class TranslationService implements OnApplicationBootstrap {
   async download(
     id: string,
     format: 'pdf' | 'docx',
-    layout: TranslationLayout,
+    layout: DownloadLayout,
     actor: TranslationActor,
   ): Promise<ExportedTranslation> {
     const row = await this.owned(id, actor);
     if (row.status !== 'completed') throw new ConflictException('لم تكتمل الترجمة بعد.');
     const payload = row.payload as Payload;
+    if (layout === 'original') return this.downloadOriginalLayout(row, payload, format, actor);
     const views: StoredUnitView[] = payload.units.map((u) => ({
       src: u.src,
       cont: u.cont,
@@ -695,6 +746,69 @@ export class TranslationService implements OnApplicationBootstrap {
         : await renderTranslationDocx(doc);
     await this.recordAudit(actor, 'translation.downloaded', row.id, { format, layout, bytes: buffer.length, reference });
     return { buffer, contentType: CONTENT_TYPES[format], filename: `${doc.filenameBase}${layout === 'bilingual' ? '-bilingual' : ''}.${format}` };
+  }
+
+  /** وحدات الترجمة من فقرات ملف Word: فقرة = وحدة، والطويلة تُقطَّع (cont) وتتشارك رقم الفقرة. */
+  private unitsFromDocx(refs: DocxParagraphRef[]): { units: Array<{ text: string; cont: boolean; p: number }>; totalChars: number } {
+    const units: Array<{ text: string; cont: boolean; p: number }> = [];
+    let totalChars = 0;
+    for (const ref of refs) {
+      totalChars += ref.text.length;
+      splitLongUnit(ref.text).forEach((chunk, i) => units.push({ text: chunk, cont: i > 0, p: ref.ordinal }));
+    }
+    return { units, totalChars };
+  }
+
+  /** كتابة الترجمة داخل ملف Word الأصلى (جداول/ترقيم/أنماط). فقرة بلا ترجمة كاملة تبقى بنصها الأصلى. */
+  private async downloadOriginalLayout(
+    row: LegalTranslation,
+    payload: Payload,
+    format: 'pdf' | 'docx',
+    actor: TranslationActor,
+  ): Promise<ExportedTranslation> {
+    if (format !== 'docx') throw new BadRequestException('التنزيل بتنسيق الأصل متاح بصيغة Word (docx) فقط.');
+    if (payload.docx !== true || !this.sources) {
+      throw new ConflictException('هذه الترجمة لم تُنشأ بخيار الاحتفاظ بتنسيق الملف الأصلى — نزّلها بالتنسيق القياسى.');
+    }
+    const source = await this.sources.load(row.id);
+    if (!source) throw new ConflictException('الملف الأصلى لم يعد متاحاً — نزّل الترجمة بالتنسيق القياسى.');
+
+    // قطع الفقرة الواحدة تُلصق بالترتيب؛ فقرة نقصت ترجمة أى قطعة منها تبقى بأصلها (لا نصف ترجمة)
+    const parts = new Map<number, { text: string[]; complete: boolean }>();
+    for (const u of payload.units) {
+      if (u.p === undefined) continue;
+      const entry = parts.get(u.p) ?? { text: [], complete: true };
+      const t = (u.tgt ?? '').trim();
+      if (!t) entry.complete = false;
+      else entry.text.push(t);
+      parts.set(u.p, entry);
+    }
+    const translations = new Map<number, string>();
+    for (const [p, e] of parts) if (e.complete && e.text.length > 0) translations.set(p, e.text.join(' '));
+
+    let buffer: Buffer;
+    try {
+      buffer = await applyDocxTranslation(source, translations, { to: row.targetLang, banner: WATERMARK[row.targetLang] });
+    } catch (err) {
+      if (err instanceof DocxLayoutError) {
+        this.logger.warn(`original-layout export failed: ${err.message}`);
+        throw new UnprocessableEntityException('تعذّر كتابة الترجمة داخل الملف الأصلى — نزّلها بالتنسيق القياسى.');
+      }
+      throw err;
+    }
+    const reference = shortReference('TRN', row.id);
+    await this.recordAudit(actor, 'translation.downloaded', row.id, {
+      format,
+      layout: 'original',
+      bytes: buffer.length,
+      reference,
+      paragraphs: translations.size,
+    });
+    return {
+      buffer,
+      contentType: CONTENT_TYPES.docx,
+      filename: `translation-${row.sourceLang}-${row.targetLang}-${reference}-${compactCairoDate(new Date())}-original.docx`,
+    };
   }
 
   // ───────────────────────── مساعدات ─────────────────────────
@@ -739,6 +853,7 @@ export class TranslationService implements OnApplicationBootstrap {
       expires_at: row.expiresAt.toISOString(),
       created_at: row.createdAt.toISOString(),
       background: this.runner.isActive(row.id) ? 'running' : 'idle',
+      original_layout: payload.docx === true,
     };
   }
 

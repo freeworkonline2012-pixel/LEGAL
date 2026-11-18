@@ -9,6 +9,7 @@ import { GlossaryService } from './glossary.service';
 import { TranslationController } from './translation.controller';
 import { TranslationModelService } from './translation-model.service';
 import { TranslationRetentionService } from './translation-retention.service';
+import { TranslationSourceService } from './translation-source.service';
 import { TranslationService } from './translation.service';
 
 /**
@@ -23,6 +24,6 @@ import { TranslationService } from './translation.service';
     TypeOrmModule.forFeature([LegalTranslation, LegalGlossaryTerm]),
   ],
   controllers: [TranslationController],
-  providers: [TranslationService, TranslationModelService, GlossaryService, TranslationRetentionService],
+  providers: [TranslationService, TranslationModelService, GlossaryService, TranslationRetentionService, TranslationSourceService],
 })
 export class TranslationModule {}

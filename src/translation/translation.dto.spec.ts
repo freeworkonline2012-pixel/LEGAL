@@ -18,3 +18,15 @@ describe('CreateTranslationDto — حقل background الاختيارى', () => 
     expect(check({ target_lang: 'en', consent: 'false', background: 'true' })).toEqual(['consent']);
   });
 });
+
+describe('CreateTranslationDto — حقل preserve_format الاختيارى', () => {
+  it('غيابه مقبول، وtrue/false مقبولان، وغيرهما مرفوض', () => {
+    expect(check({ target_lang: 'en', consent: 'true' })).toEqual([]);
+    expect(check({ target_lang: 'en', consent: 'true', preserve_format: 'true' })).toEqual([]);
+    expect(check({ target_lang: 'en', consent: 'true', preserve_format: 'false' })).toEqual([]);
+    expect(check({ target_lang: 'en', consent: 'true', preserve_format: '1' })).toEqual(['preserve_format']);
+  });
+  it('الموافقة تبقى شرطاً مع preserve_format', () => {
+    expect(check({ target_lang: 'en', consent: 'false', preserve_format: 'true' })).toEqual(['consent']);
+  });
+});

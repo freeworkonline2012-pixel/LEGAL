@@ -13,6 +13,11 @@ export class CreateTranslationDto {
   @IsOptional()
   @IsIn(['true', 'false'], { message: 'background يجب أن تكون true أو false' })
   background?: string;
+
+  /** اختيارى: 'true' = يُحفظ ملف Word الأصلى مشفَّراً مؤقتاً لتُكتب الترجمة داخله بتنسيقه (جداول وترقيم). docx فقط. */
+  @IsOptional()
+  @IsIn(['true', 'false'], { message: 'preserve_format يجب أن تكون true أو false' })
+  preserve_format?: string;
 }
 
 export class EditUnitDto {

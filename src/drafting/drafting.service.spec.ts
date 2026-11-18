@@ -124,3 +124,27 @@ describe('خصوصية: لا نداء خارجياً داخل src/drafting إل�
     }
   });
 });
+
+describe('DraftingService — Playbook المكتب', () => {
+  it('officeProfileFor: بلا خدمة أو بلا تخصيص ⇒ undefined (الافتراضى)', async () => {
+    const { svc } = makeService();
+    expect(await svc.officeProfileFor('u1')).toBeUndefined();
+    const withPb = new DraftingService({} as never, {} as never, {} as never, { profileFor: jest.fn().mockResolvedValue({ profile: { id: 'd' }, version: 0, customized: false }) } as never);
+    expect(await withPb.officeProfileFor('u1')).toBeUndefined();
+  });
+
+  it('officeProfileFor: بتخصيص يُرجع ملف المكتب، والتصدير يولّد بنفس الملف', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { buildOfficeProfile, parseOfficePlaybookConfig } = require('../contracts/office-playbook') as typeof import('../contracts/office-playbook');
+    const parsed = parseOfficePlaybookConfig({ disabledRules: ['confidentiality_breach_consequence'] });
+    if (!parsed.ok) throw new Error('bad');
+    const profile = buildOfficeProfile(parsed.config, { id: 'o', version: 3 });
+    const pb = { profileFor: jest.fn().mockResolvedValue({ profile, version: 3, customized: true }) };
+    const svc = new DraftingService({ record: jest.fn().mockResolvedValue(undefined) } as never, { render: jest.fn().mockResolvedValue(Buffer.from('%PDF')) } as never, {} as never, pb as never);
+    expect(await svc.officeProfileFor('u1')).toBe(profile);
+    expect(pb.profileFor).toHaveBeenCalledWith('u1');
+    const spy = jest.spyOn(svc, 'generate');
+    await svc.export('nda', 'discloser', BASE.nda, 'pdf', { userId: 'u1', role: 'user', ipAddress: null, userAgent: null });
+    expect(spy.mock.calls[0][3]).toBe(profile);
+  });
+});

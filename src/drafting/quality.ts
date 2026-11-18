@@ -14,7 +14,7 @@ import { headingNumbers } from '../contracts/clause-headings';
 import { deterministicFindings, type LevelClause } from '../contracts/contract-level';
 import { internalConsistencyFindings } from '../contracts/internal-checks';
 import { mandatoryRuleHits } from '../contracts/mandatory-rules';
-import { officeRuleFindings } from '../contracts/office-rules';
+import { officeRuleFindings, type OfficeProfile } from '../contracts/office-rules';
 import { buildPlaybook } from '../contracts/playbook';
 import type { AnyDraftTypeId, DraftClause, DraftQuality, OfficeNote, QualityFinding } from './drafting.types';
 
@@ -25,6 +25,8 @@ export interface AssessInput {
   role: string;
   /** نوع حر: الفراغ [____] مقبول فى النص ويُعرض ملاحظةً بعدد الفراغات لا خللاً فى النص */
   allowBlankSlots?: boolean;
+  /** Playbook المكتب لصاحب الطلب (غيابه = قواعد المكتب الافتراضية) */
+  officeProfile?: OfficeProfile;
   clauses: DraftClause[];
   preamble: string[];
   fullText: string;
@@ -80,7 +82,7 @@ export function assessDraft(input: AssessInput): DraftQuality {
       titleText: input.title,
       clientRole: playbookClientRole,
       textMayBeIncomplete: false,
-    }).map((f) => ({ severity: f.severity, title: f.title, detail: f.explanation, suggestion: f.suggestion ?? '' }));
+    }, input.officeProfile).map((f) => ({ severity: f.severity, title: f.title, detail: f.explanation, suggestion: f.suggestion ?? '' }));
   }
 
   if (input.typeId === 'services' || input.typeId === 'lease') {

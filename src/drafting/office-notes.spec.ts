@@ -48,3 +48,36 @@ describe('قواعد المكتب على مسودات الصياغة (ملاحظ
     expect(() => buildDraftDocument({ draft: legacy, nonce: 'abc123', generatedAt: new Date() })).not.toThrow();
   });
 });
+
+describe('Playbook المكتب على مسودات الصياغة', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { buildOfficeProfile, parseOfficePlaybookConfig } = require('../contracts/office-playbook') as typeof import('../contracts/office-playbook');
+  const profileOf = (raw: unknown) => {
+    const r = parseOfficePlaybookConfig(raw);
+    if (!r.ok) throw new Error(r.errors.join('|'));
+    return buildOfficeProfile(r.config, { id: 'o', version: 2 });
+  };
+
+  it('تعطيل قاعدة فى Playbook المكتب يخفى ملاحظتها من المسودة، والمسودة الأخرى بلا Playbook تبقى كما هى', () => {
+    const base = generateDraft('nda', 'discloser', BASE.nda);
+    expect(base.quality.officeNotes?.some((n) => n.title.includes('السرية بلا أثر'))).toBe(true);
+    const custom = generateDraft('nda', 'discloser', BASE.nda, profileOf({ disabledRules: ['confidentiality_breach_consequence'] }));
+    expect(custom.quality.officeNotes?.some((n) => n.title.includes('السرية بلا أثر'))).toBe(false);
+    expect(custom.quality.passed).toBe(true);
+    expect(generateDraft('nda', 'discloser', BASE.nda).quality.officeNotes).toEqual(base.quality.officeNotes);
+  });
+
+  it('قاعدة مطلوبة خاصة بالمكتب تظهر ملاحظة على المسودة ولا تُسقط الفحص ولا تغير نص القالب', () => {
+    const base = generateDraft('services', 'client', BASE.services);
+    const d = generateDraft(
+      'services',
+      'client',
+      BASE.services,
+      profileOf({ customRules: [{ id: 'zz', kind: 'required_phrase', title: 'بند الوساطة قبل التقاضى', phrases: ['وساطة قبل التقاضي ٧٧٧'], severity: 'عالٍ' }] }),
+    );
+    expect(d.quality.officeNotes?.some((n) => n.title === 'بند الوساطة قبل التقاضى')).toBe(true);
+    expect(d.quality.passed).toBe(true);
+    expect(d.quality.findings).toEqual([]);
+    expect(d.clauses).toEqual(base.clauses);
+  });
+});

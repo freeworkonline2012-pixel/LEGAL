@@ -58,6 +58,11 @@ export class ContractJobs {
     return this.progress.has(id);
   }
 
+  /** معرفات المهام الجارية أو المنتظرة فى هذه العملية (للإفراج عن حجوزاتها عند الإيقاف الآمن) */
+  ids(): string[] {
+    return [...this.progress.keys()];
+  }
+
   get(id: string): JobProgress | null {
     return this.progress.get(id) ?? null;
   }

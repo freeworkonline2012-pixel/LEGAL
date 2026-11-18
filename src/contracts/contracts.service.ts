@@ -2,6 +2,7 @@ import { canSeeDetails } from './contract-order';
 import { redactForPreview } from './preview-redaction';
 import {
   BadRequestException,
+  BeforeApplicationShutdown,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -9,10 +10,13 @@ import {
   Logger,
   NotFoundException,
   OnModuleInit,
+  Optional,
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectDataSource } from '@nestjs/typeorm';
+import { ContractJobSourceService, jobSourceSettings, type ClaimedJob, type JobPayload } from './contract-job-sources.service';
 import { DataSource, In, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { DeepseekGenerationService } from '../llm/deepseek-generation.service';
@@ -114,7 +118,8 @@ import { bestRestated, noTextDiagnosis, stockChapterCounterparts, type PoolEntry
 import { buildStockChapterNote } from './no-text-note';
 import { articleFitsCompanyForm, chapterKindMap, companyFormDiag, llcArticleScope, type ChapterKind, type CompanyForm } from './company-form-scope';
 import { blankTemplateDiag, findBlankSlots, isBlankSlotText, reclassifyBlankTemplate } from './blank-template';
-import { officeRuleFindings } from './office-rules';
+import { officeRuleFindings, type OfficeProfile } from './office-rules';
+import { OfficePlaybookService } from './office-playbook.service';
 import { isBenignNumberingGapWarning } from './numbering-gap';
 
 // معايير الموضوعات التى لها قواعد حتمية (clause-rules.ts)
@@ -154,7 +159,7 @@ interface ClauseCandidate {
  * 'لا يوجد نص قانونى مصرى مفهرَس ذو صلة مباشرة' بدل تخمين استشهاد غير دقيق.
  */
 @Injectable()
-export class ContractsService implements OnModuleInit {
+export class ContractsService implements OnModuleInit, BeforeApplicationShutdown {
   private readonly logger = new Logger(ContractsService.name);
   private readonly contractRepository: Repository<Contract>;
   private readonly clauseRepository: Repository<ContractClause>;
@@ -172,6 +177,10 @@ export class ContractsService implements OnModuleInit {
     private readonly factsService: ClauseFactsService,
     private readonly consistencyService: ContractConsistencyService,
     private readonly verifierService: ClauseVerifierService,
+    /** اختيارى: غيابه = السلوك القديم (لا حفظ لمصدر المهمة، الانقطاع يُعلَن فشلاً) */
+    @Optional() private readonly sources?: ContractJobSourceService,
+    /** اختيارى: غيابه = قواعد المكتب الافتراضية لكل المستخدمين */
+    @Optional() private readonly playbooks?: OfficePlaybookService,
   ) {
     this.contractRepository = this.dataSource.getRepository(Contract);
     this.clauseRepository = this.dataSource.getRepository(ContractClause);
@@ -189,6 +198,15 @@ export class ContractsService implements OnModuleInit {
 
   async onModuleInit(): Promise<void> {
     try {
+      if (this.sources) {
+        // مهمة لها مصدر محفوظ تُستأنف (انظر resumeSweep)؛ وحدها التى بلا مصدر ضاعت فعلاً فتُعلَن فاشلة
+        const n = await this.sources.failInterruptedWithoutSource(ContractsService.INTERRUPTED_MESSAGE);
+        if (n) this.logger.warn(`marked ${n} interrupted contract(s) without a saved source as failed at startup`);
+        // لا ننتظر: الاستئناف لا يؤخر إقلاع الخادم ولا نداء الصحة. تأخير قصير يترك للإقلاع أن يكتمل (ومهلة الحجز تحمى من نسخة قديمة حية)
+        const t = setTimeout(() => void this.resumeSweep(), 20_000);
+        t.unref?.();
+        return;
+      }
       const res = await this.contractRepository.update(
         { status: In(['uploaded', 'processing'] as ContractStatus[]) },
         { status: 'extraction_failed' as ContractStatus, extractionError: ContractsService.INTERRUPTED_MESSAGE },
@@ -197,6 +215,69 @@ export class ContractsService implements OnModuleInit {
     } catch (err) {
       this.logger.warn(`interrupted-contracts sweep skipped: ${(err as Error).message}`);
     }
+  }
+
+  /** إيقاف آمن للخادم: نُفرج عن حجوزات مهامه فتُستأنف فى النسخة الجديدة خلال دقيقة بدل انتظار انقضاء الحجز. */
+  async beforeApplicationShutdown(): Promise<void> {
+    if (!this.sources) return;
+    await this.sources.release(this.jobs.ids());
+  }
+
+  private resuming = false;
+
+  /**
+   * استئناف المهام المنقطعة: كل دقيقة تحجز المهام التى انقضى حجزها (الخادم أُعيد تشغيله أو سقط) وتشغّلها من جديد من ملفها المحفوظ.
+   * التحليل يعاد من أوله (بنود نصف مقيَّمة تُحذف) فلا نتيجة مختلطة. المهمة التى استنفدت محاولاتها تُعلَن فاشلة.
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async resumeSweep(): Promise<void> {
+    if (!this.sources || this.resuming) return;
+    this.resuming = true;
+    try {
+      const gaveUp = await this.sources.giveUpExhausted(ContractsService.INTERRUPTED_MESSAGE);
+      if (gaveUp.length) this.logger.error(`gave up on ${gaveUp.length} contract job(s) after repeated interruptions`);
+      await this.sources.purgeStale();
+      const room = Math.max(0, jobLimitsFromEnv().maxConcurrent + jobLimitsFromEnv().maxQueued - this.jobs.ids().length);
+      if (room === 0) return;
+      const claimed = await this.sources.claimExpired(Math.min(room, 3));
+      for (const job of claimed) await this.resumeOne(job);
+    } catch (err) {
+      this.logger.warn(`resume sweep failed: ${(err as Error).message}`);
+    } finally {
+      this.resuming = false;
+    }
+  }
+
+  private async resumeOne(job: ClaimedJob): Promise<void> {
+    const id = job.contractId;
+    if (this.jobs.has(id)) return; // تعمل فى هذه العملية فعلاً (مهلة الحجز قصرت عن تقدمها): لا تكرار
+    if (!this.jobs.hasCapacity()) {
+      await this.sources?.unclaim(id);
+      return;
+    }
+    const contract = await this.contractRepository.findOne({ where: { id } });
+    if (!contract || (contract.status !== 'uploaded' && contract.status !== 'processing')) {
+      await this.sources?.delete(id);
+      return;
+    }
+    // تحليل جديد من أوله: لا تبقى بنود نصف مقيَّمة من المحاولة المقطوعة
+    await this.clauseRepository.delete({ contractId: id });
+    contract.status = 'processing' as ContractStatus;
+    contract.extractionError = null;
+    const saved = await this.contractRepository.save(contract);
+    const file = {
+      buffer: Buffer.from(job.payload.file.b64, 'base64'),
+      mimetype: job.payload.file.mimetype,
+      originalname: job.payload.file.originalname,
+    };
+    const context = job.payload.context;
+    await this.audit(context, 'contracts.job_resumed', id, { attempt: job.attempts });
+    this.logger.warn(`resuming interrupted contract analysis ${id} (attempt ${job.attempts})`);
+    this.jobs.enqueue(
+      id,
+      () => this.runBackgroundJob(saved, file, context, job.payload.position),
+      (err) => this.logger.error(`resumed job crashed for contract ${id}: ${(err as Error).message}`),
+    );
   }
 
   async upload(
@@ -234,6 +315,15 @@ export class ContractsService implements OnModuleInit {
     // الجديد: يعود الطلب فوراً بحالة «قيد المعالجة» والواجهة تتابع GET /contracts/:id (لا طلب HTTP يطول فينقطع)
     contract.status = 'processing' as ContractStatus;
     contract = await this.contractRepository.save(contract);
+    // حفظ الملف مشفَّراً طوال التحليل فقط ليُستأنف بعد إعادة تشغيل الخادم؛ يُحذف فور الانتهاء (انظر runBackgroundJob). فشله لا يمنع التحليل.
+    if (this.sources) {
+      const payload: JobPayload = {
+        file: { b64: file.buffer.toString('base64'), mimetype: file.mimetype, originalname: file.originalname },
+        context: { userId: context.userId, ipAddress: context.ipAddress, userAgent: context.userAgent },
+        position,
+      };
+      await this.sources.save(contract.id, payload);
+    }
     const snapshot = contract;
     this.jobs.enqueue(
       snapshot.id,
@@ -243,8 +333,20 @@ export class ContractsService implements OnModuleInit {
     return this.toResponseDto(contract, [], [], this.jobs.get(contract.id));
   }
 
+  private readonly leaseRenewedAt = new Map<string, number>();
+
   private progressOf(contractId: string): (p: JobProgress) => void {
-    return (p) => this.jobs.set(contractId, p);
+    return (p) => {
+      this.jobs.set(contractId, p);
+      // التقدم دليل حياة: نجدد حجز المهمة (مرة كل دقيقة على الأكثر) فلا تستأنفها نسخة أخرى وهى تعمل
+      if (this.sources) {
+        const now = Date.now();
+        if (now - (this.leaseRenewedAt.get(contractId) ?? 0) > 60_000) {
+          this.leaseRenewedAt.set(contractId, now);
+          void this.sources.renew(contractId);
+        }
+      }
+    };
   }
 
   /** تغلّف التحليل الخلفى: أى فشل غير متوقَّع يصير حالة «فشل» مقروءة للمستخدم لا عقداً معلّقاً. لا ترمى. */
@@ -269,6 +371,10 @@ export class ContractsService implements OnModuleInit {
       } catch (inner) {
         this.logger.error(`could not record background failure for ${contract.id}: ${(inner as Error).message}`);
       }
+    } finally {
+      // انتهت المهمة (نجاحاً أو فشلاً معلناً): لا حاجة لملف العقد المحفوظ
+      this.leaseRenewedAt.delete(contract.id);
+      await this.sources?.delete(contract.id);
     }
   }
 
@@ -551,7 +657,18 @@ export class ContractsService implements OnModuleInit {
 
     // تحليل العقد ككل بعد تقييم البنود: لا يُسقط المعالجة أبداً (أى عطل ⇒ تُحفظ النتائج الحتمية وحالة النموذج الصريحة)
     progress({ stage: 'contract_level', done: 0, total: 0 });
-    const level = await this.analyzeContractLevel(clauseRows, contract.contractType, contractWarnings, segmentation.preamble, contract.originalFilename, position.clientRole);
+    // Playbook هذا المكتب (حسابه): لا يعطّل التدقيق أبداً، وأى عطل يعيد القواعد الافتراضية
+    const office = await (this.playbooks?.profileFor(context.userId) ?? Promise.resolve(null));
+    const level = await this.analyzeContractLevel(
+      clauseRows,
+      contract.contractType,
+      contractWarnings,
+      segmentation.preamble,
+      contract.originalFilename,
+      position.clientRole,
+      office?.profile,
+      office && office.version > 0 ? { version: office.version, customized: office.customized } : undefined,
+    );
     // لم يحدد المستخدم نوعاً: يُستنتج من عنوان العقد ويُخزَّن للدليل التفاوضى (بلا النوع يسقط الدليل كله بصمت — وقع فى إنتاج عقد عمل)
     // الجولة 62.1: العنوان ثم متن العقد ثم اسم الملف (بتأييد المتن)؛ ويُخزَّن مصدر الاستنتاج ليُعلَن فى التقرير
     const resolved = contract.contractType
@@ -616,6 +733,8 @@ export class ContractsService implements OnModuleInit {
     titleText: string | null = null,
     fileName: string | null = null,
     clientRole: string | null = null,
+    officeProfile?: OfficeProfile,
+    playbook?: { version: number; customized: boolean },
   ): Promise<ContractLevelResult> {
     const clauses: LevelClause[] = clauseRows.map((c) => ({
       clauseIndex: c.clauseIndex,
@@ -628,7 +747,7 @@ export class ContractsService implements OnModuleInit {
     try {
       rules = sortFindings([
         ...deterministicFindings(clauses, { contractType, textMayBeIncomplete, titleText, fileName }),
-        ...officeRuleFindings(clauses, { contractType, textMayBeIncomplete, titleText, fileName, clientRole }),
+        ...officeRuleFindings(clauses, { contractType, textMayBeIncomplete, titleText, fileName, clientRole }, officeProfile),
         ...internalConsistencyFindings(clauses, { textMayBeIncomplete }),
       ]);
     } catch (err) {
@@ -652,7 +771,7 @@ export class ContractsService implements OnModuleInit {
     // الجولة 104: خانات النموذج الفارغة لا تُعدّ «شروطاً مفتوحة»؛ تُجمع فى ملاحظة «نموذج غير مكتمل» واحدة بدرجة منخفضة (blank-template.ts)
     const reclass = reclassifyBlankTemplate(mergeFindings(rules, modelFindings), clauses);
     this.safeDiag(() => `[retrieval-diag] stage=blank-template slots=${reclass.diag.slots} clauses=${reclass.diag.clauses} template=${reclass.diag.template} absorbed=${reclass.absorbed}`);
-    return { version: 1, findings: reclass.findings, model, generatedAt: new Date().toISOString() };
+    return { version: 1, findings: reclass.findings, model, generatedAt: new Date().toISOString(), ...(playbook ? { playbook } : {}) };
   }
 
   /**
@@ -827,7 +946,9 @@ export class ContractsService implements OnModuleInit {
     if (
       (contract.status === 'processing' || contract.status === 'uploaded') &&
       !this.jobs.has(id) &&
-      Date.now() - new Date(contract.updatedAt).getTime() > ContractsService.ORPHAN_GRACE_MS
+      Date.now() - new Date(contract.updatedAt).getTime() > ContractsService.ORPHAN_GRACE_MS &&
+      // مصدرها محفوظ: ستُستأنف (أو تعمل فى نسخة أخرى) فلا نعلنها فاشلة
+      !(await this.sources?.has(id))
     ) {
       contract.status = 'extraction_failed' as ContractStatus;
       contract.extractionError = ContractsService.INTERRUPTED_MESSAGE;

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { BadRequestException, Injectable, Logger, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional, ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
+import { OfficePlaybookService } from '../contracts/office-playbook.service';
+import type { OfficeProfile } from '../contracts/office-rules';
 import { buildDraftDocument } from '../exports/builders/draft-document.builder';
 import { renderDocx } from '../exports/renderers/docx.renderer';
 import { PdfRenderer } from '../exports/renderers/pdf.renderer';
@@ -47,16 +49,24 @@ export class DraftingService {
     private readonly auditService: AuditService,
     private readonly pdfRenderer: PdfRenderer,
     private readonly llm: DeepseekGenerationService,
+    /** اختيارى: غيابه = قواعد المكتب الافتراضية لكل المستخدمين */
+    @Optional() private readonly playbooks?: OfficePlaybookService,
   ) {}
 
   types(): readonly DraftTypeSpec[] {
     return [...CATALOG, CUSTOM_SPEC];
   }
 
-  generate(type: string, role: string, answers: Answers): DraftResult {
+  /** Playbook مكتب صاحب الطلب لملاحظات قواعد المكتب فى المسودة. لا يرمى استثناء. */
+  async officeProfileFor(userId: string | null | undefined): Promise<OfficeProfile | undefined> {
+    const r = await this.playbooks?.profileFor(userId);
+    return r && r.customized ? r.profile : undefined;
+  }
+
+  generate(type: string, role: string, answers: Answers, officeProfile?: OfficeProfile): DraftResult {
     if (Object.keys(answers ?? {}).length > MAX_ANSWER_KEYS) throw new BadRequestException('عدد الإجابات أكبر من المسموح');
     try {
-      return generateDraft(type, role, answers);
+      return generateDraft(type, role, answers, officeProfile);
     } catch (err) {
       if (err instanceof DraftValidationError) {
         throw new BadRequestException({ message: err.message, field_errors: err.fieldErrors });
@@ -67,7 +77,7 @@ export class DraftingService {
 
   async export(type: string, role: string, answers: Answers, format: 'pdf' | 'docx', actor: DraftActor): Promise<DraftFile> {
     if (format !== 'pdf' && format !== 'docx') throw new BadRequestException('الصيغة غير مدعومة');
-    return this.render(this.generate(type, role, answers), format, actor);
+    return this.render(this.generate(type, role, answers, await this.officeProfileFor(actor.userId)), format, actor);
   }
 
   private async render(draft: DraftResult, format: 'pdf' | 'docx', actor: DraftActor): Promise<DraftFile> {

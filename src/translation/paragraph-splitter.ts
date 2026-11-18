@@ -14,6 +14,8 @@ export interface SourceUnit {
   text: string;
   /** قطعة متابعة لفقرة طويلة سبقتها وحدة */
   cont: boolean;
+  /** رقم الفقرة فى ملف Word الأصلى (عند الاحتفاظ بالتنسيق فقط) */
+  p?: number;
 }
 
 export const MAX_UNIT_CHARS = 2500;
@@ -38,7 +40,7 @@ function startsNewUnit(line: string): boolean {
   return LINE_STARTERS.some((re) => re.test(t));
 }
 
-function splitLongUnit(text: string): string[] {
+export function splitLongUnit(text: string): string[] {
   if (text.length <= MAX_UNIT_CHARS) return [text];
   const sentences = text.split(/(?<=[.!?؟؛;:])\s+/);
   const out: string[] = [];

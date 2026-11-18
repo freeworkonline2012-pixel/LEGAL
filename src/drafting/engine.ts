@@ -17,6 +17,7 @@ import {
   type FieldSpec,
   DraftValidationError,
 } from './drafting.types';
+import type { OfficeProfile } from '../contracts/office-rules';
 import { assessDraft } from './quality';
 import { buildLease } from './templates/lease';
 import { buildNda } from './templates/nda';
@@ -143,7 +144,7 @@ function templateOf(typeId: AnyDraftTypeId, role: string, v: Record<string, stri
 }
 
 /** يولّد المسودة كاملة (مع بوابة الجودة). يرمى DraftValidationError عند خطأ فى الإجابات. */
-export function generateDraft(typeId: string, role: string, answers: Answers): DraftResult {
+export function generateDraft(typeId: string, role: string, answers: Answers, officeProfile?: OfficeProfile): DraftResult {
   const spec = specOf(typeId);
   if (!spec) throw new DraftValidationError({ type: 'نوع العقد غير مدعوم' });
   const values = validateAnswers(spec, role, answers);
@@ -165,7 +166,7 @@ export function generateDraft(typeId: string, role: string, answers: Answers): D
     ...tpl.closing,
   ].join('\n');
 
-  const quality = assessDraft({ contractTypePhrase: tpl.contractTypePhrase, title: tpl.title, typeId: spec.id, role, clauses, preamble: tpl.preamble, fullText });
+  const quality = assessDraft({ contractTypePhrase: tpl.contractTypePhrase, title: tpl.title, typeId: spec.id, role, clauses, preamble: tpl.preamble, fullText, officeProfile });
   return {
     typeId: spec.id,
     typeLabel: spec.label,

@@ -65,6 +65,8 @@ export interface ContractLevelResult {
   generatedAt: string;
   /** اسما الطرفين من ديباجة العقد (إن قُرئا بيقين) ليستعملهما مسار الصياغة لاحقاً بلا إعادة قراءة النص */
   parties?: { first: string | null; second: string | null };
+  /** رقم إعداد Playbook المكتب الذى طُبّق على هذا التدقيق (يُسجَّل ليُعرف ما طُبّق على كل عقد) ولو كان مخصصاً */
+  playbook?: { version: number; customized: boolean };
 }
 
 const SEVERITY_RANK: Record<FindingSeverity, number> = { حرج: 0, عالٍ: 1, متوسط: 2, منخفض: 3 };

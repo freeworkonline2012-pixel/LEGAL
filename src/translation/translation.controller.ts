@@ -32,7 +32,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import type { RequestWithUser } from '../common/interfaces/request-with-user.interface';
 import { CreateTranslationDto, EditUnitDto, ImportGlossaryTermDto } from './dto/translation.dto';
 import { GlossaryService } from './glossary.service';
-import type { TranslationLayout } from './translation-document';
+import type { DownloadLayout } from './translation.service';
 import {
   TranslationService,
   type ExportedTranslation,
@@ -119,7 +119,7 @@ export class TranslationController {
       { buffer: file.buffer, originalname: file.originalname, size: file.size },
       dto.target_lang,
       actorOf(request),
-      { background: dto.background === 'true' },
+      { background: dto.background === 'true', preserveFormat: dto.preserve_format === 'true' },
     );
   }
 
@@ -188,8 +188,9 @@ export class TranslationController {
     const f = (format ?? 'docx').toLowerCase();
     if (f !== 'pdf' && f !== 'docx') throw new BadRequestException('format يجب أن يكون pdf أو docx');
     const l = (layout ?? 'translation').toLowerCase();
-    if (l !== 'translation' && l !== 'bilingual') throw new BadRequestException('layout يجب أن يكون translation أو bilingual');
-    return send(res, await this.service.download(id, f, l as TranslationLayout, actorOf(request)));
+    if (l !== 'translation' && l !== 'bilingual' && l !== 'original') throw new BadRequestException('layout يجب أن يكون translation أو bilingual أو original');
+    if (l === 'original' && f !== 'docx') throw new BadRequestException('التنزيل بتنسيق الأصل متاح بصيغة Word (docx) فقط');
+    return send(res, await this.service.download(id, f, l as DownloadLayout, actorOf(request)));
   }
 
   /** توسيع قاموس المصطلحات (admin): يُستعمل لإضافة مراجع الصياغة القانونية لاحقاً دون تعديل كود. */

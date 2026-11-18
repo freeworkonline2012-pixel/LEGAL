@@ -6,6 +6,9 @@ import { LlmModule } from '../llm/llm.module';
 import { Contract } from '../database/entities/contract.entity';
 import { ContractClause } from '../database/entities/contract-clause.entity';
 import { ContractsController } from './contracts.controller';
+import { OfficePlaybookController } from './office-playbook.controller';
+import { OfficePlaybookService } from './office-playbook.service';
+import { ContractJobSourceService } from './contract-job-sources.service';
 import { ContractsService } from './contracts.service';
 import { ClauseFactsService } from './clause-facts.service';
 import { ClauseVerifierService } from './clause-verifier.service';
@@ -37,8 +40,8 @@ import { SegmentationService } from './segmentation.service';
  */
 @Module({
   imports: [AuditModule, LlmModule, DocumentsModule, TypeOrmModule.forFeature([Contract, ContractClause])],
-  controllers: [ContractsController],
-  providers: [ContractsService, ExtractionService, SegmentationService, ClauseFactsService, ContractConsistencyService, ClauseVerifierService],
-  exports: [ContractsService],
+  controllers: [ContractsController, OfficePlaybookController],
+  providers: [ContractsService, ContractJobSourceService, OfficePlaybookService, ExtractionService, SegmentationService, ClauseFactsService, ContractConsistencyService, ClauseVerifierService],
+  exports: [ContractsService, OfficePlaybookService],
 })
 export class ContractsModule {}

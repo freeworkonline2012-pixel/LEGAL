@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  BadRequestException,
   ConflictException,
   HttpException,
   NotFoundException,
@@ -425,5 +426,182 @@ describe('TranslationService — تشغيل الخلفية (بند التشغي�
     const q = (repo.find as jest.Mock).mock.calls.at(-1)![0];
     expect(q.select).not.toContain('payload');
     await waitUntil(async () => (await service.get(mine.id, ACTOR)).status === 'completed');
+  });
+});
+
+// ───────────────────────── الترجمة بتنسيق الأصل (Word) ─────────────────────────
+
+describe('TranslationService — الاحتفاظ بتنسيق ملف Word', () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { arabicContractDocx } = require('./docx-layout.fixtures') as typeof import('./docx-layout.fixtures');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { extractDocxParagraphs } = require('./docx-layout') as typeof import('./docx-layout');
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const JSZip = require('jszip') as typeof import('jszip');
+
+  function fakeSources(opts: { failSave?: boolean } = {}) {
+    const store = new Map<string, Buffer>();
+    return {
+      store,
+      save: jest.fn(async (id: string, b: Buffer) => {
+        if (opts.failSave) return false;
+        store.set(id, b);
+        return true;
+      }),
+      load: jest.fn(async (id: string) => store.get(id) ?? null),
+    };
+  }
+
+  function buildWithSources(sources: ReturnType<typeof fakeSources> | undefined, text = AR_TEXT) {
+    const repo = fakeRepo();
+    const reader = { read: jest.fn().mockResolvedValue({ text, type: 'docx', usedOcr: false, warnings: [] }) };
+    const model = echoModel();
+    const audit = { record: jest.fn().mockResolvedValue(undefined) };
+    const service = new TranslationService(
+      repo,
+      reader as never,
+      model as never,
+      { activeTerms: jest.fn().mockResolvedValue([]) } as never,
+      audit as never,
+      { renderHtmlString: jest.fn() } as never,
+      sources as never,
+    );
+    return { service, repo, reader, audit, model };
+  }
+
+  async function docFile() {
+    const buffer = await arabicContractDocx();
+    return { buffer, originalname: 'عقد.docx', size: buffer.length };
+  }
+
+  async function documentXml(buf: Buffer): Promise<string> {
+    return (await JSZip.loadAsync(buf)).file('word/document.xml')!.async('string');
+  }
+
+  it('الوحدات هى فقرات الملف (جدول وترقيم وترويسة) وتحمل رقم الفقرة، ويُحفظ الأصل ويُعلَّم الإنشاء فى التدقيق', async () => {
+    const sources = fakeSources();
+    const { service, repo, audit } = buildWithSources(sources);
+    const file = await docFile();
+    const view = await service.create(file, 'en', ACTOR, { preserveFormat: true });
+    const row = repo.rows.get(view.id);
+    const expected = await extractDocxParagraphs(file.buffer);
+    expect(row.payload.docx).toBe(true);
+    expect(row.payload.units.map((u: { src: string }) => u.src)).toEqual(expected.map((e) => e.text));
+    expect(row.payload.units.map((u: { p: number }) => u.p)).toEqual(expected.map((e) => e.ordinal));
+    expect(expected.map((e) => e.text)).toEqual(expect.arrayContaining(['البند', 'مدة العقد', 'عقد تقديم خدمات استشارية']));
+    expect(sources.save).toHaveBeenCalledWith(view.id, file.buffer);
+    expect(view.original_layout).toBe(true);
+    expect(view.warnings.some((w) => w.includes('ملف Word الأصلى'))).toBe(true);
+    expect(audit.record.mock.calls.find((c) => c[0].action === 'translation.created')![0].metadata?.preserve_format ?? audit.record.mock.calls.find((c) => c[0].action === 'translation.created')![0].details?.preserve_format).toBe(true);
+    expect(JSON.stringify(audit.record.mock.calls)).not.toContain('يلتزم الطرف');
+  });
+
+  it('بلا الخيار: لا يُحفظ الأصل ولا تُسجَّل فقرات، وlayout=original مرفوض (409)', async () => {
+    const sources = fakeSources();
+    const { service } = buildWithSources(sources);
+    const view = await service.create(await docFile(), 'en', ACTOR);
+    expect(sources.save).not.toHaveBeenCalled();
+    expect(view.original_layout).toBe(false);
+    const done = await runAll(service, view.id);
+    expect(done.status).toBe('completed');
+    await expect(service.download(view.id, 'docx', 'original', ACTOR)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('الخيار مع ملف غير docx ⇒ 400، ومع غياب خدمة التخزين ⇒ 503 (قبل أى نداء للنموذج)', async () => {
+    const pdfCase = buildWithSources(fakeSources());
+    pdfCase.reader.read.mockResolvedValue({ text: AR_TEXT, type: 'pdf', usedOcr: false, warnings: [] });
+    await expect(pdfCase.service.create(await docFile(), 'en', ACTOR, { preserveFormat: true })).rejects.toBeInstanceOf(BadRequestException);
+    const noStore = buildWithSources(undefined);
+    await expect(noStore.service.create(await docFile(), 'en', ACTOR, { preserveFormat: true })).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(noStore.model.profile).not.toHaveBeenCalled();
+  });
+
+  it('تعذّر حفظ الأصل ⇒ 503 ولا تبقى مهمة نصف معدّة', async () => {
+    const { service, repo } = buildWithSources(fakeSources({ failSave: true }));
+    await expect(service.create(await docFile(), 'en', ACTOR, { preserveFormat: true })).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(repo.rows.size).toBe(0);
+  });
+
+  it('ملف لا يُقرأ بنيته: يعود للمسار القياسى بتنبيه ولا يُحفظ أصل', async () => {
+    const sources = fakeSources();
+    const { service, repo } = buildWithSources(sources);
+    const bad = { buffer: Buffer.from('not a zip at all'), originalname: 'x.docx', size: 16 };
+    const view = await service.create(bad, 'en', ACTOR, { preserveFormat: true });
+    expect(repo.rows.get(view.id).payload.docx).toBeUndefined();
+    expect(sources.save).not.toHaveBeenCalled();
+    expect(view.original_layout).toBe(false);
+    expect(view.warnings.some((w) => w.includes('تعذّر الاحتفاظ بتنسيق'))).toBe(true);
+  });
+
+  it('التنزيل بتنسيق الأصل: النص المترجم داخل الجداول والترقيم والترويسة، واتجاه الصفحة LTR، ولافتة المراجعة، ولا نص عربى متبقٍّ', async () => {
+    const sources = fakeSources();
+    const { service, audit } = buildWithSources(sources);
+    const view = await service.create(await docFile(), 'en', ACTOR, { preserveFormat: true });
+    await runAll(service, view.id);
+    const out = await service.download(view.id, 'docx', 'original', ACTOR);
+    expect(out.filename).toMatch(/-original\.docx$/);
+    expect(out.contentType).toContain('wordprocessingml');
+    const xml = await documentXml(out.buffer);
+    expect(xml).toContain('<w:tbl>');
+    expect(xml).toContain('w:numPr');
+    expect(xml).toContain('The parties agree that');
+    expect(xml).toContain('12000');
+    expect(xml).toMatch(/w:bidi w:val="0"/);
+    expect(xml).not.toContain('يلتزم الطرف الأول');
+    const zip = await JSZip.loadAsync(out.buffer);
+    const header = await Object.keys(zip.files).filter((n) => /word\/header\d*\.xml$/.test(n)).reduce(async (acc, n) => (await acc) + (await zip.file(n)!.async('string')), Promise.resolve(''));
+    expect(header).toContain('The parties agree that');
+    const call = audit.record.mock.calls.filter((c) => c[0].action === 'translation.downloaded').at(-1)![0];
+    expect(JSON.stringify(call)).toContain('original');
+    expect(JSON.stringify(call)).not.toContain('The parties agree');
+  });
+
+  it('فقرة ناقصة الترجمة تبقى بأصلها، والفقرات الأخرى تُترجَم (لا نصف ترجمة)', async () => {
+    const sources = fakeSources();
+    const { service, repo } = buildWithSources(sources);
+    const view = await service.create(await docFile(), 'en', ACTOR, { preserveFormat: true });
+    await runAll(service, view.id);
+    const row = repo.rows.get(view.id);
+    const victim = row.payload.units.find((u: { src: string }) => u.src.includes('12000'));
+    victim.tgt = '';
+    const out = await service.download(view.id, 'docx', 'original', ACTOR);
+    const xml = await documentXml(out.buffer);
+    expect(xml).toContain('يلتزم الطرف الثانى بسداد مبلغ 12000');
+    expect(xml).toContain('The parties agree that');
+  });
+
+  it('قطع الفقرة الطويلة تُلصق بالترتيب فى فقرة واحدة', async () => {
+    const sources = fakeSources();
+    const { service, repo } = buildWithSources(sources);
+    const view = await service.create(await docFile(), 'en', ACTOR, { preserveFormat: true });
+    await runAll(service, view.id);
+    const row = repo.rows.get(view.id);
+    const first = row.payload.units.find((u: { src: string }) => u.src.includes('12000'));
+    const idx = row.payload.units.indexOf(first);
+    first.tgt = 'First half of the clause.';
+    row.payload.units.splice(idx + 1, 0, { src: 'تتمة', cont: true, tgt: 'Second half of the clause.', flags: [], p: first.p });
+    const out = await service.download(view.id, 'docx', 'original', ACTOR);
+    expect(await documentXml(out.buffer)).toContain('First half of the clause. Second half of the clause.');
+  });
+
+  it('الأصل مفقود ⇒ 409 بلا استثناء غير متوقع؛ PDF ⇒ 400؛ غير المالك ⇒ 404؛ غير المكتملة ⇒ 409', async () => {
+    const sources = fakeSources();
+    const { service } = buildWithSources(sources);
+    const view = await service.create(await docFile(), 'en', ACTOR, { preserveFormat: true });
+    await expect(service.download(view.id, 'docx', 'original', ACTOR)).rejects.toBeInstanceOf(ConflictException);
+    await runAll(service, view.id);
+    await expect(service.download(view.id, 'pdf', 'original', ACTOR)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.download(view.id, 'docx', 'original', OTHER)).rejects.toBeInstanceOf(NotFoundException);
+    sources.store.clear();
+    await expect(service.download(view.id, 'docx', 'original', ACTOR)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('ملف أصلى تالف عند التنزيل ⇒ 422 برسالة واضحة', async () => {
+    const sources = fakeSources();
+    const { service } = buildWithSources(sources);
+    const view = await service.create(await docFile(), 'en', ACTOR, { preserveFormat: true });
+    await runAll(service, view.id);
+    sources.store.set(view.id, Buffer.from('corrupt'));
+    await expect(service.download(view.id, 'docx', 'original', ACTOR)).rejects.toBeInstanceOf(UnprocessableEntityException);
   });
 });
