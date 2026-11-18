@@ -57,6 +57,7 @@ import { ClientPosition, describePosition } from './position.util';
 import { clientRoleConflictWarning, directionResolvable, extractPartyNames } from './parties.util';
 import { ShieldSession, currentShield, privacyModeFromEnv, runWithShield } from '../privacy/outbound-shield';
 import { registerContractEntities } from '../privacy/contract-entities';
+import { detectBlockingPersonalData, personalDataStopMessage, piiBlockFromEnv } from '../privacy/personal-data-guard';
 import { bodyDirectionWarning } from './client-side';
 import { playbookFamily, toPlaybookFamily } from './playbook';
 import { articleInLawScope, lawScopeContext, type LawScopeContext } from './law-scope';
@@ -371,6 +372,22 @@ export class ContractsService implements OnModuleInit {
         detail: extraction.detail,
       });
       return this.toResponseDto(contract, [], []);
+    }
+
+    // الجولة 115: شبكة أمان ضد نسيان التجهيل. رقم قومى أو هاتف أو حساب بنكى فى النص يوقف التحليل كله قبل أى نداء خارجى؛
+    // لا يُخزَّن ولا يُسجَّل شىء من قيم البيانات (أنواع وأعداد وأرقام أسطر فقط). CONTRACT_PII_BLOCK=off يعطله.
+    if (piiBlockFromEnv()) {
+      const found = detectBlockingPersonalData(extraction.text);
+      if (found) {
+        contract.status = 'extraction_failed';
+        contract.extractionError = personalDataStopMessage(found);
+        contract = await this.contractRepository.save(contract);
+        await this.audit(context, 'contracts.blocked_personal_data', contract.id, { counts: found.counts, lines: found.lines });
+        this.logger.warn(
+          `contract ${contract.id}: stopped before analysis — personal data found nationalId=${found.counts.national_id} phone=${found.counts.phone} bankAccount=${found.counts.bank_account}`,
+        );
+        return this.toResponseDto(contract, [], []);
+      }
     }
 
     this.safeDiag(() =>
