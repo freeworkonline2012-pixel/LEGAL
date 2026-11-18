@@ -1,0 +1,1521 @@
+[
+ {
+  "ar": "الإيجاب",
+  "en": "Offer",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "القبول",
+  "en": "Acceptance",
+  "domain": "general",
+  "note": "فى تكوين العقد. أما قبول الأعمال أو البضاعة (الاستلام) فيُترجم Acceptance of Works/Goods بحسب السياق.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "انعقاد العقد",
+  "en": "Formation of the Contract",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الأهلية",
+  "en": "Legal Capacity",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عيوب الرضا",
+  "en": "Defects of Consent",
+  "domain": "general",
+  "note": "تشمل فى القانون المصرى الغلط والتدليس والإكراه والاستغلال.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الغلط",
+  "en": "Mistake",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التدليس",
+  "en": "Fraudulent Misrepresentation",
+  "domain": "general",
+  "note": "«التدليس» استعمال طرق احتيالية تحمل على التعاقد، وهو غير «الغش» فى التنفيذ (Fraud).",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإكراه",
+  "en": "Duress",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الاستغلال",
+  "en": "Exploitation",
+  "domain": "general",
+  "note": "عيب رضا فى القانون المصرى (استغلال طيش أو هوى) ولا يقابل Unconscionability تماماً.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الغبن",
+  "en": "Lesion",
+  "domain": "general",
+  "note": "مفهوم مدنى (اختلال القيمة)؛ إن لم يألفه القارئ فاشرحه بين قوسين: gross disparity in value.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "محل العقد",
+  "en": "Subject Matter of the Contract",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "سبب العقد",
+  "en": "Cause of the Contract",
+  "domain": "general",
+  "note": "«السبب» ركن فى القانون المدنى المصرى ولا يطابق Consideration فى القانون الإنجليزى؛ نبّه عند الحاجة.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الصورية",
+  "en": "Simulation",
+  "domain": "general",
+  "note": "العقد الصورى (Sham/Simulated Contract) لا أثر له بين الطرفين متى وُجدت ورقة ضد.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "البطلان المطلق",
+  "en": "Absolute Nullity",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشرط الواقف",
+  "en": "Condition Precedent",
+  "domain": "general",
+  "note": "الشرط الواقف يعلّق نشوء الالتزام على أمر مستقبل.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشرط الفاسخ",
+  "en": "Condition Subsequent",
+  "domain": "general",
+  "note": "الشرط الفاسخ يزيل الالتزام عند تحققه؛ غير «شرط الفسخ الصريح».",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشرط الفاسخ الصريح",
+  "en": "Express Rescission Clause",
+  "domain": "general",
+  "note": "ينص على فسخ العقد من تلقاء نفسه عند الإخلال دون حكم قضائى (يشترط عادة الإعذار).",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإعذار",
+  "en": "Formal Notice of Default",
+  "domain": "general",
+  "note": "إعذار المدين شرط لاستحقاق التعويض فى الأصل، وهو غير الإخطار العادى (Notice).",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الدفع بعدم التنفيذ",
+  "en": "Exception of Non-Performance",
+  "domain": "general",
+  "note": "حق أحد المتعاقدين فى الامتناع عن تنفيذ التزامه حتى ينفذ الآخر التزامه.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حق الحبس",
+  "en": "Right of Retention",
+  "domain": "general",
+  "note": "حق حبس الشىء حتى استيفاء الدين؛ يختلف عن الامتياز (Lien) ويجتمعان أحياناً.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المقاصة",
+  "en": "Set-off",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإبراء",
+  "en": "Release of Debt",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المخالصة",
+  "en": "Release and Discharge",
+  "domain": "general",
+  "note": "مخالصة نهائية بإبراء الذمة؛ تُستعمل أيضاً بمعنى إيصال الوفاء (Receipt).",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الصلح",
+  "en": "Settlement",
+  "domain": "general",
+  "note": "عقد الصلح عقد يحسم به الطرفان نزاعاً قائماً أو محتملاً بتنازل متبادل.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "تجديد الالتزام",
+  "en": "Novation",
+  "domain": "general",
+  "note": "تجديد الالتزام (استبدال دين أو دائن أو مدين) غير «تجديد مدة العقد» (Renewal).",
+  "basis": "wex:novation"
+ },
+ {
+  "ar": "حوالة الدين",
+  "en": "Transfer of Debt",
+  "domain": "general",
+  "note": "تنقل الدين إلى مدين جديد وتحتاج إقرار الدائن؛ بخلاف حوالة الحق (Assignment of Rights).",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الحلول",
+  "en": "Subrogation",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التنفيذ العينى",
+  "en": "Specific Performance",
+  "domain": "general",
+  "note": null,
+  "basis": "wex:specific_performance"
+ },
+ {
+  "ar": "السبب الأجنبى",
+  "en": "Extraneous Cause",
+  "domain": "general",
+  "note": "السبب الأجنبى (قوة قاهرة أو فعل الغير أو خطأ المضرور) ينفى علاقة السببية؛ أوسع من Force Majeure.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التعسف فى استعمال الحق",
+  "en": "Abuse of Right",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عبء الإثبات",
+  "en": "Burden of Proof",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الكسب الفائت",
+  "en": "Loss of Profit",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الخسارة اللاحقة",
+  "en": "Actual Loss",
+  "domain": "general",
+  "note": "ما لحق الدائن من خسارة، وتقابل الكسب الفائت (Loss of Profit) فى تقدير التعويض.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الأضرار غير المباشرة",
+  "en": "Indirect and Consequential Loss",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الأضرار المباشرة",
+  "en": "Direct Damages",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التزام ببذل عناية",
+  "en": "Obligation of Means",
+  "domain": "general",
+  "note": "يقابل duty to exercise reasonable care/efforts؛ يختلف عن الالتزام بتحقيق نتيجة.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التزام بتحقيق نتيجة",
+  "en": "Obligation of Result",
+  "domain": "general",
+  "note": "يقابل strict/absolute obligation؛ لا يُترجم Best Efforts.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "العربون",
+  "en": "Earnest Money",
+  "domain": "general",
+  "note": "قد يفيد ثبوت خيار العدول أو الدفع المقدم بحسب الاتفاق؛ تحقق من نص العقد.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الدفعة المقدمة",
+  "en": "Advance Payment",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشفعة",
+  "en": "Right of Pre-emption",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حق الانتفاع",
+  "en": "Usufruct",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حق الارتفاق",
+  "en": "Easement",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الملكية الشائعة",
+  "en": "Co-ownership",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "نقل الملكية",
+  "en": "Transfer of Title",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التسجيل",
+  "en": "Registration",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عقد بيع ابتدائى",
+  "en": "Preliminary Sale Contract",
+  "domain": "sale",
+  "note": "عقد بيع غير مسجَّل؛ لا تنتقل به الملكية العقارية قبل التسجيل.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "دعوى صحة ونفاذ العقد",
+  "en": "Action for Validity and Enforcement of the Contract",
+  "domain": "sale",
+  "note": "دعوى مصرية خاصة (تمهيد لتسجيل عقد البيع)؛ لا مقابل مطابق، اشرحها عند الحاجة.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المبيع",
+  "en": "the Subject of Sale",
+  "domain": "sale",
+  "note": "Goods إن كان منقولاً، Property إن كان عقاراً.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "ضمان التعرض والاستحقاق",
+  "en": "Warranty of Title and Quiet Possession",
+  "domain": "sale",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "ضمان العيوب الخفية",
+  "en": "Warranty against Latent Defects",
+  "domain": "sale",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "نقل المخاطر",
+  "en": "Transfer of Risk",
+  "domain": "sale",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التسليم الحكمى",
+  "en": "Constructive Delivery",
+  "domain": "sale",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الوديعة",
+  "en": "Bailment",
+  "domain": "general",
+  "note": "الوديعة بالمعنى المدنى؛ الوديعة المصرفية Bank Deposit.",
+  "basis": "wex:bailment"
+ },
+ {
+  "ar": "العارية",
+  "en": "Loan for Use",
+  "domain": "general",
+  "note": "إعارة شىء للانتفاع به دون مقابل ثم رده.",
+  "basis": "wex:bailment"
+ },
+ {
+  "ar": "العين المؤجرة",
+  "en": "the Leased Premises",
+  "domain": "lease",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التأجير من الباطن",
+  "en": "Sublease",
+  "domain": "lease",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التنازل عن الإيجار",
+  "en": "Assignment of the Lease",
+  "domain": "lease",
+  "note": "تنازل المستأجر عن عقده لغيره؛ ليس «التنازل» بمعنى الإسقاط (Waiver).",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإيجار التمويلى",
+  "en": "Financial Leasing",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عقد عمل محدد المدة",
+  "en": "Fixed-Term Employment Contract",
+  "domain": "employment",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عقد عمل غير محدد المدة",
+  "en": "Open-Ended Employment Contract",
+  "domain": "employment",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "ساعات العمل",
+  "en": "Working Hours",
+  "domain": "employment",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "العمل الإضافى",
+  "en": "Overtime",
+  "domain": "employment",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإجازة السنوية",
+  "en": "Annual Leave",
+  "domain": "employment",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "مهلة الإخطار",
+  "en": "Notice Period",
+  "domain": "employment",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عقد المقاولة",
+  "en": "Construction Contract",
+  "domain": "construction",
+  "note": "Works Contract إن لم يكن إنشائياً.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "رب العمل",
+  "en": "the Employer (Owner)",
+  "domain": "construction",
+  "note": "فى المقاولات: الطرف الذى يطلب العمل ويدفع الثمن؛ غير «صاحب العمل» فى عقد العمل.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المقاول",
+  "en": "the Contractor",
+  "domain": "construction",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المقاول من الباطن",
+  "en": "the Subcontractor",
+  "domain": "construction",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المستخلص",
+  "en": "Interim Payment Certificate",
+  "domain": "construction",
+  "note": "مستند صرف دفعة تحت الحساب بحسب نسبة الإنجاز.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المقايسة",
+  "en": "Bill of Quantities",
+  "domain": "construction",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "أمر التغيير",
+  "en": "Variation Order",
+  "domain": "construction",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التسليم الابتدائى",
+  "en": "Provisional Acceptance",
+  "domain": "construction",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التسليم النهائى",
+  "en": "Final Acceptance",
+  "domain": "construction",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "فترة الضمان",
+  "en": "Defects Liability Period",
+  "domain": "construction",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المبلغ المحتجز",
+  "en": "Retention Money",
+  "domain": "construction",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الضمان العشرى",
+  "en": "Decennial Liability",
+  "domain": "construction",
+  "note": "مسئولية المهندس والمقاول عشر سنوات عن سلامة المبانى (م 651 مدنى مصرى).",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الجدول الزمنى للتنفيذ",
+  "en": "Time Schedule",
+  "domain": "construction",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "غرامة التأخير",
+  "en": "Delay Damages",
+  "domain": "construction",
+  "note": "تُعامل كتعويض اتفاقى يخضع لسلطة القاضى فى التخفيض؛ لا تُترجم Fine (غرامة جنائية).",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الوكالة بالعمولة",
+  "en": "Commission Agency",
+  "domain": "agency",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "السمسرة",
+  "en": "Brokerage",
+  "domain": "agency",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الوكالة التجارية",
+  "en": "Commercial Agency",
+  "domain": "agency",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التوكيل العام",
+  "en": "General Power of Attorney",
+  "domain": "agency",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التوكيل الخاص",
+  "en": "Special Power of Attorney",
+  "domain": "agency",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "العمولة",
+  "en": "Commission",
+  "domain": "agency",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الحصرية",
+  "en": "Exclusivity",
+  "domain": "agency",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإقليم",
+  "en": "Territory",
+  "domain": "agency",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عقد التوريد",
+  "en": "Supply Contract",
+  "domain": "sale",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "أمر الشراء",
+  "en": "Purchase Order",
+  "domain": "sale",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عقد التأسيس",
+  "en": "Memorandum of Association",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "النظام الأساسى",
+  "en": "Articles of Association",
+  "domain": "corporate",
+  "note": "Bylaws فى بعض الصياغات؛ التزم بالاختيار نفسه فى كل العقد.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشخصية الاعتبارية",
+  "en": "Legal Personality",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المسئولية المحدودة",
+  "en": "Limited Liability",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حصة الشريك",
+  "en": "Partner's Share",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الحصة العينية",
+  "en": "Contribution in Kind",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الحصة النقدية",
+  "en": "Cash Contribution",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "رأس المال المدفوع",
+  "en": "Paid-Up Capital",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "رأس المال المرخص به",
+  "en": "Authorized Capital",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المساهم",
+  "en": "Shareholder",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشريك",
+  "en": "Partner",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشريك الموصى",
+  "en": "Limited Partner",
+  "domain": "corporate",
+  "note": "شريك التوصية لا يُسأل إلا بقدر حصته.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشريك المتضامن",
+  "en": "General Partner",
+  "domain": "corporate",
+  "note": "يُسأل مسئولية تضامنية غير محدودة عن ديون الشركة.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "رئيس مجلس الإدارة",
+  "en": "Chairman of the Board",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "العضو المنتدب",
+  "en": "Managing Director",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الجمعية العامة العادية",
+  "en": "Ordinary General Assembly",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الجمعية العامة غير العادية",
+  "en": "Extraordinary General Assembly",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حق الاكتتاب بالأفضلية",
+  "en": "Pre-emptive Right",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حق الأولوية فى الشراء",
+  "en": "Right of First Refusal",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التخارج",
+  "en": "Exit",
+  "domain": "corporate",
+  "note": "خروج شريك أو مساهم من الشركة؛ تُراجع آلية التقييم والسداد فى العقد.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حل الشركة",
+  "en": "Dissolution of the Company",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "تصفية الشركة",
+  "en": "Liquidation of the Company",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المصفى",
+  "en": "the Liquidator",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الأرباح الموزعة",
+  "en": "Dividends",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الاحتياطى القانونى",
+  "en": "Statutory Reserve",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التنازل عن الحصص",
+  "en": "Transfer of Shares",
+  "domain": "corporate",
+  "note": "Quotas فى الشركة ذات المسئولية المحدودة.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حق الاطلاع على الدفاتر",
+  "en": "Right to Inspect the Books and Records",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "مراقب الحسابات",
+  "en": "Auditor",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "القوائم المالية",
+  "en": "Financial Statements",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الميزانية",
+  "en": "Balance Sheet",
+  "domain": "corporate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عقد القرض",
+  "en": "Loan Agreement",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المقرض",
+  "en": "the Lender",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المقترض",
+  "en": "the Borrower",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الفائدة",
+  "en": "Interest",
+  "domain": "finance",
+  "note": "قيود القانون المصرى على سعر الفائدة والفائدة المركبة؛ تحقق من الحدود.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الفائدة التأخيرية",
+  "en": "Default Interest",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "القسط",
+  "en": "Installment",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "جدول السداد",
+  "en": "Repayment Schedule",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "السداد المعجل",
+  "en": "Early Repayment",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حالات الإخلال",
+  "en": "Events of Default",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "تعجيل الاستحقاق",
+  "en": "Acceleration",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الرهن التجارى",
+  "en": "Commercial Pledge",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الكفيل المتضامن",
+  "en": "Joint and Several Surety",
+  "domain": "finance",
+  "note": null,
+  "basis": "wex:surety"
+ },
+ {
+  "ar": "خطاب الضمان",
+  "en": "Letter of Guarantee",
+  "domain": "finance",
+  "note": "خطاب ضمان مصرفى؛ Bank Guarantee مرادف مقبول، التزم بأحدهما.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "خطاب الضمان النهائى",
+  "en": "Performance Bond",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "خطاب الضمان الابتدائى",
+  "en": "Bid Bond",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الاعتماد المستندى",
+  "en": "Documentary Letter of Credit",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشيك",
+  "en": "Cheque",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "السند الإذنى",
+  "en": "Promissory Note",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الكمبيالة",
+  "en": "Bill of Exchange",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عقد التمويل",
+  "en": "Financing Agreement",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المرابحة",
+  "en": "Murabaha",
+  "domain": "finance",
+  "note": "عقد تمويل إسلامى؛ يُترك الاسم مع شرح مختصر عند أول ورود.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "كشف الحساب",
+  "en": "Statement of Account",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الحساب الجارى",
+  "en": "Current Account",
+  "domain": "finance",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المعلومات السرية",
+  "en": "Confidential Information",
+  "domain": "confidentiality",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الطرف المفصح",
+  "en": "the Disclosing Party",
+  "domain": "confidentiality",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الطرف المتلقى",
+  "en": "the Receiving Party",
+  "domain": "confidentiality",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الأسرار التجارية",
+  "en": "Trade Secrets",
+  "domain": "confidentiality",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الغرض المصرح به",
+  "en": "Permitted Purpose",
+  "domain": "confidentiality",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المعلومات المتاحة للجمهور",
+  "en": "Information in the Public Domain",
+  "domain": "confidentiality",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإفصاح الإلزامى بأمر قضائى",
+  "en": "Compelled Disclosure",
+  "domain": "confidentiality",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "إعادة المعلومات أو إتلافها",
+  "en": "Return or Destruction of Information",
+  "domain": "confidentiality",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "مدة السرية",
+  "en": "Confidentiality Period",
+  "domain": "confidentiality",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حق المؤلف",
+  "en": "Copyright",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الحقوق المجاورة",
+  "en": "Neighbouring Rights",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "العلامة التجارية",
+  "en": "Trademark",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "براءة الاختراع",
+  "en": "Patent",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التصميم الصناعى",
+  "en": "Industrial Design",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الاسم التجارى",
+  "en": "Trade Name",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الحقوق الأدبية",
+  "en": "Moral Rights",
+  "domain": "ip",
+  "note": "الحقوق الأدبية للمؤلف لا يجوز التنازل عنها فى القانون المصرى؛ لا تُترجم Rights of Honour.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الحقوق المالية",
+  "en": "Economic Rights",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الترخيص",
+  "en": "License",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الترخيص الحصرى",
+  "en": "Exclusive License",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الترخيص غير الحصرى",
+  "en": "Non-Exclusive License",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الترخيص من الباطن",
+  "en": "Sub-license",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المرخِّص",
+  "en": "the Licensor",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المرخَّص له",
+  "en": "the Licensee",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الأتاوة",
+  "en": "Royalty",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الامتياز التجارى",
+  "en": "Franchise",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "مانح الامتياز",
+  "en": "the Franchisor",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "صاحب الامتياز",
+  "en": "the Franchisee",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التعدى على الحقوق",
+  "en": "Infringement",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "نقل ملكية الحقوق الفكرية",
+  "en": "Assignment of Intellectual Property Rights",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشهرة التجارية",
+  "en": "Goodwill",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الكود المصدرى",
+  "en": "Source Code",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عدم المنافسة",
+  "en": "Non-Compete",
+  "domain": "ip",
+  "note": "قيد المنافسة صحيح فى القانون المصرى بشروط (زمان ومكان ونوع النشاط).",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عدم استقطاب العاملين",
+  "en": "Non-Solicitation of Employees",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حماية البيانات الشخصية",
+  "en": "Personal Data Protection",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "البيانات الشخصية",
+  "en": "Personal Data",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "معالجة البيانات",
+  "en": "Data Processing",
+  "domain": "ip",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المتحكم",
+  "en": "the Controller",
+  "domain": "ip",
+  "note": "بحسب قانون حماية البيانات الشخصية المصرى؛ تحقق من التسمية فى النص الرسمى.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المعالج",
+  "en": "the Processor",
+  "domain": "ip",
+  "note": "بحسب قانون حماية البيانات الشخصية المصرى؛ تحقق من التسمية فى النص الرسمى.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التوقيع الإلكترونى",
+  "en": "Electronic Signature",
+  "domain": "general",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "مقر التحكيم",
+  "en": "Seat of Arbitration",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "لغة التحكيم",
+  "en": "Language of Arbitration",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المحكم",
+  "en": "the Arbitrator",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "حكم التحكيم",
+  "en": "Arbitral Award",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "قواعد التحكيم",
+  "en": "Arbitration Rules",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التسوية الودية",
+  "en": "Amicable Settlement",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الوساطة",
+  "en": "Mediation",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "المحاكم المختصة",
+  "en": "Competent Courts",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الاختصاص القضائى الحصرى",
+  "en": "Exclusive Jurisdiction",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عنوان المراسلة",
+  "en": "Address for Notices",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التنازل عن العقد للغير",
+  "en": "Assignment of the Contract to a Third Party",
+  "domain": "boilerplate",
+  "note": "التنازل هنا نقل للعقد (Assignment) لا إسقاط حق (Waiver).",
+  "basis": "wex:assignment"
+ },
+ {
+  "ar": "تعديل العقد",
+  "en": "Amendment of the Contract",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الخلف العام",
+  "en": "Universal Successor",
+  "domain": "boilerplate",
+  "note": "الورثة أو الخلف العام للشخص الاعتبارى؛ والخلف الخاص Particular Successor.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الخلف الخاص",
+  "en": "Particular Successor",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "طرف ثالث",
+  "en": "Third Party",
+  "domain": "boilerplate",
+  "note": "«الغير» فى القانون المدنى المصرى تُترجم Third Party أيضاً.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الاشتراط لمصلحة الغير",
+  "en": "Stipulation for the Benefit of a Third Party",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "عناوين البنود للإرشاد فقط ولا تؤثر فى تفسير العقد",
+  "en": "The headings are for convenience only and shall not affect the interpretation of this Contract",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "التعريفات",
+  "en": "Definitions",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "ما لم يقتض السياق خلاف ذلك",
+  "en": "unless the context otherwise requires",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "على سبيل المثال لا الحصر",
+  "en": "without limitation",
+  "domain": "boilerplate",
+  "note": "تُترجم «بما فى ذلك على سبيل المثال لا الحصر» إلى including without limitation.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "بالرغم من أى نص مخالف",
+  "en": "Notwithstanding anything to the contrary",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "مع مراعاة",
+  "en": "Subject to",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "ما لم يتفق الطرفان كتابة على خلاف ذلك",
+  "en": "unless otherwise agreed in writing by the Parties",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "تاريخ السريان",
+  "en": "Effective Date",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "تاريخ الانتهاء",
+  "en": "Expiry Date",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإنهاء المبكر",
+  "en": "Early Termination",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإخلال الجوهرى",
+  "en": "Material Breach",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإنهاء للإخلال الجوهرى",
+  "en": "Termination for Material Breach",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الإنهاء دون سبب",
+  "en": "Termination for Convenience",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "مهلة السماح",
+  "en": "Grace Period",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "السقف الأقصى للمسئولية",
+  "en": "Liability Cap",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "وثيقة التأمين",
+  "en": "Insurance Policy",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الامتثال للقوانين",
+  "en": "Compliance with Laws",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "مكافحة الفساد",
+  "en": "Anti-Corruption",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "مكافحة غسل الأموال",
+  "en": "Anti-Money Laundering",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "يوم عمل",
+  "en": "Business Day",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "الشركة التابعة",
+  "en": "Affiliate",
+  "domain": "boilerplate",
+  "note": "Affiliate تشمل الشركات الشقيقة والتابعة والقابضة؛ استعمل تعريف العقد إن وُجد.",
+  "basis": "drafter-knowledge"
+ }
+]

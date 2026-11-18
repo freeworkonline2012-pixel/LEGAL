@@ -15,6 +15,17 @@ describe('تعليمات النموذج', () => {
     expect(buildSystemPrompt('en', 'ar')).toContain('English -> Arabic');
   });
 
+  it('قواعد الأسلوب تتبع الاتجاه (وليست مشتركة بين الاتجاهين)', () => {
+    const ar = buildSystemPrompt('ar', 'en');
+    const en = buildSystemPrompt('en', 'ar');
+    expect(ar).toContain('Drafting style (Arabic -> English)');
+    expect(ar).toContain('never "fine"');
+    expect(ar).not.toContain('Drafting style (English -> Arabic)');
+    expect(en).toContain('Drafting style (English -> Arabic)');
+    expect(en).toContain('obligation of means');
+    expect(en).not.toContain('Drafting style (Arabic -> English)');
+  });
+
   it('رسالة الدفعة تحوى القاموس والمصطلحات المعرَّفة وتنبيهات الإعادة داخل حدود البيانات', () => {
     const msg = buildBatchUserMessage({
       from: 'ar',

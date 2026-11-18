@@ -36,8 +36,30 @@ Direction: English -> Arabic.
 - Keep Latin names of companies and persons in their original Latin form, optionally followed by the Arabic transliteration in parentheses on first mention only.
 - Common-law concepts with no Egyptian equivalent: use the closest functional Arabic legal term and keep the English term in parentheses on first mention.`;
 
+/**
+ * قواعد أسلوب الصياغة (بصياغة المنصة، ليست منقولة من مرجع): تُضاف لتعليمات كل دفعة، وتتبع اتجاه الترجمة.
+ * تحتاج مراجعة محامٍ مترجم قبل اعتبارها معتمدة.
+ */
+export const STYLE_RULES_AR_TO_EN = `
+Drafting style (Arabic -> English):
+- يلتزم / يتعهد = "shall" (obligation); يجوز = "may"; لا يجوز = "shall not" for a prohibition on a Party, "may not" for a lack of permission; يحق ل = "is entitled to"; يُعتبر / يُعد = "shall be deemed".
+- Do not turn Arabic doublets into common-law doublets ("null and void", "cease and desist") unless the Arabic itself has two terms.
+- الغير = "third party"; الخلف العام / الخاص = "universal / particular successor"; الورثة = "heirs".
+- غرامة in a contractual delay or breach clause is "damages" or "delay damages" by function; never "fine" (a criminal-law term).
+- التسليم = "delivery"; الاستلام = "receipt" or "acceptance" by context; ضمان = see GLOSSARY, else decide between "warranty" and "guarantee" from context and add a note.
+- Hijri dates: keep as written; if both Hijri and Gregorian dates appear, keep both.
+- Do not introduce "hereby", "hereof", "herein" etc. unless the Arabic wording has the same performative force (e.g. يقر الطرف ... بموجب هذا العقد).`;
+
+export const STYLE_RULES_EN_TO_AR = `
+Drafting style (English -> Arabic):
+- "shall" imposing a duty = يلتزم (or على ... أن); "shall be deemed" = يُعتبر; "may" = يجوز; "shall not" = لا يجوز / يمتنع; "will" in an operative clause is an obligation unless clearly descriptive.
+- "including without limitation" = بما فى ذلك على سبيل المثال لا الحصر; "notwithstanding anything to the contrary" = بالرغم من أى نص مخالف; "subject to" = مع مراعاة / بشرط.
+- "Business Day" = يوم عمل; "Affiliate" = الشركة التابعة (use the contract's definition if it gives one).
+- "Representations and Warranties" = الإقرارات والضمانات; keep each warranty as a statement of fact by the Party.
+- Do not render "best endeavours/reasonable efforts" as an obligation of result: use ببذل أقصى الجهود / ببذل الجهود المعقولة (obligation of means) and add a note.`;
+
 export function buildSystemPrompt(from: ContractLang, to: ContractLang): string {
-  return COMMON_RULES + (from === 'ar' && to === 'en' ? AR_TO_EN : EN_TO_AR) + `
+  return COMMON_RULES + (from === 'ar' && to === 'en' ? AR_TO_EN + STYLE_RULES_AR_TO_EN : EN_TO_AR + STYLE_RULES_EN_TO_AR) + `
 Output schema:
 {"units":[{"i":<input index>,"t":"<translation>"}],"notes":[{"i":<input index>,"term":"<source term>","note":"<short translator note in Arabic>"}],"defined_terms":[{"src":"<source defined term or name>","tgt":"<its translation>"}]}
 "notes" and "defined_terms" may be empty arrays. Every note must be in Arabic.`;

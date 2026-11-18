@@ -24,6 +24,14 @@ export class LegalGlossaryTerm {
   @Column({ type: 'boolean' })
   active: boolean;
 
+  /** ما اعتُمد عليه فى المصطلح: 'wex:<slug>' (تحقق مفهوم إنجليزى من Wex) أو 'drafter-knowledge' (migrations/263). */
+  @Column({ name: 'reference_basis', type: 'text', nullable: true })
+  referenceBasis: string | null;
+
+  /** 'pending_lawyer_review' حتى يراجعها محامٍ مترجم (migrations/263). */
+  @Column({ name: 'review_status', type: 'text', default: 'pending_lawyer_review' })
+  reviewStatus: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }
