@@ -8,6 +8,8 @@
 
 export const DRAFT_TYPE_IDS = ['services', 'lease', 'nda'] as const;
 export type DraftTypeId = (typeof DRAFT_TYPE_IDS)[number];
+/** النوع الحر («عقد آخر») له مسار منفصل بمساعدة نموذج لغوى؛ لا يدخل DRAFT_TYPE_IDS كى يرفضه مسار القوالب الحتمية. */
+export type AnyDraftTypeId = DraftTypeId | 'custom';
 
 export type FieldKind = 'text' | 'longtext' | 'number' | 'money' | 'date' | 'choice';
 
@@ -38,7 +40,9 @@ export interface FieldSpec {
 }
 
 export interface DraftTypeSpec {
-  id: DraftTypeId;
+  id: AnyDraftTypeId;
+  /** true = بنود النوع يصوغها نموذج لغوى (مسار منفصل بحراسة خصوصية ومخرجات)، لا قالب حتمى */
+  assisted?: boolean;
   label: string;
   description: string;
   /** صفة المستخدم: تحدد من هو «عميلنا» فى بوابة الجودة وترتيب الأطراف */
@@ -74,7 +78,11 @@ export interface DraftQuality {
 }
 
 export interface DraftResult {
-  typeId: DraftTypeId;
+  typeId: AnyDraftTypeId;
+  /** true = بعض البنود صاغها نموذج لغوى (تحتاج مراجعة أشد) */
+  assisted?: boolean;
+  /** عدد الفراغات [____] التى تنتظر الاستكمال */
+  blankSlots?: number;
   typeLabel: string;
   title: string;
   role: string;
@@ -90,7 +98,7 @@ export interface DraftResult {
 
 /** ما تحتاجه القوالب من السياق بعد التحقق: قيم نظيفة مضمونة الأنواع. */
 export interface Ctx {
-  typeId: DraftTypeId;
+  typeId: AnyDraftTypeId;
   role: string;
   /** نص نظيف (مفصول الأسطر) */
   s(id: string): string;

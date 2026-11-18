@@ -11,13 +11,14 @@ const actor = { userId: 'u1', role: 'user', ipAddress: '127.0.0.1', userAgent: '
 function makeService() {
   const audit = { record: jest.fn().mockResolvedValue(undefined) };
   const pdf = { render: jest.fn().mockResolvedValue(Buffer.from('%PDF-fake')) };
-  const svc = new DraftingService(audit as never, pdf as never);
-  return { svc, audit, pdf };
+  const llm = { completeContractDraft: jest.fn() };
+  const svc = new DraftingService(audit as never, pdf as never, llm as never);
+  return { svc, audit, pdf, llm };
 }
 
 describe('DraftingService', () => {
-  it('types() يعرض الأنواع الثلاثة', () => {
-    expect(makeService().svc.types().map((t) => t.id)).toEqual(['services', 'lease', 'nda']);
+  it('types() يعرض الأنواع الثلاثة والنوع الحر', () => {
+    expect(makeService().svc.types().map((t) => t.id)).toEqual(['services', 'lease', 'nda', 'custom']);
   });
 
   it('generate يرجع مسودة ناجحة فى فحص الجودة', () => {
@@ -93,7 +94,7 @@ describe('buildDraftDocument', () => {
   });
 });
 
-describe('خصوصية: لا نداء خارجياً ولا نموذجاً لغوياً داخل src/drafting', () => {
+describe('خصوصية: لا نداء خارجياً داخل src/drafting إلا عبر خدمة النموذج فى مسار «عقد آخر»', () => {
   const files: string[] = [];
   const walk = (dir: string): void => {
     for (const n of readdirSync(dir)) {
@@ -103,14 +104,23 @@ describe('خصوصية: لا نداء خارجياً ولا نموذجاً لغ�
     }
   };
   walk(__dirname);
+  const rel = (f: string): string => f.slice(__dirname.length + 1).replace(/\\/g, '/');
 
   it.each([
     ['fetch(', /\bfetch\s*\(/],
     ['axios', /axios/i],
     ['http(s) client', /node:https?|from 'https?'|XMLHttpRequest/],
-    ['outbound', /outbound/i],
-    ['LLM', /Anthropic|OpenAI|DeepSeek|deepseek|llm\.service|LlmService|ChatCompletion/],
-  ])('لا استخدام لـ %s', (_n, re) => {
+    ['outboundFetch', /outboundFetch/],
+  ])('لا استخدام مباشر لـ %s', (_n, re) => {
     for (const f of files) expect({ f, hit: re.test(readFileSync(f, 'utf8')) }).toEqual({ f, hit: false });
+  });
+
+  it('النموذج اللغوى لا يُذكر إلا فى خدمة التوليد ووحدتها، أما القوالب والمحرك والجودة والتصدير فحتمية بالكامل', () => {
+    const allowed = new Set(['drafting.service.ts', 'drafting.module.ts']);
+    const re = /Anthropic|OpenAI|DeepSeek|deepseek|LlmService|LlmModule|ChatCompletion/;
+    for (const f of files) {
+      if (allowed.has(rel(f))) continue;
+      expect({ f: rel(f), hit: re.test(readFileSync(f, 'utf8')) }).toEqual({ f: rel(f), hit: false });
+    }
   });
 });

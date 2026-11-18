@@ -8,7 +8,7 @@ import type { DraftTypeSpec, FieldSpec } from './drafting.types';
 const G_PARTIES = 'الأطراف';
 const G_DISPUTES = 'القانون وتسوية المنازعات';
 
-function partyFields(firstLabel: string, secondLabel: string): FieldSpec[] {
+export function partyFields(firstLabel: string, secondLabel: string): FieldSpec[] {
   return [
     { id: 'contract_date', label: 'تاريخ إبرام العقد', kind: 'date', required: true, group: G_PARTIES },
     { id: 'party1_name', label: `اسم ${firstLabel} (الطرف الأول)`, kind: 'text', required: true, maxLength: 150, group: G_PARTIES },
@@ -20,7 +20,7 @@ function partyFields(firstLabel: string, secondLabel: string): FieldSpec[] {
   ];
 }
 
-const DISPUTE_FIELDS: FieldSpec[] = [
+export const DISPUTE_FIELDS: FieldSpec[] = [
   {
     id: 'forum',
     label: 'جهة تسوية المنازعات',

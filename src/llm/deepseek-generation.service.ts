@@ -3485,6 +3485,45 @@ export class DeepseekGenerationService {
       return { status: 'error', detail: (err as Error).message };
     }
   }
+
+  /**
+   * إكمال نصى عام لصياغة بنود «عقد آخر» (src/drafting/custom). لا منطق قانونى هنا: الموجِّه والتحقق من المخرجات فى وحدة الصياغة.
+   * النداء يمر على outboundFetch، فإن وُجدت جلسة حماية (ShieldSession) حُجبت البيانات الشخصية قبل الخروج وأُعيدت فى الرد.
+   */
+  async completeContractDraft(input: {
+    system: string;
+    user: string;
+  }): Promise<{ status: 'not_configured' } | { status: 'error'; detail: string } | { status: 'ok'; text: string }> {
+    if (!this.isConfigured) return { status: 'not_configured' };
+    try {
+      const res = await outboundFetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
+        body: JSON.stringify({
+          model: this.model,
+          max_tokens: 6000,
+          temperature: 0.2,
+          thinking: { type: 'disabled' },
+          messages: [
+            { role: 'system', content: input.system },
+            { role: 'user', content: input.user },
+          ],
+        }),
+        signal: AbortSignal.timeout(120_000),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        this.logger.warn(`DeepSeek completeContractDraft API error ${res.status}: ${errText.slice(0, 200)}`);
+        return { status: 'error', detail: `http_${res.status}` };
+      }
+      const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      return text ? { status: 'ok', text } : { status: 'error', detail: 'empty_response' };
+    } catch (err) {
+      this.logger.warn(`DeepSeek completeContractDraft call failed: ${(err as Error).message}`);
+      return { status: 'error', detail: (err as Error).message };
+    }
+  }
 }
 
 export type GovernanceVerdict = 'متوافق' | 'غير متوافق' | 'متوافق جزئياً' | 'معلومات غير كافية';

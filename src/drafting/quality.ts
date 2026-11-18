@@ -13,13 +13,15 @@ import { deterministicFindings, type LevelClause } from '../contracts/contract-l
 import { internalConsistencyFindings } from '../contracts/internal-checks';
 import { mandatoryRuleHits } from '../contracts/mandatory-rules';
 import { buildPlaybook } from '../contracts/playbook';
-import type { DraftClause, DraftQuality, DraftTypeId, QualityFinding } from './drafting.types';
+import type { AnyDraftTypeId, DraftClause, DraftQuality, QualityFinding } from './drafting.types';
 
 export interface AssessInput {
   contractTypePhrase: string;
   title: string;
-  typeId: DraftTypeId;
+  typeId: AnyDraftTypeId;
   role: string;
+  /** نوع حر: الفراغ [____] مقبول فى النص ويُعرض ملاحظةً بعدد الفراغات لا خللاً فى النص */
+  allowBlankSlots?: boolean;
   clauses: DraftClause[];
   preamble: string[];
   fullText: string;
@@ -84,7 +86,13 @@ export function assessDraft(input: AssessInput): DraftQuality {
   if (nums.length !== expected.length || nums.some((n, i) => n !== expected[i])) {
     findings.push({ severity: 'عالٍ', title: 'ترقيم البنود غير متصل', detail: `المقروء: ${nums.join('،')}` });
   }
-  const ph = PLACEHOLDER.exec(input.fullText);
+  let phText = input.fullText;
+  if (input.allowBlankSlots) {
+    const blanks = (input.fullText.match(/\[____\]/g) ?? []).length;
+    phText = input.fullText.replace(/\[____\]/g, '');
+    if (blanks > 0) findings.push({ severity: 'متوسط', title: `${blanks} فراغ [____] ينتظر الاستكمال`, detail: 'تُرك الفراغ عمداً حيث لا معلومة لدى النظام (مبلغ أو مدة أو نسبة). املأه أو احذفه قبل التوقيع.' });
+  }
+  const ph = PLACEHOLDER.exec(phText);
   if (ph) findings.push({ severity: 'عالٍ', title: 'فراغ أو قيمة نموذجية متبقية فى النص', detail: ph[0] });
 
   return { passed: findings.length === 0, checked, findings };

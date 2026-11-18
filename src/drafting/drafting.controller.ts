@@ -6,7 +6,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import type { RequestWithUser } from '../common/interfaces/request-with-user.interface';
 import type { DraftResult, DraftTypeSpec } from './drafting.types';
 import { type DraftActor, DraftingService } from './drafting.service';
-import { GenerateDraftDto } from './dto/generate-draft.dto';
+import { ExportCustomDraftDto, GenerateCustomDraftDto, GenerateDraftDto } from './dto/generate-draft.dto';
 
 function actorOf(request: RequestWithUser): DraftActor {
   const user = request.user;
@@ -57,6 +57,39 @@ export class DraftingController {
     const f = (format ?? 'docx').toLowerCase();
     if (f !== 'pdf' && f !== 'docx') throw new BadRequestException('format يجب أن يكون pdf أو docx');
     const file = await this.draftingService.export(dto.type, dto.role, dto.answers, f, actorOf(request));
+    res.set({
+      'Content-Type': file.contentType,
+      'Content-Disposition': `attachment; filename="${file.filename}"`,
+      'Content-Length': String(file.buffer.length),
+      'Cache-Control': 'no-store, max-age=0',
+      Pragma: 'no-cache',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return new StreamableFile(file.buffer);
+  }
+
+  @Post('custom/generate')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  @ApiOkResponse({ description: 'مسودة «عقد آخر»: هيكل حتمى + بنود صاغها نموذج لغوى بعد فحصها آلياً' })
+  generateCustom(@Body() dto: GenerateCustomDraftDto, @Req() request: RequestWithUser): Promise<DraftResult> {
+    return this.draftingService.generateCustom(dto.role, dto.answers, actorOf(request));
+  }
+
+  @Post('custom/export')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiQuery({ name: 'format', enum: ['pdf', 'docx'], required: false })
+  @ApiProduces('application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+  async exportCustom(
+    @Body() dto: ExportCustomDraftDto,
+    @Query('format') format: string | undefined,
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const f = (format ?? 'docx').toLowerCase();
+    if (f !== 'pdf' && f !== 'docx') throw new BadRequestException('format يجب أن يكون pdf أو docx');
+    const file = await this.draftingService.exportCustom(dto.draft, f, actorOf(request));
     res.set({
       'Content-Type': file.contentType,
       'Content-Disposition': `attachment; filename="${file.filename}"`,

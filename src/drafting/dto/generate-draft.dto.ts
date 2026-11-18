@@ -19,3 +19,22 @@ export class GenerateDraftDto {
   @IsObject()
   answers: Record<string, string | number>;
 }
+
+/** «عقد آخر»: النوع ثابت (custom) فلا يُرسَل؛ الإجابات بحدود الكتالوج نفسها. */
+export class GenerateCustomDraftDto {
+  @ApiProperty({ description: 'first | second' })
+  @IsString()
+  @MaxLength(10)
+  role: string;
+
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  @IsObject()
+  answers: Record<string, string | number>;
+}
+
+/** المسودة كما حرّرها المستخدم؛ يتحقق منها sanitizeEditedDraft يدوياً (حدود وأنواع). */
+export class ExportCustomDraftDto {
+  @ApiProperty({ type: 'object', additionalProperties: true })
+  @IsObject()
+  draft: Record<string, unknown>;
+}

@@ -11,6 +11,7 @@ import {
   type TemplateOutput,
   type DraftClause,
   type DraftResult,
+  type AnyDraftTypeId,
   type DraftTypeId,
   type DraftTypeSpec,
   type FieldSpec,
@@ -94,7 +95,7 @@ export function validateAnswers(spec: DraftTypeSpec, role: string, answers: Answ
   return out;
 }
 
-function crossValidate(typeId: DraftTypeId, v: Record<string, string>, errors: Record<string, string>): void {
+function crossValidate(typeId: AnyDraftTypeId, v: Record<string, string>, errors: Record<string, string>): void {
   if (v.party1_name && v.party2_name && v.party1_name.replace(/\s+/g, '') === v.party2_name.replace(/\s+/g, '')) {
     errors.party2_name = 'اسم الطرفين لا يجوز أن يتطابق';
   }
@@ -109,7 +110,7 @@ function crossValidate(typeId: DraftTypeId, v: Record<string, string>, errors: R
   if (typeId === 'services' && v.price_total && Number(v.price_total) < 1) errors.price_total = 'المقابل يجب أن يكون أكبر من صفر';
 }
 
-function buildContext(typeId: DraftTypeId, role: string, values: Record<string, string>, keys: string[]): Ctx {
+export function buildContext(typeId: AnyDraftTypeId, role: string, values: Record<string, string>, keys: string[]): Ctx {
   const numbered = new Map<string, number>();
   keys.forEach((k, i) => numbered.set(k, i + 1));
   return {
@@ -128,7 +129,7 @@ function buildContext(typeId: DraftTypeId, role: string, values: Record<string, 
   };
 }
 
-function templateOf(typeId: DraftTypeId, role: string, v: Record<string, string>): TemplateOutput {
+function templateOf(typeId: AnyDraftTypeId, role: string, v: Record<string, string>): TemplateOutput {
   switch (typeId) {
     case 'services':
       return buildServices(role, v);
@@ -136,6 +137,8 @@ function templateOf(typeId: DraftTypeId, role: string, v: Record<string, string>
       return buildLease(role, v);
     case 'nda':
       return buildNda(role, v);
+    default:
+      throw new DraftValidationError({ type: 'نوع العقد غير مدعوم فى مسار القوالب' });
   }
 }
 
