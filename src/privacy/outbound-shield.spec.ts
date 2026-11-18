@@ -172,3 +172,16 @@ describe('outboundFetch', () => {
     expect(currentShield()).toBeUndefined();
   });
 });
+
+describe('عدّادات التشخيص', () => {
+  it('distinctMasked يعدّ القيم المختلفة لا مرات الاستبدال، وtopHits بلا قيم أصلية', () => {
+    const s = new ShieldSession();
+    s.registerEntity('PER', 'سامح ناصر عبد الله');
+    for (let i = 0; i < 40; i++) s.shield('يلتزم سامح ناصر عبد الله بالسداد، ورقمه 29001011234567');
+    expect(s.counts.names).toBe(40);
+    expect(s.distinctMasked()).toEqual({ pii: 1, names: 1 });
+    const top = s.topHits(5);
+    expect(top[0]).toEqual({ token: expect.stringMatching(/^\[\[(PER|NID)1\]\]$/), words: expect.any(Number), hits: 40 });
+    expect(JSON.stringify(top)).not.toContain('سامح');
+  });
+});

@@ -83,6 +83,31 @@ export class ShieldSession {
   blockedImageCalls = 0;
   /** نداءات خرجت (للتشخيص). */
   shieldedCalls = 0;
+  /** مرات استبدال كل رمز عبر كل النداءات (للتشخيص فقط؛ تتكرر القيمة نفسها فى كل نداء فلا تُعرض للمستخدم كعدد مواضع). */
+  private readonly hitsByToken = new Map<string, number>();
+
+  private bump(token: string): void {
+    this.hitsByToken.set(token, (this.hitsByToken.get(token) ?? 0) + 1);
+  }
+
+  /** عدد القيم المختلفة المحجوبة فعلاً (لا عدد مرات الاستبدال): أرقام شخصية، وأسماء/عناوين/أرقام مرجعية. */
+  distinctMasked(): { pii: number; names: number } {
+    let pii = 0;
+    let names = 0;
+    for (const token of this.hitsByToken.keys()) {
+      if (/^\[\[(?:ORG|PER|ADDR|REF)\d+\]\]$/.test(token)) names++;
+      else pii++;
+    }
+    return { pii, names };
+  }
+
+  /** أكثر الرموز تكراراً: الرمز وعدد كلمات أصله ومرات استبداله فقط، بلا القيمة الأصلية. لكشف اسم عام أُسيء تسجيله. */
+  topHits(n = 5): Array<{ token: string; words: number; hits: number }> {
+    return [...this.hitsByToken.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, n)
+      .map(([token, hits]) => ({ token, hits, words: (this.toOriginal.get(token) ?? '').split(/\s+/).filter(Boolean).length }));
+  }
 
   private nextToken(prefix: string): string {
     const n = (this.counters.get(prefix) ?? 0) + 1;
@@ -128,7 +153,9 @@ export class ShieldSession {
       rule.pattern.lastIndex = 0;
       out = out.replace(rule.pattern, (_m, prefix: string, surface: string) => {
         this.counts.names++;
-        return `${prefix}${this.tokenFor(rule.kind, surface)}`;
+        const token = this.tokenFor(rule.kind, surface);
+        this.bump(token);
+        return `${prefix}${token}`;
       });
     }
     const spans = detectPersonalDataSpans(out);
@@ -138,7 +165,9 @@ export class ShieldSession {
         const surface = out.slice(s.start, s.end);
         // ما كان رمزاً بالفعل لا يُعاد حجبه
         if (/\[\[[A-Z]+\d+\]\]/.test(surface)) continue;
-        out = out.slice(0, s.start) + this.tokenFor(PII_PREFIX[s.kind], surface) + out.slice(s.end);
+        const token = this.tokenFor(PII_PREFIX[s.kind], surface);
+        this.bump(token);
+        out = out.slice(0, s.start) + token + out.slice(s.end);
         this.counts.pii++;
       }
     }

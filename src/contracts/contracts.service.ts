@@ -557,16 +557,19 @@ export class ContractsService implements OnModuleInit {
 
     await this.verifyContractFindings(contract.contractFindings as unknown as ContractLevelResult | null, clauseRows);
 
-    // الجولة 114: إن وجدت البوابة بيانات شخصية أو أسماء فى النص تُعلَن للمستخدم (إشارة أن التجهيل قبل الرفع لم يكتمل). أرقام فقط، لا قيم.
+    // الجولة 114: إن حجبت البوابة بيانات شخصية أو أسماء فى النص يُعلَن للمستخدم عدد القيم المختلفة المحجوبة (لا عدد مرات الاستبدال عبر النداءات).
     // النص يتجنب كلمات تفعّل فحوص التحذيرات الأخرى (القراءة الضوئية، الترقيم، البنود).
-    if (shield && shield.counts.pii + shield.counts.names > 0) {
-      const privacyWarning = `خصوصية: حُجب قبل الإرسال للنموذج الخارجى ${shield.counts.pii} رقماً شخصياً و${shield.counts.names} موضع اسم أو عنوان. الكشف استدلالى فقد تبقى أسماء بصيغ غير مألوفة، فجهّز العقد قبل الرفع.`;
+    const masked = shield?.distinctMasked();
+    if (shield && masked && masked.pii + masked.names > 0) {
+      const privacyWarning = `خصوصية: حُجب قبل الإرسال للنموذج الخارجى ${masked.pii} رقماً شخصياً و${masked.names} اسماً أو عنواناً (قيم مختلفة). الكشف استدلالى فقد تبقى أسماء بصيغ غير مألوفة، فجهّز العقد قبل الرفع.`;
       contractWarnings.push(privacyWarning);
       contract.extractionWarnings = contractWarnings;
     }
     if (shield) {
+      // تشخيص بلا قيم أصلية: الرمز وعدد كلمات أصله ومرات استبداله (كشف اسم عام أُسيء تسجيله يُفرط فى الحجب)
+      const top = shield.topHits(5).map((h) => `${h.token}:${h.words}w:x${h.hits}`).join(' ');
       this.logger.log(
-        `contract ${contract.id}: privacy shield calls=${shield.shieldedCalls} pii=${shield.counts.pii} names=${shield.counts.names} entities=${shield.entityCount} unresolvedTokens=${shield.unresolvedTokens} blocked=${shield.blockedImageCalls}`,
+        `contract ${contract.id}: privacy shield calls=${shield.shieldedCalls} distinctPii=${masked?.pii ?? 0} distinctNames=${masked?.names ?? 0} replacements=${shield.counts.pii + shield.counts.names} entities=${shield.entityCount} unresolvedTokens=${shield.unresolvedTokens} blocked=${shield.blockedImageCalls} top=[${top}]`,
       );
     }
 
