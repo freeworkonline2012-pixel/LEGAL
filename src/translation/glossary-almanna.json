@@ -1,0 +1,142 @@
+[
+ {
+  "ar": "منذ البداية",
+  "en": "ab initio",
+  "domain": "general",
+  "note": "يقابلها فى القانون المصرى غالباً «بأثر رجعى» فى البطلان/الفسخ؛ تحقق من السياق.",
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "بحسن نية",
+  "en": "bona fide",
+  "domain": "general",
+  "note": null,
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "من حيث الظاهر",
+  "en": "prima facie",
+  "domain": "general",
+  "note": "فى الإثبات: «دليل ظاهر / مبدئى».",
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "على قدم المساواة",
+  "en": "pari passu",
+  "domain": "finance",
+  "note": "يرد فى ترتيب الدائنين/الأولوية؛ pari passu تعنى المساواة فى الترتيب والمحاصة.",
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "بحكم الواقع",
+  "en": "de facto",
+  "domain": "general",
+  "note": null,
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "بحكم القانون",
+  "en": "de jure",
+  "domain": "general",
+  "note": null,
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "شبه العقد",
+  "en": "quasi-contract",
+  "domain": "general",
+  "note": "مصدر من مصادر الالتزام فى القانون الإنجليزى؛ لا يقابله مفهوم موحد فى القانون المدنى المصرى (أقربه الإثراء بلا سبب والفضالة والدفع غير المستحق). أضف ملاحظة.",
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "الإثراء بلا سبب",
+  "en": "unjust enrichment",
+  "domain": "general",
+  "note": null,
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "المسئولية التقصيرية",
+  "en": "tortious liability",
+  "domain": "general",
+  "note": "فى القانون المصرى: المسئولية عن الفعل الضار (م 163 مدنى)؛ tort قد تتسع لأكثر من ذلك.",
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "الآداب العامة",
+  "en": "public morals",
+  "domain": "general",
+  "note": "غالباً يرد مع النظام العام: public order and morals.",
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "المحكمة الابتدائية",
+  "en": "court of first instance",
+  "domain": "general",
+  "note": null,
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "المذكور أعلاه",
+  "en": "hereinabove mentioned",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "ساري المفعول",
+  "en": "in force",
+  "domain": "boilerplate",
+  "note": "ساري المفعول / نافذ: in force / effective; ينعقد من تاريخ التوقيع ما لم يُنص على غيره.",
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "جزء لا يتجزأ",
+  "en": "integral part",
+  "domain": "boilerplate",
+  "note": "فى صيغة «هذا الملحق جزء لا يتجزأ من العقد»: forms an integral part of this Agreement.",
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "ما لم وإلى أن",
+  "en": "unless and until",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "مخالصة نهائية",
+  "en": "full and final discharge",
+  "domain": "general",
+  "note": "التوقيع على استلام الثمن مخالصة نهائية؛ acquittance / receipt in full according to the context.",
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "وإثباتاً لما تقدم",
+  "en": "in witness whereof",
+  "domain": "boilerplate",
+  "note": "صيغة ختام العقد؛ قد تُترجم الصيغة العربية «وبناءً على ما تقدم ... مهر الطرفان هذا العقد» بـ In witness whereof.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "خالياً من أى أعباء",
+  "en": "free and clear of all encumbrances",
+  "domain": "sale",
+  "note": null,
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "نظير",
+  "en": "in consideration of",
+  "domain": "boilerplate",
+  "note": "«نظير ثمن» = in consideration of a price؛ ليست consideration بالمعنى الإنجليزى للمقابل القانونى دائماً.",
+  "basis": "study:almanna-2023"
+ },
+ {
+  "ar": "الوفاء بالالتزامات",
+  "en": "performance of obligations",
+  "domain": "general",
+  "note": "فى الإنجليزية: fulfil / perform; لا تستخدم pay off.",
+  "basis": "study:almanna-2023"
+ }
+]

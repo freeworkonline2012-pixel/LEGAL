@@ -48,7 +48,19 @@ Drafting style (Arabic -> English):
 - غرامة in a contractual delay or breach clause is "damages" or "delay damages" by function; never "fine" (a criminal-law term).
 - التسليم = "delivery"; الاستلام = "receipt" or "acceptance" by context; ضمان = see GLOSSARY, else decide between "warranty" and "guarantee" from context and add a note.
 - Hijri dates: keep as written; if both Hijri and Gregorian dates appear, keep both.
-- Do not introduce "hereby", "hereof", "herein" etc. unless the Arabic wording has the same performative force (e.g. يقر الطرف ... بموجب هذا العقد).`;
+- Do not introduce "hereby", "hereof", "herein" etc. unless the Arabic wording has the same performative force (e.g. يقر الطرف ... بموجب هذا العقد). Prefer "this Agreement" over stacked here-/there- compounds; فيما بعد / يُشار إليه فيما بعد = "hereinafter" / "hereinafter referred to as".
+- Pronoun ambiguity: when an Arabic pronoun suffix (ـه / ـها / ـهم) could refer to more than one party or object, repeat the defined term ("the Landlord", "the Premises") instead of "he / it / they". Use "it" for companies and other entities, never "he / she".
+- Provisos: بشرط أن / شريطة أن / على أن = "provided that"; keep the proviso inside the same sentence and attached to the rule it limits; never turn an exception into a separate unconditional sentence.
+- Several Arabic verbs describing distinct acts (يهب ويبيع ويتنازل) stay as separate verbs; do not merge them. Conversely, a single Arabic verb is not expanded into an English doublet.
+- Keep the legal register: do not shorten, simplify or re-word a clause into "plain" language in a way that changes its scope, conditions or enumerations; keep long sentences as one sentence unless the source splits them.
+- Arabic operative clauses often impose a duty with the bare present tense (يلتزم الطرف / يدفع المستأجر / يُحرر هذا العقد) or with يجب / يتعين / يتوجب (على ...) / على + party + أن / ملزم: render each as "shall" (or "is obliged to" when the Arabic stresses the duty). Do not weaken a duty into "should" or "will".
+- A permission or power given to a party with ل... أن / له أن / للمؤجر أن / يجوز له / يحق له is "may" or "has the right to / is entitled to", NEVER "shall"; a bare ل... without أن that grants a right (للمستأجر الحق فى) is "has the right to". Decide duty versus power from who holds authority and what the clause gives; if truly ambiguous, choose "may" and add a note.
+- يستحق / يتمتع بـ / يُمنح = "shall be entitled to" / "shall enjoy" / "shall receive"; لا يستحق = "shall not be entitled to"; سقط حقه فى = "shall forfeit his right to".
+- لا يجوز / يُحظر = "shall not" (a prohibition) or "may not"; the absolute negation form (لا جريمة ولا عقوبة ...) = "there shall be no ...".
+- Conditionals: إذا / فى حالة / فى حال + a present-tense main clause = "if / in the event that ..., X shall ..."; an inverted "Should ..." is only "if". Do not put "shall" inside a proviso (على أن / بشرط أن / شريطة أن = "provided that") unless the proviso itself imposes a new duty; a proviso that merely states a condition takes the plain present.
+- Arabic semantic repetition: when two Arabic words are true synonyms (الضرر والأذى، الحيطة والحذر) give ONE English term; when the two differ legally (الإقرار / الاعتراف، يرعى / يحافظ على) keep both distinct. Never merge two different legal acts.
+- Parties and roles: المؤجر = Lessor (or Landlord), المستأجر = Lessee (or Tenant), المأجور / العين المستأجرة = the Premises or the leased property, بنود العقد = the terms (in a breach sentence) or the clauses (as structure); do not add a gender the Arabic does not mark (المستأجر = Lessee, not "he or she" and not "the male tenant").
+- Contract formulas: أُبرم / تحرر هذا العقد = "this Agreement is made (and entered into)"; بين كل من = "by and between"; المشار إليه فيما بعد = "hereinafter referred to as"; أعلاه = "above" (hereinabove only when the register is archaic); يقر = "acknowledges" or "declares"; نظير = "in consideration of / for"; بموجب / بمقتضى = "under / pursuant to".`;
 
 export const STYLE_RULES_EN_TO_AR = `
 Drafting style (English -> Arabic):
@@ -56,7 +68,20 @@ Drafting style (English -> Arabic):
 - "including without limitation" = بما فى ذلك على سبيل المثال لا الحصر; "notwithstanding anything to the contrary" = بالرغم من أى نص مخالف; "subject to" = مع مراعاة / بشرط.
 - "Business Day" = يوم عمل; "Affiliate" = الشركة التابعة (use the contract's definition if it gives one).
 - "Representations and Warranties" = الإقرارات والضمانات; keep each warranty as a statement of fact by the Party.
-- Do not render "best endeavours/reasonable efforts" as an obligation of result: use ببذل أقصى الجهود / ببذل الجهود المعقولة (obligation of means) and add a note.`;
+- Do not render "best endeavours/reasonable efforts" as an obligation of result: use ببذل أقصى الجهود / ببذل الجهود المعقولة (obligation of means) and add a note.
+- here-/there- compounds: hereto / hereof / hereunder / herein = هذا العقد (بموجب هذا العقد / فى هذا العقد / ملحق بهذا العقد); thereof / therein / thereto = repeat or point back to the noun just mentioned (منه / فيه / إليه) and repeat the noun itself when the pronoun could be ambiguous; hereinafter referred to as = يُشار إليه فيما بعد باسم.
+- "said" / "such" / "aforesaid" / "the same" used as references = المذكور / المشار إليه / سالف الذكر / هذا / ذلك; never translate "said" as the verb "قال"; resolve "the same" to the noun it stands for.
+- "provided that" = بشرط أن / شريطة أن; keep the proviso attached to the rule it limits.
+- Contract doublets: "null and void" = باطل (or لاغٍ وباطل if the Arabic contract style uses the pair); "terms and conditions" = الشروط والأحكام; "each and every" = كل; do not render a doublet as two unrelated Arabic words; BUT a list of distinct acts ("grants, sells and transfers") keeps every verb.
+- Keep passives that hide the actor as passives (تُعفى / يُعتبر / يتم الفصل فى); never invent an actor the source does not name.
+- A neuter "it" for a company or party = the role name or the Arabic pronoun matching the Arabic noun's gender (الشركة ... ها); never leave an ambiguous pronoun.
+- Sub-divisions: Article = مادة; Clause = بند; sub-clause / paragraph = فقرة or بند فرعى by the contract's own numbering.
+- "shall" + verb for a duty: use the Arabic present tense (يدفع / يسلم), or يلتزم / يتعين على / على + party + أن when the duty must be explicit (obligations of conduct, deadlines, payments); "shall" in a passive operative sentence (shall be published) = ينشر / يُعمل به, not يجب أن unless the source stresses necessity.
+- "may" for a power or right of a party = يجوز له / له أن / يحق له; "has/have the right to" or "is/are entitled to" = له الحق فى / يحق له / يستحق; "shall be entitled to" benefits = يستحق; do not render a right as a duty or a power as an obligation.
+- "shall not" / "may not" / "is prohibited" = لا يجوز / يُحظر / لا يحق (for rights); "there shall be no X" = لا + noun (لا ضرر ولا ضرار style) or ليس لـ ... أن.
+- "if / in the event that / should" = إذا / فى حالة / فى حال; "provided that" = بشرط أن / شريطة أن / على أن; "subject to" = مع مراعاة / بشرط موافقة; "in default" = إذا تأخر / فى حالة الإخلال according to the sentence.
+- Latin and French terms: ab initio = منذ البداية (أو بأثر رجعى حسب السياق); bona fide = بحسن نية; prima facie = من حيث الظاهر / ظاهر الأمر; pari passu = على قدم المساواة; de facto = بحكم الواقع; de jure = بحكم القانون; "witnesseth" is a ritual opener: do not translate literally (use حيث إن / اتفق الطرفان على ما يلى); "in witness whereof" = وإثباتاً لما تقدم.
+- Execution of a signed contract = توقيع / إبرام, never تنفيذ unless the text is about performing it; "party of the first part" = الطرف الأول; "free and clear of all encumbrances" = خالياً من أى أعباء أو حقوق للغير; "assigns" = المتنازل إليهم / من تنتقل إليهم الحقوق.`;
 
 export function buildSystemPrompt(from: ContractLang, to: ContractLang): string {
   return COMMON_RULES + (from === 'ar' && to === 'en' ? AR_TO_EN + STYLE_RULES_AR_TO_EN : EN_TO_AR + STYLE_RULES_EN_TO_AR) + `

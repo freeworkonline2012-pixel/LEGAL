@@ -26,6 +26,32 @@ describe('تعليمات النموذج', () => {
     expect(en).not.toContain('Drafting style (Arabic -> English)');
   });
 
+  it('قواعد الإحالة والاستدراك والثنائيات حاضرة فى الاتجاهين', () => {
+    const ar = buildSystemPrompt('ar', 'en');
+    const en = buildSystemPrompt('en', 'ar');
+    expect(ar).toContain('Pronoun ambiguity');
+    expect(ar).toContain('provided that');
+    expect(ar).toContain('Keep the legal register');
+    expect(en).toContain('here-/there- compounds');
+    expect(en).toContain('never translate "said" as the verb');
+    expect(en).toContain('keeps every verb');
+  });
+
+  it('قواعد الأفعال المعيارية (shall/may) والشرط والصيغ اللاتينية من كتاب Almanna حاضرة', () => {
+    const ar = buildSystemPrompt('ar', 'en');
+    const en = buildSystemPrompt('en', 'ar');
+    expect(ar).toContain('NEVER "shall"');
+    expect(ar).toContain('shall forfeit his right to');
+    expect(ar).toContain('Do not put "shall" inside a proviso');
+    expect(ar).toContain('semantic repetition');
+    expect(en).toContain('do not render a right as a duty');
+    expect(en).toContain('ab initio');
+    expect(en).toContain('never تنفيذ');
+    // القواعد لا تتسرب بين الاتجاهين
+    expect(ar).not.toContain('ab initio');
+    expect(en).not.toContain('Arabic semantic repetition');
+  });
+
   it('رسالة الدفعة تحوى القاموس والمصطلحات المعرَّفة وتنبيهات الإعادة داخل حدود البيانات', () => {
     const msg = buildBatchUserMessage({
       from: 'ar',

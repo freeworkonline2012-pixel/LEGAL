@@ -1,0 +1,93 @@
+[
+ {
+  "ar": "حسبما هو مذكور آنفاً",
+  "en": "as aforesaid",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "سالف الذكر",
+  "en": "aforesaid",
+  "domain": "boilerplate",
+  "note": "aforesaid / abovesaid / aforementioned تُترجم بحسب موضع الجملة: السابق ذكره / المذكور آنفاً. تجنّب ترجمة said بالفعل «قال».",
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "بحسب الأحوال",
+  "en": "as the case may be",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "شريطة أن",
+  "en": "provided that",
+  "domain": "boilerplate",
+  "note": "صيغة الاستدراك/الشرط: provided that = بشرط أن / شريطة أن / على أن. أبقِ الاستدراك ملتصقاً بالقاعدة التى يقيّدها.",
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "ما لم يرد نص على خلاف ذلك",
+  "en": "unless otherwise provided",
+  "domain": "boilerplate",
+  "note": null,
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "بقدر ما يكون ذلك ممكناً",
+  "en": "so far as is practicable",
+  "domain": "boilerplate",
+  "note": "لا تُترجم كالتزام بنتيجة.",
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "فى الحال",
+  "en": "forthwith",
+  "domain": "boilerplate",
+  "note": "forthwith / immediately = فوراً؛ لا تُحدَّد مهلة لم ترد فى النص.",
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "يُشار إليه فيما بعد باسم",
+  "en": "hereinafter referred to as",
+  "domain": "boilerplate",
+  "note": "يُستخدم لتعريف الطرف أو المصطلح عند أول ذكر.",
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "باطل ولاغٍ",
+  "en": "null and void",
+  "domain": "boilerplate",
+  "note": "الثنائية مألوفة؛ فى الإنجليزية «void» وحدها قد تكفى لكن لا تحذف أحد اللفظين فى النص المترجم إلا إن خلا الأصل منه.",
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "مفوض حسب الأصول",
+  "en": "duly authorized",
+  "domain": "boilerplate",
+  "note": "الدراسة المرجعية تذكر «مفوض تفويضاً صريحاً» وهو أضيق: duly = وفق الإجراءات المطلوبة، لا بالضرورة تفويضاً صريحاً. راجعه محامٍ.",
+  "basis": "drafter-knowledge"
+ },
+ {
+  "ar": "وصية",
+  "en": "last will and testament",
+  "domain": "general",
+  "note": "استخدم «Will» وحدها بحذر فى الإنجليزية لأنها تتداخل مع الفعل المساعد.",
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "المدعى عليه",
+  "en": "defendant",
+  "domain": "general",
+  "note": "فى التحكيم قد يُستخدم Respondent.",
+  "basis": "study:salamah-2014-ksu"
+ },
+ {
+  "ar": "استئناف",
+  "en": "appeal",
+  "domain": "general",
+  "note": null,
+  "basis": "study:salamah-2014-ksu"
+ }
+]
