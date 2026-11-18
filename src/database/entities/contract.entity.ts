@@ -64,6 +64,33 @@ export class Contract {
   @Column({ name: 'report_approval_note', type: 'text', nullable: true })
   reportApprovalNote: string | null;
 
+  /** طلب المراجعة (migrations/262): موافقة العميل على النسخة الأولية ثم السداد قبل النسخة النهائية. */
+  @Column({ name: 'client_approved_at', type: 'timestamptz', nullable: true })
+  clientApprovedAt: Date | null;
+
+  /** قيمة الخدمة بأصغر وحدة (قرش) وقت موافقة العميل. */
+  @Column({ name: 'service_fee_minor', type: 'integer', nullable: true })
+  serviceFeeMinor: number | null;
+
+  @Column({ name: 'service_fee_currency', type: 'text', nullable: true })
+  serviceFeeCurrency: string | null;
+
+  /** unpaid | submitted (العميل أعلن السداد) | paid (أكّده المالك). */
+  @Column({ name: 'payment_status', type: 'text', default: 'unpaid' })
+  paymentStatus: 'unpaid' | 'submitted' | 'paid';
+
+  @Column({ name: 'payment_reference', type: 'text', nullable: true })
+  paymentReference: string | null;
+
+  @Column({ name: 'payment_submitted_at', type: 'timestamptz', nullable: true })
+  paymentSubmittedAt: Date | null;
+
+  @Column({ name: 'paid_at', type: 'timestamptz', nullable: true })
+  paidAt: Date | null;
+
+  @Column({ name: 'paid_confirmed_by', type: 'uuid', nullable: true })
+  paidConfirmedBy: string | null;
+
   /** تحذيرات الاستخراج لحظة الرفع (OCR، ترقيم غير متسلسل...)؛ يعرضها التقرير. NULL = لا تحذيرات مسجَّلة. */
   @Column({ name: 'extraction_warnings', type: 'jsonb', nullable: true })
   extractionWarnings: string[] | null;

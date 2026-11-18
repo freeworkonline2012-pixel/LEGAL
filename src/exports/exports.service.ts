@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, HttpException, HttpStatus, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
@@ -8,6 +8,14 @@ import { ContractClause } from '../database/entities/contract-clause.entity';
 import { GovernanceAssessment } from '../database/entities/governance-assessment.entity';
 import { LegalMemo } from '../database/entities/legal-memo.entity';
 import { Question } from '../database/entities/question.entity';
+import {
+  type OrderStage,
+  isPaid,
+  paymentInstructionsFromEnv,
+  sanitizePaymentReference,
+  serviceFeeFromEnv,
+  stageOf,
+} from '../contracts/contract-order';
 import { buildAnswerDocument, NotExportableError } from './builders/answer-document.builder';
 import { buildContractDocument, type ContractExportInput } from './builders/contract-document.builder';
 import { buildTrackedDocx } from './tracked-changes/tracked-document';
@@ -24,6 +32,34 @@ export interface ExportActor {
   role: string;
   ipAddress: string | null;
   userAgent: string | null;
+}
+
+export interface ContractOrderView {
+  contract_id: string;
+  stage: OrderStage;
+  /** المالك/admin: بلا مقابل ولا مراحل */
+  free_access: boolean;
+  processed: boolean;
+  fee_amount: number | null;
+  fee_currency: 'EGP';
+  payment_instructions: string | null;
+  payment_reference: string | null;
+  approved_at: string | null;
+  paid_at: string | null;
+  can_download_preliminary: boolean;
+  can_download_final: boolean;
+  awaiting_human_review: boolean;
+  /** تفاصيل المراجعة (الأسانيد والصياغات) مخفية على الشاشة حتى السداد */
+  details_locked: boolean;
+}
+
+export interface PendingPaymentItem {
+  contract_id: string;
+  original_filename: string;
+  fee_amount: number | null;
+  fee_currency: 'EGP';
+  payment_reference: string | null;
+  submitted_at: string | null;
 }
 
 export interface ExportedFile {
@@ -169,8 +205,16 @@ export class ExportsService {
     return this.deliver(doc, format, actor, 'legal_memo', memo.id, { memoType: memo.memoType });
   }
 
-  /** تحميل العقد وبنوده لأى تصدير: الملكية، اكتمال المعالجة، وشرط الاعتماد البشرى (قبله لـadmin فقط). */
-  private async loadContractForExport(contractId: string, actor: ExportActor): Promise<{ contract: Contract; clauses: ContractClause[]; approved: boolean }> {
+  /**
+   * تحميل العقد وبنوده لأى تصدير: الملكية، اكتمال المعالجة، ثم (للتنزيل النهائى فقط) السداد المؤكَّد والاعتماد البشرى.
+   * purpose='preliminary' = النسخة الأولية PDF: متاحة للمالك دائماً بعد اكتمال المعالجة (بعلامة «نسخة أولية»).
+   * admin بلا مقابل ولا مراحل.
+   */
+  private async loadContractForExport(
+    contractId: string,
+    actor: ExportActor,
+    purpose: 'final' | 'preliminary' = 'final',
+  ): Promise<{ contract: Contract; clauses: ContractClause[]; approved: boolean }> {
     const contract = await this.dataSource.getRepository(Contract).findOne({ where: { id: contractId } });
     if (!contract || !this.canAccess(contract.uploadedBy, actor)) {
       throw new NotFoundException('العقد غير موجود');
@@ -179,10 +223,15 @@ export class ExportsService {
       throw new ConflictException('لم تكتمل معالجة العقد بعد، فلا يتوفر تقرير للتنزيل.');
     }
     const approved = contract.reportApprovedAt !== null;
-    const approvalRequired = process.env.CONTRACT_REPORT_REQUIRES_APPROVAL !== 'false';
-    if (approvalRequired && !approved && actor.role !== 'admin') {
-      // التقرير الآلى مسودة عمل: لا يصل العميل قبل مراجعة بشرية (قرار المنتج)
-      throw new ConflictException('التقرير قيد المراجعة البشرية وسيتاح للتنزيل فور اعتماده.');
+    if (purpose === 'final' && actor.role !== 'admin') {
+      if (!isPaid(contract)) {
+        throw new HttpException(this.paymentRequiredMessage(stageOf(contract)), HttpStatus.PAYMENT_REQUIRED);
+      }
+      const approvalRequired = process.env.CONTRACT_REPORT_REQUIRES_APPROVAL !== 'false';
+      if (approvalRequired && !approved) {
+        // التقرير الآلى مسودة عمل: لا يصل العميل قبل مراجعة بشرية (قرار المنتج)
+        throw new ConflictException('العقد قيد المراجعة البشرية وسيتاح للتنزيل فور اعتماده.');
+      }
     }
     const clauses = await this.dataSource.getRepository(ContractClause).find({
       where: { contractId },
@@ -191,45 +240,70 @@ export class ExportsService {
     return { contract, clauses, approved };
   }
 
+  private paymentRequiredMessage(stage: OrderStage): string {
+    if (stage === 'payment_submitted') return 'بانتظار تأكيد السداد — سيتاح التنزيل فور التأكيد.';
+    if (stage === 'approved') return 'التنزيل النهائى يتاح بعد سداد مقابل الخدمة.';
+    return 'التنزيل النهائى يتاح بعد موافقتك على النسخة الأولية وسداد مقابل الخدمة.';
+  }
+
+  private contractInput(contract: Contract, clauses: ContractClause[], audience: 'lawyer' | 'client'): ContractExportInput {
+    return {
+      contractId: contract.id,
+      originalFilename: contract.originalFilename,
+      uploadedAt: contract.createdAt,
+      contractType: contract.contractType,
+      clientRole: contract.clientRole,
+      clientParty: contract.clientParty ?? null,
+      clauses: clauses.map((c) => ({
+        clauseIndex: c.clauseIndex,
+        clauseLabel: c.clauseLabel,
+        clauseTitle: c.clauseTitle,
+        clauseText: c.clauseText,
+        assessmentStatus: c.assessmentStatus,
+        assessmentReasoning: c.assessmentReasoning,
+        matchedArticles: c.matchedArticles,
+        riskLevel: c.riskLevel,
+        suggestedWording: c.suggestedWording,
+        lawyerVerdict: c.lawyerVerdict,
+        lawyerNotes: c.lawyerNotes,
+        verification: this.reportVerification(c.verification),
+      })),
+      approvedAt: contract.reportApprovedAt,
+      approvalNote: contract.reportApprovalNote,
+      extractionWarnings: Array.isArray(contract.extractionWarnings)
+        ? contract.extractionWarnings.filter((w): w is string => typeof w === 'string')
+        : null,
+      ...this.reportFindings(contract.contractFindings),
+      partyNames: this.reportParties(contract.contractFindings),
+      inferredContractType: this.reportInferredType(contract.contractFindings),
+      inferredContractTypeSource: this.reportInferredSource(contract.contractFindings),
+      audience,
+      generatedAt: new Date(),
+      brand: this.brand,
+    };
+  }
+
   async exportContract(contractId: string, format: ExportFormat, actor: ExportActor, audience: 'lawyer' | 'client' = 'lawyer'): Promise<ExportedFile> {
     const { contract, clauses, approved } = await this.loadContractForExport(contractId, actor);
-    const doc = this.guard(() =>
-      buildContractDocument({
-        contractId: contract.id,
-        originalFilename: contract.originalFilename,
-        uploadedAt: contract.createdAt,
-        contractType: contract.contractType,
-        clientRole: contract.clientRole,
-        clientParty: contract.clientParty ?? null,
-        clauses: clauses.map((c) => ({
-          clauseIndex: c.clauseIndex,
-          clauseLabel: c.clauseLabel,
-          clauseTitle: c.clauseTitle,
-          clauseText: c.clauseText,
-          assessmentStatus: c.assessmentStatus,
-          assessmentReasoning: c.assessmentReasoning,
-          matchedArticles: c.matchedArticles,
-          riskLevel: c.riskLevel,
-          suggestedWording: c.suggestedWording,
-          lawyerVerdict: c.lawyerVerdict,
-          lawyerNotes: c.lawyerNotes,
-          verification: this.reportVerification(c.verification),
-        })),
-        approvedAt: contract.reportApprovedAt,
-        approvalNote: contract.reportApprovalNote,
-        extractionWarnings: Array.isArray(contract.extractionWarnings)
-          ? contract.extractionWarnings.filter((w): w is string => typeof w === 'string')
-          : null,
-        ...this.reportFindings(contract.contractFindings),
-        partyNames: this.reportParties(contract.contractFindings),
-        inferredContractType: this.reportInferredType(contract.contractFindings),
-        inferredContractTypeSource: this.reportInferredSource(contract.contractFindings),
-        audience,
-        generatedAt: new Date(),
-        brand: this.brand,
-      }),
-    );
+    const doc = this.guard(() => buildContractDocument(this.contractInput(contract, clauses, audience)));
     return this.deliver(doc, format, actor, 'contract', contract.id, { approved });
+  }
+
+  /**
+   * النسخة الأولية PDF: نسخة العميل المبسطة بعلامة مائية «نسخة أولية — غير نهائية»، متاحة للمالك دائماً بعد اكتمال المعالجة
+   * (قبل الموافقة والسداد). لا تحمل اعتماداً بشرياً مهما كانت حالة العقد، وصيغتها PDF فقط.
+   */
+  async exportContractPreliminary(contractId: string, actor: ExportActor): Promise<ExportedFile> {
+    const { contract, clauses } = await this.loadContractForExport(contractId, actor, 'preliminary');
+    const doc = this.guard(() => buildContractDocument({ ...this.contractInput(contract, clauses, 'client'), approvedAt: null, approvalNote: null }));
+    const WATERMARK = 'نسخة أولية — غير نهائية';
+    const preliminary = {
+      ...doc,
+      watermark: WATERMARK,
+      filenameBase: doc.filenameBase.replace(/-draft$/, '-preliminary'),
+      audit: doc.audit ? { ...doc.audit, watermark: WATERMARK } : doc.audit,
+    };
+    return this.deliver(preliminary, 'pdf', actor, 'contract', contract.id, { preliminary: true });
   }
 
   /**
@@ -354,6 +428,128 @@ export class ExportsService {
       contractFindings: list,
       contractFindingsModel: m === 'ok' || m === 'not_configured' || m === 'skipped' || m === 'error' ? m : null,
     };
+  }
+
+  // ===== طلب المراجعة: الموافقة والسداد (migrations/262) =====
+
+  private orderView(contract: Contract, actor: ExportActor): ContractOrderView {
+    const fee = serviceFeeFromEnv();
+    const free = actor.role === 'admin';
+    const stage = stageOf(contract);
+    const approvalRequired = process.env.CONTRACT_REPORT_REQUIRES_APPROVAL !== 'false';
+    const humanApproved = contract.reportApprovedAt !== null;
+    const paid = stage === 'paid';
+    return {
+      contract_id: contract.id,
+      stage,
+      free_access: free,
+      processed: contract.status === 'processed',
+      fee_amount: contract.serviceFeeMinor !== null && contract.serviceFeeMinor !== undefined ? contract.serviceFeeMinor / 100 : fee.amount,
+      fee_currency: 'EGP',
+      payment_instructions: free || paid ? null : paymentInstructionsFromEnv(),
+      payment_reference: contract.paymentReference ?? null,
+      approved_at: contract.clientApprovedAt ? contract.clientApprovedAt.toISOString() : null,
+      paid_at: contract.paidAt ? contract.paidAt.toISOString() : null,
+      can_download_preliminary: contract.status === 'processed',
+      can_download_final: contract.status === 'processed' && (free || (paid && (!approvalRequired || humanApproved))),
+      awaiting_human_review: !free && paid && approvalRequired && !humanApproved,
+      details_locked: !free && !paid,
+    };
+  }
+
+  private async ownedContract(contractId: string, actor: ExportActor): Promise<Contract> {
+    const contract = await this.dataSource.getRepository(Contract).findOne({ where: { id: contractId } });
+    if (!contract || !this.canAccess(contract.uploadedBy, actor)) throw new NotFoundException('العقد غير موجود');
+    return contract;
+  }
+
+  private async recordOrderAudit(actor: ExportActor, action: string, contractId: string, metadata: Record<string, unknown>): Promise<void> {
+    await this.auditService
+      .record({
+        actorId: actor.userId,
+        actorRole: actor.role,
+        action,
+        resourceType: 'contract',
+        resourceId: contractId,
+        ipAddress: actor.ipAddress,
+        userAgent: actor.userAgent,
+        metadata,
+      })
+      .catch((err) => this.logger.warn(`order audit failed (non-fatal): ${(err as Error).message}`));
+  }
+
+  async getContractOrder(contractId: string, actor: ExportActor): Promise<ContractOrderView> {
+    return this.orderView(await this.ownedContract(contractId, actor), actor);
+  }
+
+  /** موافقة العميل على النسخة الأولية: تُثبّت قيمة الخدمة وقتها. idempotent؛ admin بلا مراحل (لا تغيير). */
+  async approveContractOrder(contractId: string, actor: ExportActor): Promise<ContractOrderView> {
+    const repo = this.dataSource.getRepository(Contract);
+    const contract = await this.ownedContract(contractId, actor);
+    if (actor.role === 'admin') return this.orderView(contract, actor);
+    if (contract.status !== 'processed') throw new ConflictException('لم تكتمل معالجة العقد بعد.');
+    if (stageOf(contract) !== 'preview') return this.orderView(contract, actor);
+    const fee = serviceFeeFromEnv();
+    if (fee.amount === null) throw new ConflictException('لم يُحدَّد سعر الخدمة بعد — تواصل مع إدارة المنصة.');
+    const approvedAt = new Date();
+    await repo.update({ id: contractId }, { clientApprovedAt: approvedAt, serviceFeeMinor: fee.amount * 100, serviceFeeCurrency: fee.currency });
+    contract.clientApprovedAt = approvedAt;
+    contract.serviceFeeMinor = fee.amount * 100;
+    contract.serviceFeeCurrency = fee.currency;
+    await this.recordOrderAudit(actor, 'contracts.order_approved', contractId, { feeMinor: fee.amount * 100, currency: fee.currency });
+    return this.orderView(contract, actor);
+  }
+
+  /** إعلان العميل أنه سدّد (مرجع عملية قصير يطابقه المالك). يجوز تصحيح المرجع قبل التأكيد. */
+  async submitContractPayment(contractId: string, referenceRaw: unknown, actor: ExportActor): Promise<ContractOrderView> {
+    const repo = this.dataSource.getRepository(Contract);
+    const contract = await this.ownedContract(contractId, actor);
+    if (actor.role === 'admin') return this.orderView(contract, actor);
+    const stage = stageOf(contract);
+    if (stage === 'paid') return this.orderView(contract, actor);
+    if (stage === 'preview') throw new ConflictException('وافق على النسخة الأولية أولاً قبل السداد.');
+    const reference = sanitizePaymentReference(referenceRaw);
+    if (!reference) throw new BadRequestException('اكتب مرجع السداد (رقم العملية أو التحويل) — من 3 إلى 100 حرف.');
+    const submittedAt = new Date();
+    await repo.update({ id: contractId }, { paymentStatus: 'submitted', paymentReference: reference, paymentSubmittedAt: submittedAt });
+    contract.paymentStatus = 'submitted';
+    contract.paymentReference = reference;
+    contract.paymentSubmittedAt = submittedAt;
+    await this.recordOrderAudit(actor, 'contracts.payment_submitted', contractId, { hasReference: true });
+    return this.orderView(contract, actor);
+  }
+
+  /** تأكيد السداد (admin فقط — يُفرَض فى المتحكم). idempotent؛ لا يجوز قبل موافقة العميل. */
+  async confirmContractPayment(contractId: string, actor: ExportActor): Promise<ContractOrderView> {
+    const repo = this.dataSource.getRepository(Contract);
+    const contract = await repo.findOne({ where: { id: contractId } });
+    if (!contract) throw new NotFoundException('العقد غير موجود');
+    const stage = stageOf(contract);
+    if (stage === 'paid') return this.orderView(contract, actor);
+    if (stage === 'preview') throw new ConflictException('لم يوافق العميل على النسخة الأولية بعد.');
+    const paidAt = new Date();
+    await repo.update({ id: contractId }, { paymentStatus: 'paid', paidAt, paidConfirmedBy: actor.userId });
+    contract.paymentStatus = 'paid';
+    contract.paidAt = paidAt;
+    await this.recordOrderAudit(actor, 'contracts.payment_confirmed', contractId, { feeMinor: contract.serviceFeeMinor });
+    return this.orderView(contract, actor);
+  }
+
+  /** طلبات بانتظار تأكيد السداد (admin فقط). أقدمها أولاً، بحد 100. */
+  async listPendingPayments(): Promise<PendingPaymentItem[]> {
+    const rows = await this.dataSource.getRepository(Contract).find({
+      where: { paymentStatus: 'submitted' },
+      order: { paymentSubmittedAt: 'ASC' },
+      take: 100,
+    });
+    return rows.map((c) => ({
+      contract_id: c.id,
+      original_filename: c.originalFilename,
+      fee_amount: c.serviceFeeMinor !== null && c.serviceFeeMinor !== undefined ? c.serviceFeeMinor / 100 : null,
+      fee_currency: 'EGP',
+      payment_reference: c.paymentReference ?? null,
+      submitted_at: c.paymentSubmittedAt ? c.paymentSubmittedAt.toISOString() : null,
+    }));
   }
 
   /** اعتماد المراجعة البشرية لتقرير عقد (admin فقط — يُفرَض فى المتحكم). idempotent. */

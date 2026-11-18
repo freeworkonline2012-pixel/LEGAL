@@ -22,12 +22,25 @@ import { ContractResponseDto } from './dto/contract-response.dto';
 import { ContractsService } from './contracts.service';
 import { normalizeUploadedFilename } from './filename.util';
 import { sanitizeClientPosition } from './position.util';
+import { redactForPreview } from './preview-redaction';
 
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB — عقود نصّية عادةً بضع مئات KB، هامش واسع كافٍ بلا فتح الباب لملفات ضخمة غير منطقية
-const ALLOWED_MIME_TYPES = new Set([
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-]);
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+/**
+ * رفع العميل: ملف Word (DOCX) فقط — قرار المنتج (عقد بلا بيانات شخصية لأطرافه، وتسليم نسخة معدَّلة قابلة للتحرير).
+ * admin (المالك/المطوّر) يستثنى فيرفع PDF والمسوح للقياس والتجربة؛ ولغيره CONTRACT_ALLOW_PDF_UPLOAD=true تفتح PDF.
+ */
+function isDocxUpload(file: Express.Multer.File): boolean {
+  return file.mimetype === DOCX_MIME || /\.docx$/i.test(file.originalname);
+}
+function isPdfUpload(file: Express.Multer.File): boolean {
+  return file.mimetype === 'application/pdf' || /\.pdf$/i.test(file.originalname);
+}
+/** DOCX = حزمة zip تبدأ بـ«PK» — نرفض مبكراً ما ليس كذلك بدل أن تفشل المعالجة بعد ثوانٍ */
+function looksLikeZip(buffer: Buffer): boolean {
+  return buffer.length > 4 && buffer[0] === 0x50 && buffer[1] === 0x4b;
+}
 
 /** حقل multipart نصى: 'true' أو '1' */
 function isTruthyFlag(v: unknown): boolean {
@@ -64,12 +77,18 @@ export class ContractsController {
     if (!file) {
       throw new BadRequestException('لم يُرفَع أى ملف (الحقل المتوقَّع: file)');
     }
-    if (!ALLOWED_MIME_TYPES.has(file.mimetype) && !/\.(pdf|docx)$/i.test(file.originalname)) {
-      throw new BadRequestException('نوع ملف غير مدعوم — المسموح: PDF أو DOCX فقط');
+    const isAdmin = request.user?.role === 'admin';
+    const pdfAllowed = isAdmin || process.env.CONTRACT_ALLOW_PDF_UPLOAD === 'true';
+    if (isDocxUpload(file)) {
+      if (!looksLikeZip(file.buffer)) {
+        throw new BadRequestException('الملف ليس مستند Word (DOCX) صالحاً — احفظه من Word بصيغة DOCX وأعد الرفع.');
+      }
+    } else if (!(pdfAllowed && isPdfUpload(file))) {
+      throw new BadRequestException('المسموح رفع ملف Word (DOCX) فقط.');
     }
     // request.user مضمون الوجود هنا (JwtAuthGuard إلزامى على كل مسارات هذا الـcontroller)
     const userId = request.user!.userId;
-    return this.contractsService.upload(
+    const created = await this.contractsService.upload(
       {
         buffer: file.buffer,
         mimetype: file.mimetype,
@@ -85,6 +104,8 @@ export class ContractsController {
       // التحليل فى الخلفية (يعود الطلب فوراً والواجهة تتابع الحالة)؛ غياب الحقل = السلوك القديم المتزامن، فلا تنكسر واجهة قديمة
       { background: isTruthyFlag(body?.background) },
     );
+    // عقد جديد = غير مسدَّد: غير admin لا يرى تفاصيل المراجعة (إن عاد التحليل متزامناً)
+    return isAdmin ? created : redactForPreview(created);
   }
 
   @Get(':id')

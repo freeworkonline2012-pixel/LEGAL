@@ -1,7 +1,10 @@
+import { canSeeDetails } from './contract-order';
+import { redactForPreview } from './preview-redaction';
 import {
   BadRequestException,
   ForbiddenException,
   HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -838,7 +841,9 @@ export class ContractsService implements OnModuleInit {
     const running = contract.status === 'processing' || contract.status === 'uploaded';
     // بنود نصف مقيَّمة لا تُعرض كنتيجة لا أثناء المعالجة ولا بعد توقفها (عطل مزود، انقطاع الخادم)
     const partial = running || contract.status === 'extraction_failed';
-    return this.toResponseDto(contract, partial ? [] : clauses, [], running ? this.jobs.get(id) : null);
+    const dto = this.toResponseDto(contract, partial ? [] : clauses, [], running ? this.jobs.get(id) : null);
+    // قبل السداد المؤكَّد لا يرى غير admin تفاصيل المراجعة (النسخة الأولية PDF هى المتاحة)
+    return canSeeDetails(context.role, contract) ? dto : redactForPreview(dto);
   }
 
   /**
@@ -868,6 +873,10 @@ export class ContractsService implements OnModuleInit {
     }
     if (contract.uploadedBy !== context.userId && context.role !== 'admin') {
       throw new ForbiddenException('لا تملك صلاحية الاطّلاع على هذا العقد');
+    }
+    // الصياغة البديلة (نداء نموذج مكلف) من مقابل الخدمة: بعد السداد المؤكَّد، وللمالك/admin دائماً
+    if (!canSeeDetails(context.role, contract)) {
+      throw new HttpException('الصياغة البديلة تتاح بعد سداد مقابل الخدمة.', HttpStatus.PAYMENT_REQUIRED);
     }
     const clause = await this.clauseRepository.findOne({ where: { id: clauseId, contractId } });
     if (!clause) {

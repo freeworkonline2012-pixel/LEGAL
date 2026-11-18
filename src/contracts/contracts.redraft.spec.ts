@@ -21,12 +21,19 @@ function build(clauseOverrides: Record<string, unknown> = {}, outcome?: unknown)
     contractType: string | null;
     clientRole: string | null;
     clientParty: 'first' | 'second' | null;
+    clientApprovedAt: Date | null;
+    paymentStatus: string;
+    paidAt: Date | null;
   } = {
     id: 'c1',
     uploadedBy: 'u1',
     contractType: 'عقد إيجار',
     clientRole: 'المستأجر',
     clientParty: 'second',
+    // الصياغة البديلة من مقابل الخدمة: العقد هنا مسدَّد (القفل قبل السداد فى contracts.order-gate.spec)
+    clientApprovedAt: new Date(),
+    paymentStatus: 'paid',
+    paidAt: new Date(),
   };
   const clause: Record<string, unknown> = {
     id: 'cl1',

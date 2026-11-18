@@ -1,4 +1,4 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { Answer } from '../database/entities/answer.entity';
 import { Contract } from '../database/entities/contract.entity';
 import { ContractClause } from '../database/entities/contract-clause.entity';
@@ -104,7 +104,9 @@ describe('ExportsService — الحوكمة', () => {
 describe('ExportsService — تقرير العقد والاعتماد البشرى', () => {
   const contract = (over: Record<string, unknown> = {}) => ({
     id: '11111111-2222-3333-4444-555555555555', uploadedBy: OWNER.userId, originalFilename: 'عقد.pdf', status: 'processed', createdAt: NOW,
-    reportApprovedAt: null, reportApprovalNote: null, ...over,
+    reportApprovedAt: null, reportApprovalNote: null,
+    // السداد مؤكَّد افتراضياً هنا: هذه الاختبارات تفحص الاعتماد البشرى؛ مراحل الموافقة والسداد فى describe مستقل أدناه
+    clientApprovedAt: NOW, paymentStatus: 'paid', paidAt: NOW, paymentReference: null, serviceFeeMinor: 15000, ...over,
   });
   const clause = { clauseIndex: 1, clauseLabel: 'البند 1', clauseTitle: null, clauseText: 'نص', assessmentStatus: 'سليم', assessmentReasoning: null, matchedArticles: null, lawyerVerdict: null, lawyerNotes: null };
 
@@ -248,5 +250,182 @@ describe('ExportsService — المذكرات والتقارير', () => {
   it('طلبات تالفة فى الصف لا تكسر البناء', async () => {
     const { service } = setup({ memo: memoRow({ requests: { items: 'ليست مصفوفة' } }), answer: answerRow() });
     await expect(service.exportMemo('m', 'docx', OWNER)).resolves.toBeDefined();
+  });
+});
+
+describe('ExportsService — طلب المراجعة: الموافقة والسداد والتسليم', () => {
+  const unpaid = (over: Record<string, unknown> = {}) => ({
+    id: '11111111-2222-3333-4444-555555555555', uploadedBy: OWNER.userId, originalFilename: 'عقد.docx', status: 'processed', createdAt: NOW,
+    reportApprovedAt: null, reportApprovalNote: null,
+    clientApprovedAt: null, paymentStatus: 'unpaid', paidAt: null, paymentReference: null, serviceFeeMinor: null, ...over,
+  });
+  const clause = { clauseIndex: 1, clauseLabel: 'البند 1', clauseTitle: null, clauseText: 'نص', assessmentStatus: 'سليم', assessmentReasoning: null, matchedArticles: null, lawyerVerdict: null, lawyerNotes: null };
+  const status = (e: unknown) => (e as { getStatus?: () => number }).getStatus?.();
+
+  beforeEach(() => { process.env.CONTRACT_REVIEW_FEE_EGP = '250'; process.env.CONTRACT_PAYMENT_INSTRUCTIONS = 'حوّل إلى المحفظة 0100'; });
+  afterEach(() => { delete process.env.CONTRACT_REVIEW_FEE_EGP; delete process.env.CONTRACT_PAYMENT_INSTRUCTIONS; delete process.env.CONTRACT_REPORT_REQUIRES_APPROVAL; });
+
+  describe('النسخة الأولية PDF', () => {
+    it('المالك يحصل عليها قبل الموافقة والسداد والاعتماد، بعلامة «نسخة أولية» واسم -preliminary', async () => {
+      const { service, pdf, audit } = setup({ contract: unpaid(), clauses: [clause] });
+      const file = await service.exportContractPreliminary('c', OWNER);
+      expect(file.contentType).toBe('application/pdf');
+      expect(file.filename).toMatch(/-client-preliminary\.pdf$/);
+      expect(file.filename).not.toContain('-draft');
+      const doc = pdf.render.mock.calls[0][0];
+      expect(doc.watermark).toBe('نسخة أولية — غير نهائية');
+      expect(doc.audit.watermark).toBe('نسخة أولية — غير نهائية');
+      expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ metadata: expect.objectContaining({ preliminary: true }) }));
+    });
+
+    it('لا تحمل اعتماداً حتى لو اعتُمد التقرير؛ ولغير المالك 404؛ وقبل اكتمال المعالجة 409', async () => {
+      const { service, pdf } = setup({ contract: unpaid({ reportApprovedAt: NOW }), clauses: [clause] });
+      await service.exportContractPreliminary('c', OWNER);
+      expect(pdf.render.mock.calls[0][0].watermark).toBeTruthy();
+      await expect(service.exportContractPreliminary('c', OTHER)).rejects.toBeInstanceOf(NotFoundException);
+      const pending = setup({ contract: unpaid({ status: 'processing' }) });
+      await expect(pending.service.exportContractPreliminary('c', OWNER)).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('التنزيل النهائى (Word/PDF/متتبَّع) مقفول حتى السداد المؤكَّد', () => {
+    it('قبل الموافقة، بعدها، وبعد إعلان السداد: 402 بكل صيغة، برسالة المرحلة', async () => {
+      const stages: Array<[Record<string, unknown>, RegExp]> = [
+        [{}, /موافقتك على النسخة الأولية/],
+        [{ clientApprovedAt: NOW }, /بعد سداد مقابل الخدمة/],
+        [{ clientApprovedAt: NOW, paymentStatus: 'submitted' }, /بانتظار تأكيد السداد/],
+      ];
+      for (const [over, msg] of stages) {
+        const { service, audit } = setup({ contract: unpaid({ reportApprovedAt: NOW, ...over }), clauses: [clause] });
+        for (const run of [() => service.exportContract('c', 'docx', OWNER), () => service.exportContract('c', 'pdf', OWNER, 'client'), () => service.exportContractTracked('c', OWNER)]) {
+          const err = await run().catch((e) => e);
+          expect(status(err)).toBe(402);
+          expect(String((err as Error).message)).toMatch(msg);
+        }
+        expect(audit.record).not.toHaveBeenCalled();
+      }
+    });
+
+    it('بعد السداد المؤكَّد لكن قبل الاعتماد البشرى: 409 «قيد المراجعة»، وبعد الاعتماد: ملف', async () => {
+      const paid = { clientApprovedAt: NOW, paymentStatus: 'paid', paidAt: NOW };
+      const before = setup({ contract: unpaid(paid), clauses: [clause] });
+      await expect(before.service.exportContract('c', 'docx', OWNER)).rejects.toBeInstanceOf(ConflictException);
+      await expect(before.service.exportContract('c', 'docx', OWNER)).rejects.toThrow('قيد المراجعة البشرية');
+      const after = setup({ contract: unpaid({ ...paid, reportApprovedAt: NOW }), clauses: [clause] });
+      expect((await after.service.exportContract('c', 'docx', OWNER)).filename).toMatch(/\.docx$/);
+      expect((await after.service.exportContract('c', 'pdf', OWNER, 'client')).contentType).toBe('application/pdf');
+      expect((await after.service.exportContractTracked('c', OWNER)).contentType).toContain('wordprocessingml');
+    });
+
+    it('admin (المالك) بلا سداد ولا موافقة ولا اعتماد، ولو على عقد عميل', async () => {
+      const { service } = setup({ contract: unpaid(), clauses: [clause] });
+      expect((await service.exportContract('c', 'docx', ADMIN)).filename).toContain('-draft');
+      await expect(service.exportContractTracked('c', ADMIN)).resolves.toBeDefined();
+    });
+
+    it('CONTRACT_REPORT_REQUIRES_APPROVAL=false: السداد وحده يكفى، ولا يرفع قفل السداد', async () => {
+      process.env.CONTRACT_REPORT_REQUIRES_APPROVAL = 'false';
+      const paid = setup({ contract: unpaid({ clientApprovedAt: NOW, paymentStatus: 'paid', paidAt: NOW }), clauses: [clause] });
+      await expect(paid.service.exportContract('c', 'docx', OWNER)).resolves.toBeDefined();
+      const notPaid = setup({ contract: unpaid(), clauses: [clause] });
+      expect(status(await notPaid.service.exportContract('c', 'docx', OWNER).catch((e) => e))).toBe(402);
+    });
+  });
+
+  describe('مراحل الطلب', () => {
+    it('عرض المرحلة: السعر والتعليمات والمتاح، وlocked قبل السداد', async () => {
+      const { service } = setup({ contract: unpaid() });
+      const v = await service.getContractOrder('c', OWNER);
+      expect(v).toMatchObject({ stage: 'preview', free_access: false, fee_amount: 250, fee_currency: 'EGP', payment_instructions: 'حوّل إلى المحفظة 0100', can_download_preliminary: true, can_download_final: false, details_locked: true, awaiting_human_review: false });
+    });
+
+    it('غير المالك 404 على كل عمليات الطلب', async () => {
+      const { service } = setup({ contract: unpaid({ clientApprovedAt: NOW }) });
+      await expect(service.getContractOrder('c', OTHER)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.approveContractOrder('c', OTHER)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.submitContractPayment('c', 'TX12345', OTHER)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('الموافقة: تثبّت السعر وقت الموافقة وتُسجَّل، وإعادتها idempotent بلا كتابة', async () => {
+      const { service, update, audit } = setup({ contract: unpaid() });
+      const v = await service.approveContractOrder('c', OWNER);
+      expect(update).toHaveBeenCalledWith({ id: 'c' }, expect.objectContaining({ serviceFeeMinor: 25000, serviceFeeCurrency: 'EGP' }));
+      expect(v.stage).toBe('approved');
+      expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'contracts.order_approved' }));
+      const again = setup({ contract: unpaid({ clientApprovedAt: NOW, serviceFeeMinor: 25000 }) });
+      expect((await again.service.approveContractOrder('c', OWNER)).stage).toBe('approved');
+      expect(again.update).not.toHaveBeenCalled();
+    });
+
+    it('الموافقة بلا سعر مضبوط: 409 ولا مجانية صامتة؛ وقبل اكتمال المعالجة 409', async () => {
+      delete process.env.CONTRACT_REVIEW_FEE_EGP;
+      const { service, update } = setup({ contract: unpaid() });
+      await expect(service.approveContractOrder('c', OWNER)).rejects.toThrow('لم يُحدَّد سعر الخدمة');
+      expect(update).not.toHaveBeenCalled();
+      process.env.CONTRACT_REVIEW_FEE_EGP = '250';
+      const pending = setup({ contract: unpaid({ status: 'processing' }) });
+      await expect(pending.service.approveContractOrder('c', OWNER)).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('السعر المثبَّت وقت الموافقة لا يتغير بتغيير المتغير لاحقاً', async () => {
+      process.env.CONTRACT_REVIEW_FEE_EGP = '999';
+      const { service } = setup({ contract: unpaid({ clientApprovedAt: NOW, serviceFeeMinor: 25000 }) });
+      expect((await service.getContractOrder('c', OWNER)).fee_amount).toBe(250);
+    });
+
+    it('إعلان السداد: بعد الموافقة فقط، بمرجع صالح، ويُسجَّل بلا نص المرجع', async () => {
+      const early = setup({ contract: unpaid() });
+      await expect(early.service.submitContractPayment('c', 'TX12345', OWNER)).rejects.toBeInstanceOf(ConflictException);
+      const { service, update, audit } = setup({ contract: unpaid({ clientApprovedAt: NOW, serviceFeeMinor: 25000 }) });
+      await expect(service.submitContractPayment('c', 'ab', OWNER)).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.submitContractPayment('c', undefined, OWNER)).rejects.toBeInstanceOf(BadRequestException);
+      const v = await service.submitContractPayment('c', '  TX 998877  ', OWNER);
+      expect(update).toHaveBeenCalledWith({ id: 'c' }, expect.objectContaining({ paymentStatus: 'submitted', paymentReference: 'TX 998877' }));
+      expect(v).toMatchObject({ stage: 'payment_submitted', can_download_final: false, details_locked: true });
+      const call = audit.record.mock.calls.find((c: unknown[]) => (c[0] as { action: string }).action === 'contracts.payment_submitted');
+      expect(JSON.stringify(call)).not.toContain('998877');
+    });
+
+    it('العميل لا يستطيع تأكيد سداد نفسه: التأكيد admin فقط (يُفرَض بالمتحكم) والخدمة تؤكّد بعد الإعلان أو الموافقة', async () => {
+      const { service, update, audit } = setup({ contract: unpaid({ clientApprovedAt: NOW, paymentStatus: 'submitted', serviceFeeMinor: 25000 }) });
+      const v = await service.confirmContractPayment('c', ADMIN);
+      expect(update).toHaveBeenCalledWith({ id: 'c' }, expect.objectContaining({ paymentStatus: 'paid', paidConfirmedBy: ADMIN.userId }));
+      expect(v.stage).toBe('paid');
+      expect(audit.record).toHaveBeenCalledWith(expect.objectContaining({ action: 'contracts.payment_confirmed', actorId: ADMIN.userId }));
+    });
+
+    it('التأكيد: لا قبل موافقة العميل، وidempotent بعد السداد، وعقد غير موجود 404', async () => {
+      const early = setup({ contract: unpaid() });
+      await expect(early.service.confirmContractPayment('c', ADMIN)).rejects.toBeInstanceOf(ConflictException);
+      const paid = setup({ contract: unpaid({ clientApprovedAt: NOW, paymentStatus: 'paid', paidAt: NOW }) });
+      await paid.service.confirmContractPayment('c', ADMIN);
+      expect(paid.update).not.toHaveBeenCalled();
+      await expect(setup({}).service.confirmContractPayment('c', ADMIN)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('بعد التأكيد: تُفتح التفاصيل، والنهائى ينتظر الاعتماد البشرى ثم يُتاح', async () => {
+      const paid = { clientApprovedAt: NOW, paymentStatus: 'paid', paidAt: NOW };
+      const waiting = await setup({ contract: unpaid(paid) }).service.getContractOrder('c', OWNER);
+      expect(waiting).toMatchObject({ stage: 'paid', details_locked: false, awaiting_human_review: true, can_download_final: false, payment_instructions: null });
+      const ready = await setup({ contract: unpaid({ ...paid, reportApprovedAt: NOW }) }).service.getContractOrder('c', OWNER);
+      expect(ready).toMatchObject({ awaiting_human_review: false, can_download_final: true });
+    });
+
+    it('admin بلا مراحل: لا تغيير بالموافقة ولا بالإعلان، ويرى free_access والتنزيل متاحاً', async () => {
+      const { service, update } = setup({ contract: unpaid() });
+      expect(await service.approveContractOrder('c', ADMIN)).toMatchObject({ free_access: true, can_download_final: true, details_locked: false });
+      await service.submitContractPayment('c', 'x', ADMIN);
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('قائمة الانتظار: طلبات الإعلان بمعرّف واسم ملف ومرجع وقيمة', async () => {
+      const rows = [unpaid({ id: 'c1', clientApprovedAt: NOW, paymentStatus: 'submitted', paymentReference: 'TX1', paymentSubmittedAt: NOW, serviceFeeMinor: 25000 })];
+      const find = jest.fn().mockResolvedValue(rows);
+      const dataSource = { getRepository: () => ({ find }) };
+      const service = new ExportsService(dataSource as never, { record: jest.fn() } as never, {} as never);
+      const list = await service.listPendingPayments();
+      expect(find).toHaveBeenCalledWith(expect.objectContaining({ where: { paymentStatus: 'submitted' }, take: 100 }));
+      expect(list).toEqual([{ contract_id: 'c1', original_filename: 'عقد.docx', fee_amount: 250, fee_currency: 'EGP', payment_reference: 'TX1', submitted_at: NOW.toISOString() }]);
+    });
   });
 });

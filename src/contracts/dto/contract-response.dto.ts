@@ -43,5 +43,7 @@ export class ContractResponseDto {
     description: 'تقدم التحليل أثناء المعالجة (status=processing): المرحلة ونسبتها؛ null بعد الانتهاء',
   })
   processing?: { stage: string; label: string; done: number; total: number } | null;
+  @ApiPropertyOptional({ description: 'true = تفاصيل المراجعة (الأسانيد والتفسير والصياغات) مخفية حتى السداد المؤكَّد؛ الحالة والعناوين ظاهرة' })
+  details_locked?: boolean;
   @ApiProperty() created_at: Date;
 }

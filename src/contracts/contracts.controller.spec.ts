@@ -5,7 +5,7 @@ describe('ContractsController.upload — مركز العميل', () => {
     const service = { upload: jest.fn().mockResolvedValue({ id: 'c1' }) };
     const controller = new ContractsController(service as never);
     const request = { user: { userId: 'u1' }, ip: '1.1.1.1', headers: { 'user-agent': 'jest' } } as never;
-    const file = { buffer: Buffer.from('x'), mimetype: 'application/pdf', originalname: 'a.pdf' } as never;
+    const file = { buffer: Buffer.from('PK\u0003\u0004x'), mimetype: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', originalname: 'a.docx' } as never;
     return { service, controller, request, file };
   }
 

@@ -23,7 +23,20 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { RequestWithUser } from '../common/interfaces/request-with-user.interface';
-import { ExportsService, type ExportActor, type ExportedFile, type ExportFormat } from './exports.service';
+import {
+  ExportsService,
+  type ContractOrderView,
+  type ExportActor,
+  type ExportedFile,
+  type ExportFormat,
+  type PendingPaymentItem,
+} from './exports.service';
+
+class SubmitContractPaymentDto {
+  @IsString()
+  @MaxLength(200)
+  reference: string;
+}
 
 class ApproveContractReportDto {
   @IsOptional()
@@ -115,6 +128,59 @@ export class ExportsController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     return send(res, await this.exportsService.exportMemo(id, parseFormat(format), actorOf(request)));
+  }
+
+  /** طلبات بانتظار تأكيد السداد (admin). يسبق مسارات :id كى لا يُفسَّر «orders» معرّفاً. */
+  @Get('contracts/orders/pending')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @ApiOkResponse({ description: 'طلبات مراجعة العقود التى أعلن أصحابها السداد وتنتظر تأكيدك' })
+  pendingPayments(): Promise<PendingPaymentItem[]> {
+    return this.exportsService.listPendingPayments();
+  }
+
+  @Get('contracts/:id/order')
+  @ApiOkResponse({ description: 'مرحلة طلب المراجعة (نسخة أولية ← موافقة ← سداد ← تسليم) وما يتاح للتنزيل' })
+  contractOrder(@Param('id', new ParseUUIDPipe()) id: string, @Req() request: RequestWithUser): Promise<ContractOrderView> {
+    return this.exportsService.getContractOrder(id, actorOf(request));
+  }
+
+  @Post('contracts/:id/order/approve')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ description: 'موافقة العميل على النسخة الأولية (تثبّت قيمة الخدمة)' })
+  approveOrder(@Param('id', new ParseUUIDPipe()) id: string, @Req() request: RequestWithUser): Promise<ContractOrderView> {
+    return this.exportsService.approveContractOrder(id, actorOf(request));
+  }
+
+  @Post('contracts/:id/order/payment')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ description: 'إعلان العميل السداد مع مرجع العملية (ينتظر تأكيد المالك)' })
+  submitPayment(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: SubmitContractPaymentDto,
+    @Req() request: RequestWithUser,
+  ): Promise<ContractOrderView> {
+    return this.exportsService.submitContractPayment(id, dto.reference, actorOf(request));
+  }
+
+  @Post('contracts/:id/order/confirm-payment')
+  @UseGuards(RolesGuard)
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ description: 'تأكيد السداد (admin) — يفتح التنزيل النهائى بعد الاعتماد البشرى' })
+  confirmPayment(@Param('id', new ParseUUIDPipe()) id: string, @Req() request: RequestWithUser): Promise<ContractOrderView> {
+    return this.exportsService.confirmContractPayment(id, actorOf(request));
+  }
+
+  @Get('contracts/:id/preliminary')
+  @ApiProduces('application/pdf')
+  @ApiOkResponse({ description: 'النسخة الأولية PDF بعلامة «نسخة أولية — غير نهائية» (قبل الموافقة والسداد)' })
+  async contractPreliminary(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() request: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    return send(res, await this.exportsService.exportContractPreliminary(id, actorOf(request)));
   }
 
   @Get('contracts/:id')
